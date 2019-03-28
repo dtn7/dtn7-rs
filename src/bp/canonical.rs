@@ -188,8 +188,11 @@ impl CanonicalBlock {
 
         None
     }
-    pub fn get_data(&self) -> &CanonicalData {
+    pub fn get_data(&mut self) -> &CanonicalData {
         &self.data
+    }
+    pub fn set_data(&mut self, data: CanonicalData) {
+        self.data = data;
     }
 }
 

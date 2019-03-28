@@ -411,10 +411,14 @@ impl Bundle {
         }
         blocks
     }
-    pub fn extension_block(&self, block_type: CanonicalBlockType) -> Option<&CanonicalData> {
-        for b in &self.canonicals {
+    pub fn extension_block(
+        &mut self,
+        block_type: CanonicalBlockType,
+    ) -> Option<(&mut CanonicalBlock)> {
+        for b in &mut self.canonicals {
             if b.block_type == block_type && b.extension_validation_error().is_none() {
-                return Some(b.get_data());
+                //let cdata = b.get_data().clone();
+                return Some(b);
             }
         }
         None
