@@ -1,0 +1,93 @@
+use crate::bp::bundle::*;
+use crate::bp::canonical::*;
+use crate::bp::eid::*;
+use std::collections::HashSet;
+use std::fmt;
+use std::time::{SystemTime, UNIX_EPOCH};
+
+/// Constraint is a retention constraint as defined in the subsections of the
+/// fifth chapter of draft-ietf-dtn-bpbis-12.
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub enum Constraint {
+    /// DispatchPending is assigned to a bundle if its dispatching is pending.
+    DispatchPending,
+    /// ForwardPending is assigned to a bundle if its forwarding is pending.
+    ForwardPending,
+    /// ReassemblyPending is assigned to a fragmented bundle if its reassembly is
+    /// pending.
+    ReassemblyPending,
+    /// Contraindicated is assigned to a bundle if it could not be delivered and
+    /// was moved to the contraindicated stage. This Constraint was not defined
+    /// in draft-ietf-dtn-bpbis-12, but seemed reasonable for this implementation.
+    Contraindicated,
+}
+
+impl fmt::Display for Constraint {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{:?}", self)
+    }
+}
+
+/// BundlePack is a set of a bundle, it's creation or reception time stamp and
+/// a set of constraints used in the process of delivering this bundle.
+#[derive(Debug, Clone, PartialEq)]
+pub struct BundlePack {
+    bundle: Bundle,
+    receiver: EndpointID,
+    timestamp: u64,
+    constraints: HashSet<Constraint>,
+}
+
+/// Create from a given bundle.
+impl From<Bundle> for BundlePack {
+    fn from(bundle: Bundle) -> Self {
+        BundlePack {
+            receiver: bundle.primary.destination.clone(),
+            bundle,
+            timestamp: SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .expect("Time went backwards")
+                .as_millis() as u64,
+            constraints: HashSet::new(),
+        }
+    }
+}
+
+impl BundlePack {
+    pub fn has_receiver(&self) -> bool {
+        self.receiver != DTN_NONE
+    }
+    pub fn has_constraint(&self, constraint: Constraint) -> bool {
+        self.constraints.contains(&constraint)
+    }
+    pub fn add_constraint(&mut self, constraint: Constraint) {
+        self.constraints.insert(constraint);
+    }
+    pub fn remove_constraint(&mut self, constraint: Constraint) {
+        self.constraints.remove(&constraint);
+    }
+    pub fn clear_constraints(&mut self) {
+        self.constraints.clear();
+    }
+    /// UpdateBundleAge updates the bundle's Bundle Age block based on its reception
+    /// timestamp, if such a block exists.
+    pub fn update_bundle_age(&mut self) -> Option<u64> {
+        if let Some(block) = self.bundle.extension_block(BUNDLE_AGE_BLOCK) {
+            let mut new_age = 0 as u64; // TODO: lost fight with borrowchecker
+
+            if let CanonicalData::BundleAge(age) = block.get_data() {
+                let offset = SystemTime::now()
+                    .duration_since(UNIX_EPOCH)
+                    .expect("Time went backwards")
+                    .as_millis() as u64
+                    - self.timestamp;
+                new_age = age + offset;
+            }
+            if new_age != 0 {
+                block.set_data(CanonicalData::BundleAge(new_age));
+                return Some(new_age);
+            }
+        }
+        None
+    }
+}
