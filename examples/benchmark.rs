@@ -5,7 +5,7 @@ use std::time::{SystemTime, UNIX_EPOCH};
 
 const RUNS: i64 = 1_000_000;
 
-fn bench_bundle_create(crc_type: crc::CRCType) {
+fn bench_bundle_create(runs: i64, crc_type: crc::CRCType) {
     let crc_str = match crc_type {
         crc::CRC_NO => "CRC_NO",
         crc::CRC_16 => "CRC_16",
@@ -18,7 +18,7 @@ fn bench_bundle_create(crc_type: crc::CRCType) {
     use std::time::Instant;
     let bench_now = Instant::now();
 
-    for _x in 0..RUNS {
+    for _x in 0..runs {
         let dst = eid::EndpointID::with_dtn("node2/inbox".to_string());
         let src = eid::EndpointID::with_dtn("node1/123456".to_string());
         let now = dtntime::CreationTimestamp::with_time_and_seq(dtntime::dtn_time_now(), 0);;
@@ -49,15 +49,16 @@ fn bench_bundle_create(crc_type: crc::CRCType) {
             .build()
             .unwrap();
         b.set_crc(crc_type);
+        b.validation_errors();
         let _serialized = b.to_cbor();
     }
     let elapsed = bench_now.elapsed();
     let sec = (elapsed.as_secs() as f64) + (elapsed.subsec_nanos() as f64 / 1_000_000_000.0);
-    println!("{} bundles/second", (RUNS as f64 / sec) as i64);
+    println!("{} bundles/second", (runs as f64 / sec) as i64);
 }
 
 fn main() {
-    bench_bundle_create(crc::CRC_NO);
-    bench_bundle_create(crc::CRC_16);
-    bench_bundle_create(crc::CRC_32);
+    bench_bundle_create(RUNS, crc::CRC_NO);
+    bench_bundle_create(RUNS, crc::CRC_16);
+    bench_bundle_create(RUNS, crc::CRC_32);
 }
