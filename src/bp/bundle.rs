@@ -400,6 +400,14 @@ impl Bundle {
         }
         return true;
     }
+    /// Calculate crc for all blocks.
+    pub fn calculate_crc(&mut self) {
+        self.primary.calculate_crc();
+        for b in &mut self.canonicals {
+            b.calculate_crc();
+        }
+    }
+
     fn blocks(&mut self) -> Vec<BlockVariants> {
         let mut blocks: Vec<BlockVariants> = Vec::new();
         self.primary.calculate_crc();
@@ -425,6 +433,7 @@ impl Bundle {
     }
     /// Serialize bundle as CBOR encoded byte buffer.
     pub fn to_cbor(&mut self) -> ByteBuffer {
+        self.calculate_crc();
         let mut bytebuf = serde_cbor::to_vec(&self.blocks()).unwrap();
         bytebuf[0] = 0x9f; // TODO: fix hack, indefinite-length array encoding
         bytebuf.push(0xff); // break mark
@@ -432,6 +441,7 @@ impl Bundle {
     }
     /// Serialize bundle as JSON encoded string.
     pub fn to_json(&mut self) -> String {
+        self.calculate_crc();
         serde_json::to_string(&self.blocks()).unwrap()
     }
 
