@@ -13,7 +13,7 @@ fn bench_bundle_create(runs: i64, crc_type: crc::CRCType) {
         _ => panic!("CRC_unknown"),
     };
     print!("Creating {} bundles with {}: \t", RUNS, crc_str);
-    stdout().flush();
+    stdout().flush().unwrap();
 
     use std::time::Instant;
     let bench_now = Instant::now();
@@ -53,7 +53,7 @@ fn bench_bundle_create(runs: i64, crc_type: crc::CRCType) {
         let _serialized = b.to_cbor();
     }
     let elapsed = bench_now.elapsed();
-    let sec = (elapsed.as_secs() as f64) + (elapsed.subsec_nanos() as f64 / 1_000_000_000.0);
+    let sec = (elapsed.as_secs() as f64) + (f64::from(elapsed.subsec_nanos()) / 1_000_000_000.0);
     println!("{} bundles/second", (runs as f64 / sec) as i64);
 }
 
