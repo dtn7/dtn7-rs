@@ -7,15 +7,11 @@ use std::sync::mpsc::{Receiver, Sender};
 
 #[derive(Debug)]
 pub enum DtnCmd {
-    EIDs(Sender<DtnCmdResult>),
-    Bundles(Sender<DtnCmdResult>),
     DtnCore(Sender<DtnCmdResult>),
 }
 
 #[derive(Debug)]
 pub enum DtnCmdResult {
-    EIDs(Vec<String>),
-    Bundles(Vec<String>),
     DtnCore(Sender<DtnCore>, DtnCore),
 }
 
@@ -51,13 +47,6 @@ fn spawn_core_daemon(rx: Receiver<DtnCmd>, mut core: DtnCore) {
     for received in rx {
         //println!("Got: {:?}", received);
         match received {
-            DtnCmd::EIDs(tx) => {
-                tx.send(DtnCmdResult::EIDs(core.eids())).expect("IPC Error");
-            }
-            DtnCmd::Bundles(tx) => {
-                tx.send(DtnCmdResult::Bundles(core.bundles()))
-                    .expect("IPC Error");
-            }
             DtnCmd::DtnCore(tx) => {
                 let (tx2, rx2) = mpsc::channel();
                 tx.send(DtnCmdResult::DtnCore(tx2, core))
