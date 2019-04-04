@@ -32,9 +32,9 @@ impl fmt::Display for Constraint {
 /// a set of constraints used in the process of delivering this bundle.
 #[derive(Debug, Clone, PartialEq)]
 pub struct BundlePack {
-    bundle: Bundle,
-    receiver: EndpointID,
-    timestamp: u64,
+    pub bundle: Bundle,
+    pub receiver: EndpointID,
+    pub timestamp: u64,
     constraints: HashSet<Constraint>,
 }
 
@@ -54,11 +54,17 @@ impl From<Bundle> for BundlePack {
 }
 
 impl BundlePack {
+    pub fn id(&self) -> String {
+        self.bundle.id()
+    }
     pub fn has_receiver(&self) -> bool {
         self.receiver != DTN_NONE
     }
     pub fn has_constraint(&self, constraint: Constraint) -> bool {
         self.constraints.contains(&constraint)
+    }
+    pub fn has_contraints(&self) -> bool {
+        !self.constraints.is_empty()
     }
     pub fn add_constraint(&mut self, constraint: Constraint) {
         self.constraints.insert(constraint);

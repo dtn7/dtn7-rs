@@ -398,7 +398,7 @@ impl Bundle {
                 return false;
             }
         }
-        return true;
+        true
     }
     /// Calculate crc for all blocks.
     pub fn calculate_crc(&mut self) {
@@ -450,15 +450,16 @@ impl Bundle {
     /// offset is also present.
     pub fn id(&self) -> String {
         let mut id = format!(
-            "{}-{}-{}",
+            "{}-{}-{}-{}",
             self.primary.source,
             self.primary.creation_timestamp.get_dtntime(),
-            self.primary.creation_timestamp.get_seqno()
+            self.primary.creation_timestamp.get_seqno(),
+            self.primary.destination
         );
         if self.primary.has_fragmentation() {
             id = format!("{}-{}", id, self.primary.fragmentation_offset);
         }
-        return id;
+        id
     }
 }
 
