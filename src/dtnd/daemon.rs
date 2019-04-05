@@ -57,22 +57,22 @@ fn spawn_core_daemon(rx: Receiver<DtnCmd>, mut core: DtnCore) {
     }
 }
 
-fn start_convergencylayers(core: &DtnCore, tx: Sender<DtnCmd>) {
+fn start_convergencylayers(core: &mut DtnCore, tx: Sender<DtnCmd>) {
     info!("Starting convergency layers");
-    for cl in &core.cl_list {
+    for cl in &mut core.cl_list {
         info!("Setup {}", cl);
-        cl.setup(core, tx.clone());
+        cl.setup(tx.clone());
     }
 }
 
-pub fn start_dtnd(core: DtnCore) {
+pub fn start_dtnd(mut core: DtnCore) {
     // Blocks the thread until the future runs to completion (which will never happen).
     //tokio::run(future.map_err(|err| panic!("{:?}", err)));
 
     tokio::run(lazy(move || {
         let (tx, rx) = mpsc::channel();
 
-        start_convergencylayers(&core, tx.clone());
+        start_convergencylayers(&mut core, tx.clone());
 
         /*let tx2 = tx.clone();
         tokio::spawn(lazy(move || {

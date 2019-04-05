@@ -28,6 +28,7 @@ pub enum Bp7Error {
     DtnTimeError(String),
     CrcError(String),
     BundleError(String),
+    StcpError(String),
     BundleControlFlagError(String),
     BlockControlFlagError(String),
 }
