@@ -5,6 +5,7 @@ use dtn7::core::bundlepack::*;
 use dtn7::core::core::DtnCore;
 //use libp2p::secio;
 use dtn7::cl::dummy_cl::*;
+use dtn7::cl::stcp::*;
 use log::{info, trace, warn};
 use pretty_env_logger;
 use std::time::{SystemTime, UNIX_EPOCH};
@@ -111,6 +112,8 @@ fn main() {
     */
     let dcl = DummyConversionLayer::new();
     core.cl_list.push(Box::new(dcl));
+    let stcp = StcpConversionLayer::new();
+    core.cl_list.push(Box::new(stcp));
     info!("starting dtnd");
     start_dtnd(core);
 }

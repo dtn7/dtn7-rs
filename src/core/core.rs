@@ -14,7 +14,7 @@ use std::sync::mpsc::Sender;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 pub trait ConversionLayer: Debug + Send + Display {
-    fn setup(&self, core: &DtnCore, tx: Sender<DtnCmd>);
+    fn setup(&mut self, tx: Sender<DtnCmd>);
     fn scheduled_send(&self, core: &DtnCore);
 }
 
