@@ -116,7 +116,11 @@ impl StcpConversionLayer {
                 let framed_sock = Framed::new(socket, DataUnitCodec { last_pos: 0 });
                 let conn = framed_sock
                     .for_each(move |frame| {
-                        debug!("Received bundle: {}", frame.get_bundle().unwrap().id());
+                        debug!(
+                            "Received bundle: {} from {}",
+                            frame.get_bundle().unwrap().id(),
+                            peer_addr
+                        );
                         match &tx {
                             Some(tx) => {
                                 access_core(tx.clone(), |c| {
@@ -145,7 +149,10 @@ impl StcpConversionLayer {
         let fut = stream
             .map(|mut stream| {
                 // Attempt to write bytes asynchronously to the stream
-                let ts = crate::bp::dtntime::CreationTimestamp::new();
+                let ts = crate::bp::dtntime::CreationTimestamp::with_time_and_seq(
+                    crate::bp::dtntime::dtn_time_now(),
+                    0,
+                );
                 let mut b = crate::bp::helpers::rnd_bundle(ts).to_cbor();
                 let spdu = DataUnit(b.len(), b);
                 stream.poll_write(&serde_cbor::to_vec(&spdu).unwrap());
@@ -162,7 +169,8 @@ impl ConversionLayer for StcpConversionLayer {
         debug!("Setup STCP Conversion Layer");
         self.tx = Some(tx);
         self.spawn_listener();
-        self.client_connect("127.0.0.1:16161".parse::<SocketAddr>().unwrap());
+        //self.client_connect("127.0.0.1:16161".parse::<SocketAddr>().unwrap());
+        self.client_connect("127.0.0.1:35037".parse::<SocketAddr>().unwrap());
     }
     fn scheduled_send(&self, core: &DtnCore) {
         debug!("Scheduled send STCP Conversion Layer");
