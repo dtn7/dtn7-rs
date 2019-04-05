@@ -1,4 +1,5 @@
 use super::*;
+use crate::bp::dtntime::dtn_time_now;
 use crate::core::*;
 use rand::Rng;
 use std::net::IpAddr;
@@ -42,14 +43,7 @@ pub fn rnd_bundle(now: dtntime::CreationTimestamp) -> bundle::Bundle {
         .primary(pblock)
         .canonicals(vec![
             canonical::new_payload_block(0, b"ABC".to_vec()),
-            canonical::new_bundle_age_block(
-                1,
-                0,
-                SystemTime::now()
-                    .duration_since(UNIX_EPOCH)
-                    .expect("Time went backwards")
-                    .as_millis() as u64,
-            ),
+            canonical::new_bundle_age_block(1, 0, dtn_time_now() as u64),
         ])
         .build()
         .unwrap();

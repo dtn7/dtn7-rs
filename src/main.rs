@@ -1,19 +1,27 @@
+use clap::{App, Arg, SubCommand};
 use dtn7::bp::{bundle, canonical, crc, dtntime, eid, helpers::rnd_bundle, primary};
+use dtn7::cl::dummy_cl::*;
+use dtn7::cl::stcp::*;
 use dtn7::core::application_agent::ApplicationAgentData;
 use dtn7::core::bundlepack::BundlePack;
 use dtn7::core::bundlepack::*;
 use dtn7::core::core::DtnCore;
-//use libp2p::secio;
-use dtn7::cl::dummy_cl::*;
-use dtn7::cl::stcp::*;
+use dtn7::dtnd::daemon::*;
 use log::{info, trace, warn};
 use pretty_env_logger;
 use std::time::{SystemTime, UNIX_EPOCH};
 use std::{thread, time};
 
-use dtn7::dtnd::daemon::*;
-
 fn main() {
+    const VERSION: &'static str = env!("CARGO_PKG_VERSION");
+    const AUTHORS: &'static str = env!("CARGO_PKG_AUTHORS");
+
+    let matches = App::new("dtn7-rs")
+        .version(VERSION)
+        .author(AUTHORS)
+        .about("A simple Bundle Protocol 7 Daemon for Delay Tolerant Networking")
+        .get_matches();
+
     std::env::set_var("RUST_LOG", "dtn7=debug,dtnd=debug");
     //pretty_env_logger::formatted_timed_builder().init();
     pretty_env_logger::init_timed();
