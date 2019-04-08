@@ -21,19 +21,17 @@ where
 {
     let (tx2, rx2) = mpsc::channel();
     tx.send(DtnCmd::DtnCore(tx2)).unwrap();
-    if let DtnCmdResult::DtnCore(tx3, mut core) = rx2.recv().unwrap() {
-        f(&mut core);
-        tx3.send(core).expect("IPC Error");
-    }
+    let DtnCmdResult::DtnCore(tx3, mut core) = rx2.recv().expect("Couldn't access dtn core!");
+    f(&mut core);
+    tx3.send(core).expect("IPC Error");
 }
 fn spawn_test_sender(tx: Sender<DtnCmd>) {
     let (tx2, rx2) = mpsc::channel();
     tx.send(DtnCmd::DtnCore(tx2)).expect("IPC Error");
 
-    if let DtnCmdResult::DtnCore(tx3, mut core) = rx2.recv().unwrap() {
-        dbg!(core.process());
-        tx3.send(core).expect("IPC Error");
-    }
+    let DtnCmdResult::DtnCore(tx3, mut core) = rx2.recv().expect("Couldn't access dtn core!");
+    dbg!(core.process());
+    tx3.send(core).expect("IPC Error");
 
     access_core(tx.clone(), |c| {
         dbg!(c.eids());
@@ -66,19 +64,11 @@ fn start_convergencylayers(core: &mut DtnCore, tx: Sender<DtnCmd>) {
 }
 
 pub fn start_dtnd(mut core: DtnCore) {
-    // Blocks the thread until the future runs to completion (which will never happen).
-    //tokio::run(future.map_err(|err| panic!("{:?}", err)));
-
     tokio::run(lazy(move || {
         let (tx, rx) = mpsc::channel();
 
         start_convergencylayers(&mut core, tx.clone());
 
-        /*let tx2 = tx.clone();
-        tokio::spawn(lazy(move || {
-            spawn_test_sender(tx2);
-            Ok(())
-        }));*/
         janitor::spawn_janitor(tx.clone());
         service_discovery::spawn_service_discovery(tx.clone());
 

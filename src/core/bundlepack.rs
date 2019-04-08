@@ -1,6 +1,4 @@
-use crate::bp::bundle::*;
-use crate::bp::canonical::*;
-use crate::bp::eid::*;
+use crate::bp::{Bundle, CanonicalData, EndpointID, BUNDLE_AGE_BLOCK, DTN_NONE};
 use std::collections::HashSet;
 use std::fmt;
 use std::time::{SystemTime, UNIX_EPOCH};

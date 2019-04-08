@@ -1,5 +1,4 @@
-use crate::bp::bundle::Bundle;
-use crate::bp::eid::EndpointID;
+use crate::bp::{Bundle, EndpointID};
 use std::fmt::Debug;
 
 pub trait ApplicationAgent: Debug {

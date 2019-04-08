@@ -14,7 +14,7 @@ fn janitor(core: &mut DtnCore) {
 pub fn spawn_janitor(tx: Sender<DtnCmd>) {
     let tx = std::sync::Mutex::new(tx.clone());
     let task = Interval::new(Instant::now(), Duration::from_millis(10000))
-        .for_each(move |instant| {
+        .for_each(move |_instant| {
             access_core(tx.lock().unwrap().clone(), |c| {
                 janitor(c);
             });

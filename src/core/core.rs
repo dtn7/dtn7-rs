@@ -1,8 +1,6 @@
 use super::application_agent::ApplicationAgent;
 use super::store::{BundleStore, SimpleBundleStore};
-use crate::bp::bundle::Bundle;
-use crate::bp::dtntime::{dtn_time_now, CreationTimestamp, DtnTime};
-use crate::bp::eid::EndpointID;
+use crate::bp::{dtn_time_now, Bundle, CreationTimestamp, DtnTime, EndpointID};
 use crate::core::bundlepack::BundlePack;
 use crate::dtnd::daemon::DtnCmd;
 use log::{debug, error, info, trace, warn};
