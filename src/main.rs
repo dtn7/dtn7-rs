@@ -1,5 +1,5 @@
+use bp7::{bundle, canonical, crc, dtntime, eid, helpers::rnd_bundle, primary};
 use clap::{App, Arg, SubCommand};
-use dtn7::bp::{bundle, canonical, crc, dtntime, eid, helpers::rnd_bundle, primary};
 use dtn7::cl::dummy_cl::*;
 use dtn7::cl::stcp::*;
 use dtn7::core::application_agent::ApplicationAgentData;

@@ -1,4 +1,4 @@
-use crate::bp::{Bundle, EndpointID};
+use bp7::{Bundle, EndpointID};
 use std::fmt::Debug;
 
 pub trait ApplicationAgent: Debug {

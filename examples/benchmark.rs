@@ -1,4 +1,4 @@
-use dtn7::bp::{bundle, canonical, crc, dtntime, eid, primary};
+use bp7::{bundle, canonical, crc, dtntime, eid, primary};
 use std::io::stdout;
 use std::io::Write;
 use std::time::{SystemTime, UNIX_EPOCH};
