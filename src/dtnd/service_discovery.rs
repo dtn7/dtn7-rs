@@ -1,6 +1,6 @@
 use super::daemon::*;
-use bp7::EndpointID;
 use crate::core::core::{DtnCore, DtnPeer, PeerType};
+use bp7::EndpointID;
 use futures::{try_ready, Future, Poll};
 use log::{debug, error, info, trace, warn};
 use net2::UdpBuilder;
@@ -83,7 +83,7 @@ pub fn spawn_service_discovery(tx: Sender<DtnCmd>) {
     socket.reuse_address(true).unwrap();
     let socket = socket.bind(addr).unwrap();
     socket
-        .set_multicast_loop_v4(false)
+        .set_multicast_loop_v4(true)
         .expect("error activating multicast loop v4");
     socket
         .join_multicast_v4(
