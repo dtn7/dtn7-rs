@@ -144,19 +144,17 @@ impl StcpConversionLayer {
             });
         tokio::spawn(server);
     }
-    fn client_connect(&self, addr: SocketAddr) {
+    pub fn send_bundles(&self, addr: SocketAddr, bundles: Vec<ByteBuffer>) {
         let stream = TcpStream::connect(&addr);
         let fut = stream
-            .map(|mut stream| {
+            .map(move |mut stream| {
                 // Attempt to write bytes asynchronously to the stream
-                let ts = crate::bp::dtntime::CreationTimestamp::with_time_and_seq(
-                    crate::bp::dtntime::dtn_time_now(),
-                    0,
-                );
-                let mut b = crate::bp::helpers::rnd_bundle(ts).to_cbor();
-                let spdu = DataUnit(b.len(), b);
-                stream.poll_write(&serde_cbor::to_vec(&spdu).unwrap());
-                stream.poll_write(&serde_cbor::to_vec(&spdu).unwrap());
+                for b in &bundles {
+                    let spdu = DataUnit(b.len(), b.to_vec());
+                    stream
+                        .poll_write(&serde_cbor::to_vec(&spdu).unwrap())
+                        .map_err(|err| error!("stcp write error = {:?}", err));
+                }
             })
             .map_err(|err| {
                 error!("client connect error = {:?}", err);
@@ -170,7 +168,16 @@ impl ConversionLayer for StcpConversionLayer {
         self.tx = Some(tx);
         self.spawn_listener();
         //self.client_connect("127.0.0.1:16161".parse::<SocketAddr>().unwrap());
-        self.client_connect("127.0.0.1:35037".parse::<SocketAddr>().unwrap());
+        //self.client_connect("127.0.0.1:35037".parse::<SocketAddr>().unwrap());
+        let ts = crate::bp::dtntime::CreationTimestamp::with_time_and_seq(
+            crate::bp::dtntime::dtn_time_now(),
+            0,
+        );
+        let mut b = crate::bp::helpers::rnd_bundle(ts.clone());
+        self.send_bundles(
+            "127.0.0.1:16161".parse::<SocketAddr>().unwrap(),
+            vec![b.to_cbor(), crate::bp::helpers::rnd_bundle(ts).to_cbor()],
+        );
     }
     fn scheduled_send(&self, core: &DtnCore) {
         debug!("Scheduled send STCP Conversion Layer");
