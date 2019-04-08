@@ -12,6 +12,7 @@ pub trait BundleStore: Debug {
     fn all(&self) -> &[BundlePack];
     fn has_item(&self, bp: &BundlePack) -> bool;
     fn pending(&self) -> Vec<&BundlePack>;
+    fn ready(&self) -> Vec<&BundlePack>;
     fn forwarding(&self) -> Vec<&BundlePack>;
     fn bundles(&mut self) -> &Vec<BundlePack>;
 }
@@ -63,6 +64,15 @@ impl BundleStore for SimpleBundleStore {
             .filter(|&e| {
                 !e.has_constraint(Constraint::ReassemblyPending)
                     && e.has_constraint(Constraint::Contraindicated)
+            })
+            .collect::<Vec<&BundlePack>>()
+    }
+    fn ready(&self) -> Vec<&BundlePack> {
+        self.bundles
+            .iter()
+            .filter(|&e| {
+                !e.has_constraint(Constraint::ReassemblyPending)
+                    && !e.has_constraint(Constraint::Contraindicated)
             })
             .collect::<Vec<&BundlePack>>()
     }

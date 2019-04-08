@@ -17,8 +17,8 @@ impl ConversionLayer for DummyConversionLayer {
     fn setup(&mut self, _tx: Sender<DtnCmd>) {
         debug!("Setup Dummy Conversion Layer");
     }
-    fn scheduled_send(&self, _core: &DtnCore) {
-        debug!("Scheduled send Dummy Conversion Layer");
+    fn scheduled_process(&self, _core: &DtnCore) {
+        debug!("Scheduled process Dummy Conversion Layer");
     }
 }
 

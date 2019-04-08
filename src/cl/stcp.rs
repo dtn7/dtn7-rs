@@ -176,8 +176,25 @@ impl ConversionLayer for StcpConversionLayer {
             vec![b.to_cbor(), bp7::helpers::rnd_bundle(ts).to_cbor()],
         );
     }
-    fn scheduled_send(&self, core: &DtnCore) {
-        debug!("Scheduled send STCP Conversion Layer");
+    fn scheduled_process(&self, core: &DtnCore) {
+        debug!("Scheduled process STCP Conversion Layer");
+        dbg!(core.store.pending());
+        // ugly clone following...
+        let ready: Vec<ByteBuffer> = core
+            .store
+            .ready()
+            .iter()
+            .map(|x| x.bundle.clone().to_cbor())
+            .collect();
+        if !ready.is_empty() {
+            for (k, v) in &core.peers {
+                let peeraddr = format!("{}:16161", k).parse::<SocketAddr>().unwrap();
+                debug!("forwarding to {:?}", peeraddr);
+                self.send_bundles(peeraddr, ready.clone());
+            }
+        } else {
+            debug!("Nothing to forward.");
+        }
     }
 }
 

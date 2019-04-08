@@ -1,8 +1,8 @@
 use super::application_agent::ApplicationAgent;
 use super::store::{BundleStore, SimpleBundleStore};
-use bp7::{dtn_time_now, Bundle, CreationTimestamp, DtnTime, EndpointID};
 use crate::core::bundlepack::BundlePack;
 use crate::dtnd::daemon::DtnCmd;
+use bp7::{dtn_time_now, Bundle, CreationTimestamp, DtnTime, EndpointID};
 use log::{debug, error, info, trace, warn};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -13,7 +13,7 @@ use std::time::{SystemTime, UNIX_EPOCH};
 
 pub trait ConversionLayer: Debug + Send + Display {
     fn setup(&mut self, tx: Sender<DtnCmd>);
-    fn scheduled_send(&self, core: &DtnCore);
+    fn scheduled_process(&self, core: &DtnCore);
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -59,6 +59,7 @@ impl DtnPeer {
 #[derive(Debug, Serialize, Deserialize)]
 pub struct DtnStatistics {
     pub incoming: u64,
+    pub dups: u64,
     pub outgoing: u64,
     pub delivered: u64,
     pub broken: u64,
@@ -90,6 +91,7 @@ impl DtnCore {
             last_seq: 0,
             stats: DtnStatistics {
                 incoming: 0,
+                dups: 0,
                 outgoing: 0,
                 delivered: 0,
                 broken: 0,
@@ -172,13 +174,22 @@ impl DtnCore {
             self.store.remove(bp.to_string());
         }
         //self.store.remove_mass(del_list2);
+        for cla in &self.cl_list {
+            cla.scheduled_process(self);
+        }
     }
     pub fn push(&mut self, bndl: Bundle) {
         self.stats.incoming += 1;
-        if let Some(aa) = self.get_endpoint(&bndl.primary.destination) {
-            if !bndl.primary.has_fragmentation() {
-                info!("Delivering {}", bndl.id());
-                aa.deliver(&bndl);
+        let bp = BundlePack::from(bndl);
+        if self.store.has_item(&bp) {
+            debug!("Bundle {} already in store!", bp.id());
+            self.stats.dups += 1;
+            return;
+        }
+        if let Some(aa) = self.get_endpoint(&bp.bundle.primary.destination) {
+            if !bp.bundle.primary.has_fragmentation() {
+                info!("Delivering {}", bp.id());
+                aa.deliver(&bp.bundle);
                 self.stats.delivered += 1;
                 return;
             }
@@ -189,6 +200,6 @@ impl DtnCore {
                 return;
             }
         }*/
-        self.store.push(BundlePack::from(bndl));
+        self.store.push(bp);
     }
 }
