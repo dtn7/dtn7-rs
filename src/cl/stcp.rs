@@ -1,4 +1,4 @@
-use crate::bp::bundle::{Bp7Error, Bundle, ByteBuffer};
+use crate::bp::{Bp7Error, Bundle, ByteBuffer};
 use crate::core::core::{ConversionLayer, DtnCore};
 use crate::dtnd::daemon::{access_core, DtnCmd};
 use bytes::{BufMut, BytesMut};
