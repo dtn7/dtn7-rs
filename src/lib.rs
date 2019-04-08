@@ -1,7 +1,7 @@
 /// # Examples
 ///
 /// ```
-/// use dtn7::bp::{bundle, canonical, crc, dtntime, eid, primary};
+/// use bp7::{bundle, canonical, crc, dtntime, eid, primary};
 ///
 /// let dst = eid::EndpointID::with_dtn("node2/inbox".to_string());
 /// let src = eid::EndpointID::with_dtn("node1/123456".to_string());
@@ -31,8 +31,7 @@
 /// assert_eq!(&binary_bundle[..], &serialized[..]);
 /// ```
 ///
-pub mod bp;
-
+///
 pub mod core;
 
 pub mod dtnd;

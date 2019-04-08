@@ -1,5 +1,5 @@
 use super::daemon::*;
-use crate::bp::helpers::rnd_bundle;
+use bp7::helpers::rnd_bundle;
 use crate::core::helpers::rnd_peer;
 use futures::future;
 use hyper::service::service_fn;

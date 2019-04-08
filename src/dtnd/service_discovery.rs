@@ -1,5 +1,5 @@
 use super::daemon::*;
-use crate::bp::EndpointID;
+use bp7::EndpointID;
 use crate::core::core::{DtnCore, DtnPeer, PeerType};
 use futures::{try_ready, Future, Poll};
 use log::{debug, error, info, trace, warn};
