@@ -1,5 +1,5 @@
 use crate::cla::ConvergencyLayerAgent;
-use crate::core::core::DtnCore;
+use crate::core::DtnCore;
 use crate::DTNCORE;
 use bp7::{Bp7Error, Bundle, ByteBuffer, CreationTimestamp};
 use bytes::{BufMut, BytesMut};
@@ -167,14 +167,14 @@ impl ConvergencyLayerAgent for StcpConversionLayer {
             ],
         );
     }
-    fn scheduled_process(&self, ready: &Vec<ByteBuffer>, keys: &Vec<String>) {
+    fn scheduled_process(&self, ready: &[ByteBuffer], keys: &Vec<String>) {
         debug!("Scheduled process STCP Conversion Layer");
         // ugly clone following...
         if !ready.is_empty() {
             for k in keys {
                 let peeraddr = format!("{}:16161", k).parse::<SocketAddr>().unwrap();
                 debug!("forwarding to {:?}", peeraddr);
-                self.send_bundles(peeraddr, ready.clone());
+                self.send_bundles(peeraddr, ready.to_vec());
             }
         } else {
             debug!("Nothing to forward.");

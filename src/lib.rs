@@ -44,7 +44,7 @@ pub mod routing;
 
 pub use dtnconfig::{DtnConfig, CONFIG};
 
-pub use crate::core::core::{DtnCore, DtnPeer};
+pub use crate::core::{DtnCore, DtnPeer};
 
 use lazy_static::*;
 use std::sync::Mutex;

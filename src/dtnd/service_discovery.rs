@@ -1,4 +1,4 @@
-use crate::core::core::{DtnPeer, PeerType};
+use crate::core::{DtnPeer, PeerType};
 use crate::dtnconfig;
 use crate::DTNCORE;
 use bp7::EndpointID;
@@ -15,7 +15,7 @@ use tokio::timer::Interval;
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct AnnouncementPkt {
-    eid: Option<EndpointID>,
+    eid: EndpointID,
     cl: Vec<String>,
 }
 struct Server {
@@ -73,9 +73,13 @@ fn announcer(socket: std::net::UdpSocket) {
     for cl in &DTNCORE.lock().unwrap().cl_list {
         cls.push(cl.to_string());
     }
+    let nodeid = format!("dtn://{}", DTNCORE.lock().unwrap().nodeid);
     //let addr = "127.0.0.1:3003".parse().unwrap();
     let addr = "224.0.0.26:3003".parse().unwrap();
-    let pkt = AnnouncementPkt { eid: None, cl: cls };
+    let pkt = AnnouncementPkt {
+        eid: nodeid.into(),
+        cl: cls,
+    };
     let anc = sock
         .send_dgram(serde_cbor::to_vec(&pkt).unwrap(), &addr)
         .and_then(|_| Ok(()))

@@ -78,7 +78,7 @@ pub fn start_dtnd(cfg: DtnConfig) {
         janitor::spawn_janitor();
         service_discovery::spawn_service_discovery();
 
-        //rest::spawn_rest();
+        rest::spawn_rest();
 
         //tokio::spawn(lazy(move || {
         //Ok(());
