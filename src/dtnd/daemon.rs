@@ -2,11 +2,12 @@ use super::{janitor, rest, service_discovery};
 use crate::cla::dummy_cl::*;
 use crate::cla::stcp::*;
 use crate::core::application_agent::ApplicationAgentData;
-use crate::core::core::DtnCore;
 use crate::dtnconfig::{DtnConfig, CONFIG};
 use crate::DTNCORE;
 use futures::future::lazy;
 use log::{debug, error, info, trace, warn};
+/*
+use crate::core::core::DtnCore;
 use std::sync::mpsc;
 use std::sync::mpsc::{Receiver, Sender};
 
@@ -30,23 +31,8 @@ where
     f(&mut core);
     tx3.send(core).expect("IPC Error");
 }
-fn spawn_test_sender(tx: Sender<DtnCmd>) {
-    let (tx2, rx2) = mpsc::channel();
-    tx.send(DtnCmd::DtnCore(tx2)).expect("IPC Error");
 
-    let DtnCmdResult::DtnCore(tx3, mut core) = rx2.recv().expect("Couldn't access dtn core!");
-    dbg!(core.process());
-    tx3.send(core).expect("IPC Error");
-
-    access_core(tx.clone(), |c| {
-        dbg!(c.eids());
-    });
-    access_core(tx, |c| {
-        dbg!(c.bundles());
-    });
-}
-
-fn spawn_core_daemon(rx: Receiver<DtnCmd>, mut core: DtnCore) {
+fn spawn_core_daemon(rx: Receiver<DtnCmd>) {
     for received in rx {
         //println!("Got: {:?}", received);
         match received {
@@ -58,44 +44,46 @@ fn spawn_core_daemon(rx: Receiver<DtnCmd>, mut core: DtnCore) {
             }
         };
     }
-}
+}*/
 
-fn start_convergencylayers(core: &mut DtnCore, tx: Sender<DtnCmd>) {
+fn start_convergencylayers() {
     info!("Starting convergency layers");
-    for cl in &mut core.cl_list {
+    for cl in &mut DTNCORE.lock().unwrap().cl_list {
         info!("Setup {}", cl);
-        cl.setup(tx.clone());
+        cl.setup();
     }
 }
 
 pub fn start_dtnd(cfg: DtnConfig) {
     CONFIG.lock().unwrap().set(cfg);
-    let mut core = DtnCore::new();
 
     let dcl = DummyConversionLayer::new();
-    core.cl_list.push(Box::new(dcl));
+    DTNCORE.lock().unwrap().cl_list.push(Box::new(dcl));
     let stcp = StcpConversionLayer::new();
-    core.cl_list.push(Box::new(stcp));
+    DTNCORE.lock().unwrap().cl_list.push(Box::new(stcp));
 
     for e in &CONFIG.lock().unwrap().endpoints {
-        let eid = format!("dtn://{}/{}", core.nodeid, e);
-        core.register_application_agent(ApplicationAgentData::new_with(eid.clone().into()));
+        let eid = format!("dtn://{}/{}", DTNCORE.lock().unwrap().nodeid, e);
+        DTNCORE
+            .lock()
+            .unwrap()
+            .register_application_agent(ApplicationAgentData::new_with(eid.into()));
     }
 
     tokio::run(lazy(move || {
-        let (tx, rx) = mpsc::channel();
+        //let (tx, rx) = mpsc::channel();
 
-        start_convergencylayers(&mut core, tx.clone());
+        start_convergencylayers();
 
-        janitor::spawn_janitor(tx.clone());
-        service_discovery::spawn_service_discovery(tx.clone());
+        janitor::spawn_janitor();
+        service_discovery::spawn_service_discovery();
 
-        rest::spawn_rest(tx.clone());
+        //rest::spawn_rest();
 
         //tokio::spawn(lazy(move || {
-        spawn_core_daemon(rx, core);
         //Ok(());
         //}));
+        //spawn_core_daemon(rx);
         Ok(())
     }));
 }

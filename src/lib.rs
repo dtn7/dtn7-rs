@@ -40,6 +40,15 @@ pub mod cla;
 
 pub mod dtnconfig;
 
+pub mod routing;
+
 pub use dtnconfig::{DtnConfig, CONFIG};
 
 pub use crate::core::core::{DtnCore, DtnPeer};
+
+use lazy_static::*;
+use std::sync::Mutex;
+
+lazy_static! {
+    pub static ref DTNCORE: Mutex<DtnCore> = Mutex::new(DtnCore::new());
+}
