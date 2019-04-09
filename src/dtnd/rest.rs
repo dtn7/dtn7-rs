@@ -94,6 +94,26 @@ fn rest_handler(req: Request<Body>, tx: Sender<DtnCmd>) -> BoxFut {
                 }
             }
         }
+        (&Method::GET, "/endpoint") => {
+            // we'll be back
+            if let Some(params) = req.uri().query() {
+                if params.chars().all(char::is_alphanumeric) {
+                    dbg!(params);
+                    access_core(tx, |c| {
+                        let eid = format!("dtn://{}/{}", c.sysname, params);
+                        if let Some(aa) = c.get_endpoint_mut(&eid.into()) {
+                            if let Some(mut bundle) = aa.pop() {
+                                *response.body_mut() = Body::from(bundle.to_json());
+                            } else {
+                                *response.body_mut() = Body::from("[]");
+                            }
+                        } else {
+                            *response.body_mut() = Body::from("No such endpoint registered!");
+                        }
+                    });
+                }
+            }
+        }
         _ => {
             *response.status_mut() = StatusCode::NOT_FOUND;
         }
