@@ -1,4 +1,5 @@
-use crate::core::core::{ConversionLayer, DtnCore};
+use super::ConvergencyLayerAgent;
+use crate::core::core::DtnCore;
 use crate::dtnd::daemon::DtnCmd;
 use log::{debug, error, info, trace, warn};
 use std::sync::mpsc::Sender;
@@ -13,7 +14,7 @@ impl DummyConversionLayer {
         DummyConversionLayer { counter: 0 }
     }
 }
-impl ConversionLayer for DummyConversionLayer {
+impl ConvergencyLayerAgent for DummyConversionLayer {
     fn setup(&mut self, _tx: Sender<DtnCmd>) {
         debug!("Setup Dummy Conversion Layer");
     }

@@ -1,5 +1,6 @@
 use super::application_agent::ApplicationAgent;
 use super::store::{BundleStore, SimpleBundleStore};
+use crate::cla::ConvergencyLayerAgent;
 use crate::core::bundlepack::BundlePack;
 use crate::dtnconfig;
 use crate::dtnd::daemon::DtnCmd;
@@ -13,11 +14,6 @@ use std::fmt::{Debug, Display};
 use std::net::IpAddr;
 use std::sync::mpsc::Sender;
 use std::time::{SystemTime, UNIX_EPOCH};
-
-pub trait ConversionLayer: Debug + Send + Display {
-    fn setup(&mut self, tx: Sender<DtnCmd>);
-    fn scheduled_process(&self, core: &DtnCore);
-}
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub enum PeerType {
@@ -75,14 +71,11 @@ pub struct DtnCore {
     pub store: Box<dyn BundleStore + Send>,
     pub stats: DtnStatistics,
     pub peers: HashMap<IpAddr, DtnPeer>,
-    pub cl_list: Vec<Box<dyn ConversionLayer>>,
+    pub cl_list: Vec<Box<dyn ConvergencyLayerAgent>>,
 }
 
 impl Default for DtnCore {
     fn default() -> Self {
-        let rand_string: String = thread_rng().sample_iter(&Alphanumeric).take(10).collect();
-        let mut cfg = dtnconfig::Config::new();
-        cfg.nodeid = rand_string;
         Self::new()
     }
 }

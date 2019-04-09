@@ -4,23 +4,23 @@ use rand::{thread_rng, Rng};
 use std::sync::Mutex;
 
 #[derive(Debug, Default, Clone)]
-pub struct Config {
+pub struct DtnConfig {
     pub nodeid: String,
     pub announcement_interval: u64,
     pub janitor_interval: u64,
     pub endpoints: Vec<String>,
 }
 
-impl Config {
-    pub fn new() -> Config {
-        Config {
+impl DtnConfig {
+    pub fn new() -> DtnConfig {
+        DtnConfig {
             nodeid: thread_rng().sample_iter(&Alphanumeric).take(10).collect(),
             announcement_interval: 2000,
             janitor_interval: 10000,
             endpoints: Vec::new(),
         }
     }
-    pub fn set(&mut self, cfg: Config) {
+    pub fn set(&mut self, cfg: DtnConfig) {
         self.nodeid = cfg.nodeid;
         self.announcement_interval = cfg.announcement_interval;
         self.janitor_interval = cfg.janitor_interval;
@@ -29,5 +29,5 @@ impl Config {
 }
 
 lazy_static! {
-    pub static ref CONFIG: Mutex<Config> = Mutex::new(Config::new());
+    pub static ref CONFIG: Mutex<DtnConfig> = Mutex::new(DtnConfig::new());
 }

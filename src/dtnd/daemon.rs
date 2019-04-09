@@ -1,9 +1,10 @@
 use super::{janitor, rest, service_discovery};
-use crate::cl::dummy_cl::*;
-use crate::cl::stcp::*;
+use crate::cla::dummy_cl::*;
+use crate::cla::stcp::*;
 use crate::core::application_agent::ApplicationAgentData;
 use crate::core::core::DtnCore;
-use crate::dtnconfig::{Config, CONFIG};
+use crate::dtnconfig::{DtnConfig, CONFIG};
+use crate::DTNCORE;
 use futures::future::lazy;
 use log::{debug, error, info, trace, warn};
 use std::sync::mpsc;
@@ -67,7 +68,7 @@ fn start_convergencylayers(core: &mut DtnCore, tx: Sender<DtnCmd>) {
     }
 }
 
-pub fn start_dtnd(cfg: Config) {
+pub fn start_dtnd(cfg: DtnConfig) {
     CONFIG.lock().unwrap().set(cfg);
     let mut core = DtnCore::new();
 
@@ -78,7 +79,7 @@ pub fn start_dtnd(cfg: Config) {
 
     for e in &CONFIG.lock().unwrap().endpoints {
         let eid = format!("dtn://{}/{}", core.nodeid, e);
-        core.register_application_agent(ApplicationAgentData::new_with(eid.into()));
+        core.register_application_agent(ApplicationAgentData::new_with(eid.clone().into()));
     }
 
     tokio::run(lazy(move || {
