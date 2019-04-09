@@ -1,8 +1,7 @@
 use super::ConvergencyLayerAgent;
 use crate::core::core::DtnCore;
-use crate::dtnd::daemon::DtnCmd;
+use bp7::ByteBuffer;
 use log::{debug, error, info, trace, warn};
-use std::sync::mpsc::Sender;
 
 #[derive(Debug, Clone, Default)]
 pub struct DummyConversionLayer {
@@ -15,10 +14,10 @@ impl DummyConversionLayer {
     }
 }
 impl ConvergencyLayerAgent for DummyConversionLayer {
-    fn setup(&mut self, _tx: Sender<DtnCmd>) {
+    fn setup(&mut self) {
         debug!("Setup Dummy Conversion Layer");
     }
-    fn scheduled_process(&self, _core: &DtnCore) {
+    fn scheduled_process(&self, ready: &Vec<ByteBuffer>, keys: &Vec<String>) {
         debug!("Scheduled process Dummy Conversion Layer");
     }
 }

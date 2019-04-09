@@ -1,13 +1,12 @@
 use crate::cla::ConvergencyLayerAgent;
 use crate::core::core::DtnCore;
-use crate::dtnd::daemon::{access_core, DtnCmd};
+use crate::DTNCORE;
 use bp7::{Bp7Error, Bundle, ByteBuffer, CreationTimestamp};
 use bytes::{BufMut, BytesMut};
 use futures::Future;
 use log::{debug, error, info, trace, warn};
 use serde::{Deserialize, Serialize};
 use std::net::SocketAddr;
-use std::sync::mpsc::Sender;
 use tokio::codec::{Decoder, Encoder, Framed};
 use tokio::io;
 use tokio::io::AsyncWrite;
@@ -93,25 +92,19 @@ impl Decoder for DataUnitCodec {
 #[derive(Debug, Clone, Default)]
 pub struct StcpConversionLayer {
     counter: u64,
-    tx: Option<Sender<DtnCmd>>,
 }
 
 impl StcpConversionLayer {
     pub fn new() -> StcpConversionLayer {
-        StcpConversionLayer {
-            counter: 0,
-            tx: None,
-        }
+        StcpConversionLayer { counter: 0 }
     }
     fn spawn_listener(&self) {
         let addr = "0.0.0.0:16161".parse().unwrap();
         let listener = TcpListener::bind(&addr).unwrap();
         debug!("spawning STCP listener");
-        let tx = self.tx.clone();
         let server = listener
             .incoming()
             .for_each(move |socket| {
-                let tx = tx.clone();
                 let peer_addr = socket.peer_addr().unwrap();
                 info!("Incoming connection from {}", peer_addr);
                 let framed_sock = Framed::new(socket, DataUnitCodec { last_pos: 0 });
@@ -122,14 +115,10 @@ impl StcpConversionLayer {
                             frame.get_bundle().unwrap().id(),
                             peer_addr
                         );
-                        match &tx {
-                            Some(tx) => {
-                                access_core(tx.clone(), |c| {
-                                    c.push(frame.get_bundle().unwrap());
-                                });
-                            }
-                            None => {}
+                        {
+                            DTNCORE.lock().unwrap().push(frame.get_bundle().unwrap());
                         }
+
                         Ok(())
                     })
                     .then(move |_| {
@@ -164,9 +153,8 @@ impl StcpConversionLayer {
     }
 }
 impl ConvergencyLayerAgent for StcpConversionLayer {
-    fn setup(&mut self, tx: Sender<DtnCmd>) {
+    fn setup(&mut self) {
         debug!("Setup STCP Conversion Layer");
-        self.tx = Some(tx);
         self.spawn_listener();
         //self.client_connect("127.0.0.1:16161".parse::<SocketAddr>().unwrap());
         //self.client_connect("127.0.0.1:35037".parse::<SocketAddr>().unwrap());
@@ -179,18 +167,11 @@ impl ConvergencyLayerAgent for StcpConversionLayer {
             ],
         );
     }
-    fn scheduled_process(&self, core: &DtnCore) {
+    fn scheduled_process(&self, ready: &Vec<ByteBuffer>, keys: &Vec<String>) {
         debug!("Scheduled process STCP Conversion Layer");
-        dbg!(core.store.pending());
         // ugly clone following...
-        let ready: Vec<ByteBuffer> = core
-            .store
-            .ready()
-            .iter()
-            .map(|x| x.bundle.clone().to_cbor())
-            .collect();
         if !ready.is_empty() {
-            for (k, v) in &core.peers {
+            for k in keys {
                 let peeraddr = format!("{}:16161", k).parse::<SocketAddr>().unwrap();
                 debug!("forwarding to {:?}", peeraddr);
                 self.send_bundles(peeraddr, ready.clone());

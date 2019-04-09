@@ -1,6 +1,6 @@
-use super::daemon::*;
-use crate::core::core::{DtnCore, DtnPeer, PeerType};
+use crate::core::core::{DtnPeer, PeerType};
 use crate::dtnconfig;
+use crate::DTNCORE;
 use bp7::EndpointID;
 use futures::{try_ready, Future, Poll};
 use log::{debug, error, info, trace, warn};
@@ -8,7 +8,6 @@ use net2::UdpBuilder;
 use serde::{Deserialize, Serialize};
 use std::io;
 use std::net::SocketAddr;
-use std::sync::mpsc::Sender;
 use std::time::{Duration, Instant};
 use tokio::net::UdpSocket;
 use tokio::prelude::*;
@@ -23,7 +22,6 @@ struct Server {
     socket: UdpSocket,
     buf: Vec<u8>,
     to_send: Option<(usize, SocketAddr)>,
-    tx: Sender<DtnCmd>,
 }
 
 impl Future for Server {
@@ -51,22 +49,28 @@ impl Future for Server {
                     PeerType::Dynamic,
                     deserialized.cl,
                 );
-                access_core(self.tx.clone(), |c| {
-                    c.peers.insert(peer.ip(), dtnpeer.clone());
-                });
+                {
+                    DTNCORE
+                        .lock()
+                        .unwrap()
+                        .peers
+                        .insert(peer.ip(), dtnpeer.clone());
+                }
+
                 self.to_send = None;
             }
         }
     }
 }
 
-fn announcer(core: &mut DtnCore, socket: std::net::UdpSocket) {
+fn announcer(socket: std::net::UdpSocket) {
     let sock = UdpSocket::from_std(socket, &tokio::reactor::Handle::default()).unwrap();
     debug!("running announcer");
 
     // Compile list of conversion layers as string vector
     let mut cls: Vec<String> = Vec::new();
-    for cl in &core.cl_list {
+
+    for cl in &DTNCORE.lock().unwrap().cl_list {
         cls.push(cl.to_string());
     }
     //let addr = "127.0.0.1:3003".parse().unwrap();
@@ -78,7 +82,7 @@ fn announcer(core: &mut DtnCore, socket: std::net::UdpSocket) {
         .map_err(|e| error!("{:?}", e));
     tokio::spawn(anc);
 }
-pub fn spawn_service_discovery(tx: Sender<DtnCmd>) {
+pub fn spawn_service_discovery() {
     let addr: std::net::SocketAddr = "0.0.0.0:3003".parse().unwrap();
     let socket = UdpBuilder::new_v4().unwrap();
     socket.reuse_address(true).unwrap();
@@ -102,23 +106,16 @@ pub fn spawn_service_discovery(tx: Sender<DtnCmd>) {
         socket: sock,
         buf: vec![0; 1024],
         to_send: None,
-        tx: tx.clone(),
     };
 
     tokio::spawn(server.map_err(|e| println!("server error = {:?}", e)));
 
-    let tx = std::sync::Mutex::new(tx.clone());
     let task = Interval::new(
         Instant::now(),
         Duration::from_millis(dtnconfig::CONFIG.lock().unwrap().announcement_interval),
     )
     .for_each(move |_instant| {
-        access_core(tx.lock().unwrap().clone(), |c| {
-            announcer(
-                c,
-                socket_clone.try_clone().expect("couldn't clone the socket"),
-            );
-        });
+        announcer(socket_clone.try_clone().expect("couldn't clone the socket"));
         Ok(())
     })
     .map_err(|e| panic!("interval errored; err={:?}", e));

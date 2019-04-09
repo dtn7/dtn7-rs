@@ -3,16 +3,12 @@ use super::store::{BundleStore, SimpleBundleStore};
 use crate::cla::ConvergencyLayerAgent;
 use crate::core::bundlepack::BundlePack;
 use crate::dtnconfig;
-use crate::dtnd::daemon::DtnCmd;
 use bp7::{dtn_time_now, Bundle, ByteBuffer, CreationTimestamp, DtnTime, EndpointID};
 use log::{debug, error, info, trace, warn};
-use rand::distributions::Alphanumeric;
-use rand::{thread_rng, Rng};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fmt::{Debug, Display};
 use std::net::IpAddr;
-use std::sync::mpsc::Sender;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -176,9 +172,16 @@ impl DtnCore {
         for bp in del_list.iter() {
             self.store.remove(bp.to_string());
         }
+        let ready: Vec<ByteBuffer> = self
+            .store
+            .ready()
+            .iter()
+            .map(|x| x.bundle.clone().to_cbor())
+            .collect();
         //self.store.remove_mass(del_list2);
-        for cla in &self.cl_list {
-            cla.scheduled_process(self);
+        let keys: Vec<String> = self.peers.keys().map(|x| x.to_string()).collect();
+        for cla in &mut self.cl_list {
+            cla.scheduled_process(&ready, &keys);
         }
     }
     pub fn push(&mut self, bndl: Bundle) {
