@@ -1,4 +1,5 @@
-use crate::core::core::{ConversionLayer, DtnCore};
+use crate::cla::ConvergencyLayerAgent;
+use crate::core::core::DtnCore;
 use crate::dtnd::daemon::{access_core, DtnCmd};
 use bp7::{Bp7Error, Bundle, ByteBuffer, CreationTimestamp};
 use bytes::{BufMut, BytesMut};
@@ -162,7 +163,7 @@ impl StcpConversionLayer {
         tokio::spawn(fut);
     }
 }
-impl ConversionLayer for StcpConversionLayer {
+impl ConvergencyLayerAgent for StcpConversionLayer {
     fn setup(&mut self, tx: Sender<DtnCmd>) {
         debug!("Setup STCP Conversion Layer");
         self.tx = Some(tx);

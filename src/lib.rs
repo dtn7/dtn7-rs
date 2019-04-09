@@ -36,8 +36,10 @@ pub mod core;
 
 pub mod dtnd;
 
-pub mod cl;
+pub mod cla;
 
 pub mod dtnconfig;
 
-pub use dtnconfig::Config;
+pub use dtnconfig::{DtnConfig, CONFIG};
+
+pub use crate::core::core::{DtnCore, DtnPeer};

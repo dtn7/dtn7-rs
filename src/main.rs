@@ -1,6 +1,6 @@
 use clap::{App, Arg, ArgGroup, SubCommand};
 use dtn7::dtnd::daemon::*;
-use dtn7::Config;
+use dtn7::DtnConfig;
 use log::{info, trace, warn};
 use pretty_env_logger;
 
@@ -8,7 +8,7 @@ fn main() {
     const VERSION: &'static str = env!("CARGO_PKG_VERSION");
     const AUTHORS: &'static str = env!("CARGO_PKG_AUTHORS");
 
-    let mut cfg = Config::new();
+    let mut cfg = DtnConfig::new();
 
     let matches = App::new("dtn7-rs")
         .version(VERSION)
