@@ -128,7 +128,18 @@ impl DtnCore {
         }
         false
     }
-    fn get_endpoint(&self, eid: &EndpointID) -> Option<&Box<dyn ApplicationAgent + Send>> {
+    pub fn get_endpoint_mut(
+        &mut self,
+        eid: &EndpointID,
+    ) -> Option<&mut Box<dyn ApplicationAgent + Send>> {
+        for aa in self.endpoints.iter_mut() {
+            if eid == aa.eid() {
+                return Some(aa);
+            }
+        }
+        None
+    }
+    pub fn get_endpoint(&self, eid: &EndpointID) -> Option<&Box<dyn ApplicationAgent + Send>> {
         for aa in self.endpoints.iter() {
             if eid == aa.eid() {
                 return Some(aa);
@@ -139,15 +150,20 @@ impl DtnCore {
     pub fn process(&mut self) {
         // TODO: this all doesn't feel right, not very idiomatic
         let mut del_list: Vec<String> = Vec::new();
+        let mut delivery_list: Vec<(EndpointID, Bundle)> = Vec::new();
 
         for bndl in self.store.iter() {
-            if let Some(aa) = self.get_endpoint(&bndl.bundle.primary.destination) {
-                // move to remove? 1st consume, then deliver or deliver and then remove? maybe handle errors from deliver to prevent deletion
-                aa.deliver(&bndl.bundle);
-                info!("Delivering {}", bndl.id());
+            if self.is_in_endpoints(&bndl.bundle.primary.destination) {
+                delivery_list.push((bndl.bundle.primary.destination.clone(), bndl.bundle.clone()));
                 self.stats.delivered += 1;
-                del_list.push(bndl.id());
                 break;
+            }
+        }
+        for (eid, bundle) in &delivery_list {
+            if let Some(aa) = self.get_endpoint_mut(&eid) {
+                info!("Delivering {}", bundle.id());
+                del_list.push(bundle.id());
+                aa.push(bundle);
             }
         }
         /*self.store
@@ -178,10 +194,10 @@ impl DtnCore {
             self.stats.dups += 1;
             return;
         }
-        if let Some(aa) = self.get_endpoint(&bp.bundle.primary.destination) {
+        if let Some(aa) = self.get_endpoint_mut(&bp.bundle.primary.destination) {
             if !bp.bundle.primary.has_fragmentation() {
                 info!("Delivering {}", bp.id());
-                aa.deliver(&bp.bundle);
+                aa.push(&bp.bundle);
                 self.stats.delivered += 1;
                 return;
             }
