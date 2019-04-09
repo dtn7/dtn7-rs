@@ -1,6 +1,8 @@
 use super::daemon::*;
-use bp7::helpers::rnd_bundle;
+use crate::core::application_agent::ApplicationAgentData;
 use crate::core::helpers::rnd_peer;
+use bp7::dtntime::CreationTimestamp;
+use bp7::helpers::rnd_bundle;
 use futures::future;
 use hyper::service::service_fn;
 use hyper::{Body, Request, Response, Server};
@@ -20,7 +22,7 @@ fn rest_handler(req: Request<Body>, tx: Sender<DtnCmd>) -> BoxFut {
     info!("{} {}", req.method(), req.uri().path());
     match (req.method(), req.uri().path()) {
         (&Method::GET, "/") => {
-            *response.body_mut() = Body::from("Try POSTing data to /echo");
+            *response.body_mut() = Body::from("dtn7 ctrl interface");
         }
         (&Method::GET, "/status/eids") => {
             access_core(tx, |c| {
@@ -46,8 +48,7 @@ fn rest_handler(req: Request<Body>, tx: Sender<DtnCmd>) -> BoxFut {
         (&Method::GET, "/debug/rnd_bundle") => {
             access_core(tx, |_c| {
                 println!("generating debug bundle");
-                let ts = _c.next_timestamp();
-                let b = rnd_bundle(ts);
+                let b = rnd_bundle(CreationTimestamp::now());
                 *response.body_mut() = Body::from(b.id());
                 _c.push(b);
             });
@@ -62,6 +63,36 @@ fn rest_handler(req: Request<Body>, tx: Sender<DtnCmd>) -> BoxFut {
         }
         (&Method::POST, "/echo") => {
             // we'll be back
+        }
+        (&Method::GET, "/register") => {
+            // we'll be back
+            if let Some(params) = req.uri().query() {
+                if params.chars().all(char::is_alphanumeric) {
+                    dbg!(params);
+                    access_core(tx, |c| {
+                        let eid = format!("dtn://{}/{}", c.sysname, params);
+                        c.register_application_agent(ApplicationAgentData::new_with(
+                            eid.clone().into(),
+                        ));
+                        *response.body_mut() = Body::from(format!("Registered {}", eid));
+                    });
+                }
+            }
+        }
+        (&Method::GET, "/unregister") => {
+            // we'll be back
+            if let Some(params) = req.uri().query() {
+                if params.chars().all(char::is_alphanumeric) {
+                    dbg!(params);
+                    access_core(tx, |c| {
+                        let eid = format!("dtn://{}/{}", c.sysname, params);
+                        c.unregister_application_agent(ApplicationAgentData::new_with(
+                            eid.clone().into(),
+                        ));
+                        *response.body_mut() = Body::from(format!("Unregistered {}", eid));
+                    });
+                }
+            }
         }
         _ => {
             *response.status_mut() = StatusCode::NOT_FOUND;

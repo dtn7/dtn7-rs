@@ -2,8 +2,11 @@ use super::application_agent::ApplicationAgent;
 use super::store::{BundleStore, SimpleBundleStore};
 use crate::core::bundlepack::BundlePack;
 use crate::dtnd::daemon::DtnCmd;
+use bp7::ByteBuffer;
 use bp7::{dtn_time_now, Bundle, CreationTimestamp, DtnTime, EndpointID};
 use log::{debug, error, info, trace, warn};
+use rand::distributions::Alphanumeric;
+use rand::{thread_rng, Rng};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fmt::{Debug, Display};
@@ -67,10 +70,9 @@ pub struct DtnStatistics {
 
 #[derive(Debug)]
 pub struct DtnCore {
+    pub sysname: String,
     pub endpoints: Vec<Box<dyn ApplicationAgent + Send>>,
     pub store: Box<dyn BundleStore + Send>,
-    last_time: DtnTime,
-    last_seq: u64,
     pub stats: DtnStatistics,
     pub peers: HashMap<IpAddr, DtnPeer>,
     pub cl_list: Vec<Box<dyn ConversionLayer>>,
@@ -78,17 +80,17 @@ pub struct DtnCore {
 
 impl Default for DtnCore {
     fn default() -> Self {
-        Self::new()
+        let rand_string: String = thread_rng().sample_iter(&Alphanumeric).take(10).collect();
+        Self::new(rand_string)
     }
 }
 
 impl DtnCore {
-    pub fn new() -> DtnCore {
+    pub fn new(sysname: String) -> DtnCore {
         DtnCore {
+            sysname,
             endpoints: Vec::new(),
             store: Box::new(SimpleBundleStore::new()),
-            last_time: 0,
-            last_seq: 0,
             stats: DtnStatistics {
                 incoming: 0,
                 dups: 0,
@@ -101,16 +103,6 @@ impl DtnCore {
         }
     }
 
-    pub fn next_timestamp(&mut self) -> CreationTimestamp {
-        let now = dtn_time_now();
-        if self.last_time == now {
-            self.last_seq += 1;
-        } else {
-            self.last_seq = 0;
-        }
-        self.last_time = now;
-        CreationTimestamp::with_time_and_seq(now, self.last_seq)
-    }
     pub fn register_application_agent<T: 'static + ApplicationAgent + Send>(&mut self, aa: T) {
         info!("Registered new application agent for EID: {}", aa.eid());
         self.endpoints.push(Box::new(aa));
