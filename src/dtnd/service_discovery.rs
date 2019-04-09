@@ -1,5 +1,6 @@
 use super::daemon::*;
 use crate::core::core::{DtnCore, DtnPeer, PeerType};
+use crate::dtnconfig;
 use bp7::EndpointID;
 use futures::{try_ready, Future, Poll};
 use log::{debug, error, info, trace, warn};
@@ -107,16 +108,19 @@ pub fn spawn_service_discovery(tx: Sender<DtnCmd>) {
     tokio::spawn(server.map_err(|e| println!("server error = {:?}", e)));
 
     let tx = std::sync::Mutex::new(tx.clone());
-    let task = Interval::new(Instant::now(), Duration::from_millis(10000))
-        .for_each(move |_instant| {
-            access_core(tx.lock().unwrap().clone(), |c| {
-                announcer(
-                    c,
-                    socket_clone.try_clone().expect("couldn't clone the socket"),
-                );
-            });
-            Ok(())
-        })
-        .map_err(|e| panic!("interval errored; err={:?}", e));
+    let task = Interval::new(
+        Instant::now(),
+        Duration::from_millis(dtnconfig::CONFIG.lock().unwrap().announcement_interval),
+    )
+    .for_each(move |_instant| {
+        access_core(tx.lock().unwrap().clone(), |c| {
+            announcer(
+                c,
+                socket_clone.try_clone().expect("couldn't clone the socket"),
+            );
+        });
+        Ok(())
+    })
+    .map_err(|e| panic!("interval errored; err={:?}", e));
     tokio::spawn(task);
 }

@@ -1,9 +1,9 @@
 use super::application_agent::ApplicationAgent;
 use super::store::{BundleStore, SimpleBundleStore};
 use crate::core::bundlepack::BundlePack;
+use crate::dtnconfig;
 use crate::dtnd::daemon::DtnCmd;
-use bp7::ByteBuffer;
-use bp7::{dtn_time_now, Bundle, CreationTimestamp, DtnTime, EndpointID};
+use bp7::{dtn_time_now, Bundle, ByteBuffer, CreationTimestamp, DtnTime, EndpointID};
 use log::{debug, error, info, trace, warn};
 use rand::distributions::Alphanumeric;
 use rand::{thread_rng, Rng};
@@ -81,14 +81,16 @@ pub struct DtnCore {
 impl Default for DtnCore {
     fn default() -> Self {
         let rand_string: String = thread_rng().sample_iter(&Alphanumeric).take(10).collect();
-        Self::new(rand_string)
+        let mut cfg = dtnconfig::Config::new();
+        cfg.nodeid = rand_string;
+        Self::new()
     }
 }
 
 impl DtnCore {
-    pub fn new(nodeid: String) -> DtnCore {
+    pub fn new() -> DtnCore {
         DtnCore {
-            nodeid,
+            nodeid: dtnconfig::CONFIG.lock().unwrap().nodeid.clone(),
             endpoints: Vec::new(),
             store: Box::new(SimpleBundleStore::new()),
             stats: DtnStatistics {

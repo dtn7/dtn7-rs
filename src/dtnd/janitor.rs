@@ -1,4 +1,5 @@
 use super::daemon::*;
+use crate::dtnconfig;
 use crate::core::core::DtnCore;
 use log::{debug, error, info, trace, warn};
 use std::sync::mpsc::Sender;
@@ -13,7 +14,7 @@ fn janitor(core: &mut DtnCore) {
 
 pub fn spawn_janitor(tx: Sender<DtnCmd>) {
     let tx = std::sync::Mutex::new(tx.clone());
-    let task = Interval::new(Instant::now(), Duration::from_millis(10000))
+    let task = Interval::new(Instant::now(), Duration::from_millis(dtnconfig::CONFIG.lock().unwrap().janitor_interval))
         .for_each(move |_instant| {
             access_core(tx.lock().unwrap().clone(), |c| {
                 janitor(c);
