@@ -1,6 +1,6 @@
 use crate::core::core::{ConversionLayer, DtnCore};
 use crate::dtnd::daemon::{access_core, DtnCmd};
-use bp7::{Bp7Error, Bundle, ByteBuffer};
+use bp7::{Bp7Error, Bundle, ByteBuffer, CreationTimestamp};
 use bytes::{BufMut, BytesMut};
 use futures::Future;
 use log::{debug, error, info, trace, warn};
@@ -169,11 +169,13 @@ impl ConversionLayer for StcpConversionLayer {
         self.spawn_listener();
         //self.client_connect("127.0.0.1:16161".parse::<SocketAddr>().unwrap());
         //self.client_connect("127.0.0.1:35037".parse::<SocketAddr>().unwrap());
-        let ts = bp7::CreationTimestamp::with_time_and_seq(bp7::dtn_time_now(), 0);
-        let mut b = bp7::helpers::rnd_bundle(ts.clone());
         self.send_bundles(
             "127.0.0.1:16161".parse::<SocketAddr>().unwrap(),
-            vec![b.to_cbor(), bp7::helpers::rnd_bundle(ts).to_cbor()],
+            vec![
+                bp7::helpers::rnd_bundle(CreationTimestamp::now()).to_cbor(),
+                bp7::helpers::rnd_bundle(CreationTimestamp::now()).to_cbor(),
+                bp7::helpers::rnd_bundle(CreationTimestamp::now()).to_cbor(),
+            ],
         );
     }
     fn scheduled_process(&self, core: &DtnCore) {
