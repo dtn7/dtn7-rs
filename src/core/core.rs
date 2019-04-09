@@ -70,7 +70,7 @@ pub struct DtnStatistics {
 
 #[derive(Debug)]
 pub struct DtnCore {
-    pub sysname: String,
+    pub nodeid: String,
     pub endpoints: Vec<Box<dyn ApplicationAgent + Send>>,
     pub store: Box<dyn BundleStore + Send>,
     pub stats: DtnStatistics,
@@ -86,9 +86,9 @@ impl Default for DtnCore {
 }
 
 impl DtnCore {
-    pub fn new(sysname: String) -> DtnCore {
+    pub fn new(nodeid: String) -> DtnCore {
         DtnCore {
-            sysname,
+            nodeid,
             endpoints: Vec::new(),
             store: Box::new(SimpleBundleStore::new()),
             stats: DtnStatistics {
