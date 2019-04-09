@@ -36,7 +36,3 @@ path = "src/lib.rs"
 [[bin]]
 name = "dtnd"
 path = "src/main.rs"
-
-[[bin]]
-name = "benchmark"
-path = "examples/benchmark.rs"

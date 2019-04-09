@@ -65,12 +65,13 @@ fn rest_handler(req: Request<Body>, tx: Sender<DtnCmd>) -> BoxFut {
             // we'll be back
         }
         (&Method::GET, "/register") => {
+            // TODO: support non-node-specific EIDs
             // we'll be back
             if let Some(params) = req.uri().query() {
                 if params.chars().all(char::is_alphanumeric) {
                     dbg!(params);
                     access_core(tx, |c| {
-                        let eid = format!("dtn://{}/{}", c.sysname, params);
+                        let eid = format!("dtn://{}/{}", c.nodeid, params);
                         c.register_application_agent(ApplicationAgentData::new_with(
                             eid.clone().into(),
                         ));
@@ -80,12 +81,13 @@ fn rest_handler(req: Request<Body>, tx: Sender<DtnCmd>) -> BoxFut {
             }
         }
         (&Method::GET, "/unregister") => {
+            // TODO: support non-node-specific EIDs
             // we'll be back
             if let Some(params) = req.uri().query() {
                 if params.chars().all(char::is_alphanumeric) {
                     dbg!(params);
                     access_core(tx, |c| {
-                        let eid = format!("dtn://{}/{}", c.sysname, params);
+                        let eid = format!("dtn://{}/{}", c.nodeid, params);
                         c.unregister_application_agent(ApplicationAgentData::new_with(
                             eid.clone().into(),
                         ));
@@ -100,7 +102,7 @@ fn rest_handler(req: Request<Body>, tx: Sender<DtnCmd>) -> BoxFut {
                 if params.chars().all(char::is_alphanumeric) {
                     dbg!(params);
                     access_core(tx, |c| {
-                        let eid = format!("dtn://{}/{}", c.sysname, params);
+                        let eid = format!("dtn://{}/{}", c.nodeid, params); // TODO: support non-node-specific EIDs
                         if let Some(aa) = c.get_endpoint_mut(&eid.into()) {
                             if let Some(mut bundle) = aa.pop() {
                                 *response.body_mut() = Body::from(bundle.to_json());
@@ -108,6 +110,7 @@ fn rest_handler(req: Request<Body>, tx: Sender<DtnCmd>) -> BoxFut {
                                 *response.body_mut() = Body::from("[]");
                             }
                         } else {
+                            *response.status_mut() = StatusCode::NOT_FOUND;
                             *response.body_mut() = Body::from("No such endpoint registered!");
                         }
                     });
