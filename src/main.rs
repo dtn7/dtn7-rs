@@ -5,8 +5,8 @@ use log::{info, trace, warn};
 use pretty_env_logger;
 
 fn main() {
-    const VERSION: &'static str = env!("CARGO_PKG_VERSION");
-    const AUTHORS: &'static str = env!("CARGO_PKG_AUTHORS");
+    const VERSION: &str = env!("CARGO_PKG_VERSION");
+    const AUTHORS: &str = env!("CARGO_PKG_AUTHORS");
 
     let mut cfg = DtnConfig::new();
 

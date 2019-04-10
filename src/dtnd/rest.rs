@@ -1,4 +1,3 @@
-use super::daemon::*;
 use crate::core::application_agent::ApplicationAgentData;
 use crate::core::helpers::rnd_peer;
 use crate::DTNCORE;
@@ -8,7 +7,7 @@ use futures::future;
 use hyper::service::service_fn;
 use hyper::{Body, Request, Response, Server};
 use hyper::{Method, StatusCode};
-use log::{debug, error, info, trace, warn};
+use log::{debug, error, info, warn};
 use tokio::prelude::*;
 
 // Just a simple type alias

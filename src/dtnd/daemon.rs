@@ -5,7 +5,7 @@ use crate::core::application_agent::ApplicationAgentData;
 use crate::dtnconfig::{DtnConfig, CONFIG};
 use crate::DTNCORE;
 use futures::future::lazy;
-use log::{debug, error, info, trace, warn};
+use log::{debug, error, info, warn};
 /*
 use crate::core::core::DtnCore;
 use std::sync::mpsc;
@@ -55,9 +55,14 @@ fn start_convergencylayers() {
 }
 
 pub fn start_dtnd(cfg: DtnConfig) {
-    CONFIG.lock().unwrap().set(cfg);
+    {
+        CONFIG.lock().unwrap().set(cfg);
+    }
+    let routing = CONFIG.lock().unwrap().routing.clone();
+    DTNCORE.lock().unwrap().routing_agent = crate::routing::new(&routing);
 
     info!("RoutingAgent: {}", DTNCORE.lock().unwrap().routing_agent);
+
     let dcl = DummyConversionLayer::new();
     DTNCORE.lock().unwrap().cl_list.push(Box::new(dcl));
     let stcp = StcpConversionLayer::new();

@@ -9,6 +9,7 @@ pub struct DtnConfig {
     pub announcement_interval: u64,
     pub janitor_interval: u64,
     pub endpoints: Vec<String>,
+    pub routing: String,
 }
 
 impl DtnConfig {
@@ -18,6 +19,7 @@ impl DtnConfig {
             announcement_interval: 2000,
             janitor_interval: 10000,
             endpoints: Vec::new(),
+            routing: "epidemic".into(),
         }
     }
     pub fn set(&mut self, cfg: DtnConfig) {
