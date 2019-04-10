@@ -93,7 +93,8 @@ impl DtnCore {
             },
             peers: HashMap::new(),
             cl_list: Vec::new(),
-            routing_agent: Box::new(crate::routing::flooding::FloodingRoutingAgent::new()),
+            //routing_agent: Box::new(crate::routing::flooding::FloodingRoutingAgent::new()),
+            routing_agent: Box::new(crate::routing::epidemic::EpidemicRoutingAgent::new()),
         }
     }
 
@@ -183,9 +184,10 @@ impl DtnCore {
             .collect();
         //self.store.remove_mass(del_list2);
         let keys: Vec<String> = self.peers.keys().map(|x| x.to_string()).collect();
-        for cla in &mut self.cl_list {
+        self.routing_agent.route_all(ready, keys, &self.cl_list);
+        /*for cla in &mut self.cl_list {
             cla.scheduled_process(&ready, &keys);
-        }
+        }*/
     }
     pub fn push(&mut self, bndl: Bundle) {
         self.stats.incoming += 1;

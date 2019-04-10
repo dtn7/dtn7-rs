@@ -20,6 +20,9 @@ impl ConvergencyLayerAgent for DummyConversionLayer {
     fn scheduled_process(&self, ready: &[ByteBuffer], keys: &Vec<String>) {
         debug!("Scheduled process Dummy Conversion Layer");
     }
+    fn scheduled_submission(&self, ready: &[ByteBuffer], dest: &String) {
+        debug!("Scheduled submission Dummy Conversion Layer");
+    }
 }
 
 impl std::fmt::Display for DummyConversionLayer {

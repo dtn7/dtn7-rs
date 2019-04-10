@@ -8,4 +8,5 @@ use std::fmt::{Debug, Display};
 pub trait ConvergencyLayerAgent: Debug + Send + Display {
     fn setup(&mut self);
     fn scheduled_process(&self, ready: &[ByteBuffer], keys: &Vec<String>);
+    fn scheduled_submission(&self, ready: &[ByteBuffer], dest: &String);
 }

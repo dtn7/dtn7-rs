@@ -57,6 +57,7 @@ fn start_convergencylayers() {
 pub fn start_dtnd(cfg: DtnConfig) {
     CONFIG.lock().unwrap().set(cfg);
 
+    info!("RoutingAgent: {}", DTNCORE.lock().unwrap().routing_agent);
     let dcl = DummyConversionLayer::new();
     DTNCORE.lock().unwrap().cl_list.push(Box::new(dcl));
     let stcp = StcpConversionLayer::new();

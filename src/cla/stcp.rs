@@ -180,6 +180,17 @@ impl ConvergencyLayerAgent for StcpConversionLayer {
             debug!("Nothing to forward.");
         }
     }
+    fn scheduled_submission(&self, ready: &[ByteBuffer], dest: &String) {
+        debug!("Scheduled submission STCP Conversion Layer");
+        // ugly clone following...
+        if !ready.is_empty() {
+            let peeraddr = format!("{}:16161", dest).parse::<SocketAddr>().unwrap();
+            debug!("forwarding to {:?}", peeraddr);
+            self.send_bundles(peeraddr, ready.to_vec());
+        } else {
+            debug!("Nothing to forward.");
+        }
+    }
 }
 
 impl std::fmt::Display for StcpConversionLayer {
