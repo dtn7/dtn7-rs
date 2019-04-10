@@ -55,13 +55,29 @@ fn main() {
                 .help("Sets janitor interval")
                 .takes_value(true),
         )
+        .arg(
+            Arg::with_name("routing")
+                .short("r")
+                .long("routing")
+                .value_name("ROUTING")
+                .help(&format!(
+                    "Set routing algorithm: {}",
+                    dtn7::routing::routing_algorithms().join(", ")
+                ))
+                .takes_value(true),
+        )
+        .arg(
+            Arg::with_name("debug")
+                .short("d")
+                .long("debug")
+                .help("Set log level to debug")
+                .takes_value(false),
+        )
         .get_matches();
 
     let config = matches.value_of("config").unwrap_or("default.conf");
-    println!("Value for config: {}", config);
 
     cfg.nodeid = matches.value_of("nodeid").unwrap_or("node1").to_string();
-    println!("Value for nodeid: {}", cfg.nodeid);
 
     if let Some(i) = matches.value_of("interval") {
         cfg.announcement_interval = i
@@ -74,15 +90,23 @@ fn main() {
             .parse::<u64>()
             .expect("Could not parse janitor parameter!");
     }
+    if let Some(r) = matches.value_of("routing") {
+        if dtn7::routing::routing_algorithms().contains(&r) {
+            cfg.routing = r.into();
+        }
+    }
     if matches.is_present("endpoint") {
         if let Some(in_v) = matches.values_of("endpoint") {
             for in_endpoint in in_v {
-                println!("An endpoint: {}", in_endpoint);
                 cfg.endpoints.push(in_endpoint.to_string());
             }
         }
     }
-    std::env::set_var("RUST_LOG", "dtn7=debug,dtnd=debug");
+    if matches.is_present("debug") {
+        std::env::set_var("RUST_LOG", "dtn7=debug,dtnd=debug");
+    } else {
+        std::env::set_var("RUST_LOG", "dtn7=info,dtnd=info");
+    }
     pretty_env_logger::init_timed();
 
     info!("starting dtnd");

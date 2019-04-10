@@ -27,6 +27,7 @@ impl DtnConfig {
         self.announcement_interval = cfg.announcement_interval;
         self.janitor_interval = cfg.janitor_interval;
         self.endpoints = cfg.endpoints;
+        self.routing = cfg.routing;
     }
 }
 

@@ -24,6 +24,9 @@ pub trait RoutingAgent: Debug + Send + Display {
         unimplemented!();
     }
 }
+pub fn routing_algorithms() -> Vec<&'static str> {
+    vec!["flooding", "epidemic"]
+}
 
 pub fn new(routingagent: &str) -> Box<RoutingAgent> {
     match routingagent {
