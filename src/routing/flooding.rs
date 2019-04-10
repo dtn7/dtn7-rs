@@ -21,9 +21,9 @@ impl std::fmt::Display for FloodingRoutingAgent {
 impl RoutingAgent for FloodingRoutingAgent {
     fn route_bundle(
         &mut self,
-        bundle: &ByteBuffer,
-        peers: Vec<String>,
-        cl_list: &[Box<dyn ConvergencyLayerAgent>],
+        _bundle: &ByteBuffer,
+        _peers: Vec<String>,
+        _cl_list: &[Box<dyn ConvergencyLayerAgent>],
     ) {
         unimplemented!();
     }

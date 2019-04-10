@@ -17,7 +17,10 @@ impl EpidemicRoutingAgent {
         }
     }
     fn add(&mut self, dest: String, bundles: &[ByteBuffer]) {
-        let entries = self.history.entry(dest.clone()).or_insert(HashSet::new());
+        let entries = self
+            .history
+            .entry(dest.clone())
+            .or_insert_with(HashSet::new);
         for b in bundles {
             entries.insert(b.to_vec());
         }
@@ -26,7 +29,7 @@ impl EpidemicRoutingAgent {
         self.history.remove(&dest);
     }
     fn filtered(&mut self, dest: String, bundles: &[ByteBuffer]) -> Vec<ByteBuffer> {
-        let entries = self.history.entry(dest).or_insert(HashSet::new());
+        let entries = self.history.entry(dest).or_insert_with(HashSet::new);
         bundles
             .iter()
             .cloned()
@@ -42,9 +45,9 @@ impl std::fmt::Display for EpidemicRoutingAgent {
 impl RoutingAgent for EpidemicRoutingAgent {
     fn route_bundle(
         &mut self,
-        bundle: &ByteBuffer,
-        peers: Vec<String>,
-        cl_list: &[Box<dyn ConvergencyLayerAgent>],
+        _bundle: &ByteBuffer,
+        _peers: Vec<String>,
+        _cl_list: &[Box<dyn ConvergencyLayerAgent>],
     ) {
         unimplemented!();
     }

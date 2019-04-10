@@ -1,5 +1,4 @@
 use super::ConvergencyLayerAgent;
-use crate::core::DtnCore;
 use bp7::ByteBuffer;
 use log::{debug, error, info, trace, warn};
 
@@ -17,10 +16,10 @@ impl ConvergencyLayerAgent for DummyConversionLayer {
     fn setup(&mut self) {
         debug!("Setup Dummy Conversion Layer");
     }
-    fn scheduled_process(&self, ready: &[ByteBuffer], keys: &Vec<String>) {
+    fn scheduled_process(&self, _ready: &[ByteBuffer], _keys: &Vec<String>) {
         debug!("Scheduled process Dummy Conversion Layer");
     }
-    fn scheduled_submission(&self, ready: &[ByteBuffer], dest: &String) {
+    fn scheduled_submission(&self, _ready: &[ByteBuffer], _dest: &String) {
         debug!("Scheduled submission Dummy Conversion Layer");
     }
 }

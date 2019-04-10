@@ -1,6 +1,6 @@
 use crate::dtnconfig;
 use crate::DTNCORE;
-use log::{debug, error, info, trace, warn};
+use log::{debug, error, info, warn};
 use std::time::{Duration, Instant};
 use tokio::prelude::*;
 use tokio::timer::Interval;
