@@ -7,15 +7,16 @@ use crate::cla::ConvergencyLayerAgent;
 use crate::core::bundlepack::BundlePack;
 use crate::dtnconfig;
 use crate::routing::RoutingAgent;
+use crate::PEERS;
+use crate::STATS;
+use crate::STORE;
 use application_agent::ApplicationAgent;
 use bp7::{Bundle, ByteBuffer, EndpointID};
 use log::{debug, error, info, warn};
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
 use std::fmt::{Debug, Display};
 use std::net::IpAddr;
 use std::time::{SystemTime, UNIX_EPOCH};
-use store::{BundleStore, SimpleBundleStore};
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub enum PeerType {
@@ -28,17 +29,22 @@ pub struct DtnPeer {
     pub eid: EndpointID,
     pub addr: IpAddr,
     pub con_type: PeerType,
-    pub cl_list: Vec<String>,
+    pub cla_list: Vec<String>,
     pub last_contact: u64,
 }
 
 impl DtnPeer {
-    pub fn new(eid: EndpointID, addr: IpAddr, con_type: PeerType, cl_list: Vec<String>) -> DtnPeer {
+    pub fn new(
+        eid: EndpointID,
+        addr: IpAddr,
+        con_type: PeerType,
+        cla_list: Vec<String>,
+    ) -> DtnPeer {
         DtnPeer {
             eid,
             addr,
             con_type,
-            cl_list,
+            cla_list,
             last_contact: SystemTime::now()
                 .duration_since(UNIX_EPOCH)
                 .unwrap()
@@ -52,7 +58,7 @@ impl DtnPeer {
             .as_secs();
     }
 }
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Default, Clone)]
 pub struct DtnStatistics {
     pub incoming: u64,
     pub dups: u64,
@@ -61,13 +67,21 @@ pub struct DtnStatistics {
     pub broken: u64,
 }
 
+impl DtnStatistics {
+    pub fn new() -> DtnStatistics {
+        DtnStatistics {
+            incoming: 0,
+            dups: 0,
+            outgoing: 0,
+            delivered: 0,
+            broken: 0,
+        }
+    }
+}
 #[derive(Debug)]
 pub struct DtnCore {
     pub nodeid: String,
     pub endpoints: Vec<Box<dyn ApplicationAgent + Send>>,
-    pub store: Box<dyn BundleStore + Send>,
-    pub stats: DtnStatistics,
-    pub peers: HashMap<IpAddr, DtnPeer>,
     pub cl_list: Vec<Box<dyn ConvergencyLayerAgent>>,
     pub routing_agent: Box<RoutingAgent>,
 }
@@ -83,15 +97,6 @@ impl DtnCore {
         DtnCore {
             nodeid: dtnconfig::CONFIG.lock().unwrap().nodeid.clone(),
             endpoints: Vec::new(),
-            store: Box::new(SimpleBundleStore::new()),
-            stats: DtnStatistics {
-                incoming: 0,
-                dups: 0,
-                outgoing: 0,
-                delivered: 0,
-                broken: 0,
-            },
-            peers: HashMap::new(),
             cl_list: Vec::new(),
             //routing_agent: Box::new(crate::routing::flooding::FloodingRoutingAgent::new()),
             routing_agent: Box::new(crate::routing::epidemic::EpidemicRoutingAgent::new()),
@@ -113,7 +118,7 @@ impl DtnCore {
         self.endpoints.iter().map(|e| e.eid().to_string()).collect()
     }
     pub fn bundles(&self) -> Vec<String> {
-        self.store.iter().map(|e| e.id()).collect()
+        STORE.lock().unwrap().iter().map(|e| e.id()).collect()
     }
     fn is_in_endpoints(&self, eid: &EndpointID) -> bool {
         for aa in self.endpoints.iter() {
@@ -147,10 +152,10 @@ impl DtnCore {
         let mut del_list: Vec<String> = Vec::new();
         let mut delivery_list: Vec<(EndpointID, Bundle)> = Vec::new();
 
-        for bndl in self.store.iter() {
+        for bndl in STORE.lock().unwrap().iter() {
             if self.is_in_endpoints(&bndl.bundle.primary.destination) {
                 delivery_list.push((bndl.bundle.primary.destination.clone(), bndl.bundle.clone()));
-                self.stats.delivered += 1;
+                STATS.lock().unwrap().delivered += 1;
                 break;
             }
         }
@@ -174,34 +179,40 @@ impl DtnCore {
         .bundles
         .retain(|&x| self.is_in_endpoints(&x.receiver));*/
         for bp in del_list.iter() {
-            self.store.remove(bp.to_string());
+            STORE.lock().unwrap().remove(bp.to_string());
         }
-        let ready: Vec<ByteBuffer> = self
-            .store
+        let ready: Vec<ByteBuffer> = STORE
+            .lock()
+            .unwrap()
             .ready()
             .iter()
             .map(|x| x.bundle.clone().to_cbor())
             .collect();
         //self.store.remove_mass(del_list2);
-        let keys: Vec<String> = self.peers.keys().map(|x| x.to_string()).collect();
+        let keys: Vec<String> = PEERS
+            .lock()
+            .unwrap()
+            .keys()
+            .map(|x| x.to_string())
+            .collect();
         self.routing_agent.route_all(ready, keys, &self.cl_list);
         /*for cla in &mut self.cl_list {
             cla.scheduled_process(&ready, &keys);
         }*/
     }
     pub fn push(&mut self, bndl: Bundle) {
-        self.stats.incoming += 1;
+        STATS.lock().unwrap().incoming += 1;
         let bp = BundlePack::from(bndl);
-        if self.store.has_item(&bp) {
+        if STORE.lock().unwrap().has_item(&bp) {
             debug!("Bundle {} already in store!", bp.id());
-            self.stats.dups += 1;
+            STATS.lock().unwrap().dups += 1;
             return;
         }
         if let Some(aa) = self.get_endpoint_mut(&bp.bundle.primary.destination) {
             if !bp.bundle.primary.has_fragmentation() {
                 info!("Delivering {}", bp.id());
                 aa.push(&bp.bundle);
-                self.stats.delivered += 1;
+                STATS.lock().unwrap().delivered += 1;
                 return;
             }
         }
@@ -211,6 +222,6 @@ impl DtnCore {
                 return;
             }
         }*/
-        self.store.push(bp);
+        STORE.lock().unwrap().push(bp);
     }
 }

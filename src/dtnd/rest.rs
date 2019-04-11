@@ -1,6 +1,8 @@
 use crate::core::application_agent::ApplicationAgentData;
 use crate::core::helpers::rnd_peer;
 use crate::DTNCORE;
+use crate::PEERS;
+use crate::STATS;
 use bp7::dtntime::CreationTimestamp;
 use bp7::helpers::rnd_bundle;
 use futures::future;
@@ -31,12 +33,12 @@ fn rest_handler(req: Request<Body>) -> BoxFut {
             );
         }
         (&Method::GET, "/status/peers") => {
-            *response.body_mut() =
-                Body::from(serde_json::to_string_pretty(&DTNCORE.lock().unwrap().peers).unwrap());
+            let peers = &PEERS.lock().unwrap().clone();
+            *response.body_mut() = Body::from(serde_json::to_string_pretty(&peers).unwrap());
         }
         (&Method::GET, "/status/info") => {
-            *response.body_mut() =
-                Body::from(serde_json::to_string_pretty(&DTNCORE.lock().unwrap().stats).unwrap());
+            let stats = STATS.lock().unwrap().clone();
+            *response.body_mut() = Body::from(serde_json::to_string_pretty(&stats).unwrap());
         }
         (&Method::GET, "/debug/rnd_bundle") => {
             println!("generating debug bundle");
@@ -48,7 +50,7 @@ fn rest_handler(req: Request<Body>) -> BoxFut {
             println!("generating debug peer");
             let p = rnd_peer();
             *response.body_mut() = Body::from(serde_json::to_string_pretty(&p).unwrap());
-            DTNCORE.lock().unwrap().peers.insert(p.addr, p);
+            PEERS.lock().unwrap().insert(p.addr, p);
         }
         (&Method::POST, "/echo") => {
             // we'll be back

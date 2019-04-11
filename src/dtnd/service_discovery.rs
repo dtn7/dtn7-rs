@@ -1,6 +1,7 @@
 use crate::core::{DtnPeer, PeerType};
 use crate::dtnconfig;
 use crate::DTNCORE;
+use crate::PEERS;
 use bp7::EndpointID;
 use futures::{try_ready, Future, Poll};
 use log::{debug, error, info, trace, warn};
@@ -21,7 +22,6 @@ pub struct AnnouncementPkt {
 struct Server {
     socket: UdpSocket,
     buf: Vec<u8>,
-    to_send: Option<(usize, SocketAddr)>,
 }
 
 impl Future for Server {
@@ -50,14 +50,8 @@ impl Future for Server {
                     deserialized.cl,
                 );
                 {
-                    DTNCORE
-                        .lock()
-                        .unwrap()
-                        .peers
-                        .insert(peer.ip(), dtnpeer.clone());
+                    PEERS.lock().unwrap().insert(peer.ip(), dtnpeer.clone());
                 }
-
-                self.to_send = None;
             }
         }
     }
@@ -109,7 +103,6 @@ pub fn spawn_service_discovery() {
     let server = Server {
         socket: sock,
         buf: vec![0; 1024],
-        to_send: None,
     };
 
     tokio::spawn(server.map_err(|e| println!("server error = {:?}", e)));
