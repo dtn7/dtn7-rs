@@ -2,8 +2,8 @@ use super::{janitor, rest, service_discovery};
 use crate::cla::dummy_cl::*;
 use crate::cla::stcp::*;
 use crate::core::application_agent::ApplicationAgentData;
-use crate::dtnconfig::{DtnConfig, CONFIG};
-use crate::DTNCORE;
+use crate::dtnconfig::DtnConfig;
+use crate::{CONFIG, DTNCORE};
 use futures::future::lazy;
 use log::{debug, error, info, warn};
 /*
@@ -58,6 +58,8 @@ pub fn start_dtnd(cfg: DtnConfig) {
     {
         CONFIG.lock().unwrap().set(cfg);
     }
+    info!("Local Node ID: {}", DTNCORE.lock().unwrap().nodeid);
+
     let routing = CONFIG.lock().unwrap().routing.clone();
     DTNCORE.lock().unwrap().routing_agent = crate::routing::new(&routing);
 

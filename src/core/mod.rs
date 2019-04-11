@@ -95,7 +95,7 @@ impl Default for DtnCore {
 impl DtnCore {
     pub fn new() -> DtnCore {
         DtnCore {
-            nodeid: dtnconfig::CONFIG.lock().unwrap().nodeid.clone(),
+            nodeid: crate::CONFIG.lock().unwrap().nodeid.clone(),
             endpoints: Vec::new(),
             cl_list: Vec::new(),
             //routing_agent: Box::new(crate::routing::flooding::FloodingRoutingAgent::new()),

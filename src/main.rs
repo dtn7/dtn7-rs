@@ -27,7 +27,7 @@ fn main() {
                 .short("n")
                 .long("nodeid")
                 .value_name("NODEID")
-                .help("Sets local node name")
+                .help("Sets local node name (e.g. 'dtn://node1'")
                 .takes_value(true),
         )
         .arg(
@@ -75,9 +75,13 @@ fn main() {
         )
         .get_matches();
 
-    let config = matches.value_of("config").unwrap_or("default.conf");
+    let config = matches.value_of("config").unwrap_or("default.conf"); // TODO: add support for config files
 
-    cfg.nodeid = matches.value_of("nodeid").unwrap_or("node1").to_string();
+    cfg.nodeid = matches
+        .value_of("nodeid")
+        .unwrap_or("dtn://node1")
+        .to_string();
+    bp7::EndpointID::from(cfg.nodeid.clone()); // validate node id
 
     if let Some(i) = matches.value_of("interval") {
         cfg.announcement_interval = i

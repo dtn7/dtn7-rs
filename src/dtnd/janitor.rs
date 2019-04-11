@@ -13,7 +13,7 @@ fn janitor() {
 pub fn spawn_janitor() {
     let task = Interval::new(
         Instant::now(),
-        Duration::from_millis(dtnconfig::CONFIG.lock().unwrap().janitor_interval),
+        Duration::from_millis(crate::CONFIG.lock().unwrap().janitor_interval),
     )
     .for_each(move |_instant| {
         janitor();
