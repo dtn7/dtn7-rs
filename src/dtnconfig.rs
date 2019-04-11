@@ -1,7 +1,5 @@
-use lazy_static::*;
 use rand::distributions::Alphanumeric;
 use rand::{thread_rng, Rng};
-use std::sync::Mutex;
 
 #[derive(Debug, Default, Clone)]
 pub struct DtnConfig {

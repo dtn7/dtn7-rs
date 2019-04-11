@@ -1,5 +1,4 @@
 use crate::core::{DtnPeer, PeerType};
-use crate::dtnconfig;
 use crate::DTNCORE;
 use crate::PEERS;
 use bp7::EndpointID;
@@ -8,7 +7,6 @@ use log::{debug, error, info, trace, warn};
 use net2::UdpBuilder;
 use serde::{Deserialize, Serialize};
 use std::io;
-use std::net::SocketAddr;
 use std::time::{Duration, Instant};
 use tokio::net::UdpSocket;
 use tokio::prelude::*;

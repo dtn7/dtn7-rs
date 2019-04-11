@@ -5,7 +5,6 @@ pub mod store;
 
 use crate::cla::ConvergencyLayerAgent;
 use crate::core::bundlepack::BundlePack;
-use crate::dtnconfig;
 use crate::routing::RoutingAgent;
 use crate::PEERS;
 use crate::STATS;
