@@ -33,8 +33,10 @@ impl RoutingAgent for FloodingRoutingAgent {
         peers: Vec<String>,
         cl_list: &[Box<dyn ConvergencyLayerAgent>],
     ) {
-        for cla in &mut cl_list.iter() {
-            cla.scheduled_process(&bundles, &peers);
+        for p in &peers {
+            for cla in &mut cl_list.iter() {
+                cla.scheduled_submission(&bundles, &p);
+            }
         }
     }
 }
