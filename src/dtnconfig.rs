@@ -14,8 +14,9 @@ pub struct DtnConfig {
 
 impl DtnConfig {
     pub fn new() -> DtnConfig {
+        let node_rnd: String = thread_rng().sample_iter(&Alphanumeric).take(10).collect();
         DtnConfig {
-            nodeid: thread_rng().sample_iter(&Alphanumeric).take(10).collect(),
+            nodeid: format!("dtn://{}", node_rnd),
             announcement_interval: 2000,
             janitor_interval: 10000,
             endpoints: Vec::new(),
@@ -29,8 +30,4 @@ impl DtnConfig {
         self.endpoints = cfg.endpoints;
         self.routing = cfg.routing;
     }
-}
-
-lazy_static! {
-    pub static ref CONFIG: Mutex<DtnConfig> = Mutex::new(DtnConfig::new());
 }

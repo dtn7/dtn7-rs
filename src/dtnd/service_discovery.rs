@@ -67,11 +67,11 @@ fn announcer(socket: std::net::UdpSocket) {
     for cl in &DTNCORE.lock().unwrap().cl_list {
         cls.push(cl.to_string());
     }
-    let nodeid = format!("dtn://{}", DTNCORE.lock().unwrap().nodeid);
+    //let nodeid = format!("dtn://{}", DTNCORE.lock().unwrap().nodeid);
     //let addr = "127.0.0.1:3003".parse().unwrap();
     let addr = "224.0.0.26:3003".parse().unwrap();
     let pkt = AnnouncementPkt {
-        eid: nodeid.into(),
+        eid: DTNCORE.lock().unwrap().nodeid.clone().into(),
         cl: cls,
     };
     let anc = sock
@@ -109,7 +109,7 @@ pub fn spawn_service_discovery() {
 
     let task = Interval::new(
         Instant::now(),
-        Duration::from_millis(dtnconfig::CONFIG.lock().unwrap().announcement_interval),
+        Duration::from_millis(crate::CONFIG.lock().unwrap().announcement_interval),
     )
     .for_each(move |_instant| {
         announcer(socket_clone.try_clone().expect("couldn't clone the socket"));
