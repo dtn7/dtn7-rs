@@ -9,6 +9,7 @@ pub struct DtnConfig {
     pub announcement_interval: u64,
     pub janitor_interval: u64,
     pub endpoints: Vec<String>,
+    pub clas: Vec<String>,
     pub routing: String,
 }
 
@@ -20,6 +21,7 @@ impl DtnConfig {
             announcement_interval: 2000,
             janitor_interval: 10000,
             endpoints: Vec::new(),
+            clas: Vec::new(),
             routing: "epidemic".into(),
         }
     }
@@ -28,6 +30,7 @@ impl DtnConfig {
         self.announcement_interval = cfg.announcement_interval;
         self.janitor_interval = cfg.janitor_interval;
         self.endpoints = cfg.endpoints;
+        self.clas = cfg.clas;
         self.routing = cfg.routing;
     }
 }

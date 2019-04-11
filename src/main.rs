@@ -27,7 +27,7 @@ fn main() {
                 .short("n")
                 .long("nodeid")
                 .value_name("NODEID")
-                .help("Sets local node name (e.g. 'dtn://node1'")
+                .help("Sets local node name (e.g. 'dtn://node1')")
                 .takes_value(true),
         )
         .arg(
@@ -35,7 +35,7 @@ fn main() {
                 .short("e")
                 .long("endpoint")
                 .value_name("ENDPOINT")
-                .help("Registers an application agent for an endpoint")
+                .help("Registers an application agent for a node local endpoint (e.g. 'incoming' listens on 'dtn://node1/incoming')")
                 .multiple(true)
                 .takes_value(true),
         )
@@ -64,6 +64,18 @@ fn main() {
                     "Set routing algorithm: {}",
                     dtn7::routing::routing_algorithms().join(", ")
                 ))
+                .takes_value(true),
+        )
+        .arg(
+            Arg::with_name("cla")
+                .short("C")
+                .long("cla")
+                .value_name("CLA")
+                .help(&format!(
+                    "Add convergency layer agent: {}",
+                    dtn7::cla::convergency_layer_agents().join(", ")
+                ))
+                .multiple(true)
                 .takes_value(true),
         )
         .arg(
@@ -99,11 +111,17 @@ fn main() {
             cfg.routing = r.into();
         }
     }
-    if matches.is_present("endpoint") {
-        if let Some(in_v) = matches.values_of("endpoint") {
-            for in_endpoint in in_v {
-                cfg.endpoints.push(in_endpoint.to_string());
+    if let Some(clas) = matches.values_of("cla") {
+        for cla in clas {
+            if dtn7::cla::convergency_layer_agents().contains(&cla) {
+                cfg.clas.push(cla.to_string());
             }
+        }
+    }
+
+    if let Some(in_v) = matches.values_of("endpoint") {
+        for in_endpoint in in_v {
+            cfg.endpoints.push(in_endpoint.to_string());
         }
     }
     if matches.is_present("debug") {

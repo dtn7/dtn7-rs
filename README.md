@@ -7,6 +7,42 @@ This is more or less a port of the dtn7 golang implementation: https://github.co
 
 The actual BP7 implementation can be found here: https://github.com/gh0st42/bp7-rs
 
-Currently a very basic service discovery, STCP (flooding) and a rest command interface are implemented.
+Currently a very basic service discovery, STCP (flooding/epidemic) and a rest command interface are implemented.
 **Beware, the API is not very idiomatic rust and lacks documentation and tests.**
-Since I consider this code to be very unpolished and far from finished it is also not yet published on crates.io.
+Since I consider this code to be very unpolished and far from finished it is also not yet published on crates.io. Correct forwarding, administrative records and various other pieces are also not implemented yet. Furthermore, the rest interface is totally undocumented and unfinished :)
+
+## Installation
+
+```
+git clone https://github.com/gh0st42/dtn7-rs
+cd dtn7
+cargo install --path .
+```
+
+## Usage
+
+```
+$ dtnd -h
+dtn7-rs 0.2.0
+Lars Baumgaertner <baumgaertner@cs.tu-darmstadt.de>
+A simple Bundle Protocol 7 Daemon for Delay Tolerant Networking
+
+USAGE:
+    dtnd [FLAGS] [OPTIONS]
+
+FLAGS:
+    -d, --debug      Set log level to debug
+    -h, --help       Prints help information
+    -V, --version    Prints version information
+
+OPTIONS:
+    -C, --cla <CLA>...              Add convergency layer agent: dummy, stcp
+    -c, --config <FILE>             Sets a custom config file
+    -e, --endpoint <ENDPOINT>...    Registers an application agent for a node local endpoint (e.g. 'incoming' listens on
+                                    'dtn://node1/incoming')
+    -i, --interval <INTERVAL>       Sets service discovery interval
+    -j, --janitor <INTERVAL>        Sets janitor interval
+    -n, --nodeid <NODEID>           Sets local node name (e.g. 'dtn://node1')
+    -r, --routing <ROUTING>         Set routing algorithm: flooding, epidemic
+```
+
