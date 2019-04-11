@@ -1,6 +1,4 @@
 use super::{janitor, rest, service_discovery};
-use crate::cla::dummy::*;
-use crate::cla::stcp::*;
 use crate::core::application_agent::ApplicationAgentData;
 use crate::dtnconfig::DtnConfig;
 use crate::{CONFIG, DTNCORE};
@@ -68,10 +66,6 @@ pub fn start_dtnd(cfg: DtnConfig) {
     for cla in &CONFIG.lock().unwrap().clas {
         DTNCORE.lock().unwrap().cl_list.push(crate::cla::new(cla));
     }
-    /*let dcl = DummyConvergencyLayer::new();
-    DTNCORE.lock().unwrap().cl_list.push(Box::new(dcl));
-    let stcp = StcpConversionLayer::new();
-    DTNCORE.lock().unwrap().cl_list.push(Box::new(stcp));*/
 
     for e in &CONFIG.lock().unwrap().endpoints {
         let eid = format!("dtn://{}/{}", DTNCORE.lock().unwrap().nodeid, e);
