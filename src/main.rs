@@ -1,14 +1,20 @@
 use clap::{crate_authors, crate_version, App, Arg, ArgGroup, SubCommand};
 use dtn7::dtnd::daemon::*;
 use dtn7::DtnConfig;
-use log::{info, trace, warn};
+use log::info;
 use pretty_env_logger;
+use std::panic;
+use std::process;
 
 fn main() {
-    const VERSION: &str = env!("CARGO_PKG_VERSION");
-    const AUTHORS: &str = env!("CARGO_PKG_AUTHORS");
-
     let mut cfg = DtnConfig::new();
+
+    if cfg!(debug_assertions) {
+        panic::set_hook(Box::new(|p| {
+            println!("Panic hook: {}", p);
+            process::exit(1);
+        }));
+    }
 
     let matches = App::new("dtn7-rs")
         .version(crate_version!())
@@ -104,7 +110,7 @@ fn main() {
         )
         .get_matches();
 
-    let config = matches.value_of("config").unwrap_or("default.conf"); // TODO: add support for config files
+    let _config = matches.value_of("config").unwrap_or("default.conf"); // TODO: add support for config files
 
     cfg.nodeid = matches
         .value_of("nodeid")
