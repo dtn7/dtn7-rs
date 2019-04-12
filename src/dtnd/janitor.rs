@@ -1,4 +1,3 @@
-use crate::dtnconfig;
 use crate::DTNCORE;
 use log::{debug, error, info, warn};
 use std::time::{Duration, Instant};

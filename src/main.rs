@@ -1,4 +1,4 @@
-use clap::{App, Arg, ArgGroup, SubCommand};
+use clap::{crate_authors, crate_version, App, Arg, ArgGroup, SubCommand};
 use dtn7::dtnd::daemon::*;
 use dtn7::DtnConfig;
 use log::{info, trace, warn};
@@ -11,8 +11,8 @@ fn main() {
     let mut cfg = DtnConfig::new();
 
     let matches = App::new("dtn7-rs")
-        .version(VERSION)
-        .author(AUTHORS)
+        .version(crate_version!())
+        .author(crate_authors!())
         .about("A simple Bundle Protocol 7 Daemon for Delay Tolerant Networking")
         .arg(
             Arg::with_name("config")
@@ -56,6 +56,14 @@ fn main() {
                 .takes_value(true),
         )
         .arg(
+            Arg::with_name("peertimeout")
+                .short("p")
+                .long("peer-timeout")
+                .value_name("SECONDS")
+                .help("Sets timeout to remove peer")
+                .takes_value(true),
+        )
+        .arg(
             Arg::with_name("routing")
                 .short("r")
                 .long("routing")
@@ -75,6 +83,15 @@ fn main() {
                     "Add convergency layer agent: {}",
                     dtn7::cla::convergency_layer_agents().join(", ")
                 ))
+                .multiple(true)
+                .takes_value(true),
+        )
+        .arg(
+            Arg::with_name("staticpeer")
+                .short("s")
+                .long("static-peer")
+                .value_name("PEER")
+                .help("Adds a static peer (e.g. stcp://192.168.2.1/node2)")
                 .multiple(true)
                 .takes_value(true),
         )
@@ -106,6 +123,13 @@ fn main() {
             .parse::<u64>()
             .expect("Could not parse janitor parameter!");
     }
+
+    if let Some(t) = matches.value_of("peertimeout") {
+        cfg.peer_timeout = t
+            .parse::<u64>()
+            .expect("Could not parse peer timeout parameter!");
+    }
+
     if let Some(r) = matches.value_of("routing") {
         if dtn7::routing::routing_algorithms().contains(&r) {
             cfg.routing = r.into();
@@ -117,6 +141,12 @@ fn main() {
             if dtn7::cla::convergency_layer_agents().contains(&cla) {
                 cfg.clas.push(cla.to_string());
             }
+        }
+    }
+    if let Some(statics) = matches.values_of("staticpeer") {
+        for s in statics {
+            cfg.statics
+                .push(dbg!(dtn7::core::helpers::parse_peer_url(s)));
         }
     }
 

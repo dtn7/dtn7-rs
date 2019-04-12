@@ -1,5 +1,6 @@
-use crate::core::application_agent::ApplicationAgentData;
+use crate::core::application_agent::SimpleApplicationAgent;
 use crate::core::helpers::rnd_peer;
+use crate::CONFIG;
 use crate::DTNCORE;
 use crate::PEERS;
 use crate::STATS;
@@ -61,9 +62,9 @@ fn rest_handler(req: Request<Body>) -> BoxFut {
             if let Some(params) = req.uri().query() {
                 if params.chars().all(char::is_alphanumeric) {
                     dbg!(params);
-                    let eid = format!("dtn://{}/{}", DTNCORE.lock().unwrap().nodeid, params);
+                    let eid = format!("dtn://{}/{}", CONFIG.lock().unwrap().nodeid, params);
                     DTNCORE.lock().unwrap().register_application_agent(
-                        ApplicationAgentData::new_with(eid.clone().into()),
+                        SimpleApplicationAgent::new_with(eid.clone().into()),
                     );
                     *response.body_mut() = Body::from(format!("Registered {}", eid));
                 }
@@ -75,9 +76,9 @@ fn rest_handler(req: Request<Body>) -> BoxFut {
             if let Some(params) = req.uri().query() {
                 if params.chars().all(char::is_alphanumeric) {
                     dbg!(params);
-                    let eid = format!("dtn://{}/{}", DTNCORE.lock().unwrap().nodeid, params);
+                    let eid = format!("dtn://{}/{}", CONFIG.lock().unwrap().nodeid, params);
                     DTNCORE.lock().unwrap().unregister_application_agent(
-                        ApplicationAgentData::new_with(eid.clone().into()),
+                        SimpleApplicationAgent::new_with(eid.clone().into()),
                     );
                     *response.body_mut() = Body::from(format!("Unregistered {}", eid));
                 }
@@ -88,7 +89,7 @@ fn rest_handler(req: Request<Body>) -> BoxFut {
             if let Some(params) = req.uri().query() {
                 if params.chars().all(char::is_alphanumeric) {
                     dbg!(params);
-                    let eid = format!("dtn://{}/{}", DTNCORE.lock().unwrap().nodeid, params); // TODO: support non-node-specific EIDs
+                    let eid = format!("dtn://{}/{}", CONFIG.lock().unwrap().nodeid, params); // TODO: support non-node-specific EIDs
                     if let Some(aa) = DTNCORE.lock().unwrap().get_endpoint_mut(&eid.into()) {
                         if let Some(mut bundle) = aa.pop() {
                             *response.body_mut() = Body::from(bundle.to_json());

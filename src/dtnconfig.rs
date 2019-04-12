@@ -1,3 +1,4 @@
+use crate::core::DtnPeer;
 use rand::distributions::Alphanumeric;
 use rand::{thread_rng, Rng};
 
@@ -9,6 +10,8 @@ pub struct DtnConfig {
     pub endpoints: Vec<String>,
     pub clas: Vec<String>,
     pub routing: String,
+    pub peer_timeout: u64,
+    pub statics: Vec<DtnPeer>,
 }
 
 impl DtnConfig {
@@ -21,6 +24,8 @@ impl DtnConfig {
             endpoints: Vec::new(),
             clas: Vec::new(),
             routing: "epidemic".into(),
+            peer_timeout: 2000 * 10,
+            statics: Vec::new(),
         }
     }
     pub fn set(&mut self, cfg: DtnConfig) {
@@ -30,5 +35,7 @@ impl DtnConfig {
         self.endpoints = cfg.endpoints;
         self.clas = cfg.clas;
         self.routing = cfg.routing;
+        self.peer_timeout = cfg.peer_timeout;
+        self.statics = cfg.statics;
     }
 }

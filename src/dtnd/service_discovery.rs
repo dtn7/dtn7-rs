@@ -1,4 +1,5 @@
 use crate::core::{DtnPeer, PeerType};
+use crate::CONFIG;
 use crate::DTNCORE;
 use crate::PEERS;
 use bp7::EndpointID;
@@ -69,7 +70,7 @@ fn announcer(socket: std::net::UdpSocket) {
     //let addr = "127.0.0.1:3003".parse().unwrap();
     let addr = "224.0.0.26:3003".parse().unwrap();
     let pkt = AnnouncementPkt {
-        eid: DTNCORE.lock().unwrap().nodeid.clone().into(),
+        eid: CONFIG.lock().unwrap().nodeid.clone().into(),
         cl: cls,
     };
     let anc = sock

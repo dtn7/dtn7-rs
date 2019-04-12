@@ -62,7 +62,7 @@ impl RoutingAgent for EpidemicRoutingAgent {
             let b_list = self.filtered(p.to_string(), &bundles);
             for cla in &mut cl_list.iter() {
                 if !b_list.is_empty() {
-                    cla.scheduled_submission(&b_list, &p);
+                    cla.scheduled_submission(&p, &b_list);
                 }
             }
             if !b_list.is_empty() {
