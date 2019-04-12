@@ -14,8 +14,6 @@ use application_agent::ApplicationAgent;
 use bp7::{Bundle, ByteBuffer, EndpointID};
 use log::{debug, error, info, warn};
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
-use std::fmt::{Debug, Display};
 use std::net::IpAddr;
 use std::time::{SystemTime, UNIX_EPOCH};
 
