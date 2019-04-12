@@ -7,7 +7,7 @@ use std::fmt::{Debug, Display};
 
 pub trait ConvergencyLayerAgent: Debug + Send + Display {
     fn setup(&mut self);
-    fn scheduled_submission(&self, ready: &[ByteBuffer], dest: &String);
+    fn scheduled_submission(&self, dest: &str, ready: &[ByteBuffer]);
 }
 
 pub fn convergency_layer_agents() -> Vec<&'static str> {

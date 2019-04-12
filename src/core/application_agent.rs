@@ -9,12 +9,12 @@ pub trait ApplicationAgent: Debug {
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub struct ApplicationAgentData {
+pub struct SimpleApplicationAgent {
     eid: EndpointID,
     bundles: VecDeque<Bundle>,
 }
 
-impl ApplicationAgent for ApplicationAgentData {
+impl ApplicationAgent for SimpleApplicationAgent {
     fn eid(&self) -> &EndpointID {
         &self.eid
     }
@@ -27,9 +27,9 @@ impl ApplicationAgent for ApplicationAgentData {
     }
 }
 
-impl ApplicationAgentData {
-    pub fn new_with(eid: EndpointID) -> ApplicationAgentData {
-        ApplicationAgentData {
+impl SimpleApplicationAgent {
+    pub fn new_with(eid: EndpointID) -> SimpleApplicationAgent {
+        SimpleApplicationAgent {
             eid,
             bundles: VecDeque::new(),
         }

@@ -166,7 +166,7 @@ impl ConvergencyLayerAgent for StcpConversionLayer {
             ],
         );*/
     }
-    fn scheduled_submission(&self, ready: &[ByteBuffer], dest: &String) {
+    fn scheduled_submission(&self, dest: &str, ready: &[ByteBuffer]) {
         debug!("Scheduled STCP submission: {:?}", dest);
         if !ready.is_empty() {
             let addr: IpAddr = dest.parse().unwrap();

@@ -35,7 +35,7 @@ impl RoutingAgent for FloodingRoutingAgent {
     ) {
         for p in &peers {
             for cla in &mut cl_list.iter() {
-                cla.scheduled_submission(&bundles, &p);
+                cla.scheduled_submission(&p, &bundles);
             }
         }
     }

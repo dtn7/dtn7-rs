@@ -6,6 +6,7 @@ pub mod store;
 use crate::cla::ConvergencyLayerAgent;
 use crate::core::bundlepack::BundlePack;
 use crate::routing::RoutingAgent;
+use crate::CONFIG;
 use crate::PEERS;
 use crate::STATS;
 use crate::STORE;
@@ -13,11 +14,12 @@ use application_agent::ApplicationAgent;
 use bp7::{Bundle, ByteBuffer, EndpointID};
 use log::{debug, error, info, warn};
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 use std::fmt::{Debug, Display};
 use std::net::IpAddr;
 use std::time::{SystemTime, UNIX_EPOCH};
 
-#[derive(Debug, Serialize, Deserialize, Clone)]
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 pub enum PeerType {
     Static,
     Dynamic,
@@ -50,11 +52,46 @@ impl DtnPeer {
                 .as_secs(),
         }
     }
+    /// Example
+    ///
+    /// ```
+    /// use std::{thread, time};
+    /// use dtn7::core::*;
+    /// use dtn7::CONFIG;
+    ///
+    /// let mut peer = helpers::rnd_peer();
+    /// let original_time = peer.last_contact;
+    /// thread::sleep(time::Duration::from_secs(1));
+    /// peer.touch();
+    /// assert!(original_time < peer.last_contact);
+    /// ```
     pub fn touch(&mut self) {
         self.last_contact = SystemTime::now()
             .duration_since(UNIX_EPOCH)
             .unwrap()
             .as_secs();
+    }
+    /// Example
+    ///
+    /// ```
+    /// use std::{thread, time};
+    /// use dtn7::core::*;
+    /// use dtn7::CONFIG;
+    ///
+    /// CONFIG.lock().unwrap().peer_timeout = 1;
+    /// let mut peer = helpers::rnd_peer();
+    /// assert_eq!(peer.still_valid(), true);
+    ///
+    /// thread::sleep(time::Duration::from_secs(2));
+    /// assert_eq!(peer.still_valid(), false);
+    /// ```
+
+    pub fn still_valid(&self) -> bool {
+        let now = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_secs();
+        now - self.last_contact < CONFIG.lock().unwrap().peer_timeout
     }
 }
 #[derive(Debug, Serialize, Deserialize, Default, Clone)]
@@ -79,7 +116,6 @@ impl DtnStatistics {
 }
 #[derive(Debug)]
 pub struct DtnCore {
-    pub nodeid: String,
     pub endpoints: Vec<Box<dyn ApplicationAgent + Send>>,
     pub cl_list: Vec<Box<dyn ConvergencyLayerAgent>>,
     pub routing_agent: Box<RoutingAgent>,
@@ -94,7 +130,6 @@ impl Default for DtnCore {
 impl DtnCore {
     pub fn new() -> DtnCore {
         DtnCore {
-            nodeid: crate::CONFIG.lock().unwrap().nodeid.clone(),
             endpoints: Vec::new(),
             cl_list: Vec::new(),
             //routing_agent: Box::new(crate::routing::flooding::FloodingRoutingAgent::new()),
@@ -147,6 +182,8 @@ impl DtnCore {
         None
     }
     pub fn process(&mut self) {
+        process_peers();
+
         // TODO: this all doesn't feel right, not very idiomatic
         let mut del_list: Vec<String> = Vec::new();
         let mut delivery_list: Vec<(EndpointID, Bundle)> = Vec::new();
@@ -223,4 +260,12 @@ impl DtnCore {
         }*/
         STORE.lock().unwrap().push(bp);
     }
+}
+
+/// Removes peers from global peer list that haven't been seen in a while.
+pub fn process_peers() {
+    PEERS
+        .lock()
+        .unwrap()
+        .retain(|_k, v| v.con_type == PeerType::Static || v.still_valid());
 }

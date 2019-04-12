@@ -1,6 +1,7 @@
 use super::{janitor, rest, service_discovery};
-use crate::core::application_agent::ApplicationAgentData;
+use crate::core::application_agent::SimpleApplicationAgent;
 use crate::dtnconfig::DtnConfig;
+use crate::PEERS;
 use crate::{CONFIG, DTNCORE};
 use futures::future::lazy;
 use log::{debug, error, info, warn};
@@ -56,7 +57,9 @@ pub fn start_dtnd(cfg: DtnConfig) {
     {
         CONFIG.lock().unwrap().set(cfg);
     }
-    info!("Local Node ID: {}", DTNCORE.lock().unwrap().nodeid);
+    info!("Local Node ID: {}", CONFIG.lock().unwrap().nodeid);
+
+    info!("Peer Timeout: {}", CONFIG.lock().unwrap().peer_timeout);
 
     let routing = CONFIG.lock().unwrap().routing.clone();
     DTNCORE.lock().unwrap().routing_agent = crate::routing::new(&routing);
@@ -67,12 +70,21 @@ pub fn start_dtnd(cfg: DtnConfig) {
         DTNCORE.lock().unwrap().cl_list.push(crate::cla::new(cla));
     }
 
+    for s in &CONFIG.lock().unwrap().statics {
+        info!(
+            "Adding static peer: {}://{}/{}",
+            s.cla_list[0],
+            s.addr,
+            s.eid.node_part().unwrap()
+        );
+        PEERS.lock().unwrap().insert(s.addr, s.clone());
+    }
     for e in &CONFIG.lock().unwrap().endpoints {
-        let eid = format!("dtn://{}/{}", DTNCORE.lock().unwrap().nodeid, e);
+        let eid = format!("dtn://{}/{}", CONFIG.lock().unwrap().nodeid, e);
         DTNCORE
             .lock()
             .unwrap()
-            .register_application_agent(ApplicationAgentData::new_with(eid.into()));
+            .register_application_agent(SimpleApplicationAgent::new_with(eid.into()));
     }
 
     tokio::run(lazy(move || {

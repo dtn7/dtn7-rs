@@ -15,7 +15,7 @@ impl DummyConvergencyLayer {
 impl ConvergencyLayerAgent for DummyConvergencyLayer {
     fn setup(&mut self) {}
 
-    fn scheduled_submission(&self, _ready: &[ByteBuffer], _dest: &String) {
+    fn scheduled_submission(&self, _dest: &str, _ready: &[ByteBuffer]) {
         debug!("Scheduled submission Dummy Conversion Layer");
     }
 }
