@@ -111,6 +111,7 @@ fn main() {
             cfg.routing = r.into();
         }
     }
+
     if let Some(clas) = matches.values_of("cla") {
         for cla in clas {
             if dtn7::cla::convergency_layer_agents().contains(&cla) {
