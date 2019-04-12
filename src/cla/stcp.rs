@@ -1,10 +1,11 @@
 use crate::cla::ConvergencyLayerAgent;
 use crate::DTNCORE;
-use bp7::{Bp7Error, Bundle, ByteBuffer, CreationTimestamp};
+use bp7::{Bp7Error, Bundle, ByteBuffer};
 use bytes::{BufMut, BytesMut};
 use futures::Future;
 use log::{debug, error, info, warn};
 use serde::{Deserialize, Serialize};
+use std::net::IpAddr;
 use std::net::SocketAddr;
 use tokio::codec::{Decoder, Encoder, Framed};
 use tokio::io;
@@ -154,22 +155,22 @@ impl StcpConversionLayer {
 impl ConvergencyLayerAgent for StcpConversionLayer {
     fn setup(&mut self) {
         self.spawn_listener();
-        //self.client_connect("127.0.0.1:16161".parse::<SocketAddr>().unwrap());
-        //self.client_connect("127.0.0.1:35037".parse::<SocketAddr>().unwrap());
-        self.send_bundles(
+
+        // TODO: remove the following test code
+        /*self.send_bundles(
             "127.0.0.1:16161".parse::<SocketAddr>().unwrap(),
             vec![
                 bp7::helpers::rnd_bundle(CreationTimestamp::now()).to_cbor(),
                 bp7::helpers::rnd_bundle(CreationTimestamp::now()).to_cbor(),
                 bp7::helpers::rnd_bundle(CreationTimestamp::now()).to_cbor(),
             ],
-        );
+        );*/
     }
     fn scheduled_submission(&self, ready: &[ByteBuffer], dest: &String) {
-        debug!("Scheduled submission STCP Conversion Layer");
-        // ugly clone following...
+        debug!("Scheduled STCP submission: {:?}", dest);
         if !ready.is_empty() {
-            let peeraddr = format!("{}:16161", dest).parse::<SocketAddr>().unwrap();
+            let addr: IpAddr = dest.parse().unwrap();
+            let peeraddr = SocketAddr::new(addr, 16161);
             debug!("forwarding to {:?}", peeraddr);
             self.send_bundles(peeraddr, ready.to_vec());
         } else {
