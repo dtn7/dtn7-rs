@@ -1,6 +1,6 @@
 use super::ConvergencyLayerAgent;
 use bp7::ByteBuffer;
-use log::{debug, error, info, warn};
+use log::{debug};
 
 #[derive(Debug, Clone, Default)]
 pub struct DummyConvergencyLayer {
@@ -22,6 +22,6 @@ impl ConvergencyLayerAgent for DummyConvergencyLayer {
 
 impl std::fmt::Display for DummyConvergencyLayer {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "DummyConversionLayer")
+        write!(f, "dummy")
     }
 }
