@@ -1,6 +1,6 @@
 use super::ConvergencyLayerAgent;
 use bp7::ByteBuffer;
-use log::{debug, error, info, warn};
+use log::{debug};
 
 #[derive(Debug, Clone, Default)]
 pub struct DummyConvergencyLayer {
