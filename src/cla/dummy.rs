@@ -22,6 +22,6 @@ impl ConvergencyLayerAgent for DummyConvergencyLayer {
 
 impl std::fmt::Display for DummyConvergencyLayer {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "DummyConversionLayer")
+        write!(f, "dummy")
     }
 }
