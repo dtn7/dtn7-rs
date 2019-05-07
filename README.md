@@ -23,7 +23,7 @@ cargo install --path .
 
 ```
 $ dtnd -h
-dtn7-rs 0.2.0
+dtn7-rs 0.3.0
 Lars Baumgaertner <baumgaertner@cs.tu-darmstadt.de>
 A simple Bundle Protocol 7 Daemon for Delay Tolerant Networking
 
@@ -43,6 +43,8 @@ OPTIONS:
     -i, --interval <INTERVAL>       Sets service discovery interval
     -j, --janitor <INTERVAL>        Sets janitor interval
     -n, --nodeid <NODEID>           Sets local node name (e.g. 'dtn://node1')
+    -p, --peer-timeout <SECONDS>    Sets timeout to remove peer
     -r, --routing <ROUTING>         Set routing algorithm: flooding, epidemic
+    -s, --static-peer <PEER>...     Adds a static peer (e.g. stcp://192.168.2.1/node2)
 ```
 

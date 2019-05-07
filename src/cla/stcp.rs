@@ -184,6 +184,6 @@ impl ConvergencyLayerAgent for StcpConversionLayer {
 
 impl std::fmt::Display for StcpConversionLayer {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "StcpConversionLayer")
+        write!(f, "stcp")
     }
 }
