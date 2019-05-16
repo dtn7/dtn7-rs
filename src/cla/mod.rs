@@ -1,5 +1,6 @@
 pub mod dummy;
 
+pub mod mtcp;
 pub mod stcp;
 
 use bp7::ByteBuffer;
@@ -11,13 +12,14 @@ pub trait ConvergencyLayerAgent: Debug + Send + Display {
 }
 
 pub fn convergency_layer_agents() -> Vec<&'static str> {
-    vec!["dummy", "stcp"]
+    vec!["dummy", "stcp", "mtcp"]
 }
 
 pub fn new(cla: &str) -> Box<ConvergencyLayerAgent> {
     match cla {
         "dummy" => Box::new(dummy::DummyConvergencyLayer::new()),
         "stcp" => Box::new(stcp::StcpConversionLayer::new()),
+        "mtcp" => Box::new(mtcp::MtcpConversionLayer::new()),
         _ => panic!("Unknown convergency layer agent agent {}", cla),
     }
 }

@@ -13,36 +13,30 @@ use tokio::io::AsyncWrite;
 use tokio::net::{TcpListener, TcpStream};
 use tokio::prelude::*;
 
-/// DataUnit represents a STCP Data Unit, which will be decoded as a CBOR
+/// MPDU represents a MTCP Data Unit, which will be decoded as a CBOR
 /// array of the serialized bundle's length and the serialized bundle.
-#[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Default)] // hacked struct as tuple because bug in serialize_tuple
-pub struct DataUnit(usize, #[serde(with = "serde_bytes")] ByteBuffer);
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Default)]
+pub struct MPDU(#[serde(with = "serde_bytes")] ByteBuffer);
 
-impl DataUnit {
-    pub fn new(bndl: &Bundle) -> DataUnit {
+impl MPDU {
+    pub fn new(bndl: &Bundle) -> MPDU {
         let b = bndl.clone().to_cbor();
-        DataUnit(b.len(), b)
+        MPDU(b)
     }
     pub fn get_bundle(&self) -> Result<Bundle, Bp7Error> {
-        if self.0 != self.1.len() {
-            Err(Bp7Error::StcpError(
-                "Length variable and bundle's length mismatch".into(),
-            ))
-        } else {
-            Ok(Bundle::from(self.1.clone()))
-        }
+        Ok(Bundle::from(self.0.clone()))
     }
 }
 
-struct DataUnitCodec {
+struct MPDUCodec {
     last_pos: usize,
 }
 
-impl Encoder for DataUnitCodec {
-    type Item = DataUnit;
+impl Encoder for MPDUCodec {
+    type Item = MPDU;
     type Error = io::Error;
 
-    fn encode(&mut self, item: DataUnit, dst: &mut BytesMut) -> Result<(), io::Error> {
+    fn encode(&mut self, item: MPDU, dst: &mut BytesMut) -> Result<(), io::Error> {
         let buf = serde_cbor::to_vec(&item).unwrap();
         dst.reserve(buf.len());
         dst.put_slice(&buf);
@@ -50,21 +44,21 @@ impl Encoder for DataUnitCodec {
     }
 }
 
-impl Decoder for DataUnitCodec {
-    type Item = DataUnit;
+impl Decoder for MPDUCodec {
+    type Item = MPDU;
     type Error = io::Error;
 
-    fn decode(&mut self, buf: &mut BytesMut) -> io::Result<Option<DataUnit>> {
+    fn decode(&mut self, buf: &mut BytesMut) -> io::Result<Option<MPDU>> {
         if buf.len() < 10 {
             // TODO: real minimum size needed
             return Ok(None);
         }
-        let res: Result<DataUnit, serde_cbor::error::Error> = serde_cbor::from_slice(buf);
+        let res: Result<MPDU, serde_cbor::error::Error> = serde_cbor::from_slice(buf);
         match res {
-            Ok(spdu) => {
+            Ok(mpdu) => {
                 buf.split_to(buf.len());
                 self.last_pos = 0;
-                Ok(Some(spdu))
+                Ok(Some(mpdu))
             }
             Err(_) => {
                 let pos: Vec<usize> = buf[..]
@@ -74,7 +68,7 @@ impl Decoder for DataUnitCodec {
                     .map(|(i, _)| i)
                     .collect();
                 for p in pos.iter() {
-                    let res: Result<DataUnit, serde_cbor::error::Error> =
+                    let res: Result<MPDU, serde_cbor::error::Error> =
                         serde_cbor::from_slice(&buf[0..*p]);
                     if res.is_ok() {
                         buf.split_to(*p);
@@ -90,24 +84,24 @@ impl Decoder for DataUnitCodec {
 }
 
 #[derive(Debug, Clone, Default)]
-pub struct StcpConversionLayer {
+pub struct MtcpConversionLayer {
     counter: u64,
 }
 
-impl StcpConversionLayer {
-    pub fn new() -> StcpConversionLayer {
-        StcpConversionLayer { counter: 0 }
+impl MtcpConversionLayer {
+    pub fn new() -> MtcpConversionLayer {
+        MtcpConversionLayer { counter: 0 }
     }
     fn spawn_listener(&self) {
-        let addr = "0.0.0.0:16161".parse().unwrap();
+        let addr = "0.0.0.0:16162".parse().unwrap();
         let listener = TcpListener::bind(&addr).unwrap();
-        debug!("spawning STCP listener");
+        debug!("spawning MTCP listener");
         let server = listener
             .incoming()
             .for_each(move |socket| {
                 let peer_addr = socket.peer_addr().unwrap();
                 info!("Incoming connection from {}", peer_addr);
-                let framed_sock = Framed::new(socket, DataUnitCodec { last_pos: 0 });
+                let framed_sock = Framed::new(socket, MPDUCodec { last_pos: 0 });
                 let conn = framed_sock
                     .for_each(move |frame| {
                         debug!(
@@ -140,10 +134,10 @@ impl StcpConversionLayer {
             .map(move |mut stream| {
                 // Attempt to write bytes asynchronously to the stream
                 for b in &bundles {
-                    let spdu = DataUnit(b.len(), b.to_vec());
+                    let mpdu = MPDU(b.to_vec());
                     if let Err(_) = stream
-                        .poll_write(&serde_cbor::to_vec(&spdu).expect("SPDU encoding error"))
-                        .map_err(|err| error!("stcp write error = {:?}", err))
+                        .poll_write(&serde_cbor::to_vec(&mpdu).expect("MPDU encoding error"))
+                        .map_err(|err| error!("mtcp write error = {:?}", err))
                     {
                         error!("Aborting sending of bundles to {}", addr);
                         break;
@@ -156,7 +150,7 @@ impl StcpConversionLayer {
         tokio::spawn(fut);
     }
 }
-impl ConvergencyLayerAgent for StcpConversionLayer {
+impl ConvergencyLayerAgent for MtcpConversionLayer {
     fn setup(&mut self) {
         self.spawn_listener();
 
@@ -171,7 +165,7 @@ impl ConvergencyLayerAgent for StcpConversionLayer {
         );*/
     }
     fn scheduled_submission(&self, dest: &str, ready: &[ByteBuffer]) {
-        debug!("Scheduled STCP submission: {:?}", dest);
+        debug!("Scheduled MTCP submission: {:?}", dest);
         if !ready.is_empty() {
             let addr: IpAddr = dest.parse().unwrap();
             let peeraddr = SocketAddr::new(addr, 16161);
@@ -183,8 +177,8 @@ impl ConvergencyLayerAgent for StcpConversionLayer {
     }
 }
 
-impl std::fmt::Display for StcpConversionLayer {
+impl std::fmt::Display for MtcpConversionLayer {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "stcp")
+        write!(f, "mtcp")
     }
 }
