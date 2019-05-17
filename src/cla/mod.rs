@@ -1,6 +1,7 @@
 pub mod dummy;
 
 pub mod mtcp;
+#[deprecated]
 pub mod stcp;
 
 use bp7::ByteBuffer;
