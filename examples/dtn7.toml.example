@@ -1,0 +1,32 @@
+# Example config file for dtn7 daemon
+debug = false
+nodeid = "node1"
+
+routing = "epidemic"
+
+[core]
+# the janitor is responsible for cleaning the bundle buffer
+# and schedule resubmissions.
+janitor = 10000
+
+
+[discovery]
+interval = 2000
+peer-timeout = 20000
+
+[convergencylayers]
+
+cla.0.id = "mtcp"
+cla.0.port = 16161 # atm ignored
+
+cla.1.id = "dummy"
+
+[statics]
+peers = [
+    "mtcp://192.168.2.101/testnode",
+    "mtcp://192.168.2.11/gw1",
+]
+
+[endpoints]
+eid.0 = "incoming"
+eid.1 = "null"

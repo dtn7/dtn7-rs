@@ -110,13 +110,15 @@ fn main() {
         )
         .get_matches();
 
-    let _config = matches.value_of("config").unwrap_or("default.conf"); // TODO: add support for config files
+    if let Some(cfgfile) = matches.value_of("config") {
+        cfg = DtnConfig::from(std::path::PathBuf::from(cfgfile));
+    }
+    //let _config = matches.value_of("config").unwrap_or("default.conf"); // TODO: add support for config files
 
-    cfg.nodeid = matches
-        .value_of("nodeid")
-        .unwrap_or("dtn://node1")
-        .to_string();
-    bp7::EndpointID::from(cfg.nodeid.clone()); // validate node id
+    if let Some(nodeid) = matches.value_of("nodeid") {
+        cfg.nodeid = nodeid.to_string();
+    }
+    bp7::EndpointID::from(format!("dtn://{}", cfg.nodeid.clone())); // validate node id
 
     if let Some(i) = matches.value_of("interval") {
         cfg.announcement_interval = i
@@ -161,13 +163,17 @@ fn main() {
             cfg.endpoints.push(in_endpoint.to_string());
         }
     }
-    if matches.is_present("debug") {
+    if matches.is_present("debug") || cfg.debug {
         std::env::set_var("RUST_LOG", "dtn7=debug,dtnd=debug");
     } else {
         std::env::set_var("RUST_LOG", "dtn7=info,dtnd=info");
     }
-    pretty_env_logger::init_timed();
 
+    pretty_env_logger::init_timed();
+    // Load config second time for logging purposes
+    if let Some(cfgfile) = matches.value_of("config") {
+        DtnConfig::from(std::path::PathBuf::from(cfgfile));
+    }
     info!("starting dtnd");
     start_dtnd(cfg);
 }

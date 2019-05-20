@@ -70,7 +70,7 @@ fn announcer(socket: std::net::UdpSocket) {
     //let addr = "127.0.0.1:3003".parse().unwrap();
     let addr = "224.0.0.26:3003".parse().unwrap();
     let pkt = AnnouncementPkt {
-        eid: CONFIG.lock().unwrap().nodeid.clone().into(),
+        eid: format!("dtn://{}", CONFIG.lock().unwrap().nodeid.clone()).into(),
         cl: cls,
     };
     let anc = sock
@@ -103,7 +103,6 @@ pub fn spawn_service_discovery() {
         socket: sock,
         buf: vec![0; 1024],
     };
-
     tokio::spawn(server.map_err(|e| println!("server error = {:?}", e)));
 
     let task = Interval::new(
