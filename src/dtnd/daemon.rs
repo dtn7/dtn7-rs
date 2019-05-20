@@ -67,6 +67,7 @@ pub fn start_dtnd(cfg: DtnConfig) {
     info!("RoutingAgent: {}", DTNCORE.lock().unwrap().routing_agent);
 
     for cla in &CONFIG.lock().unwrap().clas {
+        info!("Adding CLA: {}", cla);
         DTNCORE.lock().unwrap().cl_list.push(crate::cla::new(cla));
     }
 
@@ -79,8 +80,10 @@ pub fn start_dtnd(cfg: DtnConfig) {
         );
         PEERS.lock().unwrap().insert(s.addr, s.clone());
     }
+    let my_node_id = CONFIG.lock().unwrap().nodeid.clone();
+
     for e in &CONFIG.lock().unwrap().endpoints {
-        let eid = format!("dtn://{}/{}", CONFIG.lock().unwrap().nodeid, e);
+        let eid = format!("dtn://{}/{}", my_node_id, e);
         DTNCORE
             .lock()
             .unwrap()
