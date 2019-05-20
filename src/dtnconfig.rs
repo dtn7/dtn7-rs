@@ -67,7 +67,7 @@ impl From<PathBuf> for DtnConfig {
                 dtncfg.statics.push(peer);
             }
         }
-        let endpoints = s.get_table("endpoints.eid");
+        let endpoints = s.get_table("endpoints.local");
         if endpoints.is_ok() {
             for (_k, v) in endpoints.unwrap().iter() {
                 let eid = v.clone().into_str().unwrap();

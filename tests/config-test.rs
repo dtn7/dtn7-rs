@@ -33,7 +33,7 @@ fn config_test() {
         println!("Peer: {:?}", m.clone().into_str().unwrap());
     }
 
-    let endpoints = s.get_table("endpoints.eid");
+    let endpoints = s.get_table("endpoints.local");
 
     for (k, v) in endpoints.unwrap().iter() {
         println!("EID: {:?}", v.clone().into_str().unwrap());
