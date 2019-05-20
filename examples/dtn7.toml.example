@@ -28,5 +28,8 @@ peers = [
 ]
 
 [endpoints]
-eid.0 = "incoming"
-eid.1 = "null"
+# local endpoints are always reachable under dtn://<nodeid>/<localname>
+local.0 = "incoming"
+local.1 = "null"
+
+group.0 = "dtn://hometown/weather" # atm ignored
