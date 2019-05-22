@@ -141,9 +141,10 @@ impl StcpConversionLayer {
                 // Attempt to write bytes asynchronously to the stream
                 for b in &bundles {
                     let spdu = DataUnit(b.len(), b.to_vec());
-                    if let Err(_) = stream
+                    if stream
                         .poll_write(&serde_cbor::to_vec(&spdu).expect("SPDU encoding error"))
                         .map_err(|err| error!("stcp write error = {:?}", err))
+                        .is_err()
                     {
                         error!("Aborting sending of bundles to {}", addr);
                         break;

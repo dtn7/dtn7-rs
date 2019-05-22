@@ -1,6 +1,4 @@
-use bp7::helpers::rnd_bundle;
-use bp7::DTN_NONE;
-use bp7::{bundle, canonical, crc, dtntime, eid, primary};
+use bp7::{bundle, canonical, crc, dtntime, primary};
 use dtn7::cla::mtcp;
 
 #[test]
