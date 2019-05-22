@@ -23,11 +23,12 @@ impl MPDU {
         let b = bndl.clone().to_cbor();
         MPDU(b)
     }
-    pub fn get_bundle(&self) -> Result<Bundle, Bp7Error> {
-        Ok(Bundle::from(self.0.clone()))
+}
+impl From<MPDU> for bp7::Bundle {
+    fn from(item: MPDU) -> Self {
+        Bundle::from(item.0)
     }
 }
-
 struct MPDUCodec {
     last_pos: usize,
 }
@@ -104,13 +105,10 @@ impl MtcpConversionLayer {
                 let framed_sock = Framed::new(socket, MPDUCodec { last_pos: 0 });
                 let conn = framed_sock
                     .for_each(move |frame| {
-                        debug!(
-                            "Received bundle: {} from {}",
-                            frame.get_bundle().unwrap().id(),
-                            peer_addr
-                        );
+                        let bndl = Bundle::from(frame);
+                        debug!("Received bundle: {} from {}", bndl.id(), peer_addr);
                         {
-                            DTNCORE.lock().unwrap().push(frame.get_bundle().unwrap());
+                            DTNCORE.lock().unwrap().push(bndl);
                         }
 
                         Ok(())
@@ -135,9 +133,10 @@ impl MtcpConversionLayer {
                 // Attempt to write bytes asynchronously to the stream
                 for b in &bundles {
                     let mpdu = MPDU(b.to_vec());
-                    if let Err(_) = stream
+                    if stream
                         .poll_write(&serde_cbor::to_vec(&mpdu).expect("MPDU encoding error"))
                         .map_err(|err| error!("mtcp write error = {:?}", err))
+                        .is_err()
                     {
                         error!("Aborting sending of bundles to {}", addr);
                         break;

@@ -1,5 +1,4 @@
-use config::{Config, ConfigError, Environment, File};
-use dtn7::dtnconfig;
+use config::{Config, File};
 
 #[test]
 fn config_test() {
@@ -35,12 +34,12 @@ fn config_test() {
 
     let endpoints = s.get_table("endpoints.local");
 
-    for (k, v) in endpoints.unwrap().iter() {
+    for (_k, v) in endpoints.unwrap().iter() {
         println!("EID: {:?}", v.clone().into_str().unwrap());
     }
 
     let clas = s.get_table("convergencylayers.cla");
-    for (k, v) in clas.unwrap().iter() {
+    for (_k, v) in clas.unwrap().iter() {
         let tab = v.clone().into_table().unwrap();
         println!("CLA: {:?}", tab["id"].clone().into_str().unwrap());
     }

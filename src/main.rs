@@ -10,6 +10,7 @@ fn main() {
     let mut cfg = DtnConfig::new();
 
     if cfg!(debug_assertions) {
+        // Whenever a threads has a panic, quit the whole program!
         panic::set_hook(Box::new(|p| {
             println!("Panic hook: {}", p);
             process::exit(1);
