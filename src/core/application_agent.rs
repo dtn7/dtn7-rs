@@ -1,4 +1,5 @@
 use bp7::{Bundle, EndpointID};
+use log::debug;
 use std::collections::VecDeque;
 use std::fmt::Debug;
 
@@ -19,7 +20,7 @@ impl ApplicationAgent for SimpleApplicationAgent {
         &self.eid
     }
     fn push(&mut self, bundle: &Bundle) {
-        println!("Received {:?}", bundle);
+        debug!("Received {:?}", bundle);
         self.bundles.push_back(bundle.clone());
     }
     fn pop(&mut self) -> Option<Bundle> {

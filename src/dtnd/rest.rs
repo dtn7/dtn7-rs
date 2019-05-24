@@ -82,7 +82,7 @@ fn rest_handler(req: Request<Body>) -> BoxFut {
             let (parts, body) = req.into_parts();
             let entire_body = body.concat2();
             let resp = entire_body.map(move |hexstr| {
-                dbg!(&hexstr);
+                //dbg!(&hexstr);
                 let hstr = String::from_utf8(hexstr.to_vec()).unwrap();
                 if let Ok(hexstr) = bp7::helpers::unhexify(&hstr) {
                     let b_len = hexstr.len();
