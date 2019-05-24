@@ -1,16 +1,16 @@
 use bp7::*;
 use clap::{crate_authors, crate_version, App, Arg};
 use reqwest;
-use std::io;
-use std::io::prelude::*;
 use std::fs;
+use std::io::prelude::*;
+
 
 
 fn main() {
     let matches = App::new("dtnrecv")
         .version(crate_version!())
         .author(crate_authors!())
-        .about("A simple Bundle Protocol 7 Send Utility for Delay Tolerant Networking")
+        .about("A simple Bundle Protocol 7 Receive Utility for Delay Tolerant Networking")
         .arg(
             Arg::with_name("endpoint")
                 .short("e")
@@ -36,17 +36,24 @@ fn main() {
                 .help("verbose output")
                 .takes_value(false),
         )
-        
+
         .get_matches();
 
     let verbose: bool = matches.is_present("verbose");
     let endpoint: String = matches.value_of("endpoint").unwrap().into();
 
     let local_url = format!("http://127.0.0.1:3000/endpoint?{}", endpoint);
-    let res = reqwest::get(&local_url).expect("error connecting to local dtnd").text().unwrap();
+    let res = reqwest::get(&local_url)
+        .expect("error connecting to local dtnd")
+        .text()
+        .unwrap();
     if res.len() > 10 {
-        let mut bndl : Bundle = Bundle::from(bp7::helpers::unhexify(&res).unwrap());
-        match bndl.extension_block(bp7::canonical::PAYLOAD_BLOCK).expect("Payload block missing!").get_data() {
+        let mut bndl: Bundle = Bundle::from(bp7::helpers::unhexify(&res).unwrap());
+        match bndl
+            .extension_block(bp7::canonical::PAYLOAD_BLOCK)
+            .expect("Payload block missing!")
+            .get_data()
+        {
             bp7::canonical::CanonicalData::Data(data) => {
                 //println!("{}", String::from_utf8(data.to_vec()).unwrap());
                 if let Some(outfile) = matches.value_of("outfile") {
@@ -64,7 +71,7 @@ fn main() {
             _ => {
                 panic!("No data in payload block!");
             }
-         }
+        }
     } else {
         //dbg!(&res);
         if verbose {
