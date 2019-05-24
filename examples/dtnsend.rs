@@ -29,18 +29,36 @@ fn main() {
                 .takes_value(true),
         )
         .arg(
+            Arg::with_name("verbose")
+                .short("v")
+                .long("verbose")
+                .help("verbose output")
+                .takes_value(false),
+        )
+        .arg(
+            Arg::with_name("dryrun")
+                .short("D")
+                .long("dry-run")
+                .help("Don't actually send packet, just dump the encoded one.")
+                .takes_value(false),
+        )
+        .arg(
             Arg::with_name("infile")
                 .index(1)
                 .help("File to send, if omitted data is read from stdin till EOF"),
         )
         .get_matches();
 
+    let dryrun: bool = matches.is_present("dryrun");
+    let verbose: bool = matches.is_present("verbose");
     let sender: EndpointID = matches.value_of("sender").unwrap().into();
     let receiver: EndpointID = matches.value_of("receiver").unwrap().into();
 
     let mut buffer = Vec::new();
     if let Some(infile) = matches.value_of("infile") {
-        println!("Sending {}", infile);
+        if verbose {
+            println!("Sending {}", infile);
+        }
         let mut f = std::fs::File::open(infile).expect("Error accessing file.");
         f.read_to_end(&mut buffer)
             .expect("Error reading from file.");
@@ -50,24 +68,27 @@ fn main() {
             .expect("Error reading from stdin.");
     }
 
-    println!("Sending {} bytes.", buffer.len());
+    if verbose {
+        println!("Sending {} bytes.", buffer.len());
+    }
 
     let bndl = bp7::bundle::new_std_payload_bundle(sender, receiver, buffer).to_cbor();
     let hexstr = bp7::helpers::hexify(&bndl);
-    println!("{}", hexstr);
+    if verbose || dryrun {
+        println!("{}", hexstr);
+    }
 
     //let local_url = format!("http://127.0.0.1:3000/send?{}", hexstr);
     //let res = reqwest::get(&local_url).expect("error connecting to local dtnd").text().unwrap();
-    let client = reqwest::Client::new();
-    let res = client
-        .post("http://127.0.0.1:3000/send")
-        .body(hexstr)
-        .send()
-        .expect("error send bundle to dtnd")
-        .text()
-        .unwrap();
-
-    //let res = reqwest::get(&local_url).expect("error connecting to local dtnd").text().unwrap();
-
-    println!("Result {:?}", res);
+    if !dryrun {
+        let client = reqwest::Client::new();
+        let res = client
+            .post("http://127.0.0.1:3000/send")
+            .body(hexstr)
+            .send()
+            .expect("error send bundle to dtnd")
+            .text()
+            .unwrap();
+        println!("{:?}", res);
+    }
 }
