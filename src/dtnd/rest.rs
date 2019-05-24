@@ -56,9 +56,56 @@ fn rest_handler(req: Request<Body>) -> BoxFut {
         (&Method::POST, "/echo") => {
             // we'll be back
         }
+        (&Method::GET, "/send") => {
+            if let Some(params) = req.uri().query() {
+                if params.chars().all(char::is_alphanumeric) {
+                    dbg!(params);
+                    if let Ok(hexstr) = bp7::helpers::unhexify(params) {
+                        let b_len = hexstr.len();
+                        let bndl = bp7::Bundle::from(hexstr);
+                        debug!(
+                            "Sending bundle {} to {}",
+                            bndl.id(),
+                            bndl.primary.destination
+                        );
+                        {
+                            DTNCORE.lock().unwrap().push(bndl);
+                        }
+                        *response.body_mut() = Body::from(format!("Sent {} bytes", b_len));
+                    } else {
+                        *response.body_mut() = Body::from(format!("Error parsing bundle!"));
+                    }
+                }
+            }
+        }
+        (&Method::POST, "/send") => {
+            let (parts, body) = req.into_parts();
+            let entire_body = body.concat2();
+            let resp = entire_body.map(move |hexstr| {
+                dbg!(&hexstr);
+                let hstr = String::from_utf8(hexstr.to_vec()).unwrap();
+                if let Ok(hexstr) = bp7::helpers::unhexify(&hstr) {
+                    let b_len = hexstr.len();
+                    let body = Body::from(format!("Sent {} bytes", b_len));
+                    let bndl = bp7::Bundle::from(hexstr);
+                    debug!(
+                        "Sending bundle {} to {}",
+                        bndl.id(),
+                        bndl.primary.destination
+                    );
+                    {
+                        DTNCORE.lock().unwrap().push(bndl);
+                    }
+                    return Response::new(body);
+                } else {
+                    let body = Body::from("Error parsing bundle!".to_string());
+                    return Response::new(body);
+                }
+            });
+            return Box::new(resp);
+        }
         (&Method::GET, "/register") => {
             // TODO: support non-node-specific EIDs
-            // we'll be back
             if let Some(params) = req.uri().query() {
                 if params.chars().all(char::is_alphanumeric) {
                     dbg!(params);
@@ -72,7 +119,6 @@ fn rest_handler(req: Request<Body>) -> BoxFut {
         }
         (&Method::GET, "/unregister") => {
             // TODO: support non-node-specific EIDs
-            // we'll be back
             if let Some(params) = req.uri().query() {
                 if params.chars().all(char::is_alphanumeric) {
                     dbg!(params);
@@ -85,16 +131,16 @@ fn rest_handler(req: Request<Body>) -> BoxFut {
             }
         }
         (&Method::GET, "/endpoint") => {
-            // we'll be back
             if let Some(params) = req.uri().query() {
                 if params.chars().all(char::is_alphanumeric) {
                     dbg!(params);
                     let eid = format!("dtn://{}/{}", CONFIG.lock().unwrap().nodeid, params); // TODO: support non-node-specific EIDs
                     if let Some(aa) = DTNCORE.lock().unwrap().get_endpoint_mut(&eid.into()) {
                         if let Some(mut bundle) = aa.pop() {
-                            *response.body_mut() = Body::from(bundle.to_json());
+                            *response.body_mut() =
+                                Body::from(bp7::helpers::hexify(&bundle.to_cbor()));
                         } else {
-                            *response.body_mut() = Body::from("[]");
+                            *response.body_mut() = Body::from("");
                         }
                     } else {
                         *response.status_mut() = StatusCode::NOT_FOUND;
