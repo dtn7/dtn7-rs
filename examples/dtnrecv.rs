@@ -3,7 +3,7 @@ use clap::{crate_authors, crate_version, App, Arg};
 use reqwest;
 use std::fs;
 use std::io::prelude::*;
-
+use std::process;
 
 
 fn main() {
@@ -65,7 +65,9 @@ fn main() {
                         println!("Wrote {} bytes", data.len());
                     }
                 } else {
-                    std::io::stdout().write_all(data);
+                    std::io::stdout()
+                        .write_all(data)
+                        .expect("Error sending binary to server.");
                 }
             }
             _ => {
@@ -76,6 +78,7 @@ fn main() {
         //dbg!(&res);
         if verbose {
             println!("Nothing to fetch.");
+            process::exit(23);
         }
     }
 }
