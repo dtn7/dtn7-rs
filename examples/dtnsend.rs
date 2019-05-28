@@ -1,9 +1,9 @@
 use bp7::*;
+use chrono::{DateTime, Utc};
 use clap::{crate_authors, crate_version, App, Arg};
 use reqwest;
 use std::io;
 use std::io::prelude::*;
-
 
 fn main() {
     let matches = App::new("dtnsend")
@@ -72,8 +72,9 @@ fn main() {
         println!("Sending {} bytes.", buffer.len());
     }
 
-    let bndl = bp7::bundle::new_std_payload_bundle(sender, receiver, buffer).to_cbor();
-    let hexstr = bp7::helpers::hexify(&bndl);
+    let mut bndl = bp7::bundle::new_std_payload_bundle(sender, receiver, buffer);
+    print!("Bundle-Id: {}\n", bndl.id());
+    let hexstr = bp7::helpers::hexify(&bndl.to_cbor());
     if verbose || dryrun {
         println!("{}", hexstr);
     }
@@ -89,6 +90,8 @@ fn main() {
             .expect("error send bundle to dtnd")
             .text()
             .unwrap();
-        println!("{:?}", res);
+        println!("Result: {}", res);
+        let now: DateTime<Utc> = Utc::now();
+        println!("Time: {}", now);
     }
 }
