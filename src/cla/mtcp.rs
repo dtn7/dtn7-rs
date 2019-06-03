@@ -7,10 +7,12 @@ use log::{debug, error, info, warn};
 use serde::{Deserialize, Serialize};
 use std::net::IpAddr;
 use std::net::SocketAddr;
+use std::net::TcpStream;
+use std::thread;
 use tokio::codec::{Decoder, Encoder, Framed};
 use tokio::io;
 use tokio::io::AsyncWrite;
-use tokio::net::{TcpListener, TcpStream};
+use tokio::net::TcpListener;
 use tokio::prelude::*;
 
 /// MPDU represents a MTCP Data Unit, which will be decoded as a CBOR
@@ -65,7 +67,7 @@ impl Decoder for MPDUCodec {
                 let pos: Vec<usize> = buf[..]
                     .iter()
                     .enumerate()
-                    .filter(|(i, b)| **b == 0x82 && *i > self.last_pos)
+                    .filter(|(i, b)| **b == 0xff && *i > self.last_pos)
                     .map(|(i, _)| i)
                     .collect();
                 for p in pos.iter() {
@@ -127,26 +129,17 @@ impl MtcpConversionLayer {
         tokio::spawn(server);
     }
     pub fn send_bundles(&self, addr: SocketAddr, bundles: Vec<ByteBuffer>) {
-        let stream = TcpStream::connect(&addr);
-        let fut = stream
-            .map(move |mut stream| {
-                // Attempt to write bytes asynchronously to the stream
-                for b in &bundles {
-                    let mpdu = MPDU(b.to_vec());
-                    if stream
-                        .poll_write(&serde_cbor::to_vec(&mpdu).expect("MPDU encoding error"))
-                        .map_err(|err| error!("mtcp write error = {:?}", err))
-                        .is_err()
-                    {
-                        error!("Aborting sending of bundles to {}", addr);
-                        break;
-                    }
-                }
-            })
-            .map_err(|err| {
-                error!("client connect error = {:?}", err);
-            });
-        tokio::spawn(fut);
+        // TODO: classic sending thread, tokio code would block and not complete large transmissions
+        thread::spawn(move || {
+            let mut buf = Vec::new();
+            for b in bundles {
+                let mpdu = MPDU(b.to_vec());
+                let buf2 = serde_cbor::to_vec(&mpdu).expect("MPDU encoding error");
+                buf.extend_from_slice(&buf2);
+            }
+            let mut s1 = TcpStream::connect(&addr).unwrap();
+            s1.write_all(&buf).unwrap();
+        });
     }
 }
 impl ConvergencyLayerAgent for MtcpConversionLayer {
