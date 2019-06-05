@@ -43,19 +43,19 @@ fn main() {
     let endpoint: String = matches.value_of("endpoint").unwrap().into();
 
     let local_url = format!("http://127.0.0.1:3000/endpoint?{}", endpoint);
-    let res = reqwest::get(&local_url)
-        .expect("error connecting to local dtnd")
-        .text()
-        .unwrap();
-    if res.len() > 10 {
-        let mut bndl: Bundle = Bundle::from(bp7::helpers::unhexify(&res).unwrap());
+    let mut res = reqwest::get(&local_url).expect("error connecting to local dtnd");
+
+    if res.content_length() > Some(10) {
+        let mut buf: Vec<u8> = vec![];
+        res.copy_to(&mut buf).unwrap();
+
+        let mut bndl: Bundle = Bundle::from(buf);
         match bndl
             .extension_block(bp7::canonical::PAYLOAD_BLOCK)
             .expect("Payload block missing!")
             .get_data()
         {
             bp7::canonical::CanonicalData::Data(data) => {
-                //println!("{}", String::from_utf8(data.to_vec()).unwrap());
                 if let Some(outfile) = matches.value_of("outfile") {
                     if verbose {
                         println!("Writing to {}", outfile);
@@ -75,7 +75,6 @@ fn main() {
             }
         }
     } else {
-        //dbg!(&res);
         if verbose {
             println!("Nothing to fetch.");
             process::exit(23);

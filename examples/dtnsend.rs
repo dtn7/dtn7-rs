@@ -73,9 +73,10 @@ fn main() {
     }
 
     let mut bndl = bp7::bundle::new_std_payload_bundle(sender, receiver, buffer);
+    let binbundle = bndl.to_cbor();
     print!("Bundle-Id: {}\n", bndl.id());
-    let hexstr = bp7::helpers::hexify(&bndl.to_cbor());
     if verbose || dryrun {
+        let hexstr = bp7::helpers::hexify(&binbundle);
         println!("{}", hexstr);
     }
 
@@ -85,7 +86,7 @@ fn main() {
         let client = reqwest::Client::new();
         let res = client
             .post("http://127.0.0.1:3000/send")
-            .body(hexstr)
+            .body(binbundle)
             .send()
             .expect("error send bundle to dtnd")
             .text()
