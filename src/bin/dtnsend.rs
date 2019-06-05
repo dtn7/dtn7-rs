@@ -74,7 +74,7 @@ fn main() {
 
     let mut bndl = bp7::bundle::new_std_payload_bundle(sender, receiver, buffer);
     let binbundle = bndl.to_cbor();
-    print!("Bundle-Id: {}\n", bndl.id());
+    println!("Bundle-Id: {}", bndl.id());
     if verbose || dryrun {
         let hexstr = bp7::helpers::hexify(&binbundle);
         println!("{}", hexstr);
