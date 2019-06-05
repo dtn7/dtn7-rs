@@ -122,7 +122,7 @@ impl Decoder for MPDUCodec {
     type Error = io::Error;
 
     fn decode(&mut self, buf: &mut BytesMut) -> io::Result<Option<MPDU>> {
-        if dbg!(buf.len()) < 10 {
+        if buf.len() < 10 {
             // TODO: real minimum size needed
             return Ok(None);
         }

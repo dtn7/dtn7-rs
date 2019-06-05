@@ -84,8 +84,9 @@ pub fn spawn_service_discovery() {
     let socket = UdpBuilder::new_v4().unwrap();
     socket.reuse_address(true).unwrap();
     let socket = socket.bind(addr).unwrap();
+    // DEBUG: setup multicast on loopback to true
     socket
-        .set_multicast_loop_v4(true)
+        .set_multicast_loop_v4(false)
         .expect("error activating multicast loop v4");
     socket
         .join_multicast_v4(
