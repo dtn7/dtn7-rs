@@ -82,25 +82,24 @@ fn rest_handler(req: Request<Body>) -> BoxFut {
             let (parts, body) = req.into_parts();
             let entire_body = body.concat2();
             let resp = entire_body.map(move |hexstr| {
-                //dbg!(&hexstr);
-                let hstr = String::from_utf8(hexstr.to_vec()).unwrap();
-                if let Ok(hexstr) = bp7::helpers::unhexify(&hstr) {
-                    let b_len = hexstr.len();
-                    let body = Body::from(format!("Sent {} bytes", b_len));
-                    let bndl = bp7::Bundle::from(hexstr);
-                    debug!(
-                        "Sending bundle {} to {}",
-                        bndl.id(),
-                        bndl.primary.destination
-                    );
-                    {
-                        DTNCORE.lock().unwrap().push(bndl);
-                    }
-                    return Response::new(body);
-                } else {
+                dbg!("send start");
+                let binbundle = hexstr.to_vec();
+                let b_len = binbundle.len();
+                let body = Body::from(format!("Sent {} bytes", b_len));
+                let bndl = bp7::Bundle::from(binbundle);
+                debug!(
+                    "Sending bundle {} to {}",
+                    bndl.id(),
+                    bndl.primary.destination
+                );
+                {
+                    DTNCORE.lock().unwrap().push(bndl);
+                }
+                Response::new(body)
+                /*} else {
                     let body = Body::from("Error parsing bundle!".to_string());
                     return Response::new(body);
-                }
+                }*/
             });
             return Box::new(resp);
         }
@@ -133,7 +132,23 @@ fn rest_handler(req: Request<Body>) -> BoxFut {
         (&Method::GET, "/endpoint") => {
             if let Some(params) = req.uri().query() {
                 if params.chars().all(char::is_alphanumeric) {
-                    dbg!(params);
+                    let eid = format!("dtn://{}/{}", CONFIG.lock().unwrap().nodeid, params); // TODO: support non-node-specific EIDs
+                    if let Some(aa) = DTNCORE.lock().unwrap().get_endpoint_mut(&eid.into()) {
+                        if let Some(mut bundle) = aa.pop() {
+                            *response.body_mut() = Body::from(bundle.to_cbor());
+                        } else {
+                            *response.body_mut() = Body::from("");
+                        }
+                    } else {
+                        *response.status_mut() = StatusCode::NOT_FOUND;
+                        *response.body_mut() = Body::from("No such endpoint registered!");
+                    }
+                }
+            }
+        }
+        (&Method::GET, "/endpoint.hex") => {
+            if let Some(params) = req.uri().query() {
+                if params.chars().all(char::is_alphanumeric) {
                     let eid = format!("dtn://{}/{}", CONFIG.lock().unwrap().nodeid, params); // TODO: support non-node-specific EIDs
                     if let Some(aa) = DTNCORE.lock().unwrap().get_endpoint_mut(&eid.into()) {
                         if let Some(mut bundle) = aa.pop() {
