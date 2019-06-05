@@ -82,7 +82,6 @@ fn rest_handler(req: Request<Body>) -> BoxFut {
             let (parts, body) = req.into_parts();
             let entire_body = body.concat2();
             let resp = entire_body.map(move |hexstr| {
-                dbg!("send start");
                 let binbundle = hexstr.to_vec();
                 let b_len = binbundle.len();
                 let body = Body::from(format!("Sent {} bytes", b_len));
