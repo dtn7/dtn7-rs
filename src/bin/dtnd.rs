@@ -85,7 +85,7 @@ fn main() {
             Arg::with_name("cla")
                 .short("C")
                 .long("cla")
-                .value_name("CLA")
+                .value_name("CLA[:local_port]")
                 .help(&format!(
                     "Add convergency layer agent: {}",
                     dtn7::cla::convergency_layer_agents().join(", ")
@@ -154,7 +154,8 @@ fn main() {
 
     if let Some(clas) = matches.values_of("cla") {
         for cla in clas {
-            if dtn7::cla::convergency_layer_agents().contains(&cla) {
+            let cla_split: Vec<&str> = cla.split(':').collect();
+            if dtn7::cla::convergency_layer_agents().contains(&cla_split[0]) {
                 cfg.clas.push(cla.to_string());
             }
         }
