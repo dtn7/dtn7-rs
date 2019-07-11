@@ -16,7 +16,7 @@ use tokio::timer::Interval;
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct AnnouncementPkt {
     eid: EndpointID,
-    cl: Vec<String>,
+    cl: Vec<(String, u16)>,
 }
 struct Server {
     socket: UdpSocket,
@@ -46,7 +46,7 @@ impl Future for Server {
                     deserialized.eid,
                     peer.ip(),
                     PeerType::Dynamic,
-                    deserialized.cl,
+                    deserialized.cl.iter().map(|(scheme, port)| (scheme.into(), Some(*port)) ).collect(),
                 );
                 {
                     PEERS.lock().unwrap().insert(peer.ip(), dtnpeer.clone());
@@ -61,10 +61,10 @@ fn announcer(socket: std::net::UdpSocket) {
     debug!("running announcer");
 
     // Compile list of conversion layers as string vector
-    let mut cls: Vec<String> = Vec::new();
+    let mut cls: Vec<(String, u16)> = Vec::new();
 
     for cl in &DTNCORE.lock().unwrap().cl_list {
-        cls.push(cl.to_string());
+        cls.push((cl.to_string(), cl.port()));
     }
     //let nodeid = format!("dtn://{}", DTNCORE.lock().unwrap().nodeid);
     //let addr = "127.0.0.1:3003".parse().unwrap();

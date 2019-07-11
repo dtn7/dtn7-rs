@@ -7,6 +7,7 @@ use std::net::IpAddr;
 
 pub struct CLA_sender {
     pub remote: IpAddr,
+    pub port: Option<u16>,
     pub agent: String,
 }
 impl CLA_sender {

@@ -72,10 +72,16 @@ pub fn start_dtnd(cfg: DtnConfig) {
     }
 
     for s in &CONFIG.lock().unwrap().statics {
+        let port_str = if s.cla_list[0].1.is_some() {
+            format!(":{}", s.cla_list[0].1.unwrap())
+        } else {
+            "".into()
+        };
         info!(
-            "Adding static peer: {}://{}/{}",
-            s.cla_list[0],
+            "Adding static peer: {}://{}{}/{}",
+            s.cla_list[0].0,
             s.addr,
+            port_str,
             s.eid.node_part().unwrap()
         );
         PEERS.lock().unwrap().insert(s.addr, s.clone());
@@ -95,8 +101,12 @@ pub fn start_dtnd(cfg: DtnConfig) {
 
         start_convergencylayers();
 
-        janitor::spawn_janitor();
-        service_discovery::spawn_service_discovery();
+        if CONFIG.lock().unwrap().janitor_interval != 0 {
+            janitor::spawn_janitor();
+        }
+        if CONFIG.lock().unwrap().announcement_interval != 0 {
+            service_discovery::spawn_service_discovery();
+        }
 
         rest::spawn_rest();
 

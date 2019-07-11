@@ -29,7 +29,7 @@ pub struct DtnPeer {
     pub eid: EndpointID,
     pub addr: IpAddr,
     pub con_type: PeerType,
-    pub cla_list: Vec<String>,
+    pub cla_list: Vec<(String, Option<u16>)>,
     pub last_contact: u64,
 }
 
@@ -38,7 +38,7 @@ impl DtnPeer {
         eid: EndpointID,
         addr: IpAddr,
         con_type: PeerType,
-        cla_list: Vec<String>,
+        cla_list: Vec<(String, Option<u16>)>,
     ) -> DtnPeer {
         DtnPeer {
             eid,
@@ -98,10 +98,11 @@ impl DtnPeer {
     }
     pub fn get_first_cla(&self) -> Option<crate::cla::CLA_sender> {
         for c in self.cla_list.iter() {
-            if crate::cla::convergency_layer_agents().contains(&c.as_str())  {
+            if crate::cla::convergency_layer_agents().contains(&c.0.as_str()) {
                 let sender = crate::cla::CLA_sender {
-                    remote : self.addr,
-                    agent : c.clone()
+                    remote: self.addr,
+                    port: c.1,
+                    agent: c.0.clone(),
                 };
                 Some(sender);
             }
@@ -109,18 +110,18 @@ impl DtnPeer {
         None
     }
 }
-pub fn peers_get_for_node(eid : &EndpointID) -> Option<DtnPeer> {
+pub fn peers_get_for_node(eid: &EndpointID) -> Option<DtnPeer> {
     for (_, p) in PEERS.lock().unwrap().iter() {
         if p.get_node_name() == eid.node_part().unwrap_or_default() {
-            return Some(p.clone())
+            return Some(p.clone());
         }
     }
     None
 }
-pub fn peers_cla_for_node(eid : &EndpointID) -> Option<crate::cla::CLA_sender> {
+pub fn peers_cla_for_node(eid: &EndpointID) -> Option<crate::cla::CLA_sender> {
     if let Some(peer) = peers_get_for_node(eid) {
         return peer.get_first_cla();
-    } 
+    }
     None
 }
 
