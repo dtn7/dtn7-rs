@@ -15,7 +15,6 @@ use tokio::io;
 use tokio::net::TcpListener;
 use tokio::prelude::*;
 
-
 #[derive(Debug)]
 enum CborByteString {
     Len(u8),
@@ -160,16 +159,20 @@ impl Decoder for MPDUCodec {
 #[derive(Debug, Clone, Default)]
 pub struct MtcpConversionLayer {
     counter: u64,
+    local_port: u16,
 }
 
 impl MtcpConversionLayer {
-    pub fn new() -> MtcpConversionLayer {
-        MtcpConversionLayer { counter: 0 }
+    pub fn new(port: Option<u16>) -> MtcpConversionLayer {
+        MtcpConversionLayer {
+            counter: 0,
+            local_port: port.unwrap_or(16162),
+        }
     }
     fn spawn_listener(&self) {
-        let addr = "0.0.0.0:16162".parse().unwrap();
+        let addr = format!("0.0.0.0:{}", self.port()).parse().unwrap();
         let listener = TcpListener::bind(&addr).unwrap();
-        debug!("spawning MTCP listener");
+        debug!("spawning MTCP listener on port {}", self.local_port);
         let server = listener
             .incoming()
             .for_each(move |socket| {
@@ -200,19 +203,28 @@ impl MtcpConversionLayer {
             });
         tokio::spawn(server);
     }
-    pub fn send_bundles(&self, addr: SocketAddr, bundles: Vec<ByteBuffer>) {
+    pub fn send_bundles(&self, addr: SocketAddr, bundles: Vec<ByteBuffer>) -> bool {
+        // TODO: implement correct error handling
         // TODO: classic sending thread, tokio code would block and not complete large transmissions
-        thread::spawn(move || {
-            let now = Instant::now();
-            let num_bundles = bundles.len();
-            let mut buf = Vec::new();
-            for b in bundles {
-                let mpdu = MPDU(b);
-                let buf2 = serde_cbor::to_vec(&mpdu).expect("MPDU encoding error");
-                buf.extend_from_slice(&buf2);
+        //thread::spawn(move || {
+        let now = Instant::now();
+        let num_bundles = bundles.len();
+        let mut buf = Vec::new();
+        for b in bundles {
+            let mpdu = MPDU(b);
+            let buf2 = serde_cbor::to_vec(&mpdu);
+            if buf2.is_err() {
+                error!("MPDU encoding error!");
+                return false;
+            } else {
+                buf.extend_from_slice(&buf2.unwrap());
             }
-            let mut s1 = TcpStream::connect(&addr).unwrap();
-            s1.write_all(&buf).unwrap();
+        }
+        if let Ok(mut s1) = TcpStream::connect(&addr) {
+            if s1.write_all(&buf).is_err() {
+                error!("Error writing data to {}", addr);
+                return false;
+            }
             info!(
                 "Transmission time: {:?} for {} bundles in {} bytes to {}",
                 now.elapsed(),
@@ -220,7 +232,12 @@ impl MtcpConversionLayer {
                 buf.len(),
                 addr
             );
-        });
+        } else {
+            error!("Error connecting to remote {}", addr);
+            return false;
+        }
+        //});
+        true
     }
 }
 impl ConvergencyLayerAgent for MtcpConversionLayer {
@@ -237,21 +254,24 @@ impl ConvergencyLayerAgent for MtcpConversionLayer {
             ],
         );*/
     }
-    fn scheduled_submission(&self, dest: &str, ready: &[ByteBuffer]) {
+    fn port(&self) -> u16 {
+        self.local_port
+    }
+    fn scheduled_submission(&self, dest: &str, ready: &[ByteBuffer]) -> bool {
         debug!("Scheduled MTCP submission: {:?}", dest);
         if !ready.is_empty() {
-            let addr: IpAddr = dest.parse().unwrap();
-            let peeraddr = SocketAddr::new(addr, 16162);
+            let peeraddr: SocketAddr = dest.parse().unwrap();
             debug!("forwarding to {:?}", peeraddr);
-            self.send_bundles(peeraddr, ready.to_vec());
+            return self.send_bundles(peeraddr, ready.to_vec());
         } else {
             debug!("Nothing to forward.");
         }
+        true
     }
 }
 
 impl std::fmt::Display for MtcpConversionLayer {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "mtcp")
+        write!(f, "mtcp:{}", self.local_port)
     }
 }

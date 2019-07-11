@@ -1,26 +1,40 @@
 pub mod dummy;
-
 pub mod mtcp;
-#[deprecated]
-pub mod stcp;
 
 use bp7::ByteBuffer;
 use std::fmt::{Debug, Display};
+use std::net::IpAddr;
+
+pub struct CLA_sender {
+    pub remote: IpAddr,
+    pub agent: String,
+}
+impl CLA_sender {
+    pub fn transfer(&self, ready: &[ByteBuffer]) -> bool {
+        // TODO: fix hardcoded port
+        let sender = new(&self.agent); // since we are not listening sender port is irrelevant
+        sender.scheduled_submission(&self.remote.to_string(), ready)
+    }
+}
 
 pub trait ConvergencyLayerAgent: Debug + Send + Display {
     fn setup(&mut self);
-    fn scheduled_submission(&self, dest: &str, ready: &[ByteBuffer]);
+    fn port(&self) -> u16;
+    fn scheduled_submission(&self, dest: &str, ready: &[ByteBuffer]) -> bool;
 }
 
 pub fn convergency_layer_agents() -> Vec<&'static str> {
-    vec!["dummy", "stcp", "mtcp"]
+    vec!["dummy", "mtcp"]
 }
 
-pub fn new(cla: &str) -> Box<ConvergencyLayerAgent> {
-    match cla {
+// returns a new CLA for the corresponding string ("<CLA name>[:local_port]").
+// Example usage: 'dummy', 'mtcp', 'mtcp:16161'
+pub fn new(cla_str: &str) -> Box<ConvergencyLayerAgent> {
+    let cla: Vec<&str> = cla_str.split(':').collect();
+    let port: Option<u16> = cla.get(1).unwrap_or(&"-1").parse::<u16>().ok();
+    match cla[0] {
         "dummy" => Box::new(dummy::DummyConvergencyLayer::new()),
-        "stcp" => Box::new(stcp::StcpConversionLayer::new()),
-        "mtcp" => Box::new(mtcp::MtcpConversionLayer::new()),
-        _ => panic!("Unknown convergency layer agent agent {}", cla),
+        "mtcp" => Box::new(mtcp::MtcpConversionLayer::new(port)),
+        _ => panic!("Unknown convergency layer agent agent {}", cla[0]),
     }
 }

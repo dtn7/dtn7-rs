@@ -37,7 +37,6 @@ impl From<PathBuf> for DtnConfig {
             //std::env::set_var("RUST_LOG", "dtn7=debug,dtnd=debug");
         }
         debug!("debug: {:?}", dtncfg.debug);
-
         dtncfg.nodeid = s.get_str("nodeid").unwrap_or(dtncfg.nodeid);
         debug!("nodeid: {:?}", dtncfg.nodeid);
 
@@ -81,9 +80,14 @@ impl From<PathBuf> for DtnConfig {
             for (k, v) in clas.unwrap().iter() {
                 let tab = v.clone().into_table().unwrap();
                 let cla_id = tab["id"].clone().into_str().unwrap();
+                let cla_port = if tab.contains_key("port") {
+                    tab["port"].clone().into_int().unwrap_or(0) as u16
+                } else {
+                    0
+                };
                 if crate::cla::convergency_layer_agents().contains(&cla_id.as_str()) {
                     debug!("CLA: {:?}", cla_id);
-                    dtncfg.clas.push(cla_id);
+                    dtncfg.clas.push(format!("{}:{}", cla_id, cla_port));
                 }
             }
         }

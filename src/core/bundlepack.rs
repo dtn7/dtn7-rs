@@ -18,6 +18,10 @@ pub enum Constraint {
     /// was moved to the contraindicated stage. This Constraint was not defined
     /// in draft-ietf-dtn-bpbis-12, but seemed reasonable for this implementation.
     Contraindicated,
+
+    // LocalEndpoint is assigned to a bundle after delivery to a local endpoint.
+    // This constraint demands storage until the endpoint removes this constraint.
+    LocalEndpoint,
 }
 
 impl fmt::Display for Constraint {
@@ -71,7 +75,13 @@ impl BundlePack {
         self.constraints.remove(&constraint);
     }
     pub fn clear_constraints(&mut self) {
+        let local_set = self.has_constraint(Constraint::LocalEndpoint);
+
         self.constraints.clear();
+
+        if local_set {
+            self.add_constraint(Constraint::LocalEndpoint);
+        }
     }
     /// UpdateBundleAge updates the bundle's Bundle Age block based on its reception
     /// timestamp, if such a block exists.
