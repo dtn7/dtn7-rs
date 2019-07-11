@@ -7,10 +7,12 @@ routing = "epidemic"
 [core]
 # the janitor is responsible for cleaning the bundle buffer
 # and schedule resubmissions.
+# a value of 0 deactives the janitor
 janitor = 10000
 
 
 [discovery]
+# interval of 0 deactives discovery service
 interval = 2000
 peer-timeout = 20000
 

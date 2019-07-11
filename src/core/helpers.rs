@@ -31,7 +31,7 @@ pub fn rnd_peer() -> DtnPeer {
 /// use dtn7::core::helpers::parse_peer_url;
 /// use bp7::EndpointID;
 ///
-/// let peer = parse_peer_url("mtcp://192.168.2.1/node1");
+/// let peer = parse_peer_url("mtcp://192.168.2.1:2342/node1");
 /// assert_eq!(peer.eid, EndpointID::from("dtn://node1".to_string()));
 /// ```
 ///
@@ -55,6 +55,13 @@ pub fn parse_peer_url(peer_url: &str) -> DtnPeer {
         panic!("Unknown convergency layer selected: {}", scheme);
     }
     let ipaddr = u.host_str().expect("Host parsing error");
+    let port = u.port();
+
+    /*let cla_target: String = if port.is_some() {
+        format!("{}:{}", scheme, port.unwrap())
+    } else {
+        scheme.into()
+    };*/
     let nodeid = u.path();
     if nodeid == "/" {
         panic!("Missing node id");
@@ -63,6 +70,6 @@ pub fn parse_peer_url(peer_url: &str) -> DtnPeer {
         format!("dtn://{}", nodeid.replace('/', "")).into(),
         ipaddr.parse().unwrap(),
         PeerType::Static,
-        vec![scheme.into()],
+        vec![(scheme.into(), port)],
     )
 }

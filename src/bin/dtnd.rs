@@ -51,7 +51,7 @@ fn main() {
                 .short("i")
                 .long("interval")
                 .value_name("INTERVAL")
-                .help("Sets service discovery interval")
+                .help("Sets service discovery interval (0 = deactive)")
                 .takes_value(true),
         )
         .arg(
@@ -59,7 +59,7 @@ fn main() {
                 .short("j")
                 .long("janitor")
                 .value_name("INTERVAL")
-                .help("Sets janitor interval")
+                .help("Sets janitor interval (0 = deactive)")
                 .takes_value(true),
         )
         .arg(
@@ -98,7 +98,7 @@ fn main() {
                 .short("s")
                 .long("static-peer")
                 .value_name("PEER")
-                .help("Adds a static peer (e.g. stcp://192.168.2.1/node2)")
+                .help("Adds a static peer (e.g. mtcp://192.168.2.1:2342/node2)")
                 .multiple(true)
                 .takes_value(true),
         )
