@@ -3,7 +3,7 @@ use std::fmt::Debug;
 use std::slice::{Iter, IterMut};
 
 pub trait BundleStore: Debug {
-    fn push(&mut self, bp: BundlePack);
+    fn push(&mut self, bp: &BundlePack);
     fn remove(&mut self, bid: String) -> Option<BundlePack>;
     fn remove_mass(&mut self, idxs: Vec<usize>);
     fn iter(&self) -> Iter<BundlePack>;
@@ -23,8 +23,9 @@ pub struct SimpleBundleStore {
 }
 
 impl BundleStore for SimpleBundleStore {
-    fn push(&mut self, bp: BundlePack) {
-        self.bundles.push(bp);
+    fn push(&mut self, bp: &BundlePack) {
+        // TODO: check for duplicates, update, remove etc
+        self.bundles.push(bp.clone());
     }
     fn remove(&mut self, bid: String) -> Option<BundlePack> {
         self.iter()

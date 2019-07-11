@@ -1,6 +1,7 @@
 pub mod application_agent;
 pub mod bundlepack;
 pub mod helpers;
+pub mod processing;
 pub mod store;
 
 use crate::cla::ConvergencyLayerAgent;
@@ -91,7 +92,38 @@ impl DtnPeer {
             .as_secs();
         now - self.last_contact < CONFIG.lock().unwrap().peer_timeout
     }
+
+    pub fn get_node_name(&self) -> String {
+        self.eid.node_part().unwrap_or_default()
+    }
+    pub fn get_first_cla(&self) -> Option<crate::cla::CLA_sender> {
+        for c in self.cla_list.iter() {
+            if crate::cla::convergency_layer_agents().contains(&c.as_str())  {
+                let sender = crate::cla::CLA_sender {
+                    remote : self.addr,
+                    agent : c.clone()
+                };
+                Some(sender);
+            }
+        }
+        None
+    }
 }
+pub fn peers_get_for_node(eid : &EndpointID) -> Option<DtnPeer> {
+    for (_, p) in PEERS.lock().unwrap().iter() {
+        if p.get_node_name() == eid.node_part().unwrap_or_default() {
+            return Some(p.clone())
+        }
+    }
+    None
+}
+pub fn peers_cla_for_node(eid : &EndpointID) -> Option<crate::cla::CLA_sender> {
+    if let Some(peer) = peers_get_for_node(eid) {
+        return peer.get_first_cla();
+    } 
+    None
+}
+
 #[derive(Debug, Serialize, Deserialize, Default, Clone)]
 pub struct DtnStatistics {
     pub incoming: u64,
@@ -256,7 +288,7 @@ impl DtnCore {
                 return;
             }
         }*/
-        STORE.lock().unwrap().push(bp);
+        STORE.lock().unwrap().push(&bp);
     }
 }
 

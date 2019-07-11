@@ -111,6 +111,13 @@ fn main() {
         )
         .get_matches();
 
+    if matches.is_present("debug") || cfg.debug {
+        std::env::set_var("RUST_LOG", "dtn7=debug,dtnd=debug");
+    } else {
+        std::env::set_var("RUST_LOG", "dtn7=info,dtnd=info");
+    }
+    pretty_env_logger::init_timed();
+
     if let Some(cfgfile) = matches.value_of("config") {
         cfg = DtnConfig::from(std::path::PathBuf::from(cfgfile));
     }
@@ -164,17 +171,12 @@ fn main() {
             cfg.endpoints.push(in_endpoint.to_string());
         }
     }
-    if matches.is_present("debug") || cfg.debug {
-        std::env::set_var("RUST_LOG", "dtn7=debug,dtnd=debug");
-    } else {
-        std::env::set_var("RUST_LOG", "dtn7=info,dtnd=info");
-    }
 
-    pretty_env_logger::init_timed();
+    // historic code, still neccessary?!
     // Load config second time for logging purposes
-    if let Some(cfgfile) = matches.value_of("config") {
-        DtnConfig::from(std::path::PathBuf::from(cfgfile));
-    }
+    //if let Some(cfgfile) = matches.value_of("config") {
+    //DtnConfig::from(std::path::PathBuf::from(cfgfile));
+    //}
     info!("starting dtnd");
     start_dtnd(cfg);
 }

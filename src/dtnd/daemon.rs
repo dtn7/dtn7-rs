@@ -68,7 +68,7 @@ pub fn start_dtnd(cfg: DtnConfig) {
 
     for cla in &CONFIG.lock().unwrap().clas {
         info!("Adding CLA: {}", cla);
-        DTNCORE.lock().unwrap().cl_list.push(crate::cla::new(cla));
+        DTNCORE.lock().unwrap().cl_list.push(crate::cla::new(cla)); // TODO: add custom port support
     }
 
     for s in &CONFIG.lock().unwrap().statics {

@@ -31,7 +31,7 @@ pub fn rnd_peer() -> DtnPeer {
 /// use dtn7::core::helpers::parse_peer_url;
 /// use bp7::EndpointID;
 ///
-/// let peer = parse_peer_url("stcp://192.168.2.1/node1");
+/// let peer = parse_peer_url("mtcp://192.168.2.1/node1");
 /// assert_eq!(peer.eid, EndpointID::from("dtn://node1".to_string()));
 /// ```
 ///
@@ -46,7 +46,7 @@ pub fn rnd_peer() -> DtnPeer {
 /// ```should_panic
 /// use dtn7::core::helpers::parse_peer_url;
 ///
-/// parse_peer_url("stcp://192.168.2.1");
+/// parse_peer_url("mtcp://192.168.2.1");
 /// ```
 pub fn parse_peer_url(peer_url: &str) -> DtnPeer {
     let u = Url::parse(&peer_url).expect("Static peer url parsing error");
