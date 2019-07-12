@@ -61,6 +61,8 @@ pub fn start_dtnd(cfg: DtnConfig) {
 
     info!("Peer Timeout: {}", CONFIG.lock().unwrap().peer_timeout);
 
+    info!("Web Port: {}", CONFIG.lock().unwrap().webport);
+
     let routing = CONFIG.lock().unwrap().routing.clone();
     DTNCORE.lock().unwrap().routing_agent = crate::routing::new(&routing);
 

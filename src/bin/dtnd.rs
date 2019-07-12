@@ -63,6 +63,14 @@ fn main() {
                 .takes_value(true),
         )
         .arg(
+            Arg::with_name("webport")
+                .short("w")
+                .long("web-port")
+                .value_name("PORT")
+                .help("Sets web interface port (default = 3000)")
+                .takes_value(true),
+        )
+        .arg(
             Arg::with_name("peertimeout")
                 .short("p")
                 .long("peer-timeout")
@@ -132,6 +140,11 @@ fn main() {
         cfg.announcement_interval = i
             .parse::<u64>()
             .expect("Could not parse interval parameter!");
+    }
+    if let Some(i) = matches.value_of("webport") {
+        cfg.webport = i
+            .parse::<u16>()
+            .expect("Could not parse web port parameter!");
     }
 
     if let Some(i) = matches.value_of("janitor") {

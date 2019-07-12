@@ -3,6 +3,7 @@ debug = false
 nodeid = "node1"
 
 routing = "epidemic"
+webport = 3000
 
 [core]
 # the janitor is responsible for cleaning the bundle buffer

@@ -9,6 +9,7 @@ use std::path::PathBuf;
 pub struct DtnConfig {
     pub debug: bool,
     pub nodeid: String,
+    pub webport: u16,
     pub announcement_interval: u64,
     pub janitor_interval: u64,
     pub endpoints: Vec<String>,
@@ -42,6 +43,9 @@ impl From<PathBuf> for DtnConfig {
 
         dtncfg.routing = s.get_str("routing").unwrap_or(dtncfg.routing);
         debug!("routing: {:?}", dtncfg.routing);
+
+        dtncfg.webport = s.get_int("webport").unwrap_or(i64::from(dtncfg.webport)) as u16;
+        debug!("webport: {:?}", dtncfg.webport);
 
         dtncfg.janitor_interval = s
             .get_int("core.janitor")
@@ -102,6 +106,7 @@ impl DtnConfig {
             debug: false,
             nodeid: node_rnd,
             announcement_interval: 2000,
+            webport: 3000,
             janitor_interval: 10000,
             endpoints: Vec::new(),
             clas: Vec::new(),
@@ -113,6 +118,7 @@ impl DtnConfig {
     pub fn set(&mut self, cfg: DtnConfig) {
         self.debug = cfg.debug;
         self.nodeid = cfg.nodeid;
+        self.webport = cfg.webport;
         self.announcement_interval = cfg.announcement_interval;
         self.janitor_interval = cfg.janitor_interval;
         self.endpoints = cfg.endpoints;
