@@ -104,7 +104,7 @@ impl DtnPeer {
                     port: c.1,
                     agent: c.0.clone(),
                 };
-                Some(sender);
+                return Some(sender);
             }
         }
         None

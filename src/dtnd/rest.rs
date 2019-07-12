@@ -92,7 +92,8 @@ fn rest_handler(req: Request<Body>) -> BoxFut {
                     bndl.primary.destination
                 );
                 {
-                    DTNCORE.lock().unwrap().push(bndl);
+                    //DTNCORE.lock().unwrap().push(bndl);
+                    crate::core::processing::send_bundle(bndl);
                 }
                 Response::new(body)
                 /*} else {

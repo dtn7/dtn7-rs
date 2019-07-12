@@ -5,6 +5,7 @@ use bp7::ByteBuffer;
 use std::fmt::{Debug, Display};
 use std::net::IpAddr;
 
+#[derive(Debug)]
 pub struct CLA_sender {
     pub remote: IpAddr,
     pub port: Option<u16>,

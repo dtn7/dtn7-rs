@@ -90,6 +90,13 @@ pub fn start_dtnd(cfg: DtnConfig) {
     }
     let my_node_id = CONFIG.lock().unwrap().nodeid.clone();
 
+    DTNCORE
+        .lock()
+        .unwrap()
+        .register_application_agent(SimpleApplicationAgent::new_with(
+            format!("dtn://{}", my_node_id).into(),
+        ));
+
     for e in &CONFIG.lock().unwrap().endpoints {
         let eid = format!("dtn://{}/{}", my_node_id, e);
         DTNCORE
