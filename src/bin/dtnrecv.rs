@@ -5,7 +5,6 @@ use std::fs;
 use std::io::prelude::*;
 use std::process;
 
-
 fn main() {
     let matches = App::new("dtnrecv")
         .version(crate_version!())
@@ -30,19 +29,29 @@ fn main() {
                 .takes_value(true),
         )
         .arg(
+            Arg::with_name("port")
+                .short("p")
+                .long("port")
+                .value_name("PORT")
+                .help("Local web port (default = 3000)")
+                .required(false)
+                .takes_value(true),
+        )
+        .arg(
             Arg::with_name("verbose")
                 .short("v")
                 .long("verbose")
                 .help("verbose output")
                 .takes_value(false),
         )
-
         .get_matches();
 
     let verbose: bool = matches.is_present("verbose");
     let endpoint: String = matches.value_of("endpoint").unwrap().into();
+    let port = std::env::var("DTN_WEB_PORT").unwrap_or_else(|_| "3000".into());
+    let port = matches.value_of("port").unwrap_or(&port); // string is fine no need to parse number
 
-    let local_url = format!("http://127.0.0.1:3000/endpoint?{}", endpoint);
+    let local_url = format!("http://127.0.0.1:{}/endpoint?{}", port, endpoint);
     let mut res = reqwest::get(&local_url).expect("error connecting to local dtnd");
 
     if res.content_length() > Some(10) {
