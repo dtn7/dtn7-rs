@@ -29,6 +29,15 @@ fn main() {
                 .takes_value(true),
         )
         .arg(
+            Arg::with_name("port")
+                .short("p")
+                .long("port")
+                .value_name("PORT")
+                .help("Local web port (default = 3000)")
+                .required(false)
+                .takes_value(true),
+        )
+        .arg(
             Arg::with_name("verbose")
                 .short("v")
                 .long("verbose")
@@ -51,6 +60,8 @@ fn main() {
 
     let dryrun: bool = matches.is_present("dryrun");
     let verbose: bool = matches.is_present("verbose");
+    let port = std::env::var("DTN_WEB_PORT").unwrap_or_else(|_| "3000".into());
+    let port = matches.value_of("port").unwrap_or(&port); // string is fine no need to parse number
     let sender: EndpointID = matches.value_of("sender").unwrap().into();
     let receiver: EndpointID = matches.value_of("receiver").unwrap().into();
 
@@ -85,7 +96,7 @@ fn main() {
     if !dryrun {
         let client = reqwest::Client::new();
         let res = client
-            .post("http://127.0.0.1:3000/send")
+            .post(&format!("http://127.0.0.1:{}/send", port))
             .body(binbundle)
             .send()
             .expect("error send bundle to dtnd")
