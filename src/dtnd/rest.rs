@@ -175,7 +175,8 @@ pub fn spawn_rest() {
     //let rs = RestService { tx };
 
     // Construct our SocketAddr to listen on...
-    let addr = ([127, 0, 0, 1], 3000).into();
+    let port = CONFIG.lock().unwrap().webport;
+    let addr = ([127, 0, 0, 1], port).into();
 
     let fut = move || service_fn(rest_handler);
     // Then bind and serve...

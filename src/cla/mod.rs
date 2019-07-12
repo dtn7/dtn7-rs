@@ -12,9 +12,13 @@ pub struct CLA_sender {
 }
 impl CLA_sender {
     pub fn transfer(&self, ready: &[ByteBuffer]) -> bool {
-        // TODO: fix hardcoded port
         let sender = new(&self.agent); // since we are not listening sender port is irrelevant
-        sender.scheduled_submission(&self.remote.to_string(), ready)
+        let dest = if self.port.is_some() {
+            format!("{}:{}", self.remote, self.port.unwrap())
+        } else {
+            self.remote.to_string()
+        };
+        sender.scheduled_submission(&dest, ready)
     }
 }
 
