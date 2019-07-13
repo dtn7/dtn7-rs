@@ -183,7 +183,7 @@ impl DtnCore {
         self.endpoints.iter().map(|e| e.eid().to_string()).collect()
     }
     pub fn bundles(&self) -> Vec<String> {
-        STORE.lock().unwrap().iter().map(|e| e.id()).collect()
+        STORE.lock().unwrap().bundles().iter().map(|e| e.id()).collect()
     }
     fn is_in_endpoints(&self, eid: &EndpointID) -> bool {
         for aa in self.endpoints.iter() {
@@ -219,7 +219,7 @@ impl DtnCore {
         let mut del_list: Vec<String> = Vec::new();
         let mut delivery_list: Vec<(EndpointID, Bundle)> = Vec::new();
 
-        for bndl in STORE.lock().unwrap().iter() {
+        for bndl in STORE.lock().unwrap().bundles().iter() {
             if self.is_in_endpoints(&bndl.bundle.primary.destination) {
                 delivery_list.push((bndl.bundle.primary.destination.clone(), bndl.bundle.clone()));
                 STATS.lock().unwrap().delivered += 1;

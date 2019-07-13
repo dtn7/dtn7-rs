@@ -135,10 +135,11 @@ pub fn dispatch(mut bp: BundlePack) {
     // TODO: impl routing
     //c.routing.NotifyIncoming(bp)
 
-    if let Some(aa) = DTNCORE
+    if DTNCORE
         .lock()
         .unwrap()
         .get_endpoint_mut(&bp.bundle.primary.destination)
+        .is_some()
     // TODO: lookup here AND in local delivery, optmize for just one
     {
         local_delivery(bp);
@@ -304,6 +305,7 @@ pub fn forward(mut bp: BundlePack) {
         info!("Failed to forward bundle to any CLA: {}", bp.id());
         contraindicated(bp);
     }
+    dbg!(STORE.lock().unwrap());
 }
 
 pub fn local_delivery(mut bp: BundlePack) {
@@ -312,11 +314,12 @@ pub fn local_delivery(mut bp: BundlePack) {
     if bp.bundle.is_administrative_record() {
         unimplemented!();
     }
+    dbg!("step 1");
     bp.add_constraint(Constraint::LocalEndpoint);
     {
         STORE.lock().unwrap().push(&bp);
     }
-
+    dbg!("step 2");
     if let Some(aa) = DTNCORE
         .lock()
         .unwrap()
@@ -326,6 +329,7 @@ pub fn local_delivery(mut bp: BundlePack) {
         aa.push(&bp.bundle);
         STATS.lock().unwrap().delivered += 1;
     }
+    dbg!("step 3");
     if bp
         .bundle
         .primary
@@ -335,7 +339,7 @@ pub fn local_delivery(mut bp: BundlePack) {
         unimplemented!();
         // TODO: handle status request delivery
     }
-
+    dbg!("step 4");
     bp.clear_constraints();
     {
         STORE.lock().unwrap().push(&bp);
