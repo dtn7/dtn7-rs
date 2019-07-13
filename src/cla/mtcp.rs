@@ -184,7 +184,8 @@ impl MtcpConversionLayer {
                         let bndl = Bundle::from(frame);
                         info!("Received bundle: {} from {}", bndl.id(), peer_addr);
                         {
-                            DTNCORE.lock().unwrap().push(bndl);
+                            //DTNCORE.lock().unwrap().push(bndl);
+                            crate::core::processing::receive(bndl.into());
                         }
 
                         Ok(())

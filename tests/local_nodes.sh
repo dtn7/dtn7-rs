@@ -21,6 +21,8 @@ echo node2 pid: $PID_NODE2
 echo node2 out: $OUT_NODE2
 echo node2 port: $PORT_NODE2
 
+echo test | cargo run --bin dtnsend -- -r dtn://node2/incoming --sender dtn://node1
+
 echo "Press any key to stop daemons and clean up logs"
 read -n 1
 kill $PID_NODE1 $PID_NODE2
