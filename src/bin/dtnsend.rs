@@ -5,6 +5,13 @@ use reqwest;
 use std::io;
 use std::io::prelude::*;
 
+fn get_local_node_id(port: &str) -> String {
+    reqwest::get(&format!("http://127.0.0.1:{}/status/nodeid", port))
+        .expect("error connecting to local dtnd")
+        .text()
+        .unwrap()
+}
+
 fn main() {
     let matches = App::new("dtnsend")
         .version(crate_version!())
@@ -15,8 +22,8 @@ fn main() {
                 .short("s")
                 .long("sender")
                 .value_name("SENDER")
-                .help("Sets sender name (e.g. 'dtn://node1/dtnsend')")
-                .required(true)
+                .help("Sets sender name (e.g. 'dtn://node1')")
+                .required(false)
                 .takes_value(true),
         )
         .arg(
@@ -62,7 +69,10 @@ fn main() {
     let verbose: bool = matches.is_present("verbose");
     let port = std::env::var("DTN_WEB_PORT").unwrap_or_else(|_| "3000".into());
     let port = matches.value_of("port").unwrap_or(&port); // string is fine no need to parse number
-    let sender: EndpointID = matches.value_of("sender").unwrap().into();
+    let sender: EndpointID = matches
+        .value_of("sender")
+        .unwrap_or(&get_local_node_id(port))
+        .into();
     let receiver: EndpointID = matches.value_of("receiver").unwrap().into();
 
     let mut buffer = Vec::new();

@@ -25,6 +25,11 @@ fn rest_handler(req: Request<Body>) -> BoxFut {
         (&Method::GET, "/") => {
             *response.body_mut() = Body::from("dtn7 ctrl interface");
         }
+        (&Method::GET, "/status/nodeid") => {
+            let my_node_id = CONFIG.lock().unwrap().nodeid.clone();
+            *response.body_mut() =
+                Body::from(format!("dtn://{}", my_node_id));
+        }
         (&Method::GET, "/status/eids") => {
             *response.body_mut() =
                 Body::from(serde_json::to_string_pretty(&DTNCORE.lock().unwrap().eids()).unwrap());
