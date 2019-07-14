@@ -17,7 +17,8 @@ fn main() {
         )
         .subcommand(SubCommand::with_name("eids").about("list registered endpoint IDs"))
         .subcommand(SubCommand::with_name("peers").about("list known peers"))
-        .subcommand(SubCommand::with_name("bundles").about("list bundles in store"))
+        .subcommand(SubCommand::with_name("bundles").about("list bundles in node"))
+        .subcommand(SubCommand::with_name("store").about("list bundles status in store"))
         .subcommand(SubCommand::with_name("info").about("General dtnd info"))
         .get_matches();
     let port = std::env::var("DTN_WEB_PORT").unwrap_or_else(|_| "3000".into());
@@ -42,6 +43,14 @@ fn main() {
     if let Some(_matches) = matches.subcommand_matches("bundles") {
         println!("Listing of bundles in store:");
         let res = reqwest::get(&format!("http://127.0.0.1:{}/status/bundles", port))
+            .expect("error connecting to local dtnd")
+            .text()
+            .unwrap();
+        println!("{}", res);
+    }
+    if let Some(_matches) = matches.subcommand_matches("store") {
+        println!("Listing of bundles status in store:");
+        let res = reqwest::get(&format!("http://127.0.0.1:{}/status/store", port))
             .expect("error connecting to local dtnd")
             .text()
             .unwrap();

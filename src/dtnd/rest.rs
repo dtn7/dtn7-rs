@@ -1,3 +1,4 @@
+use crate::STORE;
 use crate::core::application_agent::SimpleApplicationAgent;
 use crate::core::helpers::rnd_peer;
 use crate::CONFIG;
@@ -31,6 +32,11 @@ fn rest_handler(req: Request<Body>) -> BoxFut {
         (&Method::GET, "/status/bundles") => {
             *response.body_mut() = Body::from(
                 serde_json::to_string_pretty(&DTNCORE.lock().unwrap().bundles()).unwrap(),
+            );
+        }
+        (&Method::GET, "/status/store") => {
+            *response.body_mut() = Body::from(
+                serde_json::to_string_pretty(&STORE.lock().unwrap().bundles_status()).unwrap(),
             );
         }
         (&Method::GET, "/status/peers") => {

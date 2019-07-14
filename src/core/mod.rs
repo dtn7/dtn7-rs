@@ -262,7 +262,7 @@ impl DtnCore {
             .keys()
             .map(|x| x.to_string())
             .collect();
-        self.routing_agent.route_all(ready, keys, &self.cl_list);
+        //self.routing_agent.route_all(ready, keys, &self.cl_list);
         /*for cla in &mut self.cl_list {
             cla.scheduled_process(&ready, &keys);
         }*/

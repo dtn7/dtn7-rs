@@ -1,26 +1,14 @@
 pub mod epidemic;
 pub mod flooding;
 
-use crate::cla::ConvergencyLayerAgent;
+use crate::cla::{CLA_sender, ConvergencyLayerAgent};
+use crate::core::bundlepack::BundlePack;
 use bp7::ByteBuffer;
 use std::fmt::Debug;
 use std::fmt::Display;
 
 pub trait RoutingAgent: Debug + Send + Display {
-    fn route_bundle(
-        &mut self,
-        _bundle: &ByteBuffer,
-        _peers: Vec<String>,
-        _cl_list: &[Box<dyn ConvergencyLayerAgent>],
-    ) {
-        unimplemented!();
-    }
-    fn route_all(
-        &mut self,
-        _bundles: Vec<ByteBuffer>,
-        _peers: Vec<String>,
-        _cl_list: &[Box<dyn ConvergencyLayerAgent>],
-    ) {
+    fn sender_for_bundle(&mut self, bp: &BundlePack) -> (Vec<CLA_sender>, bool) {
         unimplemented!();
     }
 }

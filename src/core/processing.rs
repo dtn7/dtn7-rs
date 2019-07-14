@@ -17,7 +17,7 @@ use std::sync::Arc;
 use std::thread;
 
 // transmit an outbound bundle.
-pub fn send_bundle(mut bndl: Bundle) {
+pub fn send_bundle(bndl: Bundle) {
     transmit(bndl.into());
 }
 
@@ -129,7 +129,7 @@ pub fn receive(mut bp: BundlePack) {
 }
 
 // handle the dispatching of received bundles.
-pub fn dispatch(mut bp: BundlePack) {
+pub fn dispatch(bp: BundlePack) {
     info!("Dispatching bundle: {}", bp.id());
 
     // TODO: impl routing
@@ -152,7 +152,7 @@ pub fn dispatch(mut bp: BundlePack) {
 pub fn forward(mut bp: BundlePack) {
     let bpid = bp.id().clone();
 
-    info!("Bundle will be forwarded: {}", bp.id());
+    info!("Bundle will be forwarded: {}", bpid);
 
     bp.add_constraint(Constraint::ForwardPending);
     bp.remove_constraint(Constraint::DispatchPending);
@@ -160,7 +160,7 @@ pub fn forward(mut bp: BundlePack) {
         STORE.lock().unwrap().push(&bp);
     }
     // Handle hop count block
-    if let Some(mut hc) = bp.bundle.extension_block(bp7::canonical::HOP_COUNT_BLOCK) {
+    if let Some(hc) = bp.bundle.extension_block(bp7::canonical::HOP_COUNT_BLOCK) {
         if hc.hop_count_increase() {
             let (hc_limit, hc_count) = hc
                 .hop_count_get()
@@ -230,19 +230,18 @@ pub fn forward(mut bp: BundlePack) {
         );
         bp.bundle.canonicals.push(pnb);
     }
-    let delete_afterwards = true;
-    let mut bundle_sent = Arc::new(AtomicBool::new(false));
+    let mut delete_afterwards = true;
+    let bundle_sent = Arc::new(AtomicBool::new(false));
     let mut nodes: Vec<cla::CLA_sender> = Vec::new();
 
     // direct delivery possible?
     if let Some(direct_node) = crate::core::peers_cla_for_node(&bp.bundle.primary.destination) {
         nodes.push(direct_node);
     } else {
-        // TODO: query routing agent
-        // nodes, deleteAfterwards = c.routing.SenderForBundle(bp)
-        unimplemented!();
+        let (cla_nodes, del) = DTNCORE.lock().unwrap().routing_agent.sender_for_bundle(&bp);
+        nodes = cla_nodes;
+        delete_afterwards = del;
     }
-
     let wg = WaitGroup::new();
     let bundle_data = bp.bundle.to_cbor();
     for n in nodes {
@@ -264,7 +263,7 @@ pub fn forward(mut bp: BundlePack) {
             } else {
                 info!("Sending bundle failed: {} {} {}", &bpid, n.remote, n.agent);
                 // TODO: report failure to routing agent
-                unimplemented!();
+                unimplemented!("report failure to routing agent not implemented!");
             }
             drop(wg);
         });
@@ -291,7 +290,7 @@ pub fn forward(mut bp: BundlePack) {
         {
             //c.SendStatusReport(bp, ForwardedBundle, NoInformation)
             // TODO: send status report
-            unimplemented!();
+            unimplemented!("SendStatusReport(bp, ForwardedBundle, NoInformation) not implemented!");
         }
         if delete_afterwards {
             bp.clear_constraints();
@@ -305,21 +304,19 @@ pub fn forward(mut bp: BundlePack) {
         info!("Failed to forward bundle to any CLA: {}", bp.id());
         contraindicated(bp);
     }
-    dbg!(STORE.lock().unwrap());
+    dbg!(STORE.lock().unwrap().bundles_status());
 }
 
 pub fn local_delivery(mut bp: BundlePack) {
     info!("Received bundle for local delivery: {}", bp.id());
 
     if bp.bundle.is_administrative_record() {
-        unimplemented!();
+        unimplemented!("Handling of administrative records in local delivery not implemented!");
     }
-    dbg!("step 1");
     bp.add_constraint(Constraint::LocalEndpoint);
     {
         STORE.lock().unwrap().push(&bp);
     }
-    dbg!("step 2");
     if let Some(aa) = DTNCORE
         .lock()
         .unwrap()
@@ -329,7 +326,6 @@ pub fn local_delivery(mut bp: BundlePack) {
         aa.push(&bp.bundle);
         STATS.lock().unwrap().delivered += 1;
     }
-    dbg!("step 3");
     if bp
         .bundle
         .primary
@@ -339,7 +335,6 @@ pub fn local_delivery(mut bp: BundlePack) {
         unimplemented!();
         // TODO: handle status request delivery
     }
-    dbg!("step 4");
     bp.clear_constraints();
     {
         STORE.lock().unwrap().push(&bp);
@@ -348,10 +343,7 @@ pub fn local_delivery(mut bp: BundlePack) {
 pub fn contraindicated(mut bp: BundlePack) {
     info!("Bundle marked for contraindication: {}", bp.id());
     bp.add_constraint(Constraint::Contraindicated);
-
-    {
-        STORE.lock().unwrap().push(&bp);
-    }
+    STORE.lock().unwrap().push(&bp);
 }
 
 pub fn delete(mut bp: BundlePack, reason: StatusReportReason) {
