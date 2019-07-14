@@ -20,10 +20,19 @@ fn main() {
         .subcommand(SubCommand::with_name("bundles").about("list bundles in node"))
         .subcommand(SubCommand::with_name("store").about("list bundles status in store"))
         .subcommand(SubCommand::with_name("info").about("General dtnd info"))
+        .subcommand(SubCommand::with_name("nodeid").about("Local node id"))
         .get_matches();
     let port = std::env::var("DTN_WEB_PORT").unwrap_or_else(|_| "3000".into());
     let port = matches.value_of("port").unwrap_or(&port); // string is fine no need to parse number
 
+    if let Some(_matches) = matches.subcommand_matches("nodeid") {
+        println!("Local node ID:");
+        let res = reqwest::get(&format!("http://127.0.0.1:{}/status/nodeid", port))
+            .expect("error connecting to local dtnd")
+            .text()
+            .unwrap();
+        println!("{}", res);
+    }
     if let Some(_matches) = matches.subcommand_matches("eids") {
         println!("Listing registered endpoint IDs:");
         let res = reqwest::get(&format!("http://127.0.0.1:{}/status/eids", port))
