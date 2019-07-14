@@ -40,6 +40,12 @@ pub struct BundlePack {
     constraints: HashSet<Constraint>,
 }
 
+impl fmt::Display for BundlePack {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{} {:?}", self.bundle.id(), self.constraints)
+    }
+}
+
 /// Create from a given bundle.
 impl From<Bundle> for BundlePack {
     fn from(bundle: Bundle) -> Self {

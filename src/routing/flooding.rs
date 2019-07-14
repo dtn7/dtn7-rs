@@ -1,5 +1,8 @@
 use super::RoutingAgent;
+use crate::cla::CLA_sender;
 use crate::cla::ConvergencyLayerAgent;
+use crate::core::bundlepack::BundlePack;
+use crate::PEERS;
 use bp7::ByteBuffer;
 
 /// Simple flooding-basic routing.
@@ -19,24 +22,13 @@ impl std::fmt::Display for FloodingRoutingAgent {
 }
 
 impl RoutingAgent for FloodingRoutingAgent {
-    fn route_bundle(
-        &mut self,
-        _bundle: &ByteBuffer,
-        _peers: Vec<String>,
-        _cl_list: &[Box<dyn ConvergencyLayerAgent>],
-    ) {
-        unimplemented!();
-    }
-    fn route_all(
-        &mut self,
-        bundles: Vec<ByteBuffer>,
-        peers: Vec<String>,
-        cl_list: &[Box<dyn ConvergencyLayerAgent>],
-    ) {
-        for p in &peers {
-            for cla in &mut cl_list.iter() {
-                cla.scheduled_submission(&p, &bundles);
+    fn sender_for_bundle(&mut self, bp: &BundlePack) -> (Vec<CLA_sender>, bool) {
+        let mut clas = Vec::new();
+        for (_, p) in PEERS.lock().unwrap().iter() {
+            if let Some(cla) = p.get_first_cla() {
+                clas.push(cla);
             }
         }
+        (clas, false)
     }
 }
