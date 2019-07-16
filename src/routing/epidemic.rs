@@ -1,16 +1,14 @@
 use super::RoutingAgent;
-use crate::cla::CLA_sender;
-use crate::cla::ConvergencyLayerAgent;
+use crate::cla::ClaSender;
 use crate::core::bundlepack::BundlePack;
 use crate::PEERS;
-use bp7::ByteBuffer;
 use std::collections::{HashMap, HashSet};
 
 /// Simple epidemic routing.
 /// All bundles are sent to all known peers once via all CLAs.
 #[derive(Default, Debug)]
 pub struct EpidemicRoutingAgent {
-    history: HashMap<String, HashSet<CLA_sender>>,
+    history: HashMap<String, HashSet<ClaSender>>,
 }
 
 impl EpidemicRoutingAgent {
@@ -19,7 +17,7 @@ impl EpidemicRoutingAgent {
             history: HashMap::new(),
         }
     }
-    fn add(&mut self, bundle_id: String, cla_sender: CLA_sender) {
+    fn add(&mut self, bundle_id: String, cla_sender: ClaSender) {
         let entries = self.history.entry(bundle_id).or_insert_with(HashSet::new);
         entries.insert(cla_sender);
     }
@@ -34,7 +32,7 @@ impl EpidemicRoutingAgent {
             .filter(|b| !entries.contains(b))
             .collect()
     }*/
-    fn contains(&mut self, bundle_id: &String, cla_sender: &CLA_sender) -> bool {
+    fn contains(&mut self, bundle_id: &str, cla_sender: &ClaSender) -> bool {
         if let Some(entries) = self.history.get(bundle_id) {
             //let entries = self.history.entry(bundle_id);
             return entries.contains(cla_sender);
@@ -48,7 +46,7 @@ impl std::fmt::Display for EpidemicRoutingAgent {
     }
 }
 impl RoutingAgent for EpidemicRoutingAgent {
-    fn sender_for_bundle(&mut self, bp: &BundlePack) -> (Vec<CLA_sender>, bool) {
+    fn sender_for_bundle(&mut self, bp: &BundlePack) -> (Vec<ClaSender>, bool) {
         let mut clas = Vec::new();
         for (_, p) in PEERS.lock().unwrap().iter() {
             if let Some(cla) = p.get_first_cla() {

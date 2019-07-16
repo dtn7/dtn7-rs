@@ -6,12 +6,12 @@ use std::fmt::{Debug, Display};
 use std::net::IpAddr;
 
 #[derive(Debug, PartialEq, Eq, Hash, Clone)]
-pub struct CLA_sender {
+pub struct ClaSender {
     pub remote: IpAddr,
     pub port: Option<u16>,
     pub agent: String,
 }
-impl CLA_sender {
+impl ClaSender {
     pub fn transfer(&self, ready: &[ByteBuffer]) -> bool {
         let sender = new(&self.agent); // since we are not listening sender port is irrelevant
         let dest = if self.port.is_some() {

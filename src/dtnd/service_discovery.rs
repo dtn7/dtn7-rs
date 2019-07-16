@@ -4,7 +4,7 @@ use crate::DTNCORE;
 use crate::PEERS;
 use bp7::EndpointID;
 use futures::{try_ready, Future, Poll};
-use log::{debug, error, info, warn};
+use log::{debug, error, info};
 use net2::UdpBuilder;
 use serde::{Deserialize, Serialize};
 use std::io;
