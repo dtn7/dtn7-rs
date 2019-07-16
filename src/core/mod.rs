@@ -5,15 +5,14 @@ pub mod processing;
 pub mod store;
 
 use crate::cla::ConvergencyLayerAgent;
-use crate::core::bundlepack::BundlePack;
 use crate::routing::RoutingAgent;
 use crate::CONFIG;
 use crate::PEERS;
 use crate::STATS;
 use crate::STORE;
 use application_agent::ApplicationAgent;
-use bp7::{Bundle, ByteBuffer, EndpointID};
-use log::{debug, error, info, warn};
+use bp7::EndpointID;
+use log::{debug, error, info};
 use serde::{Deserialize, Serialize};
 use std::net::IpAddr;
 use std::time::{SystemTime, UNIX_EPOCH};
@@ -96,10 +95,10 @@ impl DtnPeer {
     pub fn get_node_name(&self) -> String {
         self.eid.node_part().unwrap_or_default()
     }
-    pub fn get_first_cla(&self) -> Option<crate::cla::CLA_sender> {
+    pub fn get_first_cla(&self) -> Option<crate::cla::ClaSender> {
         for c in self.cla_list.iter() {
             if crate::cla::convergency_layer_agents().contains(&c.0.as_str()) {
-                let sender = crate::cla::CLA_sender {
+                let sender = crate::cla::ClaSender {
                     remote: self.addr,
                     port: c.1,
                     agent: c.0.clone(),
@@ -118,7 +117,7 @@ pub fn peers_get_for_node(eid: &EndpointID) -> Option<DtnPeer> {
     }
     None
 }
-pub fn peers_cla_for_node(eid: &EndpointID) -> Option<crate::cla::CLA_sender> {
+pub fn peers_cla_for_node(eid: &EndpointID) -> Option<crate::cla::ClaSender> {
     if let Some(peer) = peers_get_for_node(eid) {
         return peer.get_first_cla();
     }
@@ -211,85 +210,6 @@ impl DtnCore {
             }
         }
         None
-    }
-    pub fn process(&mut self) {
-        process_peers();
-
-        // TODO: this all doesn't feel right, not very idiomatic
-        let mut del_list: Vec<String> = Vec::new();
-        let mut delivery_list: Vec<(EndpointID, Bundle)> = Vec::new();
-
-        for bndl in STORE.lock().unwrap().bundles().iter() {
-            if self.is_in_endpoints(&bndl.bundle.primary.destination) {
-                delivery_list.push((bndl.bundle.primary.destination.clone(), bndl.bundle.clone()));
-                STATS.lock().unwrap().delivered += 1;
-                break;
-            }
-        }
-        for (eid, bundle) in &delivery_list {
-            if let Some(aa) = self.get_endpoint_mut(&eid) {
-                info!("Delivering {}", bundle.id());
-                del_list.push(bundle.id());
-                aa.push(bundle);
-            }
-        }
-        /*self.store
-            .iter()
-            .position(|x| self.is_in_endpoints(&x.receiver))
-            .map(|x| dbg!(x));
-        dbg!(&del_list2);*/
-        /*self.store
-        .iter()
-        .find(|x| self.is_in_endpoints(&x.receiver))
-        .map(|x| dbg!(x));*/
-        /*self.store
-        .bundles
-        .retain(|&x| self.is_in_endpoints(&x.receiver));*/
-        for bp in del_list.iter() {
-            STORE.lock().unwrap().remove(bp.to_string());
-        }
-        let ready: Vec<ByteBuffer> = STORE
-            .lock()
-            .unwrap()
-            .ready()
-            .iter()
-            .map(|x| x.bundle.clone().to_cbor())
-            .collect();
-        //self.store.remove_mass(del_list2);
-        let keys: Vec<String> = PEERS
-            .lock()
-            .unwrap()
-            .keys()
-            .map(|x| x.to_string())
-            .collect();
-        //self.routing_agent.route_all(ready, keys, &self.cl_list);
-        /*for cla in &mut self.cl_list {
-            cla.scheduled_process(&ready, &keys);
-        }*/
-    }
-    pub fn push(&mut self, bndl: Bundle) {
-        STATS.lock().unwrap().incoming += 1;
-        let bp = BundlePack::from(bndl);
-        if STORE.lock().unwrap().has_item(&bp) {
-            debug!("Bundle {} already in store!", bp.id());
-            STATS.lock().unwrap().dups += 1;
-            return;
-        }
-        if let Some(aa) = self.get_endpoint_mut(&bp.bundle.primary.destination) {
-            if !bp.bundle.primary.has_fragmentation() {
-                info!("Delivering {}", bp.id());
-                aa.push(&bp.bundle);
-                STATS.lock().unwrap().delivered += 1;
-                return;
-            }
-        }
-        /*for aa in self.endpoints.iter() {
-            if &bndl.primary.destination == aa.eid() && !bndl.primary.has_fragmentation() {
-                aa.deliver(&bndl);
-                return;
-            }
-        }*/
-        STORE.lock().unwrap().push(&bp);
     }
 }
 

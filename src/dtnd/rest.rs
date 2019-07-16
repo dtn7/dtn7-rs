@@ -1,17 +1,17 @@
-use crate::STORE;
 use crate::core::application_agent::SimpleApplicationAgent;
 use crate::core::helpers::rnd_peer;
 use crate::CONFIG;
 use crate::DTNCORE;
 use crate::PEERS;
 use crate::STATS;
+use crate::STORE;
 use bp7::dtntime::CreationTimestamp;
 use bp7::helpers::rnd_bundle;
 use futures::future;
 use hyper::service::service_fn;
 use hyper::{Body, Request, Response, Server};
 use hyper::{Method, StatusCode};
-use log::{debug, error, info, warn};
+use log::{debug, error, info};
 use tokio::prelude::*;
 
 // Just a simple type alias
@@ -27,8 +27,7 @@ fn rest_handler(req: Request<Body>) -> BoxFut {
         }
         (&Method::GET, "/status/nodeid") => {
             let my_node_id = CONFIG.lock().unwrap().nodeid.clone();
-            *response.body_mut() =
-                Body::from(format!("dtn://{}", my_node_id));
+            *response.body_mut() = Body::from(format!("dtn://{}", my_node_id));
         }
         (&Method::GET, "/status/eids") => {
             *response.body_mut() =
@@ -56,7 +55,7 @@ fn rest_handler(req: Request<Body>) -> BoxFut {
             println!("generating debug bundle");
             let b = rnd_bundle(CreationTimestamp::now());
             *response.body_mut() = Body::from(b.id());
-            DTNCORE.lock().unwrap().push(b);
+            crate::core::processing::send_bundle(b);
         }
         (&Method::GET, "/debug/rnd_peer") => {
             println!("generating debug peer");
@@ -80,17 +79,17 @@ fn rest_handler(req: Request<Body>) -> BoxFut {
                             bndl.primary.destination
                         );
                         {
-                            DTNCORE.lock().unwrap().push(bndl);
+                            crate::core::processing::send_bundle(bndl);
                         }
                         *response.body_mut() = Body::from(format!("Sent {} bytes", b_len));
                     } else {
-                        *response.body_mut() = Body::from(format!("Error parsing bundle!"));
+                        *response.body_mut() = Body::from("Error parsing bundle!".to_string());
                     }
                 }
             }
         }
         (&Method::POST, "/send") => {
-            let (parts, body) = req.into_parts();
+            let (_parts, body) = req.into_parts();
             let entire_body = body.concat2();
             let resp = entire_body.map(move |hexstr| {
                 let binbundle = hexstr.to_vec();

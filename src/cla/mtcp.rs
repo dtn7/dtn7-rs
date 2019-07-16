@@ -1,14 +1,11 @@
 use crate::cla::ConvergencyLayerAgent;
-use crate::DTNCORE;
 use bp7::{Bp7Error, Bundle, ByteBuffer};
 use bytes::{BufMut, BytesMut};
 use futures::Future;
-use log::{debug, error, info, warn};
+use log::{debug, error, info};
 use serde::{Deserialize, Serialize};
-use std::net::IpAddr;
 use std::net::SocketAddr;
 use std::net::TcpStream;
-use std::thread;
 use std::time::Instant;
 use tokio::codec::{Decoder, Encoder, Framed};
 use tokio::io;

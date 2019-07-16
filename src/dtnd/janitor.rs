@@ -6,7 +6,8 @@ use tokio::timer::Interval;
 
 fn janitor() {
     debug!("running janitor");
-    DTNCORE.lock().unwrap().process();
+    //DTNCORE.lock().unwrap().process();
+    // TODO: reimpl janitor with new processing
 }
 
 pub fn spawn_janitor() {
