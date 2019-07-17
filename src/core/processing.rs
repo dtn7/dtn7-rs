@@ -26,9 +26,6 @@ pub fn send_bundle(bndl: Bundle) {
 pub fn transmit(mut bp: BundlePack) {
     info!("Transmission of bundle requested: {}", bp.id());
 
-    // TODO: idKeeper impl
-    //c.idKeeper.update(bp.Bundle)
-
     bp.add_constraint(Constraint::DispatchPending);
     {
         STORE.lock().unwrap().push(&bp);
@@ -73,9 +70,7 @@ pub fn receive(mut bp: BundlePack) {
         .bundle_control_flags
         .has(BUNDLE_STATUS_REQUEST_RECEPTION)
     {
-        //c.SendStatusReport(bp, ReceivedBundle, NoInformation)
-        // TODO: send status report
-        unimplemented!();
+        send_status_report(&bp, RECEIVED_BUNDLE, NO_INFORMATION);
     }
     let mut remove_idx = Vec::new();
     let mut index = 0;
@@ -96,9 +91,7 @@ pub fn receive(mut bp: BundlePack) {
                 bp.id(),
                 cb.block_type
             );
-            unimplemented!();
-            // TODO: handle status request delivery
-            // c.SendStatusReport(bp, ReceivedBundle, BlockUnintelligible)
+            send_status_report(&bp, RECEIVED_BUNDLE, BLOCK_UNINTELLIGIBLE);
         }
         if cb.block_control_flags.has(BLOCK_DELETE_BUNDLE) {
             info!(
@@ -160,7 +153,10 @@ pub fn forward(mut bp: BundlePack) {
         STORE.lock().unwrap().push(&bp);
     }
     // Handle hop count block
-    if let Some(hc) = bp.bundle.extension_block(bp7::canonical::HOP_COUNT_BLOCK) {
+    if let Some(hc) = bp
+        .bundle
+        .extension_block_mut(bp7::canonical::HOP_COUNT_BLOCK)
+    {
         if hc.hop_count_increase() {
             let (hc_limit, hc_count) = hc
                 .hop_count_get()
@@ -201,7 +197,7 @@ pub fn forward(mut bp: BundlePack) {
     // Handle previous node block
     if let Some(pnb) = bp
         .bundle
-        .extension_block(bp7::canonical::PREVIOUS_NODE_BLOCK)
+        .extension_block_mut(bp7::canonical::PREVIOUS_NODE_BLOCK)
     {
         let prev_eid = &pnb
             .previous_node_get()
@@ -271,7 +267,10 @@ pub fn forward(mut bp: BundlePack) {
     wg.wait();
 
     // Reset hop count block
-    if let Some(hc) = bp.bundle.extension_block(bp7::canonical::HOP_COUNT_BLOCK) {
+    if let Some(hc) = bp
+        .bundle
+        .extension_block_mut(bp7::canonical::HOP_COUNT_BLOCK)
+    {
         if let Some((hc_limit, mut hc_count)) = hc.hop_count_get() {
             hc_count -= 1;
             hc.set_data(bp7::canonical::CanonicalData::HopCount(hc_limit, hc_count));
@@ -288,30 +287,28 @@ pub fn forward(mut bp: BundlePack) {
             .bundle_control_flags
             .has(bp7::bundle::BUNDLE_STATUS_REQUEST_FORWARD)
         {
-            //c.SendStatusReport(bp, ForwardedBundle, NoInformation)
-            // TODO: send status report
-            unimplemented!("SendStatusReport(bp, ForwardedBundle, NoInformation) not implemented!");
+            send_status_report(&bp, FORWARDED_BUNDLE, NO_INFORMATION);
         }
         if delete_afterwards {
             bp.clear_constraints();
             STORE.lock().unwrap().push(&bp);
         } else if bp.bundle.is_administrative_record() {
             // TODO: always inspect all bundles, should be configurable
-            is_administrative_record_valid(&mut bp);
+            is_administrative_record_valid(&bp);
             contraindicated(bp);
         }
     } else {
         info!("Failed to forward bundle to any CLA: {}", bp.id());
         contraindicated(bp);
     }
-    dbg!(STORE.lock().unwrap().bundles_status());
 }
 
 pub fn local_delivery(mut bp: BundlePack) {
     info!("Received bundle for local delivery: {}", bp.id());
 
-    if bp.bundle.is_administrative_record() {
-        unimplemented!("Handling of administrative records in local delivery not implemented!");
+    if bp.bundle.is_administrative_record() && !is_administrative_record_valid(&bp) {
+        delete(bp, NO_INFORMATION);
+        return;
     }
     bp.add_constraint(Constraint::LocalEndpoint);
     {
@@ -332,8 +329,7 @@ pub fn local_delivery(mut bp: BundlePack) {
         .bundle_control_flags
         .has(bp7::bundle::BUNDLE_STATUS_REQUEST_DELIVERY)
     {
-        unimplemented!();
-        // TODO: handle status request delivery
+        send_status_report(&bp, DELIVERED_BUNDLE, NO_INFORMATION);
     }
     bp.clear_constraints();
     {
@@ -353,8 +349,7 @@ pub fn delete(mut bp: BundlePack, reason: StatusReportReason) {
         .bundle_control_flags
         .has(bp7::bundle::BUNDLE_STATUS_REQUEST_DELETION)
     {
-        unimplemented!();
-        //new_status_report_bundle(bp.bundle);
+        send_status_report(&bp, DELETED_BUNDLE, reason);
     }
     bp.clear_constraints();
     info!("Bundle marked for deletion: {}", bp.id());
@@ -363,7 +358,7 @@ pub fn delete(mut bp: BundlePack, reason: StatusReportReason) {
     }
 }
 
-fn is_administrative_record_valid(bp: &mut BundlePack) -> bool {
+fn is_administrative_record_valid(bp: &BundlePack) -> bool {
     if !bp.bundle.is_administrative_record() {
         warn!(
             "Bundle does not contain an administrative record: {}",
@@ -477,4 +472,83 @@ fn inspect_status_report(bp: &BundlePack, ar: AdministrativeRecord) {
             }).Warn("Status report has an unknown status information code")
         }
     }*/
+}
+
+// SendStatusReport creates a new status report in response to the given
+// BundlePack and transmits it.
+fn send_status_report(bp: &BundlePack, status: StatusInformationPos, reason: StatusReportReason) {
+    // Don't repond to other administrative records
+    if bp
+        .bundle
+        .primary
+        .bundle_control_flags
+        .has(BUNDLE_ADMINISTRATIVE_RECORD_PAYLOAD)
+    {
+        return;
+    }
+
+    // Don't respond to ourself
+    if DTNCORE
+        .lock()
+        .unwrap()
+        .is_in_endpoints(&bp.bundle.primary.report_to)
+    {
+        return;
+    }
+
+    info!(
+        "Sending a status report for a bundle: {} {:?} {:?}",
+        bp.id(),
+        status,
+        reason
+    );
+
+    let out_bndl = new_status_report_bundle(
+        &bp.bundle,
+        CONFIG.lock().unwrap().host_eid.clone(),
+        bp.bundle.primary.crc.to_code(),
+        status,
+        reason,
+    );
+    /*let sr = new_status_report(&bp.bundle, status, reason, bp7::dtn_time_now());
+
+    var ar, arErr = arecord.AdministrativeRecordToCbor(&sr)
+    if arErr != nil {
+        log.WithFields(log.Fields{
+            "bundle": bp.ID(),
+            "error":  arErr,
+        }).Warn("Serializing administrative record failed")
+
+        return
+    }
+
+    var aaEndpoint = bp.Receiver
+    if !c.HasEndpoint(aaEndpoint) {
+        log.WithFields(log.Fields{
+            "bundle":   bp.ID(),
+            "endpoint": aaEndpoint,
+        }).Warn("Failed to create status report, receiver is not a current endpoint")
+
+        return
+    }
+
+    var outBndl, err = bundle.Builder().
+        BundleCtrlFlags(bundle.AdministrativeRecordPayload).
+        Source(aaEndpoint).
+        Destination(inBndl.PrimaryBlock.ReportTo).
+        CreationTimestampNow().
+        Lifetime("60m").
+        Canonical(ar).
+        Build()
+
+    if err != nil {
+        log.WithFields(log.Fields{
+            "bundle": bp.ID(),
+            "error":  err,
+        }).Warn("Creating status report bundle failed")
+
+        return
+    }*/
+
+    send_bundle(out_bndl);
 }

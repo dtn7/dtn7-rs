@@ -1,5 +1,5 @@
 use crate::cla::ConvergencyLayerAgent;
-use bp7::{Bp7Error, Bundle, ByteBuffer};
+use bp7::{Bundle, ByteBuffer};
 use bytes::{BufMut, BytesMut};
 use futures::Future;
 use log::{debug, error, info};
@@ -241,16 +241,6 @@ impl MtcpConversionLayer {
 impl ConvergencyLayerAgent for MtcpConversionLayer {
     fn setup(&mut self) {
         self.spawn_listener();
-
-        // TODO: remove the following test code
-        /*self.send_bundles(
-            "127.0.0.1:16162".parse::<SocketAddr>().unwrap(),
-            vec![
-                bp7::helpers::rnd_bundle(bp7::CreationTimestamp::now()).to_cbor(),
-                bp7::helpers::rnd_bundle(bp7::CreationTimestamp::now()).to_cbor(),
-                bp7::helpers::rnd_bundle(bp7::CreationTimestamp::now()).to_cbor(),
-            ],
-        );*/
     }
     fn port(&self) -> u16 {
         self.local_port

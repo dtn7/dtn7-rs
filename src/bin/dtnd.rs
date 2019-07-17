@@ -129,7 +129,6 @@ fn main() {
     if let Some(cfgfile) = matches.value_of("config") {
         cfg = DtnConfig::from(std::path::PathBuf::from(cfgfile));
     }
-    //let _config = matches.value_of("config").unwrap_or("default.conf"); // TODO: add support for config files
 
     if let Some(nodeid) = matches.value_of("nodeid") {
         cfg.nodeid = nodeid.to_string();
