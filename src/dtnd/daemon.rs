@@ -1,7 +1,8 @@
+use crate::cla_add;
 use super::{janitor, rest, service_discovery};
 use crate::core::application_agent::SimpleApplicationAgent;
 use crate::dtnconfig::DtnConfig;
-use crate::PEERS;
+use crate::peers_add;
 use crate::{CONFIG, DTNCORE};
 use futures::future::lazy;
 use log::info;
@@ -70,7 +71,7 @@ pub fn start_dtnd(cfg: DtnConfig) {
 
     for cla in &CONFIG.lock().unwrap().clas {
         info!("Adding CLA: {}", cla);
-        DTNCORE.lock().unwrap().cl_list.push(crate::cla::new(cla));
+        cla_add(crate::cla::new(cla));
     }
 
     for s in &CONFIG.lock().unwrap().statics {
@@ -86,10 +87,7 @@ pub fn start_dtnd(cfg: DtnConfig) {
             port_str,
             s.eid.node_part().unwrap()
         );
-        PEERS
-            .lock()
-            .unwrap()
-            .insert(s.eid.node_part().unwrap(), s.clone());
+        peers_add(s.clone());
     }
     let my_node_id = CONFIG.lock().unwrap().nodeid.clone();
 

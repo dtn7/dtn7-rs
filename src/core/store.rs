@@ -66,7 +66,7 @@ impl BundleStore for SimpleBundleStore {
     }
     fn bundles(&self) -> Vec<&BundlePack> {
         self.bundles.values().collect()
-    }    
+    }
 }
 
 impl Default for SimpleBundleStore {
