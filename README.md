@@ -1,4 +1,11 @@
 # dtn7-rs
+
+[![Crates.io](https://img.shields.io/crates/v/dtn7.svg)](https://crates.io/crates/dtn7)
+[![Docs.rs](https://docs.rs/dtn7/badge.svg)](https://docs.rs/dtn7)
+[![Build status](https://api.travis-ci.org/gh0st42/dtn7-rs.svg?branch=master)](https://travis-ci.org/gh0st42/dtn7-rs)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE-MIT)
+[![License: Apache 2.0](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE-APACHE)
+
 Rust implementation of a Daemon for DTN7 Bundle Protocol draft https://tools.ietf.org/html/draft-ietf-dtn-bpbis-13
 
 Plus:
