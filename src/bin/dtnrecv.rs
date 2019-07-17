@@ -58,7 +58,7 @@ fn main() {
         let mut buf: Vec<u8> = vec![];
         res.copy_to(&mut buf).unwrap();
 
-        let mut bndl: Bundle = Bundle::from(buf);
+        let bndl: Bundle = Bundle::from(buf);
         match bndl
             .extension_block(bp7::canonical::PAYLOAD_BLOCK)
             .expect("Payload block missing!")
@@ -83,10 +83,8 @@ fn main() {
                 panic!("No data in payload block!");
             }
         }
-    } else {
-        if verbose {
-            println!("Nothing to fetch.");
-            process::exit(23);
-        }
+    } else if verbose {
+        println!("Nothing to fetch.");
+        process::exit(23);
     }
 }

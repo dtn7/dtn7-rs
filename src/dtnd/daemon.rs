@@ -70,7 +70,7 @@ pub fn start_dtnd(cfg: DtnConfig) {
 
     for cla in &CONFIG.lock().unwrap().clas {
         info!("Adding CLA: {}", cla);
-        DTNCORE.lock().unwrap().cl_list.push(crate::cla::new(cla)); // TODO: add custom port support
+        DTNCORE.lock().unwrap().cl_list.push(crate::cla::new(cla));
     }
 
     for s in &CONFIG.lock().unwrap().statics {
@@ -94,7 +94,7 @@ pub fn start_dtnd(cfg: DtnConfig) {
         .lock()
         .unwrap()
         .register_application_agent(SimpleApplicationAgent::new_with(
-            format!("dtn://{}", my_node_id).into(),
+            CONFIG.lock().unwrap().host_eid.clone(),
         ));
 
     for e in &CONFIG.lock().unwrap().endpoints {

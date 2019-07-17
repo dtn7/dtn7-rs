@@ -1,4 +1,5 @@
 use crate::core::DtnPeer;
+use bp7::EndpointID;
 use config::{Config, File};
 use log::debug;
 use rand::distributions::Alphanumeric;
@@ -9,6 +10,7 @@ use std::path::PathBuf;
 pub struct DtnConfig {
     pub debug: bool,
     pub nodeid: String,
+    pub host_eid: EndpointID,
     pub webport: u16,
     pub announcement_interval: u64,
     pub janitor_interval: u64,
@@ -44,7 +46,9 @@ impl From<PathBuf> for DtnConfig {
         dtncfg.routing = s.get_str("routing").unwrap_or(dtncfg.routing);
         debug!("routing: {:?}", dtncfg.routing);
 
-        dtncfg.webport = s.get_int("webport").unwrap_or(i64::from(dtncfg.webport)) as u16;
+        dtncfg.webport = s
+            .get_int("webport")
+            .unwrap_or_else(|_| i64::from(dtncfg.webport)) as u16;
         debug!("webport: {:?}", dtncfg.webport);
 
         dtncfg.janitor_interval = s
@@ -81,7 +85,7 @@ impl From<PathBuf> for DtnConfig {
 
         let clas = s.get_table("convergencylayers.cla");
         if clas.is_ok() {
-            for (k, v) in clas.unwrap().iter() {
+            for (_k, v) in clas.unwrap().iter() {
                 let tab = v.clone().into_table().unwrap();
                 let cla_id = tab["id"].clone().into_str().unwrap();
                 let cla_port = if tab.contains_key("port") {
@@ -104,7 +108,8 @@ impl DtnConfig {
         let node_rnd: String = rnd_node_name();
         DtnConfig {
             debug: false,
-            nodeid: node_rnd,
+            nodeid: node_rnd.clone(),
+            host_eid: format!("dtn://{}", node_rnd).into(),
             announcement_interval: 2000,
             webport: 3000,
             janitor_interval: 10000,
@@ -117,7 +122,8 @@ impl DtnConfig {
     }
     pub fn set(&mut self, cfg: DtnConfig) {
         self.debug = cfg.debug;
-        self.nodeid = cfg.nodeid;
+        self.nodeid = cfg.nodeid.clone();
+        self.host_eid = format!("dtn://{}", cfg.nodeid).into();
         self.webport = cfg.webport;
         self.announcement_interval = cfg.announcement_interval;
         self.janitor_interval = cfg.janitor_interval;
