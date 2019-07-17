@@ -1,9 +1,10 @@
 use crate::cla;
 use crate::core::bundlepack::*;
+use crate::core::*;
+use crate::peers_cla_for_node;
 use crate::CONFIG;
 use crate::DTNCORE;
 use crate::STATS;
-use crate::STORE;
 
 use bp7::administrative_record::*;
 use bp7::bundle::BundleValidation;
@@ -27,9 +28,7 @@ pub fn transmit(mut bp: BundlePack) {
     info!("Transmission of bundle requested: {}", bp.id());
 
     bp.add_constraint(Constraint::DispatchPending);
-    {
-        STORE.lock().unwrap().push(&bp);
-    }
+    store_push(&bp);
     let src = &bp.bundle.primary.source;
     if src != &bp7::DTN_NONE && DTNCORE.lock().unwrap().get_endpoint_mut(&src).is_none() {
         info!(
@@ -48,7 +47,7 @@ pub fn transmit(mut bp: BundlePack) {
 pub fn receive(mut bp: BundlePack) {
     info!("Received new bundle: {}", bp.id());
 
-    if STORE.lock().unwrap().has_item(&bp) {
+    if store_has_item(&bp) {
         debug!("Received bundle's ID is already known: {}", bp.id());
 
         // bundleDeletion is _not_ called because this would delete the already
@@ -59,10 +58,7 @@ pub fn receive(mut bp: BundlePack) {
     info!("Processing new received bundle: {}", bp.id());
 
     bp.add_constraint(Constraint::DispatchPending);
-
-    {
-        STORE.lock().unwrap().push(&bp);
-    }
+    store_push(&bp);
 
     if bp
         .bundle
@@ -149,9 +145,7 @@ pub fn forward(mut bp: BundlePack) {
 
     bp.add_constraint(Constraint::ForwardPending);
     bp.remove_constraint(Constraint::DispatchPending);
-    {
-        STORE.lock().unwrap().push(&bp);
-    }
+    store_push(&bp);
     // Handle hop count block
     if let Some(hc) = bp
         .bundle
@@ -231,7 +225,7 @@ pub fn forward(mut bp: BundlePack) {
     let mut nodes: Vec<cla::ClaSender> = Vec::new();
 
     // direct delivery possible?
-    if let Some(direct_node) = crate::core::peers_cla_for_node(&bp.bundle.primary.destination) {
+    if let Some(direct_node) = peers_cla_for_node(&bp.bundle.primary.destination) {
         nodes.push(direct_node);
     } else {
         let (cla_nodes, del) = DTNCORE.lock().unwrap().routing_agent.sender_for_bundle(&bp);
@@ -291,7 +285,7 @@ pub fn forward(mut bp: BundlePack) {
         }
         if delete_afterwards {
             bp.clear_constraints();
-            STORE.lock().unwrap().push(&bp);
+            store_push(&bp);
         } else if bp.bundle.is_administrative_record() {
             // TODO: always inspect all bundles, should be configurable
             is_administrative_record_valid(&bp);
@@ -311,9 +305,7 @@ pub fn local_delivery(mut bp: BundlePack) {
         return;
     }
     bp.add_constraint(Constraint::LocalEndpoint);
-    {
-        STORE.lock().unwrap().push(&bp);
-    }
+    store_push(&bp);
     if let Some(aa) = DTNCORE
         .lock()
         .unwrap()
@@ -332,14 +324,12 @@ pub fn local_delivery(mut bp: BundlePack) {
         send_status_report(&bp, DELIVERED_BUNDLE, NO_INFORMATION);
     }
     bp.clear_constraints();
-    {
-        STORE.lock().unwrap().push(&bp);
-    }
+    store_push(&bp);
 }
 pub fn contraindicated(mut bp: BundlePack) {
     info!("Bundle marked for contraindication: {}", bp.id());
     bp.add_constraint(Constraint::Contraindicated);
-    STORE.lock().unwrap().push(&bp);
+    store_push(&bp);
 }
 
 pub fn delete(mut bp: BundlePack, reason: StatusReportReason) {
@@ -353,9 +343,7 @@ pub fn delete(mut bp: BundlePack, reason: StatusReportReason) {
     }
     bp.clear_constraints();
     info!("Bundle marked for deletion: {}", bp.id());
-    {
-        STORE.lock().unwrap().push(&bp);
-    }
+    store_push(&bp);
 }
 
 fn is_administrative_record_valid(bp: &BundlePack) -> bool {
@@ -510,45 +498,6 @@ fn send_status_report(bp: &BundlePack, status: StatusInformationPos, reason: Sta
         status,
         reason,
     );
-    /*let sr = new_status_report(&bp.bundle, status, reason, bp7::dtn_time_now());
-
-    var ar, arErr = arecord.AdministrativeRecordToCbor(&sr)
-    if arErr != nil {
-        log.WithFields(log.Fields{
-            "bundle": bp.ID(),
-            "error":  arErr,
-        }).Warn("Serializing administrative record failed")
-
-        return
-    }
-
-    var aaEndpoint = bp.Receiver
-    if !c.HasEndpoint(aaEndpoint) {
-        log.WithFields(log.Fields{
-            "bundle":   bp.ID(),
-            "endpoint": aaEndpoint,
-        }).Warn("Failed to create status report, receiver is not a current endpoint")
-
-        return
-    }
-
-    var outBndl, err = bundle.Builder().
-        BundleCtrlFlags(bundle.AdministrativeRecordPayload).
-        Source(aaEndpoint).
-        Destination(inBndl.PrimaryBlock.ReportTo).
-        CreationTimestampNow().
-        Lifetime("60m").
-        Canonical(ar).
-        Build()
-
-    if err != nil {
-        log.WithFields(log.Fields{
-            "bundle": bp.ID(),
-            "error":  err,
-        }).Warn("Creating status report bundle failed")
-
-        return
-    }*/
 
     send_bundle(out_bndl);
 }
