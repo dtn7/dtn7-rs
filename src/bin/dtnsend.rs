@@ -1,3 +1,4 @@
+use bp7::bundle::*;
 use bp7::*;
 use chrono::{DateTime, Utc};
 use clap::{crate_authors, crate_version, App, Arg};
@@ -93,7 +94,8 @@ fn main() {
         println!("Sending {} bytes.", buffer.len());
     }
 
-    let mut bndl = bp7::bundle::new_std_payload_bundle(sender, receiver, buffer);
+    let mut bndl = new_std_payload_bundle(sender, receiver, buffer);
+    bndl.primary.bundle_control_flags = BUNDLE_MUST_NOT_FRAGMENTED | BUNDLE_STATUS_REQUEST_DELIVERY;
     let binbundle = bndl.to_cbor();
     println!("Bundle-Id: {}", bndl.id());
     if verbose || dryrun {

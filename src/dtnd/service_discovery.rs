@@ -8,7 +8,6 @@ use log::{debug, error, info};
 use net2::UdpBuilder;
 use serde::{Deserialize, Serialize};
 use std::io;
-use std::time::{Duration, Instant};
 use tokio::net::UdpSocket;
 use tokio::prelude::*;
 
@@ -42,7 +41,7 @@ impl Future for Server {
                 //println!("Echoed {}/{} bytes to {}", amt, size, peer);
                 debug!("Packet from {} : {:?}", peer, deserialized);
                 let dtnpeer = DtnPeer::new(
-                    deserialized.eid,
+                    deserialized.eid.clone(),
                     peer.ip(),
                     PeerType::Dynamic,
                     deserialized
@@ -52,7 +51,7 @@ impl Future for Server {
                         .collect(),
                 );
                 {
-                    PEERS.lock().unwrap().insert(peer.ip(), dtnpeer.clone());
+                    PEERS.lock().unwrap().insert(deserialized.eid.node_part().unwrap_or_default(), dtnpeer.clone());
                 }
             }
         }
