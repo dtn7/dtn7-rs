@@ -60,7 +60,7 @@ fn rest_handler(req: Request<Body>) -> BoxFut {
             println!("generating debug peer");
             let p = rnd_peer();
             *response.body_mut() = Body::from(serde_json::to_string_pretty(&p).unwrap());
-            PEERS.lock().unwrap().insert(p.addr, p);
+            PEERS.lock().unwrap().insert(p.eid.node_part().unwrap_or_default(), p);
         }
         (&Method::POST, "/echo") => {
             // we'll be back

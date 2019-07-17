@@ -86,7 +86,7 @@ pub fn start_dtnd(cfg: DtnConfig) {
             port_str,
             s.eid.node_part().unwrap()
         );
-        PEERS.lock().unwrap().insert(s.addr, s.clone());
+        PEERS.lock().unwrap().insert(s.eid.node_part().unwrap(), s.clone());
     }
     let my_node_id = CONFIG.lock().unwrap().nodeid.clone();
 
