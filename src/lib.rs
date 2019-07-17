@@ -16,7 +16,6 @@ pub use crate::core::{DtnCore, DtnPeer};
 
 use lazy_static::*;
 use std::collections::HashMap;
-use std::net::IpAddr;
 use std::sync::Mutex;
 
 lazy_static! {
