@@ -1,3 +1,4 @@
+pub mod cron;
 pub mod daemon;
 pub mod janitor;
 pub mod rest;

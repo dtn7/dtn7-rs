@@ -1,25 +1,16 @@
-use crate::DTNCORE;
-use log::{debug};
-use std::time::{Duration, Instant};
-use tokio::prelude::*;
-use tokio::timer::Interval;
+use log::debug;
 
 fn janitor() {
     debug!("running janitor");
     //DTNCORE.lock().unwrap().process();
     // TODO: reimpl janitor with new processing
+    debug!("cleaning up peers");
+    crate::core::process_peers();
+
+    debug!("reprocessing bundles");
+    crate::core::process_bundles();
 }
 
 pub fn spawn_janitor() {
-    let task = Interval::new(
-        Instant::now(),
-        Duration::from_millis(crate::CONFIG.lock().unwrap().janitor_interval),
-    )
-    .for_each(move |_instant| {
-        janitor();
-
-        Ok(())
-    })
-    .map_err(|e| panic!("interval errored; err={:?}", e));
-    tokio::spawn(task);
+    crate::dtnd::cron::spawn_timer(crate::CONFIG.lock().unwrap().janitor_interval, janitor);
 }

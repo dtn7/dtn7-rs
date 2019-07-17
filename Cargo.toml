@@ -1,6 +1,6 @@
 [package]
 name = "dtn7"
-version = "0.3.8"
+version = "0.3.9"
 authors = ["Lars Baumgaertner <baumgaertner@cs.tu-darmstadt.de>"]
 edition = "2018"
 

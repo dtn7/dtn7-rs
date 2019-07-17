@@ -182,7 +182,13 @@ impl DtnCore {
         self.endpoints.iter().map(|e| e.eid().to_string()).collect()
     }
     pub fn bundles(&self) -> Vec<String> {
-        STORE.lock().unwrap().bundles().iter().map(|e| e.id()).collect()
+        STORE
+            .lock()
+            .unwrap()
+            .bundles()
+            .iter()
+            .map(|e| e.id())
+            .collect()
     }
     fn is_in_endpoints(&self, eid: &EndpointID) -> bool {
         for aa in self.endpoints.iter() {
@@ -219,4 +225,15 @@ pub fn process_peers() {
         .lock()
         .unwrap()
         .retain(|_k, v| v.con_type == PeerType::Static || v.still_valid());
+}
+
+/// Reprocess bundles in store
+pub fn process_bundles() {
+    // TODO: check for possible race condition and double send when janitor is triggered while first forwarding attempt is in progress
+    STORE
+        .lock()
+        .unwrap()
+        .forwarding()
+        .iter()
+        .for_each(|&bp| crate::core::processing::forward(bp.clone()));
 }
