@@ -21,9 +21,10 @@ impl EpidemicRoutingAgent {
         let entries = self.history.entry(bundle_id).or_insert_with(HashSet::new);
         entries.insert(cla_sender);
     }
-    fn remove_bundle(&mut self, bundle_id: String) {
+    /*fn remove_bundle(&mut self, bundle_id: String) {
         self.history.remove(&bundle_id);
-    }
+    }*/
+    
     /*fn filtered(&mut self, dest: String, bundles: &[ByteBuffer]) -> Vec<ByteBuffer> {
         let entries = self.history.entry(dest).or_insert_with(HashSet::new);
         bundles

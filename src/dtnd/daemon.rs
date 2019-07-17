@@ -4,7 +4,7 @@ use crate::dtnconfig::DtnConfig;
 use crate::PEERS;
 use crate::{CONFIG, DTNCORE};
 use futures::future::lazy;
-use log::{debug, error, info, warn};
+use log::info;
 /*
 use crate::core::core::DtnCore;
 use std::sync::mpsc;
@@ -86,7 +86,10 @@ pub fn start_dtnd(cfg: DtnConfig) {
             port_str,
             s.eid.node_part().unwrap()
         );
-        PEERS.lock().unwrap().insert(s.eid.node_part().unwrap(), s.clone());
+        PEERS
+            .lock()
+            .unwrap()
+            .insert(s.eid.node_part().unwrap(), s.clone());
     }
     let my_node_id = CONFIG.lock().unwrap().nodeid.clone();
 

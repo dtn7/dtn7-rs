@@ -9,7 +9,6 @@ use net2::UdpBuilder;
 use serde::{Deserialize, Serialize};
 use std::io;
 use tokio::net::UdpSocket;
-use tokio::prelude::*;
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct AnnouncementPkt {
@@ -51,7 +50,10 @@ impl Future for Server {
                         .collect(),
                 );
                 {
-                    PEERS.lock().unwrap().insert(deserialized.eid.node_part().unwrap_or_default(), dtnpeer.clone());
+                    PEERS.lock().unwrap().insert(
+                        deserialized.eid.node_part().unwrap_or_default(),
+                        dtnpeer.clone(),
+                    );
                 }
             }
         }

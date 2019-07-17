@@ -250,7 +250,7 @@ pub fn forward(mut bp: BundlePack) {
                 "Sending bundle to a CLA: {} {} {}",
                 &bpid, n.remote, n.agent
             );
-            if n.transfer(&vec![bd]) {
+            if n.transfer(&[bd]) {
                 info!(
                     "Sending bundle succeeded: {} {} {}",
                     &bpid, n.remote, n.agent
