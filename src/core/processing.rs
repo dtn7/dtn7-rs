@@ -232,7 +232,7 @@ pub fn forward(mut bp: BundlePack) {
     }
     let mut delete_afterwards = true;
     let bundle_sent = Arc::new(AtomicBool::new(false));
-    let mut nodes: Vec<cla::CLA_sender> = Vec::new();
+    let mut nodes: Vec<cla::ClaSender> = Vec::new();
 
     // direct delivery possible?
     if let Some(direct_node) = crate::core::peers_cla_for_node(&bp.bundle.primary.destination) {

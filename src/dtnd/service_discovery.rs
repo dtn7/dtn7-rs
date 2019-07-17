@@ -11,7 +11,6 @@ use std::io;
 use std::time::{Duration, Instant};
 use tokio::net::UdpSocket;
 use tokio::prelude::*;
-use tokio::timer::Interval;
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct AnnouncementPkt {
@@ -46,7 +45,11 @@ impl Future for Server {
                     deserialized.eid,
                     peer.ip(),
                     PeerType::Dynamic,
-                    deserialized.cl.iter().map(|(scheme, port)| (scheme.into(), Some(*port)) ).collect(),
+                    deserialized
+                        .cl
+                        .iter()
+                        .map(|(scheme, port)| (scheme.into(), Some(*port)))
+                        .collect(),
                 );
                 {
                     PEERS.lock().unwrap().insert(peer.ip(), dtnpeer.clone());
@@ -106,14 +109,10 @@ pub fn spawn_service_discovery() {
     };
     tokio::spawn(server.map_err(|e| println!("server error = {:?}", e)));
 
-    let task = Interval::new(
-        Instant::now(),
-        Duration::from_millis(crate::CONFIG.lock().unwrap().announcement_interval),
-    )
-    .for_each(move |_instant| {
-        announcer(socket_clone.try_clone().expect("couldn't clone the socket"));
-        Ok(())
-    })
-    .map_err(|e| panic!("interval errored; err={:?}", e));
-    tokio::spawn(task);
+    crate::dtnd::cron::spawn_timer(
+        crate::CONFIG.lock().unwrap().announcement_interval,
+        move || {
+            announcer(socket_clone.try_clone().expect("couldn't clone the socket"));
+        },
+    );
 }
