@@ -208,17 +208,18 @@ pub fn forward(mut bp: BundlePack) {
         );
     } else {
         // according to rfc always add a previous node block
-        let mut highest_block_number = 0;
+        /*let mut highest_block_number = 0;
         for c in bp.bundle.canonicals.iter() {
             highest_block_number = cmp::max(highest_block_number, c.block_number);
-        }
+        }*/
         let local_eid: &str = &CONFIG.lock().unwrap().nodeid;
         let pnb = bp7::canonical::new_previous_node_block(
-            highest_block_number + 1,
+            0,
             0,
             format!("dtn://{}", local_eid).into(),
         );
-        bp.bundle.canonicals.push(pnb);
+        bp.bundle.add_canonical_block(pnb);
+        //bp.bundle.canonicals.push(pnb);
     }
     let mut delete_afterwards = true;
     let bundle_sent = Arc::new(AtomicBool::new(false));
