@@ -53,7 +53,7 @@ impl RoutingAgent for EpidemicRoutingAgent {
             if let Some(cla) = p.get_first_cla() {
                 if !self.contains(&bp.id(), &cla) {
                     clas.push(cla.clone());
-                    self.add(bp.id(), cla);
+                    self.add(bp.id().to_string(), cla);
                 }
             }
         }
