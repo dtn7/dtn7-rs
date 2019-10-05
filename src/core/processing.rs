@@ -10,7 +10,6 @@ use bp7::administrative_record::*;
 use bp7::bundle::BundleValidation;
 use bp7::bundle::*;
 
-use core::cmp;
 use crossbeam::sync::WaitGroup;
 use log::{debug, info, warn};
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -139,7 +138,7 @@ pub fn dispatch(bp: BundlePack) {
 
 // forward a bundle pack's bundle to another node.
 pub fn forward(mut bp: BundlePack) {
-    let bpid = bp.id().clone();
+    let bpid = bp.id().to_string();
 
     info!("Bundle will be forwarded: {}", bpid);
 
@@ -213,11 +212,8 @@ pub fn forward(mut bp: BundlePack) {
             highest_block_number = cmp::max(highest_block_number, c.block_number);
         }*/
         let local_eid: &str = &CONFIG.lock().unwrap().nodeid;
-        let pnb = bp7::canonical::new_previous_node_block(
-            0,
-            0,
-            format!("dtn://{}", local_eid).into(),
-        );
+        let pnb =
+            bp7::canonical::new_previous_node_block(0, 0, format!("dtn://{}", local_eid).into());
         bp.bundle.add_canonical_block(pnb);
         //bp.bundle.canonicals.push(pnb);
     }

@@ -19,9 +19,13 @@ pub enum Constraint {
     /// in draft-ietf-dtn-bpbis-12, but seemed reasonable for this implementation.
     Contraindicated,
 
-    // LocalEndpoint is assigned to a bundle after delivery to a local endpoint.
-    // This constraint demands storage until the endpoint removes this constraint.
+    /// LocalEndpoint is assigned to a bundle after delivery to a local endpoint.
+    /// This constraint demands storage until the endpoint removes this constraint.
     LocalEndpoint,
+
+    /// This bundle has been deleted, only the meta data is kept to prevent
+    /// resubmission in the future.
+    Deleted,
 }
 
 impl fmt::Display for Constraint {
@@ -37,6 +41,7 @@ pub struct BundlePack {
     pub bundle: Bundle,
     pub receiver: EndpointID,
     pub timestamp: u64,
+    pub id: String,
     constraints: HashSet<Constraint>,
 }
 
@@ -49,6 +54,7 @@ impl fmt::Display for BundlePack {
 /// Create from a given bundle.
 impl From<Bundle> for BundlePack {
     fn from(bundle: Bundle) -> Self {
+        let bid = bundle.id();
         BundlePack {
             receiver: bundle.primary.destination.clone(),
             bundle,
@@ -56,14 +62,15 @@ impl From<Bundle> for BundlePack {
                 .duration_since(UNIX_EPOCH)
                 .expect("Time went backwards")
                 .as_millis() as u64,
+            id: bid,
             constraints: HashSet::new(),
         }
     }
 }
 
 impl BundlePack {
-    pub fn id(&self) -> String {
-        self.bundle.id()
+    pub fn id(&self) -> &str {
+        &self.id
     }
     pub fn has_receiver(&self) -> bool {
         self.receiver != DTN_NONE
