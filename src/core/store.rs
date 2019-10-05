@@ -25,7 +25,7 @@ pub struct SimpleBundleStore {
 impl BundleStore for SimpleBundleStore {
     fn push(&mut self, bp: &BundlePack) {
         // TODO: check for duplicates, update, remove etc
-        let entry = self.bundles.entry(bp.id()).or_insert_with(|| bp.clone());
+        let entry = self.bundles.entry(bp.id().to_string()).or_insert_with(|| bp.clone());
         *entry = bp.clone();
     }
     fn remove(&mut self, bid: String) -> Option<BundlePack> {
@@ -38,7 +38,7 @@ impl BundleStore for SimpleBundleStore {
         self.bundles.keys().cloned().collect()
     }
     fn has_item(&self, bp: &BundlePack) -> bool {
-        self.bundles.contains_key(&bp.id())
+        self.bundles.contains_key(&bp.id().to_string())
     }
     fn pending(&self) -> Vec<&BundlePack> {
         self.bundles

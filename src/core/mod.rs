@@ -78,7 +78,7 @@ impl DtnCore {
             .unwrap()
             .bundles()
             .iter()
-            .map(|e| e.id())
+            .map(|e| e.id().to_string())
             .collect()
     }
     fn is_in_endpoints(&self, eid: &EndpointID) -> bool {
