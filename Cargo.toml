@@ -1,12 +1,12 @@
 [package]
 name = "dtn7"
-version = "0.4.2"
+version = "0.4.3"
 authors = ["Lars Baumgaertner <baumgaertner@cs.tu-darmstadt.de>"]
 description = "Rust delay-tolerant-networking daemon and CLI tools based upon bp7 (dtn version 7 draft)"
 edition = "2018"
 license = "MIT OR Apache-2.0"
 categories = ["command-line-utilities", "network-programming"]
-repository    = "https://github.com/gh0st42/dtn7-rs"
+repository    = "https://github.com/dtn7/dtn7-rs"
 keywords = ["peer2peer", "dtn"]
 exclude = [".vscode/", ".travis.yml"]
 readme = "README.md"

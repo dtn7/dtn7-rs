@@ -13,7 +13,7 @@ Plus:
 
 A similar golang implementation can be found here: https://github.com/dtn7/dtn7-go
 
-The actual BP7 implementation can be found here: https://github.com/gh0st42/bp7-rs
+The actual BP7 implementation can be found here: https://github.com/dtn7/bp7-rs
 
 Currently a very basic service discovery, MTCP (flooding/epidemic) and a rest command interface are implemented.
 **Beware, the API is not very idiomatic rust and lacks documentation and tests.**
@@ -22,7 +22,7 @@ I consider this code to be very unpolished and far from finished. Correct forwar
 ## Installation
 
 ```
-git clone https://github.com/gh0st42/dtn7-rs
+git clone https://github.com/dtn7/dtn7-rs
 cd dtn7
 cargo install --path .
 ```
