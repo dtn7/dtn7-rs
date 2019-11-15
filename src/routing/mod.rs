@@ -15,7 +15,7 @@ pub fn routing_algorithms() -> Vec<&'static str> {
     vec!["flooding", "epidemic"]
 }
 
-pub fn new(routingagent: &str) -> Box<RoutingAgent> {
+pub fn new(routingagent: &str) -> Box<dyn RoutingAgent> {
     match routingagent {
         "flooding" => Box::new(flooding::FloodingRoutingAgent::new()),
         "epidemic" => Box::new(epidemic::EpidemicRoutingAgent::new()),

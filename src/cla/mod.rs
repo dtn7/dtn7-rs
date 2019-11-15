@@ -35,7 +35,7 @@ pub fn convergency_layer_agents() -> Vec<&'static str> {
 
 // returns a new CLA for the corresponding string ("<CLA name>[:local_port]").
 // Example usage: 'dummy', 'mtcp', 'mtcp:16161'
-pub fn new(cla_str: &str) -> Box<ConvergencyLayerAgent> {
+pub fn new(cla_str: &str) -> Box<dyn ConvergencyLayerAgent> {
     let cla: Vec<&str> = cla_str.split(':').collect();
     let port: Option<u16> = cla.get(1).unwrap_or(&"-1").parse::<u16>().ok();
     match cla[0] {

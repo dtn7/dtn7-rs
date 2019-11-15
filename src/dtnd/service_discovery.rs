@@ -1,7 +1,6 @@
 use crate::core::{DtnPeer, PeerType};
-use crate::CONFIG;
 use crate::DTNCORE;
-use crate::PEERS;
+use crate::{peers_add, CONFIG};
 use bp7::EndpointID;
 use futures::{try_ready, Future, Poll};
 use log::{debug, error, info};
@@ -49,12 +48,7 @@ impl Future for Server {
                         .map(|(scheme, port)| (scheme.into(), Some(*port)))
                         .collect(),
                 );
-                {
-                    PEERS.lock().unwrap().insert(
-                        deserialized.eid.node_part().unwrap_or_default(),
-                        dtnpeer.clone(),
-                    );
-                }
+                peers_add(dtnpeer);
             }
         }
     }
