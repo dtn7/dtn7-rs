@@ -30,14 +30,20 @@ lazy_static! {
         Mutex::new(Box::new(SimpleBundleStore::new()));
 }
 
-pub fn cla_add(cla : Box<ConvergencyLayerAgent>) {
+pub fn cla_add(cla: Box<dyn ConvergencyLayerAgent>) {
     DTNCORE.lock().unwrap().cl_list.push(cla);
 }
-pub fn peers_add(peer : DtnPeer) {
+pub fn peers_add(peer: DtnPeer) {
     PEERS
-            .lock()
-            .unwrap()
-            .insert(peer.eid.node_part().unwrap(), peer);
+        .lock()
+        .unwrap()
+        .insert(peer.eid.node_part().unwrap(), peer);
+}
+pub fn peers_count() -> usize {
+    PEERS.lock().unwrap().len()
+}
+pub fn peers_clear() {
+    PEERS.lock().unwrap().clear();
 }
 pub fn peers_get_for_node(eid: &EndpointID) -> Option<DtnPeer> {
     for (_, p) in PEERS.lock().unwrap().iter() {

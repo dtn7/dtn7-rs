@@ -39,7 +39,7 @@ impl DtnStatistics {
 pub struct DtnCore {
     pub endpoints: Vec<Box<dyn ApplicationAgent + Send>>,
     pub cl_list: Vec<Box<dyn ConvergencyLayerAgent>>,
-    pub routing_agent: Box<RoutingAgent>,
+    pub routing_agent: Box<dyn RoutingAgent>,
 }
 
 impl Default for DtnCore {
