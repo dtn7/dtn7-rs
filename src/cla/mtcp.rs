@@ -136,12 +136,10 @@ impl Decoder for MPDUCodec {
                     "Invalid MPDU data (terminator not found)",
                 ));
             }
-            let res: Result<MPDU, serde_cbor::error::Error> =
-                serde_cbor::from_slice(&buf[0..=expected_pos]);
-            if res.is_ok() {
+            if let Ok(res) = serde_cbor::from_slice(&buf[0..=expected_pos]) {
                 buf.split_to(expected_pos + 1);
                 self.last_pos = 0;
-                return Ok(Some(res.unwrap()));
+                return Ok(Some(res));
             } else {
                 return Err(io::Error::new(
                     io::ErrorKind::InvalidData,
@@ -210,12 +208,11 @@ impl MtcpConversionLayer {
         let mut buf = Vec::new();
         for b in bundles {
             let mpdu = MPDU(b);
-            let buf2 = serde_cbor::to_vec(&mpdu);
-            if buf2.is_err() {
+            if let Ok(buf2) = serde_cbor::to_vec(&mpdu) {
+                buf.extend_from_slice(&buf2);
+            } else {
                 error!("MPDU encoding error!");
                 return false;
-            } else {
-                buf.extend_from_slice(&buf2.unwrap());
             }
         }
         if let Ok(mut s1) = TcpStream::connect(&addr) {

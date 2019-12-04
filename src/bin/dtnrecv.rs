@@ -51,7 +51,7 @@ fn main() {
     let port = std::env::var("DTN_WEB_PORT").unwrap_or_else(|_| "3000".into());
     let port = matches.value_of("port").unwrap_or(&port); // string is fine no need to parse number
 
-    let local_url = format!("http://127.0.0.1:{}/endpoint?{}", port, endpoint);
+    let local_url = format!("http://127.0.0.1:{}/endpoint?path={}", port, endpoint);
     let mut res = reqwest::get(&local_url).expect("error connecting to local dtnd");
 
     if res.content_length() > Some(10) {
@@ -76,7 +76,7 @@ fn main() {
                 } else {
                     std::io::stdout()
                         .write_all(data)
-                        .expect("Error sending binary to server.");
+                        .expect("Error writing binary.");
                 }
             }
             _ => {

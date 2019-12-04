@@ -1,11 +1,8 @@
-pub mod core;
-
-pub mod dtnd;
-
+#![feature(proc_macro_hygiene, decl_macro)]
 pub mod cla;
-
+pub mod core;
 pub mod dtnconfig;
-
+pub mod dtnd;
 pub mod routing;
 
 use crate::cla::ConvergencyLayerAgent;
@@ -18,8 +15,8 @@ pub use dtnconfig::DtnConfig;
 pub use crate::core::{DtnCore, DtnPeer};
 
 use lazy_static::*;
+use parking_lot::Mutex;
 use std::collections::HashMap;
-use std::sync::Mutex;
 
 lazy_static! {
     pub static ref CONFIG: Mutex<DtnConfig> = Mutex::new(DtnConfig::new());
@@ -31,22 +28,27 @@ lazy_static! {
 }
 
 pub fn cla_add(cla: Box<dyn ConvergencyLayerAgent>) {
-    DTNCORE.lock().unwrap().cl_list.push(cla);
+    (*DTNCORE.lock()).cl_list.push(cla);
 }
 pub fn peers_add(peer: DtnPeer) {
-    PEERS
-        .lock()
-        .unwrap()
-        .insert(peer.eid.node_part().unwrap(), peer);
+    println!("peers_add");
+    (*PEERS.lock()).insert(dbg!(peer.eid.node_part().unwrap()), peer);
+    dbg!(&(*PEERS.lock()));
+    dbg!((*PEERS.lock()).len());
+    println!("peers_add done");
 }
 pub fn peers_count() -> usize {
-    PEERS.lock().unwrap().len()
+    dbg!((*PEERS.lock()).len())
 }
 pub fn peers_clear() {
-    PEERS.lock().unwrap().clear();
+    println!("peers_clear");
+    dbg!(&(*PEERS.lock()));
+    (*PEERS.lock()).clear();
+    dbg!(&(*PEERS.lock()));
+    println!("peers_clear done");
 }
 pub fn peers_get_for_node(eid: &EndpointID) -> Option<DtnPeer> {
-    for (_, p) in PEERS.lock().unwrap().iter() {
+    for (_, p) in (*PEERS.lock()).iter() {
         if p.get_node_name() == eid.node_part().unwrap_or_default() {
             return Some(p.clone());
         }
@@ -61,9 +63,12 @@ pub fn peers_cla_for_node(eid: &EndpointID) -> Option<crate::cla::ClaSender> {
 }
 
 pub fn store_push(bp: &BundlePack) {
-    STORE.lock().unwrap().push(&bp);
+    (*STORE.lock()).push(&bp);
 }
 
 pub fn store_has_item(bp: &BundlePack) -> bool {
-    STORE.lock().unwrap().has_item(&bp)
+    (*STORE.lock()).has_item(&bp)
+}
+pub fn store_get(bpid: &str) -> Option<BundlePack> {
+    Some((*STORE.lock()).get(bpid)?.clone())
 }

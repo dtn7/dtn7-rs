@@ -63,7 +63,7 @@ impl DtnPeer {
     /// use dtn7::core::*;
     /// use dtn7::CONFIG;
     ///
-    /// CONFIG.lock().unwrap().peer_timeout = 1;
+    /// (*CONFIG.lock()).peer_timeout = 1;
     /// let mut peer = helpers::rnd_peer();
     /// assert_eq!(peer.still_valid(), true);
     ///
@@ -74,9 +74,9 @@ impl DtnPeer {
     pub fn still_valid(&self) -> bool {
         let now = SystemTime::now()
             .duration_since(UNIX_EPOCH)
-            .unwrap()
+            .expect("time went backwards")
             .as_secs();
-        now - self.last_contact < CONFIG.lock().unwrap().peer_timeout
+        now - self.last_contact < (*CONFIG.lock()).peer_timeout
     }
 
     pub fn get_node_name(&self) -> String {
