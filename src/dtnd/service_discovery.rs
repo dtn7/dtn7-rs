@@ -1,6 +1,7 @@
 use crate::core::{DtnPeer, PeerType};
 use crate::DTNCORE;
 use crate::{peers_add, CONFIG};
+use anyhow::{anyhow, Result};
 use bp7::EndpointID;
 use futures::{try_ready, Future, Poll};
 use log::{debug, error, info};
@@ -61,14 +62,14 @@ fn announcer(socket: std::net::UdpSocket) {
     // Compile list of conversion layers as string vector
     let mut cls: Vec<(String, u16)> = Vec::new();
 
-    for cl in &DTNCORE.lock().unwrap().cl_list {
+    for cl in &(*DTNCORE.lock()).cl_list {
         cls.push((cl.to_string(), cl.port()));
     }
-    //let nodeid = format!("dtn://{}", DTNCORE.lock().unwrap().nodeid);
+    //let nodeid = format!("dtn://{}", (*DTNCORE.lock()).nodeid);
     //let addr = "127.0.0.1:3003".parse().unwrap();
     let addr = "224.0.0.26:3003".parse().unwrap();
     let pkt = AnnouncementPkt {
-        eid: format!("dtn://{}", CONFIG.lock().unwrap().nodeid.clone()).into(),
+        eid: format!("dtn://{}", (*CONFIG.lock()).nodeid.clone()).into(),
         cl: cls,
     };
     let anc = sock
@@ -77,37 +78,32 @@ fn announcer(socket: std::net::UdpSocket) {
         .map_err(|e| error!("{:?}", e));
     tokio::spawn(anc);
 }
-pub fn spawn_service_discovery() {
-    let addr: std::net::SocketAddr = "0.0.0.0:3003".parse().unwrap();
-    let socket = UdpBuilder::new_v4().unwrap();
-    socket.reuse_address(true).unwrap();
-    let socket = socket.bind(addr).unwrap();
+pub fn spawn_service_discovery() -> Result<()> {
+    let addr: std::net::SocketAddr = "0.0.0.0:3003".parse()?;
+    let socket = UdpBuilder::new_v4()?;
+    socket.reuse_address(true)?;
+    let socket = socket.bind(addr)?;
     // DEBUG: setup multicast on loopback to true
     socket
         .set_multicast_loop_v4(false)
         .expect("error activating multicast loop v4");
     socket
-        .join_multicast_v4(
-            &"224.0.0.26".parse().unwrap(),
-            &std::net::Ipv4Addr::new(0, 0, 0, 0),
-        )
+        .join_multicast_v4(&"224.0.0.26".parse()?, &std::net::Ipv4Addr::new(0, 0, 0, 0))
         .expect("error joining multicast v4 group");
-    let socket_clone = socket.try_clone().expect("couldn't clone the socket");
-    let sock = UdpSocket::from_std(socket, &tokio::reactor::Handle::default()).unwrap();
+    let socket_clone = socket.try_clone()?;
+    let sock = UdpSocket::from_std(socket, &tokio::reactor::Handle::default())?;
 
     //let sock = UdpSocket::bind(&([0, 0, 0, 0], 3003).into()).unwrap();
 
-    info!("Listening on {}", sock.local_addr().unwrap());
+    info!("Listening on {}", sock.local_addr()?);
     let server = Server {
         socket: sock,
         buf: vec![0; 1024],
     };
     tokio::spawn(server.map_err(|e| println!("server error = {:?}", e)));
 
-    crate::dtnd::cron::spawn_timer(
-        crate::CONFIG.lock().unwrap().announcement_interval,
-        move || {
-            announcer(socket_clone.try_clone().expect("couldn't clone the socket"));
-        },
-    );
+    crate::dtnd::cron::spawn_timer((*crate::CONFIG.lock()).announcement_interval, move || {
+        announcer(socket_clone.try_clone().expect("couldn't clone the socket"));
+    });
+    Ok(())
 }

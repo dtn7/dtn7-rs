@@ -15,6 +15,7 @@ pub trait BundleStore: Debug {
     fn bundles_status(&self) -> Vec<String> {
         self.bundles().iter().map(|bp| bp.to_string()).collect()
     }
+    fn get(&self, bpid: &str) -> Option<&BundlePack>;
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -25,11 +26,17 @@ pub struct SimpleBundleStore {
 impl BundleStore for SimpleBundleStore {
     fn push(&mut self, bp: &BundlePack) {
         // TODO: check for duplicates, update, remove etc
-        let entry = self.bundles.entry(bp.id().to_string()).or_insert_with(|| bp.clone());
+        let entry = self
+            .bundles
+            .entry(bp.id().to_string())
+            .or_insert_with(|| bp.clone());
         *entry = bp.clone();
     }
     fn remove(&mut self, bid: String) -> Option<BundlePack> {
         self.bundles.remove(&bid)
+    }
+    fn get(&self, bpid: &str) -> Option<&BundlePack> {
+        self.bundles.get(bpid)
     }
     fn count(&self) -> u64 {
         self.bundles.len() as u64

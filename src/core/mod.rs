@@ -8,8 +8,10 @@ pub mod store;
 use crate::cla::ConvergencyLayerAgent;
 pub use crate::core::peer::{DtnPeer, PeerType};
 use crate::routing::RoutingAgent;
+use crate::store_get;
 pub use crate::{store_has_item, store_push};
 use crate::{PEERS, STORE};
+use anyhow::Result;
 use application_agent::ApplicationAgent;
 use bp7::EndpointID;
 use log::info;
@@ -73,9 +75,7 @@ impl DtnCore {
         self.endpoints.iter().map(|e| e.eid().to_string()).collect()
     }
     pub fn bundles(&self) -> Vec<String> {
-        STORE
-            .lock()
-            .unwrap()
+        (*STORE.lock())
             .bundles()
             .iter()
             .map(|e| e.id().to_string())
@@ -112,19 +112,19 @@ impl DtnCore {
 
 /// Removes peers from global peer list that haven't been seen in a while.
 pub fn process_peers() {
-    PEERS
-        .lock()
-        .unwrap()
-        .retain(|_k, v| v.con_type == PeerType::Static || v.still_valid());
+    (*PEERS.lock()).retain(|_k, v| v.con_type == PeerType::Static || v.still_valid());
 }
 
 /// Reprocess bundles in store
-pub fn process_bundles() {
+pub fn process_bundles() -> Result<()> {
     // TODO: check for possible race condition and double send when janitor is triggered while first forwarding attempt is in progress
-    STORE
-        .lock()
-        .unwrap()
+    let forwarding_bundle_ids: Vec<String> = (*STORE.lock())
         .forwarding()
         .iter()
-        .for_each(|&bp| crate::core::processing::forward(bp.clone()));
+        .map(|&bp| bp.id().to_string())
+        .collect();
+    forwarding_bundle_ids.iter().for_each(|bpid| {
+        crate::core::processing::forward(store_get(&bpid).unwrap());
+    });
+    Ok(())
 }

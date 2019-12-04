@@ -24,7 +24,6 @@ impl EpidemicRoutingAgent {
     /*fn remove_bundle(&mut self, bundle_id: String) {
         self.history.remove(&bundle_id);
     }*/
-    
     /*fn filtered(&mut self, dest: String, bundles: &[ByteBuffer]) -> Vec<ByteBuffer> {
         let entries = self.history.entry(dest).or_insert_with(HashSet::new);
         bundles
@@ -49,7 +48,7 @@ impl std::fmt::Display for EpidemicRoutingAgent {
 impl RoutingAgent for EpidemicRoutingAgent {
     fn sender_for_bundle(&mut self, bp: &BundlePack) -> (Vec<ClaSender>, bool) {
         let mut clas = Vec::new();
-        for (_, p) in PEERS.lock().unwrap().iter() {
+        for (_, p) in (*PEERS.lock()).iter() {
             if let Some(cla) = p.get_first_cla() {
                 if !self.contains(&bp.id(), &cla) {
                     clas.push(cla.clone());

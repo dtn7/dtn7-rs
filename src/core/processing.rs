@@ -10,6 +10,7 @@ use bp7::administrative_record::*;
 use bp7::bundle::BundleValidation;
 use bp7::bundle::*;
 
+use anyhow::{anyhow, bail, Result};
 use crossbeam::sync::WaitGroup;
 use log::{debug, info, warn};
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -29,7 +30,7 @@ pub fn transmit(mut bp: BundlePack) {
     bp.add_constraint(Constraint::DispatchPending);
     store_push(&bp);
     let src = &bp.bundle.primary.source;
-    if src != &bp7::DTN_NONE && DTNCORE.lock().unwrap().get_endpoint_mut(&src).is_none() {
+    if src != &bp7::DTN_NONE && (*DTNCORE.lock()).get_endpoint_mut(&src).is_none() {
         info!(
             "Bundle's source is neither dtn:none nor an endpoint of this node: {} {}",
             bp.id(),
@@ -117,35 +118,25 @@ pub fn receive(mut bp: BundlePack) {
 }
 
 // handle the dispatching of received bundles.
-pub fn dispatch(bp: BundlePack) {
+pub fn dispatch(bp: BundlePack) -> Result<()> {
     info!("Dispatching bundle: {}", bp.id());
 
     // TODO: impl routing
     //c.routing.NotifyIncoming(bp)
 
-    if DTNCORE
-        .lock()
-        .unwrap()
+    if (*DTNCORE.lock())
         .get_endpoint_mut(&bp.bundle.primary.destination)
         .is_some()
     // TODO: lookup here AND in local delivery, optmize for just one
     {
-        local_delivery(bp);
+        local_delivery(bp)
     } else {
-        forward(bp);
+        forward(bp)
     }
 }
 
-// forward a bundle pack's bundle to another node.
-pub fn forward(mut bp: BundlePack) {
+fn handle_hop_count_block(mut bp: BundlePack) -> Result<BundlePack> {
     let bpid = bp.id().to_string();
-
-    info!("Bundle will be forwarded: {}", bpid);
-
-    bp.add_constraint(Constraint::ForwardPending);
-    bp.remove_constraint(Constraint::DispatchPending);
-    store_push(&bp);
-    // Handle hop count block
     if let Some(hc) = bp
         .bundle
         .extension_block_mut(bp7::canonical::HOP_COUNT_BLOCK)
@@ -164,11 +155,13 @@ pub fn forward(mut bp: BundlePack) {
                     &bpid, hc_limit, hc_count
                 );
                 delete(bp, HOP_LIMIT_EXCEEDED);
-                return;
+                bail!("hop count exceeded");
             }
         }
     }
-    // Handle primary block lifetime
+    Ok(bp)
+}
+fn handle_primary_lifetime(bp: BundlePack) -> Result<BundlePack> {
     if bp.bundle.primary.is_lifetime_exceeded() {
         warn!(
             "Bundle's primary block's lifetime is exceeded: {} {:?}",
@@ -176,18 +169,23 @@ pub fn forward(mut bp: BundlePack) {
             bp.bundle.primary
         );
         delete(bp, LIFETIME_EXPIRED);
-        return;
+        bail!("lifetime exceeded");
     }
+    Ok(bp)
+}
 
-    // Handle bundle age block
+fn handle_bundle_age_block(mut bp: BundlePack) -> Result<BundlePack> {
     if let Some(age) = bp.update_bundle_age() {
         if age >= bp.bundle.primary.lifetime {
             warn!("Bundle's lifetime has expired: {}", bp.id());
             delete(bp, LIFETIME_EXPIRED);
-            return;
+            bail!("age block lifetime exceeded");
         }
     }
-    // Handle previous node block
+    Ok(bp)
+}
+
+fn handle_previous_node_block(mut bp: BundlePack) -> Result<BundlePack> {
     if let Some(pnb) = bp
         .bundle
         .extension_block_mut(bp7::canonical::PREVIOUS_NODE_BLOCK)
@@ -196,7 +194,7 @@ pub fn forward(mut bp: BundlePack) {
             .previous_node_get()
             .expect("no previoud node EID found!")
             .clone();
-        let local_eid: &str = &CONFIG.lock().unwrap().nodeid;
+        let local_eid: &str = &(*CONFIG.lock()).nodeid;
         pnb.previous_node_update(format!("dtn://{}", local_eid).into());
 
         debug!(
@@ -211,27 +209,55 @@ pub fn forward(mut bp: BundlePack) {
         for c in bp.bundle.canonicals.iter() {
             highest_block_number = cmp::max(highest_block_number, c.block_number);
         }*/
-        let local_eid: &str = &CONFIG.lock().unwrap().nodeid;
+        let local_eid: &str = &(*CONFIG.lock()).nodeid;
         let pnb =
             bp7::canonical::new_previous_node_block(0, 0, format!("dtn://{}", local_eid).into());
         bp.bundle.add_canonical_block(pnb);
         //bp.bundle.canonicals.push(pnb);
     }
+    Ok(bp)
+}
+// forward a bundle pack's bundle to another node.
+pub fn forward(mut bp: BundlePack) -> Result<()> {
+    let bpid = bp.id().to_string();
+
+    info!("Bundle will be forwarded: {}", bpid);
+
+    bp.add_constraint(Constraint::ForwardPending);
+    bp.remove_constraint(Constraint::DispatchPending);
+    debug!("updating bundle info in store");
+    store_push(&bp);
+    debug!("Handle hop count block");
+    bp = handle_hop_count_block(bp)?;
+
+    debug!("Handle lifetime");
+    bp = handle_primary_lifetime(bp)?;
+
+    debug!("Handle bundle age block");
+    // Handle bundle age block
+    bp = handle_bundle_age_block(bp)?;
+
+    debug!("Handle previous node block");
+    // Handle previous node block
+    bp = handle_previous_node_block(bp)?;
+
     let mut delete_afterwards = true;
     let bundle_sent = Arc::new(AtomicBool::new(false));
     let mut nodes: Vec<cla::ClaSender> = Vec::new();
 
+    debug!("Check delivery");
     // direct delivery possible?
     if let Some(direct_node) = peers_cla_for_node(&bp.bundle.primary.destination) {
         nodes.push(direct_node);
     } else {
-        let (cla_nodes, del) = DTNCORE.lock().unwrap().routing_agent.sender_for_bundle(&bp);
+        let (cla_nodes, del) = (*DTNCORE.lock()).routing_agent.sender_for_bundle(&bp);
         nodes = cla_nodes;
         delete_afterwards = del;
     }
     let wg = WaitGroup::new();
     let bundle_data = bp.bundle.to_cbor();
     for n in nodes {
+        debug!("direct delivery: {:?}", n);
         let wg = wg.clone();
         let bd = bundle_data.clone(); // TODO: optimize cloning away, reference should do
         let bpid = bpid.clone();
@@ -292,25 +318,22 @@ pub fn forward(mut bp: BundlePack) {
         info!("Failed to forward bundle to any CLA: {}", bp.id());
         contraindicated(bp);
     }
+    Ok(())
 }
 
-pub fn local_delivery(mut bp: BundlePack) {
+pub fn local_delivery(mut bp: BundlePack) -> Result<()> {
     info!("Received bundle for local delivery: {}", bp.id());
 
     if bp.bundle.is_administrative_record() && !is_administrative_record_valid(&bp) {
         delete(bp, NO_INFORMATION);
-        return;
+        bail!("Empty administrative record");
     }
     bp.add_constraint(Constraint::LocalEndpoint);
     store_push(&bp);
-    if let Some(aa) = DTNCORE
-        .lock()
-        .unwrap()
-        .get_endpoint_mut(&bp.bundle.primary.destination)
-    {
+    if let Some(aa) = (*DTNCORE.lock()).get_endpoint_mut(&bp.bundle.primary.destination) {
         info!("Delivering {}", bp.id());
         aa.push(&bp.bundle);
-        STATS.lock().unwrap().delivered += 1;
+        (*STATS.lock()).delivered += 1;
     }
     if bp
         .bundle
@@ -322,6 +345,7 @@ pub fn local_delivery(mut bp: BundlePack) {
     }
     bp.clear_constraints();
     store_push(&bp);
+    Ok(())
 }
 pub fn contraindicated(mut bp: BundlePack) {
     info!("Bundle marked for contraindication: {}", bp.id());
@@ -362,25 +386,26 @@ fn is_administrative_record_valid(bp: &BundlePack) -> bool {
     }
     match payload.unwrap().get_data() {
         bp7::canonical::CanonicalData::Data(data) => {
-            let ar = serde_cbor::from_slice::<AdministrativeRecord>(data);
-            if ar.is_err() {
-                warn!(
-                    "Bundle with an administrative record could not be parsed: {} {:?}",
-                    bp.id(),
-                    ar
-                );
-                false
-            } else {
-                info!(
-                    "Received bundle contains an administrative record: {} {:?}",
-                    bp.id(),
-                    ar
-                );
-                // Currently there are only status reports. This must be changed if more
-                // types of administrative records are introduced.
-                inspect_status_report(bp, ar.unwrap());
-
-                true
+            match serde_cbor::from_slice::<AdministrativeRecord>(data) {
+                Ok(ar) => {
+                    info!(
+                        "Received bundle contains an administrative record: {} {:?}",
+                        bp.id(),
+                        ar
+                    );
+                    // Currently there are only status reports. This must be changed if more
+                    // types of administrative records are introduced.
+                    inspect_status_report(bp, ar);
+                    true
+                }
+                Err(ar) => {
+                    warn!(
+                        "Bundle with an administrative record could not be parsed: {} {:?}",
+                        bp.id(),
+                        ar
+                    );
+                    false
+                }
             }
         }
         _ => {
@@ -473,11 +498,7 @@ fn send_status_report(bp: &BundlePack, status: StatusInformationPos, reason: Sta
     }
 
     // Don't respond to ourself
-    if DTNCORE
-        .lock()
-        .unwrap()
-        .is_in_endpoints(&bp.bundle.primary.report_to)
-    {
+    if (*DTNCORE.lock()).is_in_endpoints(&bp.bundle.primary.report_to) {
         return;
     }
 
@@ -490,7 +511,7 @@ fn send_status_report(bp: &BundlePack, status: StatusInformationPos, reason: Sta
 
     let out_bndl = new_status_report_bundle(
         &bp.bundle,
-        CONFIG.lock().unwrap().host_eid.clone(),
+        (*CONFIG.lock()).host_eid.clone(),
         bp.bundle.primary.crc.to_code(),
         status,
         reason,
