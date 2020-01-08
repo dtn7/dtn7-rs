@@ -1,6 +1,6 @@
 #!/bin/bash
 
-cargo build
+cargo build --bins
 
 DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
 
@@ -33,7 +33,18 @@ echo node3 pid: $PID_NODE3
 echo node3 out: $OUT_NODE3
 echo node3 port: $PORT_NODE3
 
-echo test | cargo run --bin dtnsend -- -r dtn://node3/incoming
+sleep 1
+
+echo
+
+echo "Sending 'test' to node 3"
+echo test | $DIR/../target/debug/dtnsend -r dtn://node3/incoming -p $PORT_NODE1
+
+sleep 1
+
+echo -n "Receiving on node 3: "
+$DIR/../target/debug/dtnrecv -v -e incoming -p $PORT_NODE3
+echo 
 
 echo "Press any key to stop daemons and clean up logs"
 read -n 1
