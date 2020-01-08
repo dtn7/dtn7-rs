@@ -2,6 +2,7 @@ use super::RoutingAgent;
 use crate::cla::ClaSender;
 use crate::core::bundlepack::BundlePack;
 use crate::PEERS;
+use log::{debug, info, warn};
 use std::collections::{HashMap, HashSet};
 
 /// Simple epidemic routing.

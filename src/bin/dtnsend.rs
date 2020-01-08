@@ -7,7 +7,7 @@ use std::io;
 use std::io::prelude::*;
 
 fn get_local_node_id(port: &str) -> String {
-    reqwest::get(&format!("http://127.0.0.1:{}/status/nodeid", port))
+    reqwest::blocking::get(&format!("http://127.0.0.1:{}/status/nodeid", port))
         .expect("error connecting to local dtnd")
         .text()
         .unwrap()
@@ -106,9 +106,9 @@ fn main() {
     //let local_url = format!("http://127.0.0.1:3000/send?bundle={}", hexstr);
     //let res = reqwest::get(&local_url).expect("error connecting to local dtnd").text().unwrap();
     if !dryrun {
-        let client = reqwest::Client::new();
+        let client = reqwest::blocking::Client::new();
         let res = client
-            .post(&format!("http://127.0.0.1:{}/send", port))
+            .post(&format!("http://127.0.0.1:{}/insert", port))
             .body(binbundle)
             .send()
             .expect("error send bundle to dtnd")

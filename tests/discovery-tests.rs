@@ -1,5 +1,5 @@
 use dtn7::core::helpers::rnd_peer;
-use dtn7::{peers_add, peers_clear, peers_count, peers_get_for_node, PEERS};
+use dtn7::{peers_add, peers_clear, peers_count, peers_get_for_node};
 use lazy_static::*;
 use std::sync::{Arc, Mutex};
 

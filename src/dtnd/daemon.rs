@@ -4,8 +4,8 @@ use crate::core::application_agent::SimpleApplicationAgent;
 use crate::dtnconfig::DtnConfig;
 use crate::peers_add;
 use crate::{CONFIG, DTNCORE};
-use futures::future::lazy;
-use log::{error, info};
+use log::{debug, error, info};
+
 /*
 use crate::core::core::DtnCore;
 use std::sync::mpsc;
@@ -46,15 +46,16 @@ fn spawn_core_daemon(rx: Receiver<DtnCmd>) {
     }
 }*/
 
-fn start_convergencylayers() {
+async fn start_convergencylayers() {
     info!("Starting convergency layers");
+
     for cl in &mut (*DTNCORE.lock()).cl_list {
         info!("Setup {}", cl);
-        cl.setup();
+        cl.setup().await;
     }
 }
 
-pub fn start_dtnd(cfg: DtnConfig) {
+pub async fn start_dtnd(cfg: DtnConfig) -> std::io::Result<()> {
     {
         (*CONFIG.lock()).set(cfg);
     }
@@ -100,22 +101,14 @@ pub fn start_dtnd(cfg: DtnConfig) {
         (*DTNCORE.lock()).register_application_agent(SimpleApplicationAgent::new_with(eid.into()));
     }
 
-    tokio::run(lazy(move || {
-        //let (tx, rx) = mpsc::channel();
-
-        start_convergencylayers();
-
-        if (*CONFIG.lock()).janitor_interval != 0 {
-            janitor::spawn_janitor();
+    start_convergencylayers().await;
+    if CONFIG.lock().janitor_interval != 0 {
+        janitor::spawn_janitor();
+    }
+    if CONFIG.lock().announcement_interval != 0 {
+        if let Err(errmsg) = service_discovery::spawn_service_discovery().await {
+            error!("Error spawning service discovery: {:?}", errmsg);
         }
-        if (*CONFIG.lock()).announcement_interval != 0 {
-            if let Err(errmsg) = service_discovery::spawn_service_discovery() {
-                error!("Error spawning service discovery: {:?}", errmsg);
-            }
-        }
-
-        rest::spawn_rest();
-
-        Ok(())
-    }));
+    }
+    rest::spawn_httpd().await
 }

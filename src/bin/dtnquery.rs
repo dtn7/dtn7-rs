@@ -27,7 +27,7 @@ fn main() {
 
     if let Some(_matches) = matches.subcommand_matches("nodeid") {
         println!("Local node ID:");
-        let res = reqwest::get(&format!("http://127.0.0.1:{}/status/nodeid", port))
+        let res = reqwest::blocking::get(&format!("http://127.0.0.1:{}/status/nodeid", port))
             .expect("error connecting to local dtnd")
             .text()
             .unwrap();
@@ -35,7 +35,7 @@ fn main() {
     }
     if let Some(_matches) = matches.subcommand_matches("eids") {
         println!("Listing registered endpoint IDs:");
-        let res = reqwest::get(&format!("http://127.0.0.1:{}/status/eids", port))
+        let res = reqwest::blocking::get(&format!("http://127.0.0.1:{}/status/eids", port))
             .expect("error connecting to local dtnd")
             .text()
             .unwrap();
@@ -43,7 +43,7 @@ fn main() {
     }
     if let Some(_matches) = matches.subcommand_matches("peers") {
         println!("Listing of known peers:");
-        let res = reqwest::get(&format!("http://127.0.0.1:{}/status/peers", port))
+        let res = reqwest::blocking::get(&format!("http://127.0.0.1:{}/status/peers", port))
             .expect("error connecting to local dtnd")
             .text()
             .unwrap();
@@ -51,7 +51,7 @@ fn main() {
     }
     if let Some(_matches) = matches.subcommand_matches("bundles") {
         println!("Listing of bundles in store:");
-        let res = reqwest::get(&format!("http://127.0.0.1:{}/status/bundles", port))
+        let res = reqwest::blocking::get(&format!("http://127.0.0.1:{}/status/bundles", port))
             .expect("error connecting to local dtnd")
             .text()
             .unwrap();
@@ -59,7 +59,7 @@ fn main() {
     }
     if let Some(_matches) = matches.subcommand_matches("store") {
         println!("Listing of bundles status in store:");
-        let res = reqwest::get(&format!("http://127.0.0.1:{}/status/store", port))
+        let res = reqwest::blocking::get(&format!("http://127.0.0.1:{}/status/store", port))
             .expect("error connecting to local dtnd")
             .text()
             .unwrap();
@@ -67,7 +67,7 @@ fn main() {
     }
     if let Some(_matches) = matches.subcommand_matches("info") {
         println!("Daemon info:");
-        let res = reqwest::get(&format!("http://127.0.0.1:{}/status/info", port))
+        let res = reqwest::blocking::get(&format!("http://127.0.0.1:{}/status/info", port))
             .expect("error connecting to local dtnd")
             .text()
             .unwrap();

@@ -1,18 +1,13 @@
-use std::time::{Duration, Instant};
-use tokio::prelude::*;
-use tokio::timer::Interval;
+use std::time::Duration;
+use tokio::time::interval;
 
-pub fn spawn_timer<F>(millis : u64, f : F) 
-where F: Fn() + Send + Sync + 'static {
-    let task = Interval::new(
-        Instant::now(),
-        Duration::from_millis(millis),
-    )
-    .for_each(move |_instant| {
+pub async fn spawn_timer<F>(millis: u64, f: F)
+where
+    F: Fn() + Send + Sync + 'static,
+{
+    let mut task = interval(Duration::from_millis(millis));
+    loop {
+        task.tick().await;
         f();
-
-        Ok(())
-    })
-    .map_err(|e| panic!("interval errored; err={:?}", e));
-    tokio::spawn(task);
+    }
 }

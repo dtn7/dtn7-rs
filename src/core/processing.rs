@@ -10,7 +10,7 @@ use bp7::administrative_record::*;
 use bp7::bundle::BundleValidation;
 use bp7::bundle::*;
 
-use anyhow::{anyhow, bail, Result};
+use anyhow::{bail, Result};
 use crossbeam::sync::WaitGroup;
 use log::{debug, info, warn};
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -248,11 +248,13 @@ pub fn forward(mut bp: BundlePack) -> Result<()> {
     debug!("Check delivery");
     // direct delivery possible?
     if let Some(direct_node) = peers_cla_for_node(&bp.bundle.primary.destination) {
+        debug!("Attempting direct delivery: {:?}", direct_node);
         nodes.push(direct_node);
     } else {
         let (cla_nodes, del) = (*DTNCORE.lock()).routing_agent.sender_for_bundle(&bp);
         nodes = cla_nodes;
         delete_afterwards = del;
+        debug!("Attempting forwarding to nodes: {:?}", nodes);
     }
     let wg = WaitGroup::new();
     let bundle_data = bp.bundle.to_cbor();
