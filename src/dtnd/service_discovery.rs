@@ -1,14 +1,16 @@
 use crate::core::{DtnPeer, PeerType};
 use crate::DTNCORE;
 use crate::{peers_add, CONFIG};
-use anyhow::{anyhow, Result};
+use anyhow::Result;
 use bp7::EndpointID;
-use futures::{try_ready, Future, Poll};
 use log::{debug, error, info};
 use net2::UdpBuilder;
 use serde::{Deserialize, Serialize};
 use std::io;
+use std::net::SocketAddrV4;
+use std::time::Duration;
 use tokio::net::UdpSocket;
+use tokio::time::interval;
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct AnnouncementPkt {
@@ -20,16 +22,16 @@ struct Server {
     buf: Vec<u8>,
 }
 
-impl Future for Server {
-    type Item = ();
-    type Error = io::Error;
+impl Server {
+    async fn run(self) -> Result<(), io::Error> {
+        let Server {
+            mut socket,
+            mut buf,
+        } = self;
 
-    fn poll(&mut self) -> Poll<(), io::Error> {
         loop {
-            if let Some((size, peer)) = Some(try_ready!(self.socket.poll_recv_from(&mut self.buf)))
-            {
-                let deserialized: AnnouncementPkt = match serde_cbor::from_slice(&self.buf[..size])
-                {
+            if let Some((size, peer)) = Some(socket.recv_from(&mut buf).await?) {
+                let deserialized: AnnouncementPkt = match serde_cbor::from_slice(&buf[..size]) {
                     Ok(pkt) => pkt,
                     Err(e) => {
                         error!("{}", e);
@@ -55,30 +57,32 @@ impl Future for Server {
     }
 }
 
-fn announcer(socket: std::net::UdpSocket) {
-    let sock = UdpSocket::from_std(socket, &tokio::reactor::Handle::default()).unwrap();
-    debug!("running announcer");
+async fn announcer(socket: std::net::UdpSocket) {
+    let mut task = interval(Duration::from_millis(
+        crate::CONFIG.lock().announcement_interval,
+    ));
+    let mut sock = UdpSocket::from_std(socket).unwrap();
+    loop {
+        task.tick().await;
+        debug!("running announcer");
 
-    // Compile list of conversion layers as string vector
-    let mut cls: Vec<(String, u16)> = Vec::new();
+        // Compile list of conversion layers as string vector
+        let mut cls: Vec<(String, u16)> = Vec::new();
 
-    for cl in &(*DTNCORE.lock()).cl_list {
-        cls.push((cl.to_string(), cl.port()));
+        for cl in &(*DTNCORE.lock()).cl_list {
+            cls.push((cl.name().to_string(), cl.port()));
+        }
+        //let nodeid = format!("dtn://{}", (*DTNCORE.lock()).nodeid);
+        //let addr = "127.0.0.1:3003".parse().unwrap();
+        let addr: SocketAddrV4 = "224.0.0.26:3003".parse().unwrap();
+        let pkt = AnnouncementPkt {
+            eid: format!("dtn://{}", (*CONFIG.lock()).nodeid.clone()).into(),
+            cl: cls,
+        };
+        sock.send_to(&serde_cbor::to_vec(&pkt).unwrap(), addr).await;
     }
-    //let nodeid = format!("dtn://{}", (*DTNCORE.lock()).nodeid);
-    //let addr = "127.0.0.1:3003".parse().unwrap();
-    let addr = "224.0.0.26:3003".parse().unwrap();
-    let pkt = AnnouncementPkt {
-        eid: format!("dtn://{}", (*CONFIG.lock()).nodeid.clone()).into(),
-        cl: cls,
-    };
-    let anc = sock
-        .send_dgram(serde_cbor::to_vec(&pkt).unwrap(), &addr)
-        .and_then(|_| Ok(()))
-        .map_err(|e| error!("{:?}", e));
-    tokio::spawn(anc);
 }
-pub fn spawn_service_discovery() -> Result<()> {
+pub async fn spawn_service_discovery() -> Result<()> {
     let addr: std::net::SocketAddr = "0.0.0.0:3003".parse()?;
     let socket = UdpBuilder::new_v4()?;
     socket.reuse_address(true)?;
@@ -91,19 +95,17 @@ pub fn spawn_service_discovery() -> Result<()> {
         .join_multicast_v4(&"224.0.0.26".parse()?, &std::net::Ipv4Addr::new(0, 0, 0, 0))
         .expect("error joining multicast v4 group");
     let socket_clone = socket.try_clone()?;
-    let sock = UdpSocket::from_std(socket, &tokio::reactor::Handle::default())?;
-
-    //let sock = UdpSocket::bind(&([0, 0, 0, 0], 3003).into()).unwrap();
+    let sock = UdpSocket::from_std(socket)?;
 
     info!("Listening on {}", sock.local_addr()?);
     let server = Server {
         socket: sock,
         buf: vec![0; 1024],
     };
-    tokio::spawn(server.map_err(|e| println!("server error = {:?}", e)));
+    tokio::spawn(server.run());
 
-    crate::dtnd::cron::spawn_timer((*crate::CONFIG.lock()).announcement_interval, move || {
-        announcer(socket_clone.try_clone().expect("couldn't clone the socket"));
-    });
+    tokio::spawn(announcer(
+        socket_clone.try_clone().expect("couldn't clone the socket"),
+    ));
     Ok(())
 }

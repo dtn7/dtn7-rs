@@ -1,4 +1,3 @@
-#![feature(proc_macro_hygiene, decl_macro)]
 pub mod cla;
 pub mod core;
 pub mod dtnconfig;
@@ -31,21 +30,13 @@ pub fn cla_add(cla: Box<dyn ConvergencyLayerAgent>) {
     (*DTNCORE.lock()).cl_list.push(cla);
 }
 pub fn peers_add(peer: DtnPeer) {
-    println!("peers_add");
-    (*PEERS.lock()).insert(dbg!(peer.eid.node_part().unwrap()), peer);
-    dbg!(&(*PEERS.lock()));
-    dbg!((*PEERS.lock()).len());
-    println!("peers_add done");
+    (*PEERS.lock()).insert(peer.eid.node_part().unwrap(), peer);
 }
 pub fn peers_count() -> usize {
-    dbg!((*PEERS.lock()).len())
+    (*PEERS.lock()).len()
 }
 pub fn peers_clear() {
-    println!("peers_clear");
-    dbg!(&(*PEERS.lock()));
     (*PEERS.lock()).clear();
-    dbg!(&(*PEERS.lock()));
-    println!("peers_clear done");
 }
 pub fn peers_get_for_node(eid: &EndpointID) -> Option<DtnPeer> {
     for (_, p) in (*PEERS.lock()).iter() {

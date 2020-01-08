@@ -1,6 +1,7 @@
 pub mod dummy;
 pub mod mtcp;
 
+use async_trait::async_trait;
 use bp7::ByteBuffer;
 use std::fmt::{Debug, Display};
 use std::net::IpAddr;
@@ -23,9 +24,11 @@ impl ClaSender {
     }
 }
 
+#[async_trait]
 pub trait ConvergencyLayerAgent: Debug + Send + Display {
-    fn setup(&mut self);
+    async fn setup(&mut self);
     fn port(&self) -> u16;
+    fn name(&self) -> &'static str;
     fn scheduled_submission(&self, dest: &str, ready: &[ByteBuffer]) -> bool;
 }
 

@@ -6,7 +6,8 @@ use pretty_env_logger;
 use std::panic;
 use std::process;
 
-fn main() {
+#[actix_rt::main]
+async fn main() -> std::io::Result<()> {
     let mut cfg = DtnConfig::new();
 
     if cfg!(debug_assertions) {
@@ -120,9 +121,15 @@ fn main() {
         .get_matches();
 
     if matches.is_present("debug") || cfg.debug {
-        std::env::set_var("RUST_LOG", "dtn7=debug,dtnd=debug");
+        std::env::set_var(
+            "RUST_LOG",
+            "dtn7=debug,dtnd=debug,actix_server=debug,actix_web=debug",
+        );
     } else {
-        std::env::set_var("RUST_LOG", "dtn7=info,dtnd=info");
+        std::env::set_var(
+            "RUST_LOG",
+            "dtn7=info,dtnd=info,actix_server=info,actix_web=info",
+        );
     }
     pretty_env_logger::init_timed();
 
@@ -174,8 +181,7 @@ fn main() {
     }
     if let Some(statics) = matches.values_of("staticpeer") {
         for s in statics {
-            cfg.statics
-                .push(dbg!(dtn7::core::helpers::parse_peer_url(s)));
+            cfg.statics.push(dtn7::core::helpers::parse_peer_url(s));
         }
     }
 
@@ -191,5 +197,5 @@ fn main() {
     //DtnConfig::from(std::path::PathBuf::from(cfgfile));
     //}
     info!("starting dtnd");
-    start_dtnd(cfg);
+    start_dtnd(cfg).await
 }

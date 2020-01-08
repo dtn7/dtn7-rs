@@ -1,6 +1,7 @@
 use bp7::*;
 use clap::{crate_authors, crate_version, App, Arg};
 use reqwest;
+use std::convert::TryFrom;
 use std::fs;
 use std::io::prelude::*;
 use std::process;
@@ -16,7 +17,16 @@ fn main() {
                 .long("endpoint")
                 .value_name("ENDPOINT")
                 .help("Specify local endpoint, e.g. '/incoming')")
-                .required(true)
+                .required_unless("bundleid")
+                .takes_value(true),
+        )
+        .arg(
+            Arg::with_name("bundleid")
+                .short("b")
+                .long("bundle-id")
+                .value_name("BID")
+                .help("Download any bundle by ID")
+                .required(false)
                 .takes_value(true),
         )
         .arg(
@@ -47,18 +57,25 @@ fn main() {
         .get_matches();
 
     let verbose: bool = matches.is_present("verbose");
-    let endpoint: String = matches.value_of("endpoint").unwrap().into();
     let port = std::env::var("DTN_WEB_PORT").unwrap_or_else(|_| "3000".into());
     let port = matches.value_of("port").unwrap_or(&port); // string is fine no need to parse number
 
-    let local_url = format!("http://127.0.0.1:{}/endpoint?path={}", port, endpoint);
-    let mut res = reqwest::get(&local_url).expect("error connecting to local dtnd");
+    let local_url = if let Some(endpoint) = matches.value_of("endpoint") {
+        format!("http://127.0.0.1:{}/endpoint?{}", port, endpoint)
+    } else {
+        format!(
+            "http://127.0.0.1:{}/download?{}",
+            port,
+            matches.value_of("bundleid").unwrap()
+        )
+    };
+    let mut res = reqwest::blocking::get(&local_url).expect("error connecting to local dtnd");
 
-    if res.content_length() > Some(10) {
+    if res.content_length() > Some(10) && res.status().is_success() {
         let mut buf: Vec<u8> = vec![];
         res.copy_to(&mut buf).unwrap();
 
-        let bndl: Bundle = Bundle::from(buf);
+        let bndl: Bundle = Bundle::try_from(buf).expect("Error decoding bundle");
         match bndl
             .extension_block(bp7::canonical::PAYLOAD_BLOCK)
             .expect("Payload block missing!")

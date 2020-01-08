@@ -1,16 +1,20 @@
 use crate::cla::ConvergencyLayerAgent;
+use async_trait::async_trait;
 use bp7::{Bundle, ByteBuffer};
 use bytes::{BufMut, BytesMut};
-use futures::Future;
+use core::convert::TryFrom;
+use futures_util::stream::StreamExt;
 use log::{debug, error, info};
 use serde::{Deserialize, Serialize};
+use std::io::Write;
 use std::net::SocketAddr;
+use std::net::SocketAddrV4;
 use std::net::TcpStream;
 use std::time::Instant;
-use tokio::codec::{Decoder, Encoder, Framed};
 use tokio::io;
 use tokio::net::TcpListener;
 use tokio::prelude::*;
+use tokio_util::codec::{Decoder, Encoder, Framed};
 
 #[derive(Debug)]
 enum CborByteString {
@@ -21,6 +25,7 @@ enum CborByteString {
     U64,
     Not,
 }
+
 fn cbor_parse_byte_string_len_first(input: u8) -> CborByteString {
     let byte_string = 0b010_00000;
     let type_mask = 0b111_00000;
@@ -46,6 +51,7 @@ fn cbor_parse_byte_string_len_first(input: u8) -> CborByteString {
         CborByteString::Not
     }
 }
+
 fn cbor_hdr_len(input: u8) -> usize {
     match cbor_parse_byte_string_len_first(input) {
         CborByteString::Len(_) => 1,
@@ -56,6 +62,7 @@ fn cbor_hdr_len(input: u8) -> usize {
         _ => 0,
     }
 }
+
 fn cbor_parse_byte_string_len(input: &[u8]) -> usize {
     match cbor_parse_byte_string_len_first(input[0]) {
         CborByteString::Len(len) => len as usize,
@@ -92,11 +99,14 @@ impl MPDU {
         MPDU(b)
     }
 }
-impl From<MPDU> for bp7::Bundle {
-    fn from(item: MPDU) -> Self {
-        Bundle::from(item.0)
+
+impl TryFrom<MPDU> for bp7::Bundle {
+    type Error = String;
+    fn try_from(item: MPDU) -> Result<Self, Self::Error> {
+        Bundle::try_from(item.0)
     }
 }
+
 struct MPDUCodec {
     last_pos: usize,
 }
@@ -151,53 +161,55 @@ impl Decoder for MPDUCodec {
     }
 }
 
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone, Default, Copy)]
 pub struct MtcpConversionLayer {
     counter: u64,
     local_port: u16,
 }
 
 impl MtcpConversionLayer {
+    async fn run(self) -> Result<(), io::Error> {
+        let addr: SocketAddrV4 = format!("0.0.0.0:{}", self.port()).parse().unwrap();
+        let mut listener = TcpListener::bind(&addr).await?;
+        debug!("spawning MTCP listener on port {}", self.local_port);
+        loop {
+            let (socket, _) = listener.accept().await?;
+
+            let peer_addr = socket.peer_addr().unwrap();
+            info!("Incoming connection from {}", peer_addr);
+            let mut framed_sock = Framed::new(socket, MPDUCodec { last_pos: 0 });
+            while let Some(frame) = framed_sock.next().await {
+                match frame {
+                    Ok(frame) => {
+                        if let Ok(bndl) = Bundle::try_from(frame) {
+                            info!("Received bundle: {} from {}", bndl.id(), peer_addr);
+                            {
+                                //DTNCORE.lock().unwrap().push(bndl);
+                                crate::core::processing::receive(bndl.into());
+                            }
+                        } else {
+                            info!("Error decoding bundle from {}", peer_addr);
+                            break;
+                        }
+                    }
+                    Err(err) => {
+                        info!("Lost connection from {} ({})", peer_addr, err);
+                        break;
+                    }
+                }
+            }
+            info!("Disconnected {}", peer_addr);
+        }
+    }
     pub fn new(port: Option<u16>) -> MtcpConversionLayer {
         MtcpConversionLayer {
             counter: 0,
             local_port: port.unwrap_or(16162),
         }
     }
-    fn spawn_listener(&self) {
-        let addr = format!("0.0.0.0:{}", self.port()).parse().unwrap();
-        let listener = TcpListener::bind(&addr).unwrap();
-        debug!("spawning MTCP listener on port {}", self.local_port);
-        let server = listener
-            .incoming()
-            .for_each(move |socket| {
-                let peer_addr = socket.peer_addr().unwrap();
-                info!("Incoming connection from {}", peer_addr);
-                let framed_sock = Framed::new(socket, MPDUCodec { last_pos: 0 });
-                let conn = framed_sock
-                    .for_each(move |frame| {
-                        let bndl = Bundle::from(frame);
-                        info!("Received bundle: {} from {}", bndl.id(), peer_addr);
-                        {
-                            //DTNCORE.lock().unwrap().push(bndl);
-                            crate::core::processing::receive(bndl.into());
-                        }
-
-                        Ok(())
-                    })
-                    .map_err(move |err| info!("Lost connection from {} ({})", peer_addr, err))
-                    .then(move |_| {
-                        info!("Disconnected {}", peer_addr);
-                        Ok(())
-                    });
-                tokio::spawn(conn);
-
-                Ok(())
-            })
-            .map_err(|err| {
-                error!("accept error = {:?}", err);
-            });
-        tokio::spawn(server);
+    pub async fn spawn_listener(&self) -> std::io::Result<()> {
+        tokio::spawn(self.run());
+        Ok(())
     }
     pub fn send_bundles(&self, addr: SocketAddr, bundles: Vec<ByteBuffer>) -> bool {
         // TODO: implement correct error handling
@@ -235,12 +247,19 @@ impl MtcpConversionLayer {
         true
     }
 }
+
+#[async_trait]
 impl ConvergencyLayerAgent for MtcpConversionLayer {
-    fn setup(&mut self) {
-        self.spawn_listener();
+    async fn setup(&mut self) {
+        self.spawn_listener()
+            .await
+            .expect("error setting up mtcp listener");
     }
     fn port(&self) -> u16 {
         self.local_port
+    }
+    fn name(&self) -> &'static str {
+        "mtcp"
     }
     fn scheduled_submission(&self, dest: &str, ready: &[ByteBuffer]) -> bool {
         debug!("Scheduled MTCP submission: {:?}", dest);
