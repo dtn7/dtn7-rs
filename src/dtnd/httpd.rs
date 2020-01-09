@@ -79,9 +79,8 @@ async fn insert_get(req: HttpRequest) -> Result<String> {
                     bndl.id(),
                     bndl.primary.destination
                 );
-                {
-                    crate::core::processing::send_bundle(bndl);
-                }
+
+                crate::core::processing::send_bundle(bndl);
                 Ok(format!("Sent {} bytes", b_len))
             } else {
                 Err(actix_web::error::ErrorBadRequest(anyhow!(
@@ -113,9 +112,8 @@ async fn insert_post(mut body: web::Payload) -> Result<String> {
             bndl.id(),
             bndl.primary.destination
         );
-        {
-            crate::core::processing::send_bundle(bndl);
-        }
+
+        crate::core::processing::send_bundle(bndl);
         Ok(format!("Sent {} bytes", b_len))
     } else {
         Err(actix_web::error::ErrorBadRequest(anyhow!(

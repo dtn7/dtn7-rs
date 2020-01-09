@@ -19,7 +19,9 @@ use std::thread;
 
 // transmit an outbound bundle.
 pub fn send_bundle(bndl: Bundle) {
-    transmit(bndl.into());
+    thread::spawn(move || {
+        transmit(bndl.into());
+    });
 }
 
 // starts the transmission of an outbounding bundle pack. Therefore
@@ -259,10 +261,10 @@ pub fn forward(mut bp: BundlePack) -> Result<()> {
     let wg = WaitGroup::new();
     let bundle_data = bp.bundle.to_cbor();
     for n in nodes {
-        debug!("direct delivery: {:?}", n);
         let wg = wg.clone();
         let bd = bundle_data.clone(); // TODO: optimize cloning away, reference should do
         let bpid = bpid.clone();
+        let bp2 = bp.clone();
         let bundle_sent = std::sync::Arc::clone(&bundle_sent);
         thread::spawn(move || {
             info!(
@@ -278,7 +280,8 @@ pub fn forward(mut bp: BundlePack) -> Result<()> {
             } else {
                 info!("Sending bundle failed: {} {} {}", &bpid, n.remote, n.agent);
                 // TODO: report failure to routing agent
-                unimplemented!("report failure to routing agent not implemented!");
+                //unimplemented!("report failure to routing agent not implemented!");
+                //send_status_report(&bp2, FORWARDED_BUNDLE, TRANSMISSION_CANCELED);
             }
             drop(wg);
         });

@@ -1,4 +1,4 @@
-use super::{janitor, rest, service_discovery};
+use super::{httpd, janitor, service_discovery};
 use crate::cla_add;
 use crate::core::application_agent::SimpleApplicationAgent;
 use crate::dtnconfig::DtnConfig;
@@ -110,5 +110,5 @@ pub async fn start_dtnd(cfg: DtnConfig) -> std::io::Result<()> {
             error!("Error spawning service discovery: {:?}", errmsg);
         }
     }
-    rest::spawn_httpd().await
+    httpd::spawn_httpd().await
 }
