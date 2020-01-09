@@ -1,6 +1,7 @@
 use crate::cla::ConvergencyLayerAgent;
 use async_trait::async_trait;
 use bp7::{Bundle, ByteBuffer};
+use bytes::buf::Buf;
 use bytes::{BufMut, BytesMut};
 use core::convert::TryFrom;
 use futures_util::stream::StreamExt;
@@ -13,7 +14,6 @@ use std::net::TcpStream;
 use std::time::Instant;
 use tokio::io;
 use tokio::net::TcpListener;
-use tokio::prelude::*;
 use tokio_util::codec::{Decoder, Encoder, Framed};
 
 #[derive(Debug)]
@@ -147,7 +147,7 @@ impl Decoder for MPDUCodec {
                 ));
             }
             if let Ok(res) = serde_cbor::from_slice(&buf[0..=expected_pos]) {
-                buf.split_to(expected_pos + 1);
+                buf.advance(expected_pos + 1);
                 self.last_pos = 0;
                 return Ok(Some(res));
             } else {
@@ -185,7 +185,9 @@ impl MtcpConversionLayer {
                             info!("Received bundle: {} from {}", bndl.id(), peer_addr);
                             {
                                 //DTNCORE.lock().unwrap().push(bndl);
-                                crate::core::processing::receive(bndl.into());
+                                std::thread::spawn(move || {
+                                    crate::core::processing::receive(bndl.into());
+                                });
                             }
                         } else {
                             info!("Error decoding bundle from {}", peer_addr);
