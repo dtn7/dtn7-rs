@@ -1,6 +1,5 @@
 use bp7::*;
 use clap::{crate_authors, crate_version, App, Arg};
-use reqwest;
 use std::convert::TryFrom;
 use std::fs;
 use std::io::prelude::*;
@@ -69,12 +68,15 @@ fn main() {
             matches.value_of("bundleid").unwrap()
         )
     };
-    let mut res = reqwest::blocking::get(&local_url).expect("error connecting to local dtnd");
+    let res = attohttpc::get(&local_url)
+        .send()
+        .expect("error connecting to local dtnd");
 
-    if res.content_length() > Some(10) && res.status().is_success() {
-        let mut buf: Vec<u8> = vec![];
-        res.copy_to(&mut buf).unwrap();
-
+    if res.status() != attohttpc::StatusCode::OK {
+        panic!("Unexpected response from server! {:?}", res);
+    }
+    let buf: Vec<u8> = res.bytes().expect("No bundle bytes received");
+    if buf.len() > 10 {
         let bndl: Bundle = Bundle::try_from(buf).expect("Error decoding bundle");
         match bndl
             .extension_block(bp7::canonical::PAYLOAD_BLOCK)

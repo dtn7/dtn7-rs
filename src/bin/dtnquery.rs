@@ -1,5 +1,4 @@
 use clap::{crate_authors, crate_version, App, Arg, SubCommand};
-use reqwest;
 
 fn main() {
     let matches = App::new("dtnquery")
@@ -27,7 +26,8 @@ fn main() {
 
     if let Some(_matches) = matches.subcommand_matches("nodeid") {
         println!("Local node ID:");
-        let res = reqwest::blocking::get(&format!("http://127.0.0.1:{}/status/nodeid", port))
+        let res = attohttpc::get(&format!("http://127.0.0.1:{}/status/nodeid", port))
+            .send()
             .expect("error connecting to local dtnd")
             .text()
             .unwrap();
@@ -35,7 +35,8 @@ fn main() {
     }
     if let Some(_matches) = matches.subcommand_matches("eids") {
         println!("Listing registered endpoint IDs:");
-        let res = reqwest::blocking::get(&format!("http://127.0.0.1:{}/status/eids", port))
+        let res = attohttpc::get(&format!("http://127.0.0.1:{}/status/eids", port))
+            .send()
             .expect("error connecting to local dtnd")
             .text()
             .unwrap();
@@ -43,7 +44,8 @@ fn main() {
     }
     if let Some(_matches) = matches.subcommand_matches("peers") {
         println!("Listing of known peers:");
-        let res = reqwest::blocking::get(&format!("http://127.0.0.1:{}/status/peers", port))
+        let res = attohttpc::get(&format!("http://127.0.0.1:{}/status/peers", port))
+            .send()
             .expect("error connecting to local dtnd")
             .text()
             .unwrap();
@@ -51,7 +53,8 @@ fn main() {
     }
     if let Some(_matches) = matches.subcommand_matches("bundles") {
         println!("Listing of bundles in store:");
-        let res = reqwest::blocking::get(&format!("http://127.0.0.1:{}/status/bundles", port))
+        let res = attohttpc::get(&format!("http://127.0.0.1:{}/status/bundles", port))
+            .send()
             .expect("error connecting to local dtnd")
             .text()
             .unwrap();
@@ -59,7 +62,8 @@ fn main() {
     }
     if let Some(_matches) = matches.subcommand_matches("store") {
         println!("Listing of bundles status in store:");
-        let res = reqwest::blocking::get(&format!("http://127.0.0.1:{}/status/store", port))
+        let res = attohttpc::get(&format!("http://127.0.0.1:{}/status/store", port))
+            .send()
             .expect("error connecting to local dtnd")
             .text()
             .unwrap();
@@ -67,7 +71,8 @@ fn main() {
     }
     if let Some(_matches) = matches.subcommand_matches("info") {
         println!("Daemon info:");
-        let res = reqwest::blocking::get(&format!("http://127.0.0.1:{}/status/info", port))
+        let res = attohttpc::get(&format!("http://127.0.0.1:{}/status/info", port))
+            .send()
             .expect("error connecting to local dtnd")
             .text()
             .unwrap();
