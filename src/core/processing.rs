@@ -389,7 +389,7 @@ fn is_administrative_record_valid(bp: &BundlePack) -> bool {
         );
         return false;
     }
-    match payload.unwrap().get_data() {
+    match payload.unwrap().data() {
         bp7::canonical::CanonicalData::Data(data) => {
             match serde_cbor::from_slice::<AdministrativeRecord>(data) {
                 Ok(ar) => {

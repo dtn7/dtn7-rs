@@ -122,6 +122,26 @@ async fn insert_post(mut body: web::Payload) -> Result<String> {
     }
 }
 
+#[post("/push")]
+async fn push_post(mut body: web::Payload) -> Result<String> {
+    let mut bytes = web::BytesMut::new();
+    while let Some(item) = body.next().await {
+        bytes.extend_from_slice(&item?);
+    }
+    let b_len = bytes.len();
+    debug!("Received: {:?}", b_len);
+    if let Ok(bndl) = bp7::Bundle::try_from(bytes.to_vec()) {
+        debug!("Received bundle {}", bndl.id());
+
+        crate::core::processing::receive(bndl.into());
+        Ok(format!("Received {} bytes", b_len))
+    } else {
+        Err(actix_web::error::ErrorBadRequest(anyhow!(
+            "Error decoding bundle!"
+        )))
+    }
+}
+
 #[get("/register")]
 async fn register(req: HttpRequest) -> Result<String> {
     let path = req.query_string();
@@ -249,6 +269,7 @@ pub async fn spawn_httpd() -> std::io::Result<()> {
             .service(debug_rnd_peer)
             .service(insert_get)
             .service(insert_post)
+            .service(push_post)
             .service(register)
             .service(unregister)
             .service(endpoint)
@@ -256,7 +277,7 @@ pub async fn spawn_httpd() -> std::io::Result<()> {
             .service(download)
             .service(download_hex)
     })
-    .bind(&format!("127.0.0.1:{}", port))?
+    .bind(&format!("0.0.0.0:{}", port))?
     .run()
     .await
 }

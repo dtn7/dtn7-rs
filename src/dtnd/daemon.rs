@@ -70,7 +70,8 @@ pub async fn start_dtnd(cfg: DtnConfig) -> std::io::Result<()> {
 
     info!("RoutingAgent: {}", (*DTNCORE.lock()).routing_agent);
 
-    for cla in &(*CONFIG.lock()).clas {
+    let clas = (*CONFIG.lock()).clas.clone();
+    for cla in &clas {
         info!("Adding CLA: {}", cla);
         cla_add(crate::cla::new(cla));
     }

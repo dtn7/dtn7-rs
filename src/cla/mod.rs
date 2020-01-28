@@ -1,4 +1,5 @@
 pub mod dummy;
+pub mod http;
 pub mod mtcp;
 
 use async_trait::async_trait;
@@ -33,7 +34,7 @@ pub trait ConvergencyLayerAgent: Debug + Send + Display {
 }
 
 pub fn convergency_layer_agents() -> Vec<&'static str> {
-    vec!["dummy", "mtcp"]
+    vec!["dummy", "mtcp", "http"]
 }
 
 // returns a new CLA for the corresponding string ("<CLA name>[:local_port]").
@@ -44,6 +45,7 @@ pub fn new(cla_str: &str) -> Box<dyn ConvergencyLayerAgent> {
     match cla[0] {
         "dummy" => Box::new(dummy::DummyConvergencyLayer::new()),
         "mtcp" => Box::new(mtcp::MtcpConversionLayer::new(port)),
+        "http" => Box::new(http::HttpConversionLayer::new(port)),
         _ => panic!("Unknown convergency layer agent agent {}", cla[0]),
     }
 }
