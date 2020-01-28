@@ -80,16 +80,14 @@ impl ConvergencyLayerAgent for HttpConversionLayer {
         if !ready.is_empty() {
             let peeraddr: SocketAddr = dest.parse().unwrap();
             debug!("forwarding to {:?}", peeraddr);
-            let client = reqwest::blocking::Client::new();
             for b in ready {
-                if let Ok(res) = client
-                    .post(&format!(
-                        "http://{}:{}/push",
-                        peeraddr.ip(),
-                        peeraddr.port()
-                    ))
-                    .body(b.to_vec())
-                    .send()
+                if let Ok(_res) = attohttpc::post(&format!(
+                    "http://{}:{}/push",
+                    peeraddr.ip(),
+                    peeraddr.port()
+                ))
+                .bytes(b.to_vec())
+                .send()
                 {
                 } else {
                     return false;

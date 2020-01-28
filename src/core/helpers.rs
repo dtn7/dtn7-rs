@@ -63,7 +63,7 @@ pub fn parse_peer_url(peer_url: &str) -> DtnPeer {
         scheme.into()
     };*/
     let nodeid = u.path();
-    if nodeid == "/" {
+    if nodeid == "/" || nodeid == "" {
         panic!("Missing node id");
     }
     DtnPeer::new(

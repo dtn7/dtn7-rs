@@ -2,12 +2,12 @@ use bp7::bundle::*;
 use bp7::*;
 use chrono::{DateTime, Utc};
 use clap::{crate_authors, crate_version, App, Arg};
-use reqwest;
 use std::io;
 use std::io::prelude::*;
 
 fn get_local_node_id(port: &str) -> String {
-    reqwest::blocking::get(&format!("http://127.0.0.1:{}/status/nodeid", port))
+    attohttpc::get(&format!("http://127.0.0.1:{}/status/nodeid", port))
+        .send()
         .expect("error connecting to local dtnd")
         .text()
         .unwrap()
@@ -106,10 +106,8 @@ fn main() {
     //let local_url = format!("http://127.0.0.1:3000/send?bundle={}", hexstr);
     //let res = reqwest::get(&local_url).expect("error connecting to local dtnd").text().unwrap();
     if !dryrun {
-        let client = reqwest::blocking::Client::new();
-        let res = client
-            .post(&format!("http://127.0.0.1:{}/insert", port))
-            .body(binbundle)
+        let res = attohttpc::post(&format!("http://127.0.0.1:{}/insert", port))
+            .bytes(binbundle)
             .send()
             .expect("error send bundle to dtnd")
             .text()
