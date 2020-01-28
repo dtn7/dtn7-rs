@@ -79,7 +79,7 @@ fn main() {
         match bndl
             .extension_block(bp7::canonical::PAYLOAD_BLOCK)
             .expect("Payload block missing!")
-            .get_data()
+            .data()
         {
             bp7::canonical::CanonicalData::Data(data) => {
                 if let Some(outfile) = matches.value_of("outfile") {
