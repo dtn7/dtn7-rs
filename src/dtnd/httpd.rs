@@ -32,6 +32,10 @@ async fn status_eids() -> String {
 async fn status_bundles() -> String {
     serde_json::to_string_pretty(&(*DTNCORE.lock()).bundles()).unwrap()
 }
+#[get("/status/bundles_dest")]
+async fn status_bundles_dest() -> String {
+    serde_json::to_string_pretty(&(*DTNCORE.lock()).bundle_names()).unwrap()
+}
 #[get("/status/store")]
 async fn status_store() -> String {
     serde_json::to_string_pretty(&(*STORE.lock()).bundles_status()).unwrap()
@@ -262,6 +266,7 @@ pub async fn spawn_httpd() -> std::io::Result<()> {
             .service(status_node_id)
             .service(status_eids)
             .service(status_bundles)
+            .service(status_bundles_dest)
             .service(status_store)
             .service(status_peers)
             .service(status_info)

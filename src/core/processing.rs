@@ -231,6 +231,20 @@ pub fn forward(mut bp: BundlePack) -> Result<()> {
     debug!("updating bundle info in store");
     store_push(&bp);
 
+    debug!("Handle hop count block");
+    bp = handle_hop_count_block(bp)?;
+
+    debug!("Handle lifetime");
+    bp = handle_primary_lifetime(bp)?;
+
+    debug!("Handle bundle age block");
+    // Handle bundle age block
+    bp = handle_bundle_age_block(bp)?;
+
+    debug!("Handle previous node block");
+    // Handle previous node block
+    bp = handle_previous_node_block(bp)?;
+
     let mut delete_afterwards = true;
     let bundle_sent = Arc::new(AtomicBool::new(false));
     let mut nodes: Vec<cla::ClaSender> = Vec::new();
@@ -251,20 +265,6 @@ pub fn forward(mut bp: BundlePack) -> Result<()> {
     if nodes.is_empty() {
         debug!("No new peers for forwarding of bundle {}", &bp.id());
     } else {
-        debug!("Handle hop count block");
-        bp = handle_hop_count_block(bp)?;
-
-        debug!("Handle lifetime");
-        bp = handle_primary_lifetime(bp)?;
-
-        debug!("Handle bundle age block");
-        // Handle bundle age block
-        bp = handle_bundle_age_block(bp)?;
-
-        debug!("Handle previous node block");
-        // Handle previous node block
-        bp = handle_previous_node_block(bp)?;
-
         let wg = WaitGroup::new();
         let bundle_data = bp.bundle.to_cbor();
         for n in nodes {
@@ -444,7 +444,7 @@ fn inspect_status_report(bp: &BundlePack, ar: AdministrativeRecord) {
     } else {
         warn!("No bundle status information found: {} {:?}", bp.id(), ar);
     }
-
+    debug!("INSPECT DA DECK");
     /*
     var bpStores = QueryFromStatusReport(c.store, status)
     if len(bpStores) != 1 {
