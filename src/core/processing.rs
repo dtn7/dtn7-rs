@@ -26,7 +26,7 @@ pub fn send_bundle(bndl: Bundle) {
 
 // starts the transmission of an outbounding bundle pack. Therefore
 // the source's endpoint ID must be dtn:none or a member of this node.
-pub fn transmit(mut bp: BundlePack) {
+pub fn transmit(mut bp: BundlePack) -> Result<()> {
     info!("Transmission of bundle requested: {}", bp.id());
 
     bp.add_constraint(Constraint::DispatchPending);
@@ -40,8 +40,9 @@ pub fn transmit(mut bp: BundlePack) {
         );
 
         delete(bp, NO_INFORMATION);
+        Ok(())
     } else {
-        dispatch(bp);
+        dispatch(bp)
     }
 }
 
@@ -152,7 +153,7 @@ fn handle_hop_count_block(mut bp: BundlePack) -> Result<BundlePack> {
                 &bpid, hc_limit, hc_count
             );
             if hc.hop_count_exceeded() {
-                info!(
+                warn!(
                     "Bundle contains an exceeded hop count block: {} {} {}",
                     &bpid, hc_limit, hc_count
                 );
@@ -223,25 +224,12 @@ fn handle_previous_node_block(mut bp: BundlePack) -> Result<BundlePack> {
 pub fn forward(mut bp: BundlePack) -> Result<()> {
     let bpid = bp.id().to_string();
 
-    info!("Bundle will be forwarded: {}", bpid);
+    info!("Forward request for bundle: {}", bpid);
 
     bp.add_constraint(Constraint::ForwardPending);
     bp.remove_constraint(Constraint::DispatchPending);
     debug!("updating bundle info in store");
     store_push(&bp);
-    debug!("Handle hop count block");
-    bp = handle_hop_count_block(bp)?;
-
-    debug!("Handle lifetime");
-    bp = handle_primary_lifetime(bp)?;
-
-    debug!("Handle bundle age block");
-    // Handle bundle age block
-    bp = handle_bundle_age_block(bp)?;
-
-    debug!("Handle previous node block");
-    // Handle previous node block
-    bp = handle_previous_node_block(bp)?;
 
     let mut delete_afterwards = true;
     let bundle_sent = Arc::new(AtomicBool::new(false));
@@ -256,72 +244,92 @@ pub fn forward(mut bp: BundlePack) -> Result<()> {
         let (cla_nodes, del) = (*DTNCORE.lock()).routing_agent.sender_for_bundle(&bp);
         nodes = cla_nodes;
         delete_afterwards = del;
-        debug!("Attempting forwarding to nodes: {:?}", nodes);
+        if nodes.len() > 0 {
+            debug!("Attempting forwarding to nodes: {:?}", nodes);
+        }
     }
-    let wg = WaitGroup::new();
-    let bundle_data = bp.bundle.to_cbor();
-    for n in nodes {
-        let wg = wg.clone();
-        let bd = bundle_data.clone(); // TODO: optimize cloning away, reference should do
-        let bpid = bpid.clone();
-        let bp2 = bp.clone();
-        let bundle_sent = std::sync::Arc::clone(&bundle_sent);
-        thread::spawn(move || {
-            info!(
-                "Sending bundle to a CLA: {} {} {}",
-                &bpid, n.remote, n.agent
-            );
-            if n.transfer(&[bd]) {
+    if nodes.is_empty() {
+        debug!("No new peers for forwarding of bundle {}", &bp.id());
+    } else {
+        debug!("Handle hop count block");
+        bp = handle_hop_count_block(bp)?;
+
+        debug!("Handle lifetime");
+        bp = handle_primary_lifetime(bp)?;
+
+        debug!("Handle bundle age block");
+        // Handle bundle age block
+        bp = handle_bundle_age_block(bp)?;
+
+        debug!("Handle previous node block");
+        // Handle previous node block
+        bp = handle_previous_node_block(bp)?;
+
+        let wg = WaitGroup::new();
+        let bundle_data = bp.bundle.to_cbor();
+        for n in nodes {
+            let wg = wg.clone();
+            let bd = bundle_data.clone(); // TODO: optimize cloning away, reference should do
+            let bpid = bpid.clone();
+            //let bp2 = bp.clone();
+            let bundle_sent = std::sync::Arc::clone(&bundle_sent);
+            thread::spawn(move || {
                 info!(
-                    "Sending bundle succeeded: {} {} {}",
+                    "Sending bundle to a CLA: {} {} {}",
                     &bpid, n.remote, n.agent
                 );
-                bundle_sent.store(true, Ordering::Relaxed);
-            } else {
-                info!("Sending bundle failed: {} {} {}", &bpid, n.remote, n.agent);
-                // TODO: report failure to routing agent
-                //unimplemented!("report failure to routing agent not implemented!");
-                //send_status_report(&bp2, FORWARDED_BUNDLE, TRANSMISSION_CANCELED);
-            }
-            drop(wg);
-        });
-    }
-    wg.wait();
-
-    // Reset hop count block
-    if let Some(hc) = bp
-        .bundle
-        .extension_block_mut(bp7::canonical::HOP_COUNT_BLOCK)
-    {
-        if let Some((hc_limit, mut hc_count)) = hc.hop_count_get() {
-            hc_count -= 1;
-            hc.set_data(bp7::canonical::CanonicalData::HopCount(hc_limit, hc_count));
-            debug!(
-                "Bundle's hop count block was resetted: {} {} {}",
-                &bpid, hc_limit, hc_count
-            );
+                if n.transfer(&[bd]) {
+                    info!(
+                        "Sending bundle succeeded: {} {} {}",
+                        &bpid, n.remote, n.agent
+                    );
+                    bundle_sent.store(true, Ordering::Relaxed);
+                } else {
+                    (*DTNCORE.lock()).routing_agent.sending_failed(&bpid, &n);
+                    info!("Sending bundle failed: {} {} {}", &bpid, n.remote, n.agent);
+                    // TODO: report failure to routing agent
+                    //unimplemented!("report failure to routing agent not implemented!");
+                    //send_status_report(&bp2, FORWARDED_BUNDLE, TRANSMISSION_CANCELED);
+                }
+                drop(wg);
+            });
         }
-    }
-    if bundle_sent.load(Ordering::Relaxed) {
-        if bp
+        wg.wait();
+        // Reset hop count block
+        if let Some(hc) = bp
             .bundle
-            .primary
-            .bundle_control_flags
-            .has(bp7::bundle::BUNDLE_STATUS_REQUEST_FORWARD)
+            .extension_block_mut(bp7::canonical::HOP_COUNT_BLOCK)
         {
-            send_status_report(&bp, FORWARDED_BUNDLE, NO_INFORMATION);
+            if let Some((hc_limit, mut hc_count)) = hc.hop_count_get() {
+                hc_count -= 1;
+                hc.set_data(bp7::canonical::CanonicalData::HopCount(hc_limit, hc_count));
+                debug!(
+                    "Bundle's hop count block was resetted: {} {} {}",
+                    &bpid, hc_limit, hc_count
+                );
+            }
         }
-        if delete_afterwards {
-            bp.clear_constraints();
-            store_push(&bp);
-        } else if bp.bundle.is_administrative_record() {
-            // TODO: always inspect all bundles, should be configurable
-            is_administrative_record_valid(&bp);
+        if bundle_sent.load(Ordering::Relaxed) {
+            if bp
+                .bundle
+                .primary
+                .bundle_control_flags
+                .has(bp7::bundle::BUNDLE_STATUS_REQUEST_FORWARD)
+            {
+                send_status_report(&bp, FORWARDED_BUNDLE, NO_INFORMATION);
+            }
+            if delete_afterwards {
+                bp.clear_constraints();
+                store_push(&bp);
+            } else if bp.bundle.is_administrative_record() {
+                // TODO: always inspect all bundles, should be configurable
+                is_administrative_record_valid(&bp);
+                contraindicated(bp);
+            }
+        } else {
+            info!("Failed to forward bundle to any CLA: {}", bp.id());
             contraindicated(bp);
         }
-    } else {
-        info!("Failed to forward bundle to any CLA: {}", bp.id());
-        contraindicated(bp);
     }
     Ok(())
 }

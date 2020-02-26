@@ -1,4 +1,4 @@
-use log::debug;
+use log::{debug, error};
 
 fn janitor() {
     debug!("running janitor");
@@ -8,10 +8,14 @@ fn janitor() {
     crate::core::process_peers();
 
     debug!("reprocessing bundles");
-    crate::core::process_bundles();
+    if let Err(err) = crate::core::process_bundles() {
+        error!("Processing bundles failed: {}", err);
+    }
 }
 
 pub fn spawn_janitor() {
-    tokio::spawn(
-        crate::dtnd::cron::spawn_timer((*crate::CONFIG.lock()).janitor_interval, janitor));
+    tokio::spawn(crate::dtnd::cron::spawn_timer(
+        (*crate::CONFIG.lock()).janitor_interval,
+        janitor,
+    ));
 }

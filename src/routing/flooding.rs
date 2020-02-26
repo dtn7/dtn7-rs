@@ -20,6 +20,7 @@ impl std::fmt::Display for FloodingRoutingAgent {
 }
 
 impl RoutingAgent for FloodingRoutingAgent {
+    fn sending_failed(&mut self, _bundle_id: &str, _cla_sender: &ClaSender) {}
     fn sender_for_bundle(&mut self, _bp: &BundlePack) -> (Vec<ClaSender>, bool) {
         let mut clas = Vec::new();
         for (_, p) in (*PEERS.lock()).iter() {

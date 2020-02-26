@@ -79,7 +79,9 @@ async fn announcer(socket: std::net::UdpSocket) {
             eid: format!("dtn://{}", (*CONFIG.lock()).nodeid.clone()).into(),
             cl: cls,
         };
-        sock.send_to(&serde_cbor::to_vec(&pkt).unwrap(), addr).await;
+        if let Err(err) = sock.send_to(&serde_cbor::to_vec(&pkt).unwrap(), addr).await {
+            error!("Sending announcement failed: {}", err);
+        }
     }
 }
 pub async fn spawn_service_discovery() -> Result<()> {

@@ -7,6 +7,9 @@ use std::fmt::Debug;
 use std::fmt::Display;
 
 pub trait RoutingAgent: Debug + Send + Display {
+    fn sending_failed(&mut self, _bundle_id: &str, _cla_sender: &ClaSender) {
+        unimplemented!();
+    }
     fn sender_for_bundle(&mut self, _bp: &BundlePack) -> (Vec<ClaSender>, bool) {
         unimplemented!();
     }

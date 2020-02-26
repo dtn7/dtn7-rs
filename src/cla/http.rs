@@ -1,20 +1,9 @@
 use crate::cla::ConvergencyLayerAgent;
 use crate::CONFIG;
 use async_trait::async_trait;
-use bp7::{Bundle, ByteBuffer};
-use bytes::buf::Buf;
-use bytes::{BufMut, BytesMut};
-use core::convert::TryFrom;
-use futures_util::stream::StreamExt;
+use bp7::ByteBuffer;
 use log::{debug, error, info};
-use serde::{Deserialize, Serialize};
-use std::io::Write;
 use std::net::SocketAddr;
-use std::net::SocketAddrV4;
-use std::net::TcpStream;
-use std::time::Instant;
-use tokio::io;
-use tokio::net::TcpListener;
 
 #[derive(Debug, Clone, Default, Copy)]
 pub struct HttpConversionLayer {
@@ -76,7 +65,7 @@ impl ConvergencyLayerAgent for HttpConversionLayer {
         "http"
     }
     fn scheduled_submission(&self, dest: &str, ready: &[ByteBuffer]) -> bool {
-        debug!("Scheduled MTCP submission: {:?}", dest);
+        debug!("Scheduled HTTP submission: {:?}", dest);
         if !ready.is_empty() {
             let peeraddr: SocketAddr = dest.parse().unwrap();
             debug!("forwarding to {:?}", peeraddr);
