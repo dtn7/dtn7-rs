@@ -16,7 +16,16 @@ fn main() {
         )
         .subcommand(SubCommand::with_name("eids").about("list registered endpoint IDs"))
         .subcommand(SubCommand::with_name("peers").about("list known peers"))
-        .subcommand(SubCommand::with_name("bundles").about("list bundles in node"))
+        .subcommand(
+            SubCommand::with_name("bundles")
+                .about("list bundles in node")
+                .arg(
+                    Arg::with_name("v")
+                        .short("v")
+                        .multiple(false)
+                        .help("Verbose output includes bundle destination"),
+                ),
+        )
         .subcommand(SubCommand::with_name("store").about("list bundles status in store"))
         .subcommand(SubCommand::with_name("info").about("General dtnd info"))
         .subcommand(SubCommand::with_name("nodeid").about("Local node id"))
@@ -51,9 +60,15 @@ fn main() {
             .unwrap();
         println!("{}", res);
     }
-    if let Some(_matches) = matches.subcommand_matches("bundles") {
+    if let Some(matches) = matches.subcommand_matches("bundles") {
+        let verbose = matches.occurrences_of("v");
         println!("Listing of bundles in store:");
-        let res = attohttpc::get(&format!("http://127.0.0.1:{}/status/bundles", port))
+        let query_url = if verbose == 0 {
+            format!("http://127.0.0.1:{}/status/bundles", port)
+        } else {
+            format!("http://127.0.0.1:{}/status/bundles_dest", port)
+        };
+        let res = attohttpc::get(&query_url)
             .send()
             .expect("error connecting to local dtnd")
             .text()
