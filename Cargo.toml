@@ -1,6 +1,6 @@
 [package]
 name = "dtn7"
-version = "0.5.3"
+version = "0.5.4"
 authors = ["Lars Baumgaertner <baumgaertner@cs.tu-darmstadt.de>"]
 description = "Rust delay-tolerant-networking daemon and CLI tools based upon bp7 (dtn version 7 draft)"
 edition = "2018"

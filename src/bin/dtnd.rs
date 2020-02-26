@@ -51,7 +51,7 @@ async fn main() -> std::io::Result<()> {
             Arg::with_name("interval")
                 .short("i")
                 .long("interval")
-                .value_name("INTERVAL")
+                .value_name("MS")
                 .help("Sets service discovery interval (0 = deactive)")
                 .takes_value(true),
         )
@@ -59,7 +59,7 @@ async fn main() -> std::io::Result<()> {
             Arg::with_name("janitor")
                 .short("j")
                 .long("janitor")
-                .value_name("INTERVAL")
+                .value_name("MS")
                 .help("Sets janitor interval (0 = deactive)")
                 .takes_value(true),
         )

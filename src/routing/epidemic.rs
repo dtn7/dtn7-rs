@@ -47,6 +47,15 @@ impl std::fmt::Display for EpidemicRoutingAgent {
     }
 }
 impl RoutingAgent for EpidemicRoutingAgent {
+    fn sending_failed(&mut self, bundle_id: &str, cla_sender: &ClaSender) {
+        if let Some(entries) = self.history.get_mut(bundle_id) {
+            entries.remove(&cla_sender);
+            debug!(
+                "removed {:?} from sent list for bundle {}",
+                cla_sender, bundle_id
+            );
+        }
+    }
     fn sender_for_bundle(&mut self, bp: &BundlePack) -> (Vec<ClaSender>, bool) {
         let mut clas = Vec::new();
         for (_, p) in (*PEERS.lock()).iter() {
