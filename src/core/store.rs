@@ -72,7 +72,7 @@ impl BundleStore for SimpleBundleStore {
             .collect::<Vec<&BundlePack>>()
     }
     fn bundles(&self) -> Vec<&BundlePack> {
-        self.bundles.values().collect()
+        self.bundles.values().collect::<Vec<&BundlePack>>()
     }
 }
 

@@ -78,7 +78,7 @@ impl BundlePack {
     pub fn has_constraint(&self, constraint: Constraint) -> bool {
         self.constraints.contains(&constraint)
     }
-    pub fn has_contraints(&self) -> bool {
+    pub fn has_constraints(&self) -> bool {
         !self.constraints.is_empty()
     }
     pub fn add_constraint(&mut self, constraint: Constraint) {
