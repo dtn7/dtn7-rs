@@ -110,13 +110,13 @@ impl DtnConfig {
             debug: false,
             nodeid: node_rnd.clone(),
             host_eid: format!("dtn://{}", node_rnd).into(),
-            announcement_interval: 2000,
+            announcement_interval: 2000, // in ms
             webport: 3000,
-            janitor_interval: 10000,
+            janitor_interval: 10000, // in ms
             endpoints: Vec::new(),
             clas: Vec::new(),
             routing: "epidemic".into(),
-            peer_timeout: 2000 * 10,
+            peer_timeout: 2 * 10, // in seconds
             statics: Vec::new(),
         }
     }
