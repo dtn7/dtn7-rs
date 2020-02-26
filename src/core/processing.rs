@@ -287,8 +287,7 @@ pub fn forward(mut bp: BundlePack) -> Result<()> {
                 } else {
                     (*DTNCORE.lock()).routing_agent.sending_failed(&bpid, &n);
                     info!("Sending bundle failed: {} {} {}", &bpid, n.remote, n.agent);
-                    // TODO: report failure to routing agent
-                    //unimplemented!("report failure to routing agent not implemented!");
+                    // TODO: send status report?
                     //send_status_report(&bp2, FORWARDED_BUNDLE, TRANSMISSION_CANCELED);
                 }
                 drop(wg);
