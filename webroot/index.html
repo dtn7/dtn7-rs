@@ -1,0 +1,43 @@
+<html>
+
+<head>
+    <style>
+        body \{ font-family: monospace;
+        }
+
+        .block \{ margin: 4px;
+        }
+    </style>
+    <title>dtn7: {config.nodeid}</title>
+</head>
+
+<body>
+    <h1>dtn7 local node: {config.nodeid}</h1>
+
+    <div class="block">
+        <h2>Configuration</h2>
+        <div class="block">
+            <p>Routing: {config.routing}</p>
+            <p>CLAs: {{for cla in config.clas}} {cla} {{ endfor }}</p>
+            <p>Janitor Interval: {config.janitor_interval}ms</p>
+            <p>Announcement Interval: {config.announcement_interval}ms</p>
+            <p>Peer-Timeout: {config.peer_timeout}s</p>
+        </div>
+    </div>
+
+    <div class="block">
+        <h2>Peers</h2>
+        <div class="block">
+            <p>Recent neighbours: {num_peers}</p>
+        </div>
+    </div>
+
+    <div class="block">
+        <h2>Bundles</h2>
+        <div class="block">
+            <p>Stored: {num_bundles}</p>
+        </div>
+    </div>
+</body>
+
+</html>

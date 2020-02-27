@@ -40,6 +40,7 @@ tokio-util = "0.2.0"
 futures-util = "0.3.4"
 async-trait = "0.1.24"
 attohttpc = { version = "0.11.0", default-features = false }
+tinytemplate = "1.0.3"
 #rweb = { version = "0.4.0", default-features = false }
 
 [lib]
