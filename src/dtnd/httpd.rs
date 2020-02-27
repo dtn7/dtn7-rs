@@ -1,24 +1,51 @@
 use crate::core::application_agent::SimpleApplicationAgent;
 use crate::core::helpers::rnd_peer;
 use crate::peer_find_by_remote;
+use crate::peers_count;
 use crate::routing::RoutingNotifcation;
+use crate::DtnConfig;
 use crate::CONFIG;
 use crate::DTNCORE;
 use crate::PEERS;
 use crate::STATS;
 use crate::STORE;
 use actix_web::HttpResponse;
-use actix_web::{get, post, web, App, HttpRequest, HttpServer, Responder, Result};
+use actix_web::{
+    get, http::StatusCode, post, web, App, HttpRequest, HttpServer, Responder, Result,
+};
 use anyhow::anyhow;
 use bp7::dtntime::CreationTimestamp;
 use bp7::helpers::rnd_bundle;
 use futures::StreamExt;
 use log::{debug, error, info};
+use serde::Serialize;
 use std::convert::TryFrom;
+use tinytemplate::TinyTemplate;
+
+#[derive(Serialize)]
+struct Context<'a> {
+    config: &'a DtnConfig,
+    num_peers: usize,
+    num_bundles: usize,
+}
 
 #[get("/")]
-async fn index() -> &'static str {
-    "dtn7 ctrl interface"
+async fn index() -> impl Responder {
+    // "dtn7 ctrl interface"
+    let template_str = include_str!("../../webroot/index.html");
+    let mut tt = TinyTemplate::new();
+    tt.add_template("index", template_str).unwrap();
+    let cfg = DtnConfig::new();
+    let context = Context {
+        config: &(*CONFIG.lock()),
+        num_peers: peers_count(),
+        num_bundles: 0,
+    };
+
+    let rendered = tt.render("index", &context).unwrap();
+    HttpResponse::build(StatusCode::OK)
+        .content_type("text/html; charset=utf-8")
+        .body(rendered)
 }
 
 #[get("/status/nodeid")]

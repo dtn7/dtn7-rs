@@ -4,9 +4,10 @@ use config::{Config, File};
 use log::debug;
 use rand::distributions::Alphanumeric;
 use rand::{thread_rng, Rng};
+use serde::Serialize;
 use std::path::PathBuf;
 
-#[derive(Debug, Default, Clone)]
+#[derive(Debug, Default, Clone, Serialize)]
 pub struct DtnConfig {
     pub debug: bool,
     pub nodeid: String,
