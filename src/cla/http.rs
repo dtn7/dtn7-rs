@@ -18,41 +18,6 @@ impl HttpConversionLayer {
             local_port: port.unwrap_or((*CONFIG.lock()).webport),
         }
     }
-    /*pub fn send_bundles(&self, addr: SocketAddr, bundles: Vec<ByteBuffer>) -> bool {
-        // TODO: implement correct error handling
-        // TODO: classic sending thread, tokio code would block and not complete large transmissions
-        //thread::spawn(move || {
-        let now = Instant::now();
-        let num_bundles = bundles.len();
-        let mut buf = Vec::new();
-        for b in bundles {
-            let mpdu = MPDU(b);
-            if let Ok(buf2) = serde_cbor::to_vec(&mpdu) {
-                buf.extend_from_slice(&buf2);
-            } else {
-                error!("MPDU encoding error!");
-                return false;
-            }
-        }
-        if let Ok(mut s1) = TcpStream::connect(&addr) {
-            if s1.write_all(&buf).is_err() {
-                error!("Error writing data to {}", addr);
-                return false;
-            }
-            info!(
-                "Transmission time: {:?} for {} bundles in {} bytes to {}",
-                now.elapsed(),
-                num_bundles,
-                buf.len(),
-                addr
-            );
-        } else {
-            error!("Error connecting to remote {}", addr);
-            return false;
-        }
-        //});
-        true
-    }*/
 }
 
 #[async_trait]

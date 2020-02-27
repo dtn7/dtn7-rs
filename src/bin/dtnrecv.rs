@@ -73,10 +73,14 @@ fn main() {
         .expect("error connecting to local dtnd");
 
     if res.status() != attohttpc::StatusCode::OK {
-        panic!("Unexpected response from server! {:?}", res);
+        if verbose {
+            println!("Unexpected response from server! {:?}", res);
+        }
+        process::exit(23);
     }
     let buf: Vec<u8> = res.bytes().expect("No bundle bytes received");
-    if buf.len() > 10 {
+    if buf.len() > 50 {
+        // TODO: very arbitrary number, should check return code
         let bndl: Bundle = Bundle::try_from(buf).expect("Error decoding bundle");
         match bndl
             .extension_block(bp7::canonical::PAYLOAD_BLOCK)

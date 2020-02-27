@@ -16,6 +16,7 @@ pub use crate::core::{DtnCore, DtnPeer};
 use lazy_static::*;
 use parking_lot::Mutex;
 use std::collections::HashMap;
+use std::net::IpAddr;
 
 lazy_static! {
     pub static ref CONFIG: Mutex<DtnConfig> = Mutex::new(DtnConfig::new());
@@ -40,7 +41,7 @@ pub fn peers_clear() {
 }
 pub fn peers_get_for_node(eid: &EndpointID) -> Option<DtnPeer> {
     for (_, p) in (*PEERS.lock()).iter() {
-        if p.get_node_name() == eid.node_part().unwrap_or_default() {
+        if p.node_name() == eid.node_part().unwrap_or_default() {
             return Some(p.clone());
         }
     }
@@ -48,7 +49,15 @@ pub fn peers_get_for_node(eid: &EndpointID) -> Option<DtnPeer> {
 }
 pub fn peers_cla_for_node(eid: &EndpointID) -> Option<crate::cla::ClaSender> {
     if let Some(peer) = peers_get_for_node(eid) {
-        return peer.get_first_cla();
+        return peer.first_cla();
+    }
+    None
+}
+pub fn peer_find_by_remote(addr: &IpAddr) -> Option<String> {
+    for (_, p) in (*PEERS.lock()).iter() {
+        if p.addr() == addr {
+            return Some(p.node_name());
+        }
     }
     None
 }
