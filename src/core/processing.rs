@@ -1,7 +1,9 @@
 use crate::cla;
 use crate::core::bundlepack::*;
 use crate::core::*;
+use crate::peer_find_by_remote;
 use crate::peers_cla_for_node;
+use crate::routing::RoutingNotifcation;
 use crate::CONFIG;
 use crate::DTNCORE;
 use crate::STATS;
@@ -285,10 +287,14 @@ pub fn forward(mut bp: BundlePack) -> Result<()> {
                     );
                     bundle_sent.store(true, Ordering::Relaxed);
                 } else {
-                    (*DTNCORE.lock()).routing_agent.sending_failed(&bpid, &n);
-                    info!("Sending bundle failed: {} {} {}", &bpid, n.remote, n.agent);
-                    // TODO: send status report?
-                    //send_status_report(&bp2, FORWARDED_BUNDLE, TRANSMISSION_CANCELED);
+                    if let Some(node_name) = peer_find_by_remote(&n.remote) {
+                        (*DTNCORE.lock())
+                            .routing_agent
+                            .notify(RoutingNotifcation::SendingFailed(&bpid, &node_name));
+                        info!("Sending bundle failed: {} {} {}", &bpid, n.remote, n.agent);
+                        // TODO: send status report?
+                        //send_status_report(&bp2, FORWARDED_BUNDLE, TRANSMISSION_CANCELED);
+                    }
                 }
                 drop(wg);
             });

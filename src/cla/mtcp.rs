@@ -1,4 +1,7 @@
 use crate::cla::ConvergencyLayerAgent;
+use crate::peer_find_by_remote;
+use crate::routing::RoutingNotifcation;
+use crate::DTNCORE;
 use async_trait::async_trait;
 use bp7::{Bundle, ByteBuffer};
 use bytes::buf::Buf;
@@ -182,9 +185,13 @@ impl MtcpConversionLayer {
                 match frame {
                     Ok(frame) => {
                         if let Ok(bndl) = Bundle::try_from(frame) {
+                            if let Some(node_name) = peer_find_by_remote(&peer_addr.ip()) {
+                                (*DTNCORE.lock()).routing_agent.notify(
+                                    RoutingNotifcation::IncomingBundle(&bndl.id(), &node_name),
+                                );
+                            }
                             info!("Received bundle: {} from {}", bndl.id(), peer_addr);
                             {
-                                //DTNCORE.lock().unwrap().push(bndl);
                                 std::thread::spawn(move || {
                                     crate::core::processing::receive(bndl.into());
                                 });

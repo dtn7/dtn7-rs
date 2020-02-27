@@ -4,7 +4,7 @@ use crate::core::application_agent::SimpleApplicationAgent;
 use crate::dtnconfig::DtnConfig;
 use crate::peers_add;
 use crate::{CONFIG, DTNCORE};
-use log::{debug, error, info};
+use log::{error, info};
 
 /*
 use crate::core::core::DtnCore;

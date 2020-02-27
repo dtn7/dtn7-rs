@@ -1,5 +1,7 @@
 use crate::core::application_agent::SimpleApplicationAgent;
 use crate::core::helpers::rnd_peer;
+use crate::peer_find_by_remote;
+use crate::routing::RoutingNotifcation;
 use crate::CONFIG;
 use crate::DTNCORE;
 use crate::PEERS;
@@ -127,7 +129,7 @@ async fn insert_post(mut body: web::Payload) -> Result<String> {
 }
 
 #[post("/push")]
-async fn push_post(mut body: web::Payload) -> Result<String> {
+async fn push_post(req: HttpRequest, mut body: web::Payload) -> Result<String> {
     let mut bytes = web::BytesMut::new();
     while let Some(item) = body.next().await {
         bytes.extend_from_slice(&item?);
@@ -136,7 +138,13 @@ async fn push_post(mut body: web::Payload) -> Result<String> {
     debug!("Received: {:?}", b_len);
     if let Ok(bndl) = bp7::Bundle::try_from(bytes.to_vec()) {
         debug!("Received bundle {}", bndl.id());
-
+        if let Some(peer_addr) = req.peer_addr() {
+            if let Some(node_name) = peer_find_by_remote(&peer_addr.ip()) {
+                (*DTNCORE.lock())
+                    .routing_agent
+                    .notify(RoutingNotifcation::IncomingBundle(&bndl.id(), &node_name));
+            }
+        }
         crate::core::processing::receive(bndl.into());
         Ok(format!("Received {} bytes", b_len))
     } else {
@@ -190,9 +198,9 @@ async fn endpoint(req: HttpRequest) -> Result<HttpResponse> {
                     .content_type("application/octet-stream")
                     .body(cbor_bundle))
             } else {
-                Err(actix_web::error::ErrorBadRequest(anyhow!(
-                    "Nothing to receive"
-                )))
+                Ok(HttpResponse::Ok()
+                    .content_type("plain/text")
+                    .body("Nothing to receive"))
             }
         } else {
             //*response.status_mut() = StatusCode::NOT_FOUND;
@@ -215,9 +223,7 @@ async fn endpoint_hex(req: HttpRequest) -> Result<String> {
             if let Some(mut bundle) = aa.pop() {
                 Ok(bp7::helpers::hexify(&bundle.to_cbor()))
             } else {
-                Err(actix_web::error::ErrorBadRequest(anyhow!(
-                    "Nothing to receive"
-                )))
+                Ok("Nothing to receive".to_string())
             }
         } else {
             //*response.status_mut() = StatusCode::NOT_FOUND;

@@ -79,10 +79,10 @@ impl DtnPeer {
         now - self.last_contact < (*CONFIG.lock()).peer_timeout
     }
 
-    pub fn get_node_name(&self) -> String {
+    pub fn node_name(&self) -> String {
         self.eid.node_part().unwrap_or_default()
     }
-    pub fn get_first_cla(&self) -> Option<crate::cla::ClaSender> {
+    pub fn first_cla(&self) -> Option<crate::cla::ClaSender> {
         for c in self.cla_list.iter() {
             if crate::cla::convergency_layer_agents().contains(&c.0.as_str()) {
                 let sender = crate::cla::ClaSender {
@@ -94,5 +94,8 @@ impl DtnPeer {
             }
         }
         None
+    }
+    pub fn addr(&self) -> &IpAddr {
+        &self.addr
     }
 }

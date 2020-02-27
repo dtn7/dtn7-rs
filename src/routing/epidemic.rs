@@ -1,6 +1,7 @@
 use super::RoutingAgent;
 use crate::cla::ClaSender;
 use crate::core::bundlepack::BundlePack;
+use crate::routing::RoutingNotifcation;
 use crate::PEERS;
 use log::{debug, info, warn};
 use std::collections::{HashMap, HashSet};
@@ -9,7 +10,7 @@ use std::collections::{HashMap, HashSet};
 /// All bundles are sent to all known peers once via all CLAs.
 #[derive(Default, Debug)]
 pub struct EpidemicRoutingAgent {
-    history: HashMap<String, HashSet<ClaSender>>,
+    history: HashMap<String, HashSet<String>>,
 }
 
 impl EpidemicRoutingAgent {
@@ -18,9 +19,9 @@ impl EpidemicRoutingAgent {
             history: HashMap::new(),
         }
     }
-    fn add(&mut self, bundle_id: String, cla_sender: ClaSender) {
+    fn add(&mut self, bundle_id: String, node_name: String) {
         let entries = self.history.entry(bundle_id).or_insert_with(HashSet::new);
-        entries.insert(cla_sender);
+        entries.insert(node_name);
     }
     /*fn remove_bundle(&mut self, bundle_id: String) {
         self.history.remove(&bundle_id);
@@ -33,12 +34,26 @@ impl EpidemicRoutingAgent {
             .filter(|b| !entries.contains(b))
             .collect()
     }*/
-    fn contains(&mut self, bundle_id: &str, cla_sender: &ClaSender) -> bool {
+    fn contains(&mut self, bundle_id: &str, node_name: &str) -> bool {
         if let Some(entries) = self.history.get(bundle_id) {
             //let entries = self.history.entry(bundle_id);
-            return entries.contains(cla_sender);
+            return entries.contains(node_name);
         }
         false
+    }
+    fn sending_failed(&mut self, bundle_id: &str, node_name: &str) {
+        if let Some(entries) = self.history.get_mut(bundle_id) {
+            entries.remove(node_name.into());
+            debug!(
+                "removed {:?} from sent list for bundle {}",
+                node_name, bundle_id
+            );
+        }
+    }
+    fn incoming_bundle(&mut self, bundle_id: &str, node_name: &str) {
+        if !node_name.is_empty() && !self.contains(bundle_id, node_name) {
+            self.add(bundle_id.to_string(), node_name.to_string());
+        }
     }
 }
 impl std::fmt::Display for EpidemicRoutingAgent {
@@ -47,22 +62,23 @@ impl std::fmt::Display for EpidemicRoutingAgent {
     }
 }
 impl RoutingAgent for EpidemicRoutingAgent {
-    fn sending_failed(&mut self, bundle_id: &str, cla_sender: &ClaSender) {
-        if let Some(entries) = self.history.get_mut(bundle_id) {
-            entries.remove(&cla_sender);
-            debug!(
-                "removed {:?} from sent list for bundle {}",
-                cla_sender, bundle_id
-            );
+    fn notify(&mut self, notification: RoutingNotifcation) {
+        match notification {
+            RoutingNotifcation::SendingFailed(bid, cla_sender) => {
+                self.sending_failed(bid, cla_sender);
+            }
+            RoutingNotifcation::IncomingBundle(bid, node_name) => {
+                self.incoming_bundle(bid, node_name);
+            }
         }
     }
     fn sender_for_bundle(&mut self, bp: &BundlePack) -> (Vec<ClaSender>, bool) {
         let mut clas = Vec::new();
         for (_, p) in (*PEERS.lock()).iter() {
-            if let Some(cla) = p.get_first_cla() {
-                if !self.contains(&bp.id(), &cla) {
-                    clas.push(cla.clone());
-                    self.add(bp.id().to_string(), cla);
+            if let Some(cla) = p.first_cla() {
+                if !self.contains(&bp.id(), &p.node_name()) {
+                    clas.push(cla);
+                    self.add(bp.id().to_string(), p.node_name().clone());
                 }
             }
         }
