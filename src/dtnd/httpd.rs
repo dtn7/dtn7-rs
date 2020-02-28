@@ -35,7 +35,6 @@ async fn index() -> impl Responder {
     let template_str = include_str!("../../webroot/index.html");
     let mut tt = TinyTemplate::new();
     tt.add_template("index", template_str).unwrap();
-    let cfg = DtnConfig::new();
     let context = Context {
         config: &(*CONFIG.lock()),
         num_peers: peers_count(),
@@ -78,6 +77,12 @@ async fn status_peers() -> String {
 async fn status_info() -> String {
     let stats = &(*STATS.lock()).clone();
     serde_json::to_string_pretty(&stats).unwrap()
+}
+
+#[get("/cts")]
+async fn creation_timestamp() -> String {
+    let cts = bp7::CreationTimestamp::now();
+    serde_json::to_string(&cts).unwrap()
 }
 
 #[get("/debug/rnd_bundle")]
@@ -303,6 +308,7 @@ pub async fn spawn_httpd() -> std::io::Result<()> {
             .service(status_store)
             .service(status_peers)
             .service(status_info)
+            .service(creation_timestamp)
             .service(debug_rnd_bundle)
             .service(debug_rnd_peer)
             .service(insert_get)
