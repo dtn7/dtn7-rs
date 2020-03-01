@@ -9,6 +9,8 @@ use crate::DTNCORE;
 use crate::PEERS;
 use crate::STATS;
 use crate::STORE;
+use actix_web::dev::RequestHead;
+use actix_web::guard::Guard;
 use actix_web::HttpResponse;
 use actix_web::{
     get, http::StatusCode, post, web, App, HttpRequest, HttpServer, Responder, Result,
@@ -27,6 +29,14 @@ struct Context<'a> {
     config: &'a DtnConfig,
     num_peers: usize,
     num_bundles: usize,
+}
+
+pub fn fn_guard_localhost(req: &RequestHead) -> bool {
+    if let Some(addr) = req.peer_addr {
+        addr.ip().is_loopback()
+    } else {
+        false
+    }
 }
 
 #[get("/")]
@@ -64,7 +74,7 @@ async fn status_bundles() -> String {
 async fn status_bundles_dest() -> String {
     serde_json::to_string_pretty(&(*DTNCORE.lock()).bundle_names()).unwrap()
 }
-#[get("/status/store")]
+#[get("/status/store", guard = "fn_guard_localhost")]
 async fn status_store() -> String {
     serde_json::to_string_pretty(&(*STORE.lock()).bundles_status()).unwrap()
 }
@@ -79,13 +89,13 @@ async fn status_info() -> String {
     serde_json::to_string_pretty(&stats).unwrap()
 }
 
-#[get("/cts")]
+#[get("/cts", guard = "fn_guard_localhost")]
 async fn creation_timestamp() -> String {
     let cts = bp7::CreationTimestamp::now();
     serde_json::to_string(&cts).unwrap()
 }
 
-#[get("/debug/rnd_bundle")]
+#[get("/debug/rnd_bundle", guard = "fn_guard_localhost")]
 async fn debug_rnd_bundle() -> String {
     println!("generating debug bundle");
     let b = rnd_bundle(CreationTimestamp::now());
@@ -94,7 +104,7 @@ async fn debug_rnd_bundle() -> String {
     res
 }
 
-#[get("/debug/rnd_peer")]
+#[get("/debug/rnd_peer", guard = "fn_guard_localhost")]
 async fn debug_rnd_peer() -> String {
     println!("generating debug peer");
     let p = rnd_peer();
@@ -102,7 +112,7 @@ async fn debug_rnd_peer() -> String {
     (*PEERS.lock()).insert(p.eid.node_part().unwrap_or_default(), p);
     res
 }
-#[get("/insert")]
+#[get("/insert", guard = "fn_guard_localhost")]
 async fn insert_get(req: HttpRequest) -> Result<String> {
     debug!("REQ: {:?}", req);
     debug!("BUNDLE: {}", req.query_string());
@@ -136,7 +146,7 @@ async fn insert_get(req: HttpRequest) -> Result<String> {
         )))
     }
 }
-#[post("/insert")]
+#[post("/insert", guard = "fn_guard_localhost")]
 async fn insert_post(mut body: web::Payload) -> Result<String> {
     let mut bytes = web::BytesMut::new();
     while let Some(item) = body.next().await {
@@ -186,7 +196,7 @@ async fn push_post(req: HttpRequest, mut body: web::Payload) -> Result<String> {
     }
 }
 
-#[get("/register")]
+#[get("/register", guard = "fn_guard_localhost")]
 async fn register(req: HttpRequest) -> Result<String> {
     let path = req.query_string();
     // TODO: support non-node-specific EIDs
@@ -202,7 +212,7 @@ async fn register(req: HttpRequest) -> Result<String> {
     }
 }
 
-#[get("/unregister")]
+#[get("/unregister", guard = "fn_guard_localhost")]
 async fn unregister(req: HttpRequest) -> Result<String> {
     let path = req.query_string();
     // TODO: support non-node-specific EIDs
@@ -218,7 +228,7 @@ async fn unregister(req: HttpRequest) -> Result<String> {
     }
 }
 
-#[get("/endpoint")]
+#[get("/endpoint", guard = "fn_guard_localhost")]
 async fn endpoint(req: HttpRequest) -> Result<HttpResponse> {
     let path = req.query_string();
     if path.chars().all(char::is_alphanumeric) {
@@ -246,7 +256,7 @@ async fn endpoint(req: HttpRequest) -> Result<HttpResponse> {
         )))
     }
 }
-#[get("/endpoint.hex")]
+#[get("/endpoint.hex", guard = "fn_guard_localhost")]
 async fn endpoint_hex(req: HttpRequest) -> Result<String> {
     let path = req.query_string();
     if path.chars().all(char::is_alphanumeric) {
@@ -284,6 +294,7 @@ async fn download(req: HttpRequest) -> Result<HttpResponse> {
         )))
     }
 }
+
 #[get("/download.hex")]
 async fn download_hex(req: HttpRequest) -> Result<String> {
     let bid = req.query_string();
