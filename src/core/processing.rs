@@ -22,7 +22,9 @@ use std::thread;
 // transmit an outbound bundle.
 pub fn send_bundle(bndl: Bundle) {
     thread::spawn(move || {
-        transmit(bndl.into());
+        if let Err(err) = transmit(bndl.into()) {
+            warn!("Transmission failed: {}", err);
+        }
     });
 }
 
@@ -119,7 +121,9 @@ pub fn receive(mut bp: BundlePack) {
         bp.bundle.canonicals.remove(i);
     }
 
-    dispatch(bp);
+    if let Err(err) = dispatch(bp) {
+        warn!("Dispatching failed: {}", err);
+    }
 }
 
 // handle the dispatching of received bundles.
@@ -233,19 +237,8 @@ pub fn forward(mut bp: BundlePack) -> Result<()> {
     debug!("updating bundle info in store");
     store_push(&bp);
 
-    debug!("Handle hop count block");
-    bp = handle_hop_count_block(bp)?;
-
     debug!("Handle lifetime");
     bp = handle_primary_lifetime(bp)?;
-
-    debug!("Handle bundle age block");
-    // Handle bundle age block
-    bp = handle_bundle_age_block(bp)?;
-
-    debug!("Handle previous node block");
-    // Handle previous node block
-    bp = handle_previous_node_block(bp)?;
 
     let mut delete_afterwards = true;
     let bundle_sent = Arc::new(AtomicBool::new(false));
@@ -260,13 +253,23 @@ pub fn forward(mut bp: BundlePack) -> Result<()> {
         let (cla_nodes, del) = (*DTNCORE.lock()).routing_agent.sender_for_bundle(&bp);
         nodes = cla_nodes;
         delete_afterwards = del;
-        if nodes.len() > 0 {
+        if !nodes.is_empty() {
             debug!("Attempting forwarding to nodes: {:?}", nodes);
         }
     }
     if nodes.is_empty() {
         debug!("No new peers for forwarding of bundle {}", &bp.id());
     } else {
+        debug!("Handle hop count block");
+        bp = handle_hop_count_block(bp)?;
+
+        debug!("Handle previous node block");
+        // Handle previous node block
+        bp = handle_previous_node_block(bp)?;
+        debug!("Handle bundle age block");
+        // Handle bundle age block
+        bp = handle_bundle_age_block(bp)?;
+
         let wg = WaitGroup::new();
         let bundle_data = bp.bundle.to_cbor();
         for n in nodes {
@@ -286,15 +289,13 @@ pub fn forward(mut bp: BundlePack) -> Result<()> {
                         &bpid, n.remote, n.agent
                     );
                     bundle_sent.store(true, Ordering::Relaxed);
-                } else {
-                    if let Some(node_name) = peer_find_by_remote(&n.remote) {
-                        (*DTNCORE.lock())
-                            .routing_agent
-                            .notify(RoutingNotifcation::SendingFailed(&bpid, &node_name));
-                        info!("Sending bundle failed: {} {} {}", &bpid, n.remote, n.agent);
-                        // TODO: send status report?
-                        //send_status_report(&bp2, FORWARDED_BUNDLE, TRANSMISSION_CANCELED);
-                    }
+                } else if let Some(node_name) = peer_find_by_remote(&n.remote) {
+                    (*DTNCORE.lock())
+                        .routing_agent
+                        .notify(RoutingNotifcation::SendingFailed(&bpid, &node_name));
+                    info!("Sending bundle failed: {} {} {}", &bpid, n.remote, n.agent);
+                    // TODO: send status report?
+                    //send_status_report(&bp2, FORWARDED_BUNDLE, TRANSMISSION_CANCELED);
                 }
                 drop(wg);
             });

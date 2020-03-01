@@ -10,7 +10,6 @@ use crate::PEERS;
 use crate::STATS;
 use crate::STORE;
 use actix_web::dev::RequestHead;
-use actix_web::guard::Guard;
 use actix_web::HttpResponse;
 use actix_web::{
     get, http::StatusCode, post, web, App, HttpRequest, HttpServer, Responder, Result,
@@ -44,14 +43,17 @@ async fn index() -> impl Responder {
     // "dtn7 ctrl interface"
     let template_str = include_str!("../../webroot/index.html");
     let mut tt = TinyTemplate::new();
-    tt.add_template("index", template_str).unwrap();
+    tt.add_template("index", template_str)
+        .expect("error adding template");
     let context = Context {
         config: &(*CONFIG.lock()),
         num_peers: peers_count(),
         num_bundles: 0,
     };
 
-    let rendered = tt.render("index", &context).unwrap();
+    let rendered = tt
+        .render("index", &context)
+        .expect("error rendering template");
     HttpResponse::build(StatusCode::OK)
         .content_type("text/html; charset=utf-8")
         .body(rendered)
@@ -179,7 +181,7 @@ async fn push_post(req: HttpRequest, mut body: web::Payload) -> Result<String> {
     let b_len = bytes.len();
     debug!("Received: {:?}", b_len);
     if let Ok(bndl) = bp7::Bundle::try_from(bytes.to_vec()) {
-        debug!("Received bundle {}", bndl.id());
+        info!("Received bundle {}", bndl.id());
         if let Some(peer_addr) = req.peer_addr() {
             if let Some(node_name) = peer_find_by_remote(&peer_addr.ip()) {
                 (*DTNCORE.lock())

@@ -43,7 +43,7 @@ impl EpidemicRoutingAgent {
     }
     fn sending_failed(&mut self, bundle_id: &str, node_name: &str) {
         if let Some(entries) = self.history.get_mut(bundle_id) {
-            entries.remove(node_name.into());
+            entries.remove(node_name);
             debug!(
                 "removed {:?} from sent list for bundle {}",
                 node_name, bundle_id
