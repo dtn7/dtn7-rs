@@ -66,27 +66,23 @@ impl From<PathBuf> for DtnConfig {
             .unwrap_or(dtncfg.peer_timeout as i64) as u64;
         debug!("discovery-peer-timeout: {:?}", dtncfg.peer_timeout);
 
-        let peers = s.get_array("statics.peers");
-        if peers.is_ok() {
-            for m in peers.unwrap().iter() {
+        if let Ok(peers) = s.get_array("statics.peers") {
+            for m in peers.iter() {
                 let peer: DtnPeer =
                     crate::core::helpers::parse_peer_url(&m.clone().into_str().unwrap());
                 debug!("Peer: {:?}", peer);
                 dtncfg.statics.push(peer);
             }
         }
-        let endpoints = s.get_table("endpoints.local");
-        if endpoints.is_ok() {
-            for (_k, v) in endpoints.unwrap().iter() {
+        if let Ok(endpoints) = s.get_table("endpoints.local") {
+            for (_k, v) in endpoints.iter() {
                 let eid = v.clone().into_str().unwrap();
                 debug!("EID: {:?}", eid);
                 dtncfg.endpoints.push(eid);
             }
         }
-
-        let clas = s.get_table("convergencylayers.cla");
-        if clas.is_ok() {
-            for (_k, v) in clas.unwrap().iter() {
+        if let Ok(clas) = s.get_table("convergencylayers.cla") {
+            for (_k, v) in clas.iter() {
                 let tab = v.clone().into_table().unwrap();
                 let cla_id = tab["id"].clone().into_str().unwrap();
                 let cla_port = if tab.contains_key("port") {
