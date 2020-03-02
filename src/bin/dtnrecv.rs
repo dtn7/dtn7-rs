@@ -53,9 +53,17 @@ fn main() {
                 .help("verbose output")
                 .takes_value(false),
         )
+        .arg(
+            Arg::with_name("hex")
+                .short("x")
+                .long("hex")
+                .help("hex output")
+                .takes_value(false),
+        )
         .get_matches();
 
     let verbose: bool = matches.is_present("verbose");
+    let hex: bool = matches.is_present("hex");
     let port = std::env::var("DTN_WEB_PORT").unwrap_or_else(|_| "3000".into());
     let port = matches.value_of("port").unwrap_or(&port); // string is fine no need to parse number
 
@@ -81,29 +89,33 @@ fn main() {
     let buf: Vec<u8> = res.bytes().expect("No bundle bytes received");
     if buf.len() > 50 {
         // TODO: very arbitrary number, should check return code
-        let bndl: Bundle = Bundle::try_from(buf).expect("Error decoding bundle");
-        match bndl
-            .extension_block(bp7::canonical::PAYLOAD_BLOCK)
-            .expect("Payload block missing!")
-            .data()
-        {
-            bp7::canonical::CanonicalData::Data(data) => {
-                if let Some(outfile) = matches.value_of("outfile") {
-                    if verbose {
-                        println!("Writing to {}", outfile);
+        if hex {
+            println!("{}", hexify(&buf));
+        } else {
+            let bndl: Bundle = Bundle::try_from(buf).expect("Error decoding bundle");
+            match bndl
+                .extension_block(bp7::canonical::PAYLOAD_BLOCK)
+                .expect("Payload block missing!")
+                .data()
+            {
+                bp7::canonical::CanonicalData::Data(data) => {
+                    if let Some(outfile) = matches.value_of("outfile") {
+                        if verbose {
+                            println!("Writing to {}", outfile);
+                        }
+                        fs::write(outfile, data).expect("Unable to write file");
+                        if verbose {
+                            println!("Wrote {} bytes", data.len());
+                        }
+                    } else {
+                        std::io::stdout()
+                            .write_all(data)
+                            .expect("Error writing binary.");
                     }
-                    fs::write(outfile, data).expect("Unable to write file");
-                    if verbose {
-                        println!("Wrote {} bytes", data.len());
-                    }
-                } else {
-                    std::io::stdout()
-                        .write_all(data)
-                        .expect("Error writing binary.");
                 }
-            }
-            _ => {
-                panic!("No data in payload block!");
+                _ => {
+                    panic!("No data in payload block!");
+                }
             }
         }
     } else if verbose {

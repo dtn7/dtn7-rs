@@ -81,6 +81,17 @@ pub fn store_get(bpid: &str) -> Option<BundlePack> {
     Some((*STORE.lock()).get(bpid)?.clone())
 }
 
+pub fn store_delete_expired() {
+    let bids: Vec<String> = (*STORE.lock())
+        .pending()
+        .iter()
+        .filter(|e| e.bundle.primary.is_lifetime_exceeded())
+        .map(|e| e.id().into())
+        .collect();
+    for bid in bids {
+        store_remove(&bid);
+    }
+}
 pub fn routing_notify(notification: RoutingNotifcation) {
     (*DTNCORE.lock()).routing_agent.notify(notification);
 }
