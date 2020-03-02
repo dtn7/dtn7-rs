@@ -7,6 +7,10 @@ fn janitor() {
     debug!("cleaning up peers");
     crate::core::process_peers();
 
+    // handled in forwarding
+    //debug!("cleaning up store");
+    //crate::store_delete_expired();
+
     debug!("reprocessing bundles");
     if let Err(err) = crate::core::process_bundles() {
         error!("Processing bundles failed: {}", err);

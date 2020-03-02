@@ -20,7 +20,7 @@ pub trait BundleStore: Debug {
     fn get(&self, bpid: &str) -> Option<&BundlePack>;
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Default)]
 pub struct SimpleBundleStore {
     bundles: HashMap<String, BundlePack>,
 }
@@ -62,7 +62,8 @@ impl BundleStore for SimpleBundleStore {
             .values()
             .filter(|&e| {
                 !e.has_constraint(Constraint::ReassemblyPending)
-                    && e.has_constraint(Constraint::Contraindicated)
+                    && (e.has_constraint(Constraint::ForwardPending)
+                        || e.has_constraint(Constraint::Contraindicated))
             })
             .collect::<Vec<&BundlePack>>()
     }
@@ -86,11 +87,6 @@ impl BundleStore for SimpleBundleStore {
     }
 }
 
-impl Default for SimpleBundleStore {
-    fn default() -> Self {
-        SimpleBundleStore::new()
-    }
-}
 impl SimpleBundleStore {
     pub fn new() -> SimpleBundleStore {
         SimpleBundleStore {
