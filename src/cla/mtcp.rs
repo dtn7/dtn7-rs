@@ -186,7 +186,6 @@ impl MtcpConversionLayer {
                 match frame {
                     Ok(frame) => {
                         if let Ok(bndl) = Bundle::try_from(frame) {
-                            routing_notify(RoutingNotifcation::IncomingBundle(&bndl));
                             info!("Received bundle: {} from {}", bndl.id(), peer_addr);
                             {
                                 std::thread::spawn(move || {

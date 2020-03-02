@@ -4,6 +4,7 @@ use crate::core::*;
 use crate::peer_find_by_remote;
 use crate::peers_cla_for_node;
 use crate::routing::RoutingNotifcation;
+use crate::routing_notify;
 use crate::store_remove;
 use crate::CONFIG;
 use crate::DTNCORE;
@@ -134,6 +135,7 @@ pub fn dispatch(bp: BundlePack) -> Result<()> {
 
     // TODO: impl routing
     //c.routing.NotifyIncoming(bp)
+    routing_notify(RoutingNotifcation::IncomingBundle(&bp.bundle));
 
     if (*DTNCORE.lock())
         .get_endpoint_mut(&bp.bundle.primary.destination)
@@ -216,15 +218,10 @@ fn handle_previous_node_block(mut bp: BundlePack) -> Result<BundlePack> {
         );
     } else {
         // according to rfc always add a previous node block
-        /*let mut highest_block_number = 0;
-        for c in bp.bundle.canonicals.iter() {
-            highest_block_number = cmp::max(highest_block_number, c.block_number);
-        }*/
         let local_eid: &str = &(*CONFIG.lock()).nodeid;
         let pnb =
             bp7::canonical::new_previous_node_block(0, 0, format!("dtn://{}", local_eid).into());
         bp.bundle.add_canonical_block(pnb);
-        //bp.bundle.canonicals.push(pnb);
     }
     Ok(bp)
 }
@@ -496,56 +493,6 @@ fn inspect_status_report(bp: &BundlePack, ar: AdministrativeRecord) {
     } else {
         warn!("No bundle status information found: {} {:?}", bp.id(), ar);
     }
-    debug!("INSPECT DA DECK");
-    /*
-    var bpStores = QueryFromStatusReport(c.store, status)
-    if len(bpStores) != 1 {
-        log.WithFields(log.Fields{
-            "bundle":     bp.ID(),
-            "status_rep": status,
-            "store_numb": len(bpStores),
-        }).Warn("Status Report's bundle is unknown")
-        return
-    }
-
-    var bpStore = bpStores[0]
-    log.WithFields(log.Fields{
-        "bundle":        bp.ID(),
-        "status_rep":    status,
-        "status_bundle": bpStore.ID(),
-    }).Debug("Status Report's referenced bundle was loaded")
-
-    for _, sip := range sips {
-        log.WithFields(log.Fields{
-            "bundle":        bp.ID(),
-            "status_rep":    status,
-            "status_bundle": bpStore.ID(),
-            "information":   sip,
-        }).Info("Parsing status report")
-
-        switch sip {
-        case ReceivedBundle, ForwardedBundle, DeletedBundle:
-            // Nothing to do
-
-        case DeliveredBundle:
-            log.WithFields(log.Fields{
-                "bundle":        bp.ID(),
-                "status_rep":    status,
-                "status_bundle": bpStore.ID(),
-            }).Info("Status report indicates delivered bundle, deleting bundle")
-
-            bpStore.PurgeConstraints()
-            c.store.Push(bpStore)
-
-        default:
-            log.WithFields(log.Fields{
-                "bundle":        bp.ID(),
-                "status_rep":    status,
-                "status_bundle": bpStore.ID(),
-                "information":   int(sip),
-            }).Warn("Status report has an unknown status information code")
-        }
-    }*/
 }
 
 // SendStatusReport creates a new status report in response to the given
