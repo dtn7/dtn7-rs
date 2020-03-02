@@ -1,6 +1,6 @@
 use crate::core::{DtnPeer, PeerType};
 use crate::DTNCORE;
-use crate::{peers_add, CONFIG};
+use crate::{peers_add, routing_notify, RoutingNotifcation, CONFIG};
 use anyhow::Result;
 use bp7::EndpointID;
 use log::{debug, error, info};
@@ -52,6 +52,7 @@ impl Server {
                         .collect(),
                 );
                 peers_add(dtnpeer);
+                routing_notify(RoutingNotifcation::EncounteredPeer(&deserialized.eid))
             }
         }
     }

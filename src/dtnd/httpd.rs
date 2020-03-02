@@ -3,6 +3,7 @@ use crate::core::helpers::rnd_peer;
 use crate::peer_find_by_remote;
 use crate::peers_count;
 use crate::routing::RoutingNotifcation;
+use crate::routing_notify;
 use crate::DtnConfig;
 use crate::CONFIG;
 use crate::DTNCORE;
@@ -182,13 +183,7 @@ async fn push_post(req: HttpRequest, mut body: web::Payload) -> Result<String> {
     debug!("Received: {:?}", b_len);
     if let Ok(bndl) = bp7::Bundle::try_from(bytes.to_vec()) {
         info!("Received bundle {}", bndl.id());
-        if let Some(peer_addr) = req.peer_addr() {
-            if let Some(node_name) = peer_find_by_remote(&peer_addr.ip()) {
-                (*DTNCORE.lock())
-                    .routing_agent
-                    .notify(RoutingNotifcation::IncomingBundle(&bndl.id(), &node_name));
-            }
-        }
+        routing_notify(RoutingNotifcation::IncomingBundle(&bndl));
         crate::core::processing::receive(bndl.into());
         Ok(format!("Received {} bytes", b_len))
     } else {
