@@ -78,7 +78,7 @@ impl BundlePack {
         &self.id
     }
     pub fn sync(&self) -> Result<()> {
-        if !store_has_item(self) {
+        if !store_has_item(self.id()) {
             store_push(self);
         } else if !self.has_constraints() {
             store_remove(self.id());

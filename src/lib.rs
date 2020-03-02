@@ -74,8 +74,8 @@ pub fn store_remove(bid: &str) {
 pub fn store_update(bp: &BundlePack) {
     (*STORE.lock()).update(bp);
 }
-pub fn store_has_item(bp: &BundlePack) -> bool {
-    (*STORE.lock()).has_item(&bp)
+pub fn store_has_item(bid: &str) -> bool {
+    (*STORE.lock()).has_item(bid)
 }
 pub fn store_get(bpid: &str) -> Option<BundlePack> {
     Some((*STORE.lock()).get(bpid)?.clone())

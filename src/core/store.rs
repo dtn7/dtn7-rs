@@ -9,7 +9,7 @@ pub trait BundleStore: Debug {
     fn remove(&mut self, bid: &str) -> Option<BundlePack>;
     fn count(&self) -> u64;
     fn all_ids(&self) -> Vec<String>;
-    fn has_item(&self, bp: &BundlePack) -> bool;
+    fn has_item(&self, bid: &str) -> bool;
     fn pending(&self) -> Vec<&BundlePack>;
     fn ready(&self) -> Vec<&BundlePack>;
     fn forwarding(&self) -> Vec<&BundlePack>;
@@ -54,8 +54,8 @@ impl BundleStore for SimpleBundleStore {
     fn all_ids(&self) -> Vec<String> {
         self.bundles.keys().cloned().collect()
     }
-    fn has_item(&self, bp: &BundlePack) -> bool {
-        self.bundles.contains_key(&bp.id().to_string())
+    fn has_item(&self, bid: &str) -> bool {
+        self.bundles.contains_key(bid)
     }
     fn pending(&self) -> Vec<&BundlePack> {
         self.bundles

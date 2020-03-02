@@ -4,6 +4,7 @@ use crate::core::*;
 use crate::peer_find_by_remote;
 use crate::peers_cla_for_node;
 use crate::routing::RoutingNotifcation;
+use crate::store_remove;
 use crate::CONFIG;
 use crate::DTNCORE;
 use crate::STATS;
@@ -54,7 +55,7 @@ pub fn transmit(mut bp: BundlePack) -> Result<()> {
 pub fn receive(mut bp: BundlePack) -> Result<()> {
     info!("Received new bundle: {}", bp.id());
 
-    if store_has_item(&bp) {
+    if store_has_item(bp.id()) {
         debug!("Received bundle's ID is already known: {}", bp.id());
 
         // bundleDeletion is _not_ called because this would delete the already
@@ -450,6 +451,47 @@ fn inspect_status_report(bp: &BundlePack, ar: AdministrativeRecord) {
                 ar
             );
             return;
+        }
+        if !store_has_item(&bsr.refbundle()) {
+            warn!("Status Report's bundle is unknown: {} {:?}", bp.id(), ar);
+            return;
+        }
+        if sips.len() != bp7::administrative_record::MAX_STATUS_INFORMATION_POS as usize {
+            warn!(
+                "Status Report's number of status information is invalid: {} {:?}",
+                bp.id(),
+                sips.len()
+            );
+            return;
+        }
+        for (i, sip) in sips.iter().enumerate() {
+            debug!(
+                "Parsing Status Report: {} #{} {:?} {:?}",
+                bp.id(),
+                i,
+                bsr,
+                sip
+            );
+            match i as u32 {
+                bp7::administrative_record::RECEIVED_BUNDLE => {}
+                bp7::administrative_record::FORWARDED_BUNDLE => {}
+                bp7::administrative_record::DELETED_BUNDLE => {}
+                bp7::administrative_record::DELIVERED_BUNDLE => {
+                    info!(
+                        "Status Report indicated bundle delivery: {} {}",
+                        bp.id(),
+                        bsr.refbundle()
+                    );
+                    store_remove(&bsr.refbundle());
+                }
+                _ => {
+                    warn!(
+                        "Status Report has unknown status information code: {} #{}",
+                        bp.id(),
+                        i,
+                    );
+                }
+            }
         }
     } else {
         warn!("No bundle status information found: {} {:?}", bp.id(), ar);
