@@ -1,10 +1,12 @@
 use super::bundlepack::{BundlePack, Constraint};
+use anyhow::{bail, Result};
 use std::collections::HashMap;
 use std::fmt::Debug;
 
 pub trait BundleStore: Debug {
-    fn push(&mut self, bp: &BundlePack);
-    fn remove(&mut self, bid: String) -> Option<BundlePack>;
+    fn push(&mut self, bp: &BundlePack) -> Result<()>;
+    fn update(&mut self, bp: &BundlePack) -> Result<()>;
+    fn remove(&mut self, bid: &str) -> Option<BundlePack>;
     fn count(&self) -> u64;
     fn all_ids(&self) -> Vec<String>;
     fn has_item(&self, bp: &BundlePack) -> bool;
@@ -24,16 +26,24 @@ pub struct SimpleBundleStore {
 }
 
 impl BundleStore for SimpleBundleStore {
-    fn push(&mut self, bp: &BundlePack) {
+    fn push(&mut self, bp: &BundlePack) -> Result<()> {
         // TODO: check for duplicates, update, remove etc
-        let entry = self
-            .bundles
-            .entry(bp.id().to_string())
-            .or_insert_with(|| bp.clone());
-        *entry = bp.clone();
+        if self.bundles.contains_key(bp.id()) {
+            bail!("Bundle already in store!");
+        }
+        self.bundles.insert(bp.id().to_string(), bp.clone());
+        Ok(())
     }
-    fn remove(&mut self, bid: String) -> Option<BundlePack> {
-        self.bundles.remove(&bid)
+    fn update(&mut self, bp: &BundlePack) -> Result<()> {
+        // TODO: check for duplicates, update, remove etc
+        if !self.bundles.contains_key(bp.id()) {
+            bail!("Bundle not in store!");
+        }
+        self.bundles.insert(bp.id().to_string(), bp.clone());
+        Ok(())
+    }
+    fn remove(&mut self, bid: &str) -> Option<BundlePack> {
+        self.bundles.remove(bid)
     }
     fn get(&self, bpid: &str) -> Option<&BundlePack> {
         self.bundles.get(bpid)

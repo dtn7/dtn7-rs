@@ -1,6 +1,5 @@
 use crate::core::application_agent::SimpleApplicationAgent;
 use crate::core::helpers::rnd_peer;
-use crate::peer_find_by_remote;
 use crate::peers_count;
 use crate::routing::RoutingNotifcation;
 use crate::routing_notify;

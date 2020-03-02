@@ -34,7 +34,7 @@ pub fn transmit(mut bp: BundlePack) -> Result<()> {
     info!("Transmission of bundle requested: {}", bp.id());
 
     bp.add_constraint(Constraint::DispatchPending);
-    store_push(&bp);
+    bp.sync()?;
     let src = &bp.bundle.primary.source;
     if src != &bp7::DTN_NONE && (*DTNCORE.lock()).get_endpoint_mut(&src).is_none() {
         info!(
@@ -43,7 +43,7 @@ pub fn transmit(mut bp: BundlePack) -> Result<()> {
             src
         );
 
-        delete(bp, NO_INFORMATION);
+        delete(bp, NO_INFORMATION)?;
         Ok(())
     } else {
         dispatch(bp)
@@ -51,7 +51,7 @@ pub fn transmit(mut bp: BundlePack) -> Result<()> {
 }
 
 // handle received/incoming bundles.
-pub fn receive(mut bp: BundlePack) {
+pub fn receive(mut bp: BundlePack) -> Result<()> {
     info!("Received new bundle: {}", bp.id());
 
     if store_has_item(&bp) {
@@ -59,13 +59,13 @@ pub fn receive(mut bp: BundlePack) {
 
         // bundleDeletion is _not_ called because this would delete the already
         // stored BundlePack.
-        return;
+        return Ok(());
     }
 
     info!("Processing new received bundle: {}", bp.id());
 
     bp.add_constraint(Constraint::DispatchPending);
-    store_push(&bp);
+    bp.sync()?;
 
     if bp
         .bundle
@@ -102,8 +102,8 @@ pub fn receive(mut bp: BundlePack) {
                 bp.id(),
                 cb.block_type
             );
-            delete(bp, BLOCK_UNINTELLIGIBLE);
-            return;
+            delete(bp, BLOCK_UNINTELLIGIBLE)?;
+            return Ok(());
         }
         if cb.block_control_flags.has(BLOCK_REMOVE) {
             info!(
@@ -124,6 +124,7 @@ pub fn receive(mut bp: BundlePack) {
     if let Err(err) = dispatch(bp) {
         warn!("Dispatching failed: {}", err);
     }
+    Ok(())
 }
 
 // handle the dispatching of received bundles.
@@ -163,7 +164,7 @@ fn handle_hop_count_block(mut bp: BundlePack) -> Result<BundlePack> {
                     "Bundle contains an exceeded hop count block: {} {} {}",
                     &bpid, hc_limit, hc_count
                 );
-                delete(bp, HOP_LIMIT_EXCEEDED);
+                delete(bp, HOP_LIMIT_EXCEEDED)?;
                 bail!("hop count exceeded");
             }
         }
@@ -177,7 +178,7 @@ fn handle_primary_lifetime(bp: BundlePack) -> Result<BundlePack> {
             bp.id(),
             bp.bundle.primary
         );
-        delete(bp, LIFETIME_EXPIRED);
+        delete(bp, LIFETIME_EXPIRED)?;
         bail!("lifetime exceeded");
     }
     Ok(bp)
@@ -187,7 +188,7 @@ fn handle_bundle_age_block(mut bp: BundlePack) -> Result<BundlePack> {
     if let Some(age) = bp.update_bundle_age() {
         if age >= bp.bundle.primary.lifetime {
             warn!("Bundle's lifetime has expired: {}", bp.id());
-            delete(bp, LIFETIME_EXPIRED);
+            delete(bp, LIFETIME_EXPIRED)?;
             bail!("age block lifetime exceeded");
         }
     }
@@ -235,7 +236,7 @@ pub fn forward(mut bp: BundlePack) -> Result<()> {
     bp.add_constraint(Constraint::ForwardPending);
     bp.remove_constraint(Constraint::DispatchPending);
     debug!("updating bundle info in store");
-    store_push(&bp);
+    bp.sync()?;
 
     debug!("Handle lifetime");
     bp = handle_primary_lifetime(bp)?;
@@ -326,15 +327,15 @@ pub fn forward(mut bp: BundlePack) -> Result<()> {
             }
             if delete_afterwards {
                 bp.clear_constraints();
-                store_push(&bp);
+                bp.sync()?;
             } else if bp.bundle.is_administrative_record() {
                 // TODO: always inspect all bundles, should be configurable
                 is_administrative_record_valid(&bp);
-                contraindicated(bp);
+                contraindicated(bp)?;
             }
         } else {
             info!("Failed to forward bundle to any CLA: {}", bp.id());
-            contraindicated(bp);
+            contraindicated(bp)?;
         }
     }
     Ok(())
@@ -344,11 +345,11 @@ pub fn local_delivery(mut bp: BundlePack) -> Result<()> {
     info!("Received bundle for local delivery: {}", bp.id());
 
     if bp.bundle.is_administrative_record() && !is_administrative_record_valid(&bp) {
-        delete(bp, NO_INFORMATION);
+        delete(bp, NO_INFORMATION)?;
         bail!("Empty administrative record");
     }
     bp.add_constraint(Constraint::LocalEndpoint);
-    store_push(&bp);
+    bp.sync()?;
     if let Some(aa) = (*DTNCORE.lock()).get_endpoint_mut(&bp.bundle.primary.destination) {
         info!("Delivering {}", bp.id());
         aa.push(&bp.bundle);
@@ -363,16 +364,17 @@ pub fn local_delivery(mut bp: BundlePack) -> Result<()> {
         send_status_report(&bp, DELIVERED_BUNDLE, NO_INFORMATION);
     }
     bp.clear_constraints();
-    store_push(&bp);
+    bp.sync()?;
     Ok(())
 }
-pub fn contraindicated(mut bp: BundlePack) {
+pub fn contraindicated(mut bp: BundlePack) -> Result<()> {
     info!("Bundle marked for contraindication: {}", bp.id());
     bp.add_constraint(Constraint::Contraindicated);
-    store_push(&bp);
+    bp.sync()?;
+    Ok(())
 }
 
-pub fn delete(mut bp: BundlePack, reason: StatusReportReason) {
+pub fn delete(mut bp: BundlePack, reason: StatusReportReason) -> Result<()> {
     if bp
         .bundle
         .primary
@@ -383,7 +385,8 @@ pub fn delete(mut bp: BundlePack, reason: StatusReportReason) {
     }
     bp.clear_constraints();
     info!("Bundle marked for deletion: {}", bp.id());
-    store_push(&bp);
+    bp.sync()?;
+    Ok(())
 }
 
 fn is_administrative_record_valid(bp: &BundlePack) -> bool {

@@ -1,3 +1,8 @@
+use crate::store_has_item;
+use crate::store_push;
+use crate::store_remove;
+use crate::store_update;
+use anyhow::Result;
 use bp7::{Bundle, CanonicalData, EndpointID, BUNDLE_AGE_BLOCK, DTN_NONE};
 use std::collections::HashSet;
 use std::fmt;
@@ -71,6 +76,17 @@ impl From<Bundle> for BundlePack {
 impl BundlePack {
     pub fn id(&self) -> &str {
         &self.id
+    }
+    pub fn sync(&self) -> Result<()> {
+        if !store_has_item(self) {
+            store_push(self);
+        } else if !self.has_constraints() {
+            store_remove(self.id());
+        } else {
+            // TODO: add update logic
+            store_update(self);
+        }
+        Ok(())
     }
     pub fn has_receiver(&self) -> bool {
         self.receiver != DTN_NONE

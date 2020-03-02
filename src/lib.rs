@@ -67,6 +67,13 @@ pub fn store_push(bp: &BundlePack) {
     (*STORE.lock()).push(&bp);
 }
 
+pub fn store_remove(bid: &str) {
+    (*STORE.lock()).remove(bid);
+}
+
+pub fn store_update(bp: &BundlePack) {
+    (*STORE.lock()).update(bp);
+}
 pub fn store_has_item(bp: &BundlePack) -> bool {
     (*STORE.lock()).has_item(&bp)
 }
