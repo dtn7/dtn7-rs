@@ -12,6 +12,7 @@ use bp7::EndpointID;
 pub use dtnconfig::DtnConfig;
 
 pub use crate::core::{DtnCore, DtnPeer};
+pub use crate::routing::RoutingNotifcation;
 
 use lazy_static::*;
 use parking_lot::Mutex;
@@ -71,4 +72,8 @@ pub fn store_has_item(bp: &BundlePack) -> bool {
 }
 pub fn store_get(bpid: &str) -> Option<BundlePack> {
     Some((*STORE.lock()).get(bpid)?.clone())
+}
+
+pub fn routing_notify(notification: RoutingNotifcation) {
+    (*DTNCORE.lock()).routing_agent.notify(notification);
 }

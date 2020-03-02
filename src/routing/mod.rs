@@ -4,12 +4,16 @@ pub mod sink;
 
 use crate::cla::ClaSender;
 use crate::core::bundlepack::BundlePack;
+use bp7::Bundle;
+use bp7::EndpointID;
 use std::fmt::Debug;
 use std::fmt::Display;
 
 pub enum RoutingNotifcation<'a> {
     SendingFailed(&'a str, &'a str),
-    IncomingBundle(&'a str, &'a str),
+    IncomingBundle(&'a Bundle),
+    IncomingBundleWithoutPreviousNode(&'a str, &'a str),
+    EncounteredPeer(&'a EndpointID),
 }
 
 pub trait RoutingAgent: Debug + Send + Display {

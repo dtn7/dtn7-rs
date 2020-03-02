@@ -67,9 +67,17 @@ impl RoutingAgent for EpidemicRoutingAgent {
             RoutingNotifcation::SendingFailed(bid, cla_sender) => {
                 self.sending_failed(bid, cla_sender);
             }
-            RoutingNotifcation::IncomingBundle(bid, node_name) => {
-                self.incoming_bundle(bid, node_name);
+            RoutingNotifcation::IncomingBundle(bndl) => {
+                if let Some(eid) = bndl.previous_node() {
+                    if let Some(node_name) = eid.node_part() {
+                        self.incoming_bundle(&bndl.id(), &node_name);
+                    }
+                };
             }
+            RoutingNotifcation::IncomingBundleWithoutPreviousNode(bid, node_name) => {
+                self.incoming_bundle(&bid, &node_name);
+            }
+            _ => {}
         }
     }
     fn sender_for_bundle(&mut self, bp: &BundlePack) -> (Vec<ClaSender>, bool) {
