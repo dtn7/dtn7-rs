@@ -10,6 +10,8 @@ use std::path::PathBuf;
 #[derive(Debug, Default, Clone, Serialize)]
 pub struct DtnConfig {
     pub debug: bool,
+    pub v4: bool,
+    pub v6: bool,
     pub nodeid: String,
     pub host_eid: EndpointID,
     pub webport: u16,
@@ -40,6 +42,11 @@ impl From<PathBuf> for DtnConfig {
         if dtncfg.debug {
             //std::env::set_var("RUST_LOG", "dtn7=debug,dtnd=debug");
         }
+        dtncfg.v4 = s.get_bool("ipv4").unwrap_or(true);
+        debug!("ipv4: {:?}", dtncfg.v4);
+        dtncfg.v6 = s.get_bool("ipv6").unwrap_or(false);
+        debug!("ipv6: {:?}", dtncfg.v6);
+
         debug!("debug: {:?}", dtncfg.debug);
         dtncfg.nodeid = s.get_str("nodeid").unwrap_or(dtncfg.nodeid);
         debug!("nodeid: {:?}", dtncfg.nodeid);
@@ -105,6 +112,8 @@ impl DtnConfig {
         let node_rnd: String = rnd_node_name();
         DtnConfig {
             debug: false,
+            v4: true,
+            v6: false,
             nodeid: node_rnd.clone(),
             host_eid: format!("dtn://{}", node_rnd).into(),
             announcement_interval: 2000, // in ms
@@ -119,6 +128,8 @@ impl DtnConfig {
     }
     pub fn set(&mut self, cfg: DtnConfig) {
         self.debug = cfg.debug;
+        self.v4 = cfg.v4;
+        self.v6 = cfg.v6;
         self.nodeid = cfg.nodeid.clone();
         self.host_eid = format!("dtn://{}", cfg.nodeid).into();
         self.webport = cfg.webport;
