@@ -30,10 +30,17 @@ struct Context<'a> {
 
 pub fn fn_guard_localhost(req: &RequestHead) -> bool {
     if let Some(addr) = req.peer_addr {
-        addr.ip().is_loopback()
-    } else {
-        false
+        if addr.ip().is_loopback() {
+            return true;
+        } else {
+            if let std::net::IpAddr::V6(ipv6) = addr.ip() {
+                if let Some(ipv4) = ipv6.to_ipv4() {
+                    return ipv4.is_loopback();
+                }
+            }
+        }
     }
+    false
 }
 
 #[get("/")]
@@ -325,7 +332,8 @@ pub async fn spawn_httpd() -> std::io::Result<()> {
             .service(download)
             .service(download_hex)
     })
-    .bind(&format!("0.0.0.0:{}", port))?
+    //.bind(&format!("0.0.0.0:{}", port))?
+    .bind(&format!("[::]:{}", port))?
     .run()
     .await
 }
