@@ -115,7 +115,7 @@ impl BundlePack {
     /// UpdateBundleAge updates the bundle's Bundle Age block based on its reception
     /// timestamp, if such a block exists.
     pub fn update_bundle_age(&mut self) -> Option<u64> {
-        if let Some(block) = self.bundle.extension_block_mut(BUNDLE_AGE_BLOCK) {
+        if let Some(block) = self.bundle.extension_block_by_type_mut(BUNDLE_AGE_BLOCK) {
             let mut new_age = 0 as u64; // TODO: lost fight with borrowchecker
 
             if let CanonicalData::BundleAge(age) = block.data() {
