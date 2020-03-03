@@ -94,7 +94,7 @@ fn main() {
         } else {
             let bndl: Bundle = Bundle::try_from(buf).expect("Error decoding bundle");
             match bndl
-                .extension_block(bp7::canonical::PAYLOAD_BLOCK)
+                .extension_block_by_type(bp7::canonical::PAYLOAD_BLOCK)
                 .expect("Payload block missing!")
                 .data()
             {

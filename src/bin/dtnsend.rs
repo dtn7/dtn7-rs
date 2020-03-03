@@ -93,12 +93,11 @@ fn main() {
         .unwrap_or(&get_local_node_id(port))
         .into();
     let receiver: EndpointID = matches.value_of("receiver").unwrap().into();
-    let lifetime: u128 = matches
+    let lifetime: u64 = matches
         .value_of("lifetime")
         .unwrap_or("3600")
-        .parse::<u128>()
-        .unwrap()
-        * 1_000_000;
+        .parse::<u64>()
+        .unwrap();
     let cts = get_cts(port);
     let mut buffer = Vec::new();
     if let Some(infile) = matches.value_of("infile") {
@@ -121,7 +120,7 @@ fn main() {
     let mut bndl = new_std_payload_bundle(sender, receiver, buffer);
     bndl.primary.bundle_control_flags = BUNDLE_MUST_NOT_FRAGMENTED | BUNDLE_STATUS_REQUEST_DELIVERY;
     bndl.primary.creation_timestamp = cts;
-    bndl.primary.lifetime = lifetime;
+    bndl.primary.lifetime = std::time::Duration::from_secs(lifetime);
     let binbundle = bndl.to_cbor();
     println!("Bundle-Id: {}", bndl.id());
     if verbose || dryrun {

@@ -152,7 +152,7 @@ fn handle_hop_count_block(mut bp: BundlePack) -> Result<BundlePack> {
     let bpid = bp.id().to_string();
     if let Some(hc) = bp
         .bundle
-        .extension_block_mut(bp7::canonical::HOP_COUNT_BLOCK)
+        .extension_block_by_type_mut(bp7::canonical::HOP_COUNT_BLOCK)
     {
         if hc.hop_count_increase() {
             let (hc_limit, hc_count) = hc
@@ -189,7 +189,7 @@ fn handle_primary_lifetime(bp: BundlePack) -> Result<BundlePack> {
 
 fn handle_bundle_age_block(mut bp: BundlePack) -> Result<BundlePack> {
     if let Some(age) = bp.update_bundle_age() {
-        if age as u128 >= bp.bundle.primary.lifetime {
+        if std::time::Duration::from_micros(age) >= bp.bundle.primary.lifetime {
             warn!("Bundle's lifetime has expired: {}", bp.id());
             delete(bp, LIFETIME_EXPIRED)?;
             bail!("age block lifetime exceeded");
@@ -201,7 +201,7 @@ fn handle_bundle_age_block(mut bp: BundlePack) -> Result<BundlePack> {
 fn handle_previous_node_block(mut bp: BundlePack) -> Result<BundlePack> {
     if let Some(pnb) = bp
         .bundle
-        .extension_block_mut(bp7::canonical::PREVIOUS_NODE_BLOCK)
+        .extension_block_by_type_mut(bp7::canonical::PREVIOUS_NODE_BLOCK)
     {
         let prev_eid = &pnb
             .previous_node_get()
@@ -303,7 +303,7 @@ pub fn forward(mut bp: BundlePack) -> Result<()> {
         // Reset hop count block
         if let Some(hc) = bp
             .bundle
-            .extension_block_mut(bp7::canonical::HOP_COUNT_BLOCK)
+            .extension_block_by_type_mut(bp7::canonical::HOP_COUNT_BLOCK)
         {
             if let Some((hc_limit, mut hc_count)) = hc.hop_count_get() {
                 hc_count -= 1;
@@ -396,7 +396,7 @@ fn is_administrative_record_valid(bp: &BundlePack) -> bool {
         return false;
     }
 
-    let payload = bp.bundle.extension_block(bp7::PAYLOAD_BLOCK);
+    let payload = bp.bundle.extension_block_by_type(bp7::PAYLOAD_BLOCK);
     if payload.is_none() {
         warn!(
             "Bundle with an administrative record flag misses payload block: {}",

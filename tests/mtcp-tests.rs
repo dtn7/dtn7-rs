@@ -10,7 +10,7 @@ fn mpdu_encoding() {
         .source(String::from("dtn://src").into())
         .report_to(String::from("dtn://src").into())
         .creation_timestamp(day0)
-        .lifetime(60 * 60 * 1_000_000)
+        .lifetime(std::time::Duration::from_secs(60 * 60))
         .build()
         .unwrap();
     let mut b = bundle::BundleBuilder::default()
