@@ -189,7 +189,7 @@ fn handle_primary_lifetime(bp: BundlePack) -> Result<BundlePack> {
 
 fn handle_bundle_age_block(mut bp: BundlePack) -> Result<BundlePack> {
     if let Some(age) = bp.update_bundle_age() {
-        if age >= bp.bundle.primary.lifetime {
+        if age as u128 >= bp.bundle.primary.lifetime {
             warn!("Bundle's lifetime has expired: {}", bp.id());
             delete(bp, LIFETIME_EXPIRED)?;
             bail!("age block lifetime exceeded");
