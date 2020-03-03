@@ -64,6 +64,8 @@ pub async fn start_dtnd(cfg: DtnConfig) -> std::io::Result<()> {
     info!("Peer Timeout: {}", (*CONFIG.lock()).peer_timeout);
 
     info!("Web Port: {}", (*CONFIG.lock()).webport);
+    info!("IPv4: {}", (*CONFIG.lock()).v4);
+    info!("IPv6: {}", (*CONFIG.lock()).v6);
 
     let routing = (*CONFIG.lock()).routing.clone();
     (*DTNCORE.lock()).routing_agent = crate::routing::new(&routing);

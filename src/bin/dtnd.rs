@@ -9,7 +9,7 @@ use std::process;
 #[actix_rt::main]
 async fn main() -> std::io::Result<()> {
     let mut cfg = DtnConfig::new();
-
+    
     if cfg!(debug_assertions) {
         // Whenever a threads has a panic, quit the whole program!
         panic::set_hook(Box::new(|p| {
@@ -118,6 +118,20 @@ async fn main() -> std::io::Result<()> {
                 .help("Set log level to debug")
                 .takes_value(false),
         )
+        .arg(
+            Arg::with_name("ipv4")
+                .short("4")
+                .long("ipv4")
+                .help("Use IPv4")
+                .takes_value(false),
+        )
+        .arg(
+            Arg::with_name("ipv6")
+                .short("6")
+                .long("ipv6")
+                .help("Use IPv6")
+                .takes_value(false),
+        )        
         .get_matches();
 
     if matches.is_present("debug") || cfg.debug {
@@ -132,6 +146,12 @@ async fn main() -> std::io::Result<()> {
         );
     }
     pretty_env_logger::init_timed();
+
+    if matches.is_present("ipv6") {
+        cfg.v6 = true;
+        cfg.v4 = false;
+    }
+    cfg.v4 = matches.is_present("ipv4") || cfg.v4;
 
     if let Some(cfgfile) = matches.value_of("config") {
         cfg = DtnConfig::from(std::path::PathBuf::from(cfgfile));

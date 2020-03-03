@@ -309,7 +309,7 @@ async fn download_hex(req: HttpRequest) -> Result<String> {
 
 pub async fn spawn_httpd() -> std::io::Result<()> {
     let port = (*CONFIG.lock()).webport;
-    HttpServer::new(|| {
+    let server = HttpServer::new(|| {
         App::new()
             .service(index)
             .service(status_node_id)
@@ -331,9 +331,15 @@ pub async fn spawn_httpd() -> std::io::Result<()> {
             .service(endpoint_hex)
             .service(download)
             .service(download_hex)
-    })
-    //.bind(&format!("0.0.0.0:{}", port))?
-    .bind(&format!("[::]:{}", port))?
-    .run()
-    .await
+    });
+    let v4 = (*CONFIG.lock()).v4;
+    let v6 = (*CONFIG.lock()).v6;
+    let server = if v4 && !v6 {
+        server.bind(&format!("0.0.0.0:{}", port))?
+    } else if !v4 && v6 {
+        server.bind(&format!("[::1]:{}", port))?
+    } else {
+        server.bind(&format!("[::]:{}", port))?
+    };
+    server.run().await
 }
