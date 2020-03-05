@@ -2,8 +2,7 @@ use log::{debug, error};
 
 fn janitor() {
     debug!("running janitor");
-    //DTNCORE.lock().unwrap().process();
-    // TODO: reimpl janitor with new processing
+
     debug!("cleaning up peers");
     crate::core::process_peers();
 

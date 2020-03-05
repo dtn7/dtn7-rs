@@ -59,9 +59,7 @@ impl Server {
 }
 
 async fn announcer(socket: std::net::UdpSocket) {
-    let mut task = interval(Duration::from_millis(
-        crate::CONFIG.lock().announcement_interval,
-    ));
+    let mut task = interval(crate::CONFIG.lock().announcement_interval);
     let mut sock = UdpSocket::from_std(socket).unwrap();
     loop {
         task.tick().await;

@@ -1,5 +1,7 @@
 use crate::core::application_agent::SimpleApplicationAgent;
 use crate::core::helpers::rnd_peer;
+use crate::core::peer::DtnPeer;
+use crate::core::peer::PeerType;
 use crate::peers_count;
 use crate::DtnConfig;
 use crate::CONFIG;
@@ -22,12 +24,38 @@ use std::convert::TryFrom;
 use tinytemplate::TinyTemplate;
 
 #[derive(Serialize)]
-struct Context<'a> {
+struct IndexContext<'a> {
     config: &'a DtnConfig,
+    janitor: String,
+    announcement: String,
+    timeout: String,
     num_peers: usize,
     num_bundles: usize,
 }
 
+#[derive(Serialize)]
+struct PeersContext<'a> {
+    config: &'a DtnConfig,
+    peers: &'a [PeerEntry],
+}
+#[derive(Serialize)]
+struct PeerEntry {
+    name: String,
+    con_type: PeerType,
+    last: String,
+}
+
+#[derive(Serialize)]
+struct BundlesContext<'a> {
+    config: &'a DtnConfig,
+    bundles: &'a [String],
+}
+#[derive(Serialize)]
+struct BundleEntry {
+    bid: String,
+    src: String,
+    dst: String,
+}
 pub fn fn_guard_localhost(req: &RequestHead) -> bool {
     if let Some(addr) = req.peer_addr {
         if addr.ip().is_loopback() {
@@ -50,14 +78,83 @@ async fn index() -> impl Responder {
     let mut tt = TinyTemplate::new();
     tt.add_template("index", template_str)
         .expect("error adding template");
-    let context = Context {
+    let announcement =
+        humantime::format_duration((*CONFIG.lock()).announcement_interval).to_string();
+    let janitor = humantime::format_duration((*CONFIG.lock()).janitor_interval).to_string();
+    let timeout = humantime::format_duration((*CONFIG.lock()).peer_timeout).to_string();
+    let context = IndexContext {
         config: &(*CONFIG.lock()),
+        announcement,
+        janitor,
+        timeout,
         num_peers: peers_count(),
-        num_bundles: 0,
+        num_bundles: (*DTNCORE.lock()).bundles().len(),
     };
 
     let rendered = tt
         .render("index", &context)
+        .expect("error rendering template");
+    HttpResponse::build(StatusCode::OK)
+        .content_type("text/html; charset=utf-8")
+        .body(rendered)
+}
+
+#[get("/peers")]
+async fn web_peers() -> impl Responder {
+    // "dtn7 ctrl interface"
+    let template_str = include_str!("../../webroot/peers.html");
+    let mut tt = TinyTemplate::new();
+    tt.add_template("peers", template_str)
+        .expect("error adding template");
+    let now = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .expect("time went backwards")
+        .as_secs();
+    let peers_vec: Vec<PeerEntry> = (*PEERS.lock())
+        .values()
+        .map(|p| {
+            let time_since = if p.con_type == PeerType::Dynamic {
+                humantime::format_duration(std::time::Duration::new(now - p.last_contact, 0))
+                    .to_string()
+            } else {
+                "n/a".to_string()
+            };
+            PeerEntry {
+                name: p.eid.to_string(),
+                con_type: p.con_type.clone(),
+                last: time_since,
+            }
+        })
+        .collect();
+
+    let context = PeersContext {
+        config: &(*CONFIG.lock()),
+        peers: peers_vec.as_slice(),
+    };
+    //let peers_vec: Vec<&DtnPeer> = (*PEERS.lock()).values().collect();
+    let rendered = tt
+        .render("peers", &context)
+        .expect("error rendering template");
+    HttpResponse::build(StatusCode::OK)
+        .content_type("text/html; charset=utf-8")
+        .body(rendered)
+}
+
+#[get("/bundles")]
+async fn web_bundles() -> impl Responder {
+    // "dtn7 ctrl interface"
+    let template_str = include_str!("../../webroot/bundles.html");
+    let mut tt = TinyTemplate::new();
+    tt.add_template("bundles", template_str)
+        .expect("error adding template");
+    let bundles_vec = (*DTNCORE.lock()).bundles();
+    let context = BundlesContext {
+        config: &(*CONFIG.lock()),
+        bundles: bundles_vec.as_slice(),
+    };
+    //let peers_vec: Vec<&DtnPeer> = (*PEERS.lock()).values().collect();
+    let rendered = tt
+        .render("bundles", &context)
         .expect("error rendering template");
     HttpResponse::build(StatusCode::OK)
         .content_type("text/html; charset=utf-8")
@@ -312,6 +409,8 @@ pub async fn spawn_httpd() -> std::io::Result<()> {
     let server = HttpServer::new(|| {
         App::new()
             .service(index)
+            .service(web_peers)
+            .service(web_bundles)
             .service(status_node_id)
             .service(status_eids)
             .service(status_bundles)

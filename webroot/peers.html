@@ -1,0 +1,38 @@
+<html>
+
+<head>
+    <style>
+        body \{ font-family: monospace;
+        }
+
+        .block \{ margin: 4px;
+        }
+    </style>
+    <title>dtn7: {config.nodeid}</title>
+</head>
+
+<body>
+    <h1>dtn7 local node: <a href="/">{config.nodeid}</a></h1>
+
+    <div class="block">
+        <h2>Peers</h2>
+        <div class="block">
+            <table margin="4px">
+                <tr>
+                    <th width="40%" align="left">Name</th>
+                    <th width="10%" align="left">Type</th>
+                    <th width="20%" align="left">Last Seen</th>
+                </tr>
+                {{for p in peers}}
+                <tr>
+                    <td>{p.name}</td>
+                    <td>{p.con_type}</td>
+                    <td>{p.last}</td>
+                </tr>
+                {{ endfor }}
+            </table>
+        </div>
+    </div>
+</body>
+
+</html>
