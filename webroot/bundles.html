@@ -1,0 +1,34 @@
+<html>
+
+<head>
+    <style>
+        body \{ font-family: monospace;
+        }
+
+        .block \{ margin: 4px;
+        }
+    </style>
+    <title>dtn7: {config.nodeid}</title>
+</head>
+
+<body>
+    <h1>dtn7 local node: <a href="/">{config.nodeid}</a></h1>
+
+    <div class="block">
+        <h2>Bundles</h2>
+        <div class="block">
+            <table margin="4px">
+                <tr>
+                    <th width="40%" align="left">Bundle ID</th>
+                </tr>
+                {{for b in bundles}}
+                <tr>
+                    <td><a href="/download?{b}">{b}</a></td>
+                </tr>
+                {{ endfor }}
+            </table>
+        </div>
+    </div>
+</body>
+
+</html>

@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 use std::net::IpAddr;
 use std::time::{SystemTime, UNIX_EPOCH};
 
-#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
+#[derive(Debug, Serialize, Deserialize, Clone, Copy, PartialEq)]
 pub enum PeerType {
     Static,
     Dynamic,
@@ -76,7 +76,7 @@ impl DtnPeer {
             .duration_since(UNIX_EPOCH)
             .expect("time went backwards")
             .as_secs();
-        now - self.last_contact < (*CONFIG.lock()).peer_timeout
+        now - self.last_contact < (*CONFIG.lock()).peer_timeout.as_secs()
     }
 
     pub fn node_name(&self) -> String {

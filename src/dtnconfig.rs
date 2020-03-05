@@ -6,6 +6,7 @@ use rand::distributions::Alphanumeric;
 use rand::{thread_rng, Rng};
 use serde::Serialize;
 use std::path::PathBuf;
+use std::time::Duration;
 
 #[derive(Debug, Default, Clone, Serialize)]
 pub struct DtnConfig {
@@ -15,12 +16,12 @@ pub struct DtnConfig {
     pub nodeid: String,
     pub host_eid: EndpointID,
     pub webport: u16,
-    pub announcement_interval: u64,
-    pub janitor_interval: u64,
+    pub announcement_interval: Duration,
+    pub janitor_interval: Duration,
     pub endpoints: Vec<String>,
     pub clas: Vec<String>,
     pub routing: String,
-    pub peer_timeout: u64,
+    pub peer_timeout: Duration,
     pub statics: Vec<DtnPeer>,
 }
 
@@ -59,18 +60,25 @@ impl From<PathBuf> for DtnConfig {
             .unwrap_or_else(|_| i64::from(dtncfg.webport)) as u16;
         debug!("webport: {:?}", dtncfg.webport);
 
-        dtncfg.janitor_interval = s
-            .get_int("core.janitor")
-            .unwrap_or(dtncfg.janitor_interval as i64) as u64;
+        dtncfg.janitor_interval = if let Ok(interval) = s.get_str("core.janitor") {
+            humantime::parse_duration(&interval).unwrap_or(Duration::new(0, 0))
+        } else {
+            dtncfg.janitor_interval
+        };
         debug!("janitor: {:?}", dtncfg.janitor_interval);
 
-        dtncfg.announcement_interval =
-            s.get_int("discovery.interval")
-                .unwrap_or(dtncfg.announcement_interval as i64) as u64;
+        dtncfg.announcement_interval = if let Ok(interval) = s.get_str("discovery.interval") {
+            humantime::parse_duration(&interval).unwrap_or(Duration::new(0, 0))
+        } else {
+            dtncfg.announcement_interval
+        };
         debug!("discovery-interval: {:?}", dtncfg.announcement_interval);
-        dtncfg.peer_timeout = s
-            .get_int("discovery.peer-timeout")
-            .unwrap_or(dtncfg.peer_timeout as i64) as u64;
+
+        dtncfg.peer_timeout = if let Ok(interval) = s.get_str("discovery.peer-timeout") {
+            humantime::parse_duration(&interval).unwrap_or(Duration::new(0, 0))
+        } else {
+            dtncfg.peer_timeout
+        };
         debug!("discovery-peer-timeout: {:?}", dtncfg.peer_timeout);
 
         if let Ok(peers) = s.get_array("statics.peers") {
@@ -116,13 +124,13 @@ impl DtnConfig {
             v6: false,
             nodeid: node_rnd.clone(),
             host_eid: format!("dtn://{}", node_rnd).into(),
-            announcement_interval: 2000, // in ms
+            announcement_interval: "2s".parse::<humantime::Duration>().unwrap().into(),
             webport: 3000,
-            janitor_interval: 10000, // in ms
+            janitor_interval: "10s".parse::<humantime::Duration>().unwrap().into(),
             endpoints: Vec::new(),
             clas: Vec::new(),
             routing: "epidemic".into(),
-            peer_timeout: 2 * 10, // in seconds
+            peer_timeout: "20s".parse::<humantime::Duration>().unwrap().into(),
             statics: Vec::new(),
         }
     }

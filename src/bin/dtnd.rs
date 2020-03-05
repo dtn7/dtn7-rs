@@ -51,16 +51,16 @@ async fn main() -> std::io::Result<()> {
             Arg::with_name("interval")
                 .short("i")
                 .long("interval")
-                .value_name("MS")
-                .help("Sets service discovery interval (0 = deactive)")
+                .value_name("humantime")
+                .help("Sets service discovery interval (0 = deactive, 2s = 2 seconds, 3m = 3 minutes, etc.)")
                 .takes_value(true),
         )
         .arg(
             Arg::with_name("janitor")
                 .short("j")
                 .long("janitor")
-                .value_name("MS")
-                .help("Sets janitor interval (0 = deactive)")
+                .value_name("humantime")
+                .help("Sets janitor interval (0 = deactive, 2s = 2 seconds, 3m = 3 minutes, etc.)")
                 .takes_value(true),
         )
         .arg(
@@ -75,8 +75,8 @@ async fn main() -> std::io::Result<()> {
             Arg::with_name("peertimeout")
                 .short("p")
                 .long("peer-timeout")
-                .value_name("SECONDS")
-                .help("Sets timeout to remove peer")
+                .value_name("humantime")
+                .help("Sets timeout to remove peer (default = 20s)")
                 .takes_value(true),
         )
         .arg(
@@ -163,9 +163,12 @@ async fn main() -> std::io::Result<()> {
     bp7::EndpointID::from(format!("dtn://{}", cfg.nodeid.clone())); // validate node id
 
     if let Some(i) = matches.value_of("interval") {
-        cfg.announcement_interval = i
-            .parse::<u64>()
-            .expect("Could not parse interval parameter!");
+        if i == "0" {
+            cfg.announcement_interval = std::time::Duration::new(0,0);    
+        } else {
+            cfg.announcement_interval = humantime::parse_duration(i)
+                .expect("Could not parse interval parameter!");
+        }
     }
     if let Some(i) = matches.value_of("webport") {
         cfg.webport = i
@@ -174,15 +177,21 @@ async fn main() -> std::io::Result<()> {
     }
 
     if let Some(i) = matches.value_of("janitor") {
-        cfg.janitor_interval = i
-            .parse::<u64>()
-            .expect("Could not parse janitor parameter!");
+        if i == "0" {
+            cfg.janitor_interval = std::time::Duration::new(0,0);    
+        } else {
+            cfg.janitor_interval = humantime::parse_duration(i)
+                .expect("Could not parse janitor parameter!");
+        }        
     }
-
-    if let Some(t) = matches.value_of("peertimeout") {
-        cfg.peer_timeout = t
-            .parse::<u64>()
-            .expect("Could not parse peer timeout parameter!");
+    
+    if let Some(i) = matches.value_of("peertimeout") {
+        if i == "0" {
+            cfg.peer_timeout = std::time::Duration::new(0,0);    
+        } else {
+            cfg.peer_timeout = humantime::parse_duration(i)
+                .expect("Could not parse peer timeout parameter!");
+        }            
     }
 
     if let Some(r) = matches.value_of("routing") {

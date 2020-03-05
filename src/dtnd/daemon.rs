@@ -61,7 +61,20 @@ pub async fn start_dtnd(cfg: DtnConfig) -> std::io::Result<()> {
     }
     info!("Local Node ID: {}", (*CONFIG.lock()).nodeid);
 
-    info!("Peer Timeout: {}", (*CONFIG.lock()).peer_timeout);
+    info!(
+        "Announcement Interval: {}",
+        humantime::format_duration((*CONFIG.lock()).announcement_interval)
+    );
+
+    info!(
+        "Janitor Interval: {}",
+        humantime::format_duration((*CONFIG.lock()).janitor_interval)
+    );
+
+    info!(
+        "Peer Timeout: {}",
+        humantime::format_duration((*CONFIG.lock()).peer_timeout)
+    );
 
     info!("Web Port: {}", (*CONFIG.lock()).webport);
     info!("IPv4: {}", (*CONFIG.lock()).v4);
@@ -105,10 +118,10 @@ pub async fn start_dtnd(cfg: DtnConfig) -> std::io::Result<()> {
     }
 
     start_convergencylayers().await;
-    if CONFIG.lock().janitor_interval != 0 {
+    if CONFIG.lock().janitor_interval.as_micros() != 0 {
         janitor::spawn_janitor();
     }
-    if CONFIG.lock().announcement_interval != 0 {
+    if CONFIG.lock().announcement_interval.as_micros() != 0 {
         if let Err(errmsg) = service_discovery::spawn_service_discovery().await {
             error!("Error spawning service discovery: {:?}", errmsg);
         }
