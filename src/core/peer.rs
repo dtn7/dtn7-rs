@@ -59,15 +59,15 @@ impl DtnPeer {
     /// Example
     ///
     /// ```
-    /// use std::{thread, time};
+    /// use std::{thread, time::Duration};
     /// use dtn7::core::*;
     /// use dtn7::CONFIG;
     ///
-    /// (*CONFIG.lock()).peer_timeout = 1;
+    /// (*CONFIG.lock()).peer_timeout = Duration::from_secs(1);
     /// let mut peer = helpers::rnd_peer();
     /// assert_eq!(peer.still_valid(), true);
     ///
-    /// thread::sleep(time::Duration::from_secs(2));
+    /// thread::sleep(Duration::from_secs(2));
     /// assert_eq!(peer.still_valid(), false);
     /// ```
 

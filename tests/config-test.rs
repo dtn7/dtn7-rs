@@ -15,15 +15,15 @@ fn config_test() {
     println!("debug: {:?}", s.get_bool("debug").unwrap_or(false));
     println!("nodeid: {:?}", s.get_str("nodeid").unwrap());
     println!("routing: {:?}", s.get_str("routing").unwrap());
-    println!("janitor: {:?}", s.get_int("core.janitor").unwrap());
+    println!("janitor: {:?}", s.get_str("core.janitor").unwrap());
 
     println!(
         "discovery-interval: {:?}",
-        s.get_int("discovery.interval").unwrap()
+        s.get_str("discovery.interval").unwrap()
     );
     println!(
         "discovery-peer-timeout: {:?}",
-        s.get_int("discovery.peer-timeout").unwrap()
+        s.get_str("discovery.peer-timeout").unwrap()
     );
 
     let peers = s.get_array("statics.peers");
