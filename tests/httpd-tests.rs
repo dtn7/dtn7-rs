@@ -6,6 +6,9 @@ extern crate serde_derive;
 #[derive(Serialize)]
 struct Context<'a> {
     config: &'a DtnConfig,
+    janitor: String,
+    announcement: String,
+    timeout: String,
     num_peers: u64,
     num_bundles: u64,
 }
@@ -17,6 +20,9 @@ fn template_test() {
     let cfg = DtnConfig::new();
     let context = Context {
         config: &cfg,
+        janitor: "2s".to_owned(),
+        announcement: "10s".to_owned(),
+        timeout: "20s".to_owned(),
         num_peers: 4,
         num_bundles: 10,
     };

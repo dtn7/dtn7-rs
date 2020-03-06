@@ -1,6 +1,5 @@
 use bp7::bundle::*;
 use bp7::*;
-use chrono::{DateTime, Utc};
 use clap::{crate_authors, crate_version, App, Arg};
 use std::io;
 use std::io::prelude::*;
@@ -138,7 +137,7 @@ fn main() {
             .text()
             .unwrap();
         println!("Result: {}", res);
-        let now: DateTime<Utc> = Utc::now();
-        println!("Time: {}", now);
+        let now = std::time::SystemTime::now();
+        println!("Time: {}", humantime::format_rfc3339(now));
     }
 }

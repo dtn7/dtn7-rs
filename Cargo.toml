@@ -1,6 +1,6 @@
 [package]
 name = "dtn7"
-version = "0.8.0"
+version = "0.8.1"
 authors = ["Lars Baumgaertner <baumgaertner@cs.tu-darmstadt.de>"]
 description = "Rust delay-tolerant-networking daemon and CLI tools based upon bp7 (dtn version 7 draft)"
 edition = "2018"
@@ -12,7 +12,6 @@ exclude = [".vscode/", ".travis.yml"]
 readme = "README.md"
 
 [dependencies]
-chrono = "0.4"
 serde = { version = "1.0", features = ["derive"] }
 serde_derive = "1.0.104"
 serde_cbor = "0.11"
@@ -21,13 +20,13 @@ serde_bytes = "0.11"
 url = "2.1"
 derive_builder = "0.9"
 rand = "0.7"
-tokio = { version = "0.2.11", features = ["full"] }
+tokio = { version = "0.2.13", features = ["full"] }
 futures = "0.3.4"
 pretty_env_logger = "0.4.0"
 log = "0.4"
 net2 = "0.2"
 bytes = "0.5.4"
-clap = "2.0"
+clap = "2.33.0"
 config = "0.10.1"
 lazy_static = "1.4.0"
 bp7 = "0.5"
@@ -39,7 +38,7 @@ actix-rt = "1.0.0"
 tokio-util = "0.2.0"
 futures-util = "0.3.4"
 async-trait = "0.1.24"
-attohttpc = { version = "0.11.0", default-features = false }
+attohttpc = { version = "0.11.1", default-features = false }
 tinytemplate = "1.0.3"
 humantime = "2.0.0"
 #rweb = { version = "0.4.0", default-features = false }
