@@ -14,9 +14,11 @@ use actix_web::HttpResponse;
 use actix_web::{
     get, http::StatusCode, post, web, App, HttpRequest, HttpServer, Responder, Result,
 };
-use anyhow::anyhow;
+use anyhow::{anyhow, bail};
 use bp7::dtntime::CreationTimestamp;
 use bp7::helpers::rnd_bundle;
+use bp7::EndpointID;
+use bp7::DTN_NONE;
 use futures::StreamExt;
 use log::{debug, error, info};
 use serde::Serialize;
@@ -274,8 +276,66 @@ async fn insert_post(mut body: web::Payload) -> Result<String> {
     }
 }
 
+#[post("/send", guard = "fn_guard_localhost")]
+async fn send_post(req: HttpRequest, mut body: web::Payload) -> Result<String> {
+    let params = url::form_urlencoded::parse(req.query_string().as_bytes());
+    let mut dst: EndpointID = DTN_NONE;
+    let mut lifetime = std::time::Duration::from_secs(60 * 60);
+    for (k, v) in params {
+        if k == "dst" {
+            dst = v.to_string().into();
+        } else if k == "lifetime" {
+            if let Ok(dur) = dbg!(humantime::parse_duration(&v)) {
+                lifetime = dur;
+            }
+        }
+    }
+    if dst == DTN_NONE {
+        return Err(actix_web::error::ErrorBadRequest(anyhow!(
+            "Missing destination endpoint id!"
+        )));
+    }
+    let src = (*CONFIG.lock()).host_eid.clone();
+    let pblock = bp7::primary::PrimaryBlockBuilder::default()
+        .bundle_control_flags(
+            bp7::bundle::BUNDLE_MUST_NOT_FRAGMENTED | bp7::bundle::BUNDLE_STATUS_REQUEST_DELIVERY,
+        )
+        .destination(dst)
+        .source(src.clone())
+        .report_to(src)
+        .creation_timestamp(CreationTimestamp::now())
+        .lifetime(lifetime)
+        .build()
+        .unwrap();
+
+    let mut bytes = web::BytesMut::new();
+    while let Some(item) = body.next().await {
+        bytes.extend_from_slice(&item?);
+    }
+    let b_len = bytes.len();
+    debug!("Received for sending: {:?}", b_len);
+    let mut bndl = bp7::bundle::BundleBuilder::default()
+        .primary(pblock)
+        .canonicals(vec![
+            bp7::canonical::new_payload_block(0, bytes.to_vec()),
+            bp7::canonical::new_hop_count_block(2, 0, 32),
+        ])
+        .build()
+        .unwrap();
+    bndl.set_crc(bp7::crc::CRC_NO);
+
+    debug!(
+        "Sending bundle {} to {}",
+        bndl.id(),
+        bndl.primary.destination
+    );
+
+    crate::core::processing::send_bundle(bndl);
+    Ok(format!("Sent payload with {} bytes", b_len))
+}
+
 #[post("/push")]
-async fn push_post(req: HttpRequest, mut body: web::Payload) -> Result<String> {
+async fn push_post(mut body: web::Payload) -> Result<String> {
     let mut bytes = web::BytesMut::new();
     while let Some(item) = body.next().await {
         bytes.extend_from_slice(&item?);
@@ -423,6 +483,7 @@ pub async fn spawn_httpd() -> std::io::Result<()> {
             .service(debug_rnd_peer)
             .service(insert_get)
             .service(insert_post)
+            .service(send_post)
             .service(push_post)
             .service(register)
             .service(unregister)
