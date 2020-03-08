@@ -61,21 +61,21 @@ impl From<PathBuf> for DtnConfig {
         debug!("webport: {:?}", dtncfg.webport);
 
         dtncfg.janitor_interval = if let Ok(interval) = s.get_str("core.janitor") {
-            humantime::parse_duration(&interval).unwrap_or(Duration::new(0, 0))
+            humantime::parse_duration(&interval).unwrap_or_else(|_| Duration::new(0, 0))
         } else {
             dtncfg.janitor_interval
         };
         debug!("janitor: {:?}", dtncfg.janitor_interval);
 
         dtncfg.announcement_interval = if let Ok(interval) = s.get_str("discovery.interval") {
-            humantime::parse_duration(&interval).unwrap_or(Duration::new(0, 0))
+            humantime::parse_duration(&interval).unwrap_or_else(|_| Duration::new(0, 0))
         } else {
             dtncfg.announcement_interval
         };
         debug!("discovery-interval: {:?}", dtncfg.announcement_interval);
 
         dtncfg.peer_timeout = if let Ok(interval) = s.get_str("discovery.peer-timeout") {
-            humantime::parse_duration(&interval).unwrap_or(Duration::new(0, 0))
+            humantime::parse_duration(&interval).unwrap_or_else(|_| Duration::new(0, 0))
         } else {
             dtncfg.peer_timeout
         };

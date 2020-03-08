@@ -14,13 +14,13 @@ use actix_web::HttpResponse;
 use actix_web::{
     get, http::StatusCode, post, web, App, HttpRequest, HttpServer, Responder, Result,
 };
-use anyhow::{anyhow, bail};
+use anyhow::anyhow;
 use bp7::dtntime::CreationTimestamp;
 use bp7::helpers::rnd_bundle;
 use bp7::EndpointID;
 use bp7::DTN_NONE;
 use futures::StreamExt;
-use log::{debug, error, info};
+use log::{debug, info};
 use serde::Serialize;
 use std::convert::TryFrom;
 use tinytemplate::TinyTemplate;

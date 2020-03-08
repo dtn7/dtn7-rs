@@ -1,8 +1,4 @@
 use crate::cla::ConvergencyLayerAgent;
-use crate::peer_find_by_remote;
-use crate::routing::RoutingNotifcation;
-use crate::routing_notify;
-use crate::DTNCORE;
 use async_trait::async_trait;
 use bp7::{Bundle, ByteBuffer};
 use bytes::buf::Buf;
