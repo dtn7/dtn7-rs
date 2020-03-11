@@ -77,6 +77,7 @@ For an example take a look at `examples/dtn7.toml.example`.
 
 ### Helpers
 
+Querying information from `dtnd`:
 ```
 $ dtnquery -h
 dtnquery 0.6.0
@@ -101,7 +102,10 @@ SUBCOMMANDS:
     nodeid     Local node id
     peers      list known peers
     store      list bundles status in store
+```
 
+Receiving bundles: 
+```
 $ dtnrecv -h
 dtnrecv 0.4.0
 Lars Baumgaertner <baumgaertner@cs.tu-darmstadt.de>
@@ -119,7 +123,10 @@ OPTIONS:
     -e, --endpoint <ENDPOINT>    Specify local endpoint, e.g. '/incoming')
     -o, --output <FILE>          Write bundle payload to file instead of stdout
     -p, --port <PORT>            Local web port (default = 3000)
-   
+```
+
+Sending bundles:
+```
 $ dtnsend -h
 dtnsend 0.6.0
 Lars Baumgaertner <baumgaertner@cs.tu-darmstadt.de>
