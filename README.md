@@ -6,19 +6,23 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE-MIT)
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE-APACHE)
 
-Rust implementation of a Daemon for DTN7 Bundle Protocol draft https://tools.ietf.org/html/draft-ietf-dtn-bpbis-23
+Rust implementation of a daemon for DTN7 Bundle Protocol draft https://tools.ietf.org/html/draft-ietf-dtn-bpbis-23
 
 Plus:
 * Minimal TCP Convergence Layer Protocol https://tools.ietf.org/html/draft-ietf-dtn-mtcpcl-01
 * A simple HTTP Convergence Layer 
+* Convenient command line tools to interact with the daemon
+* A simple web interface for status information about `dtnd` 
 
 A similar golang implementation can be found here: https://github.com/dtn7/dtn7-go
 
 The actual BP7 implementation can be found here: https://github.com/dtn7/bp7-rs
 
-Currently a very basic service discovery, MTCP & HTTP CLs, flooding/epidemic/sink-routing and a rest command interface are implemented.
+Currently a very basic service discovery, MTCP & HTTP CLs, flooding/epidemic/sink-routing and a rest command interface are implemented. Both addressing schemes, *dtn* as well as *ipn* are supported. 
+
 **Beware, the API is not always idiomatic rust and lacks documentation and tests at the moment.**
-I consider this code to be very unpolished and far from finished. Correct forwarding, administrative records and various other pieces are also not much tested yet. Furthermore, the rest interface is totally undocumented and unfinished :)
+
+I consider this code to be work-in-progress and not finished yet. Also the rest interface is totally undocumented and unfinished at the moment:)
 
 ## Installation
 
@@ -57,6 +61,19 @@ OPTIONS:
     -s, --static-peer <PEER>...        Adds a static peer (e.g. mtcp://192.168.2.1:2342/node2)
     -w, --web-port <PORT>              Sets web interface port (default = 3000)
 ```
+
+Example usage for *node1* with *epidemic* routing, *mtcp* convergence layer and the default endpoint *'incoming'*:
+```
+$ dtnd -n node1 -r epidemic -C mtcp -e incoming
+```
+
+The same but with ipn addressing scheme and a default endpoint at *23.42*:
+```
+$ dtnd -n 23 -r epidemic -C mtcp -e 42
+```
+
+Configuration can also happen via a config file. 
+For an example take a look at `examples/dtn7.toml.example`.
 
 ### Helpers
 

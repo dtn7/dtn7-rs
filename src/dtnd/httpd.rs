@@ -285,7 +285,7 @@ async fn send_post(req: HttpRequest, mut body: web::Payload) -> Result<String> {
         if k == "dst" {
             dst = v.to_string().into();
         } else if k == "lifetime" {
-            if let Ok(dur) = dbg!(humantime::parse_duration(&v)) {
+            if let Ok(dur) = humantime::parse_duration(&v) {
                 lifetime = dur;
             }
         }
@@ -358,9 +358,11 @@ async fn register(req: HttpRequest) -> Result<String> {
     let path = req.query_string();
     // TODO: support non-node-specific EIDs
     if path.chars().all(char::is_alphanumeric) {
-        let eid = format!("dtn://{}/{}", (*CONFIG.lock()).nodeid, path);
-        (*DTNCORE.lock())
-            .register_application_agent(SimpleApplicationAgent::new_with(eid.clone().into()));
+        let host_eid = (*CONFIG.lock()).host_eid.clone();
+        let eid = host_eid
+            .endpoint(path)
+            .expect("Error constructing new endpoint");
+        (*DTNCORE.lock()).register_application_agent(SimpleApplicationAgent::new_with(eid.clone()));
         Ok(format!("Registered {}", eid))
     } else {
         Err(actix_web::error::ErrorBadRequest(anyhow!(
@@ -374,9 +376,13 @@ async fn unregister(req: HttpRequest) -> Result<String> {
     let path = req.query_string();
     // TODO: support non-node-specific EIDs
     if path.chars().all(char::is_alphanumeric) {
-        let eid = format!("dtn://{}/{}", (*CONFIG.lock()).nodeid, path);
+        let host_eid = (*CONFIG.lock()).host_eid.clone();
+        let eid = host_eid
+            .endpoint(path)
+            .expect("Error constructing new endpoint");
+
         (*DTNCORE.lock())
-            .unregister_application_agent(SimpleApplicationAgent::new_with(eid.clone().into()));
+            .unregister_application_agent(SimpleApplicationAgent::new_with(eid.clone()));
         Ok(format!("Unregistered {}", eid))
     } else {
         Err(actix_web::error::ErrorBadRequest(anyhow!(
@@ -389,8 +395,11 @@ async fn unregister(req: HttpRequest) -> Result<String> {
 async fn endpoint(req: HttpRequest) -> Result<HttpResponse> {
     let path = req.query_string();
     if path.chars().all(char::is_alphanumeric) {
-        let eid = format!("dtn://{}/{}", (*CONFIG.lock()).nodeid, path); // TODO: support non-node-specific EIDs
-        if let Some(aa) = (*DTNCORE.lock()).get_endpoint_mut(&eid.into()) {
+        let host_eid = (*CONFIG.lock()).host_eid.clone();
+        let eid = host_eid
+            .endpoint(path)
+            .expect("Error constructing new endpoint"); // TODO: support non-node-specific EIDs
+        if let Some(aa) = (*DTNCORE.lock()).get_endpoint_mut(&eid) {
             if let Some(mut bundle) = aa.pop() {
                 let cbor_bundle = bundle.to_cbor();
                 Ok(HttpResponse::Ok()
@@ -417,8 +426,12 @@ async fn endpoint(req: HttpRequest) -> Result<HttpResponse> {
 async fn endpoint_hex(req: HttpRequest) -> Result<String> {
     let path = req.query_string();
     if path.chars().all(char::is_alphanumeric) {
-        let eid = format!("dtn://{}/{}", (*CONFIG.lock()).nodeid, path); // TODO: support non-node-specific EIDs
-        if let Some(aa) = (*DTNCORE.lock()).get_endpoint_mut(&eid.into()) {
+        let host_eid = (*CONFIG.lock()).host_eid.clone();
+        let eid = host_eid
+            .endpoint(path)
+            .expect("Error constructing new endpoint");
+        // TODO: support non-node-specific EIDs
+        if let Some(aa) = (*DTNCORE.lock()).get_endpoint_mut(&eid) {
             if let Some(mut bundle) = aa.pop() {
                 Ok(bp7::helpers::hexify(&bundle.to_cbor()))
             } else {
