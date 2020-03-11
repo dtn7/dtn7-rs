@@ -1,6 +1,6 @@
 [package]
 name = "dtn7"
-version = "0.8.4"
+version = "0.8.5"
 authors = ["Lars Baumgaertner <baumgaertner@cs.tu-darmstadt.de>"]
 description = "Rust delay-tolerant-networking daemon and CLI tools based upon bp7 (dtn version 7 draft)"
 edition = "2018"
@@ -29,7 +29,7 @@ bytes = "0.5.4"
 clap = "2.33.0"
 config = "0.10.1"
 lazy_static = "1.4.0"
-bp7 = "0.5"
+bp7 = "0.5.3"
 crossbeam = "0.7"
 anyhow = "1.0.26"
 parking_lot = "0.10"
