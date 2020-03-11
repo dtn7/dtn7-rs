@@ -60,18 +60,30 @@ fn main() {
                 .help("hex output")
                 .takes_value(false),
         )
+        .arg(
+            Arg::with_name("ipv6")
+                .short("6")
+                .long("ipv6")
+                .help("Use IPv6")
+                .takes_value(false),
+        )
         .get_matches();
 
     let verbose: bool = matches.is_present("verbose");
     let hex: bool = matches.is_present("hex");
     let port = std::env::var("DTN_WEB_PORT").unwrap_or_else(|_| "3000".into());
     let port = matches.value_of("port").unwrap_or(&port); // string is fine no need to parse number
-
+    let localhost = if matches.is_present("ipv6") {
+        "[::1]"
+    } else {
+        "127.0.0.1"
+    };
     let local_url = if let Some(endpoint) = matches.value_of("endpoint") {
-        format!("http://127.0.0.1:{}/endpoint?{}", port, endpoint)
+        format!("http://{}:{}/endpoint?{}", localhost, port, endpoint)
     } else {
         format!(
-            "http://127.0.0.1:{}/download?{}",
+            "http://{}:{}/download?{}",
+            localhost,
             port,
             matches.value_of("bundleid").unwrap()
         )

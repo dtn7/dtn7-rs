@@ -14,6 +14,13 @@ fn main() {
                 .required(false)
                 .takes_value(true),
         )
+        .arg(
+            Arg::with_name("ipv6")
+                .short("6")
+                .long("ipv6")
+                .help("Use IPv6")
+                .takes_value(false),
+        )
         .subcommand(SubCommand::with_name("eids").about("list registered endpoint IDs"))
         .subcommand(SubCommand::with_name("peers").about("list known peers"))
         .subcommand(
@@ -33,9 +40,14 @@ fn main() {
     let port = std::env::var("DTN_WEB_PORT").unwrap_or_else(|_| "3000".into());
     let port = matches.value_of("port").unwrap_or(&port); // string is fine no need to parse number
 
+    let localhost = if matches.is_present("ipv6") {
+        "[::1]"
+    } else {
+        "127.0.0.1"
+    };
     if let Some(_matches) = matches.subcommand_matches("nodeid") {
         println!("Local node ID:");
-        let res = attohttpc::get(&format!("http://127.0.0.1:{}/status/nodeid", port))
+        let res = attohttpc::get(&format!("http://{}:{}/status/nodeid", localhost, port))
             .send()
             .expect("error connecting to local dtnd")
             .text()
@@ -44,7 +56,7 @@ fn main() {
     }
     if let Some(_matches) = matches.subcommand_matches("eids") {
         println!("Listing registered endpoint IDs:");
-        let res = attohttpc::get(&format!("http://127.0.0.1:{}/status/eids", port))
+        let res = attohttpc::get(&format!("http://{}:{}/status/eids", localhost, port))
             .send()
             .expect("error connecting to local dtnd")
             .text()
@@ -53,7 +65,7 @@ fn main() {
     }
     if let Some(_matches) = matches.subcommand_matches("peers") {
         println!("Listing of known peers:");
-        let res = attohttpc::get(&format!("http://127.0.0.1:{}/status/peers", port))
+        let res = attohttpc::get(&format!("http://{}:{}/status/peers", localhost, port))
             .send()
             .expect("error connecting to local dtnd")
             .text()
@@ -64,9 +76,9 @@ fn main() {
         let verbose = matches.occurrences_of("v");
         println!("Listing of bundles in store:");
         let query_url = if verbose == 0 {
-            format!("http://127.0.0.1:{}/status/bundles", port)
+            format!("http://{}:{}/status/bundles", localhost, port)
         } else {
-            format!("http://127.0.0.1:{}/status/bundles_dest", port)
+            format!("http://{}:{}/status/bundles_dest", localhost, port)
         };
         let res = attohttpc::get(&query_url)
             .send()
@@ -77,7 +89,7 @@ fn main() {
     }
     if let Some(_matches) = matches.subcommand_matches("store") {
         println!("Listing of bundles status in store:");
-        let res = attohttpc::get(&format!("http://127.0.0.1:{}/status/store", port))
+        let res = attohttpc::get(&format!("http://{}:{}/status/store", localhost, port))
             .send()
             .expect("error connecting to local dtnd")
             .text()
@@ -86,7 +98,7 @@ fn main() {
     }
     if let Some(_matches) = matches.subcommand_matches("info") {
         println!("Daemon info:");
-        let res = attohttpc::get(&format!("http://127.0.0.1:{}/status/info", port))
+        let res = attohttpc::get(&format!("http://{}:{}/status/info", localhost, port))
             .send()
             .expect("error connecting to local dtnd")
             .text()

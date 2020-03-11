@@ -9,7 +9,6 @@ use std::process;
 #[actix_rt::main]
 async fn main() -> std::io::Result<()> {
     let mut cfg = DtnConfig::new();
-    
     if cfg!(debug_assertions) {
         // Whenever a threads has a panic, quit the whole program!
         panic::set_hook(Box::new(|p| {
@@ -131,7 +130,7 @@ async fn main() -> std::io::Result<()> {
                 .long("ipv6")
                 .help("Use IPv6")
                 .takes_value(false),
-        )        
+        )
         .get_matches();
 
     if matches.is_present("debug") || cfg.debug {
@@ -157,21 +156,20 @@ async fn main() -> std::io::Result<()> {
         cfg = DtnConfig::from(std::path::PathBuf::from(cfgfile));
     }
 
-    if let Some(nodeid) = matches.value_of("nodeid") {        
-        cfg.host_eid =  if let Ok(number) = nodeid.parse::<u64>() {
+    if let Some(nodeid) = matches.value_of("nodeid") {
+        cfg.host_eid = if let Ok(number) = nodeid.parse::<u64>() {
             format!("ipn://{}.0", number).into()
         } else {
             format!("dtn://{}", nodeid).into()
         };
     }
-    
 
     if let Some(i) = matches.value_of("interval") {
         if i == "0" {
-            cfg.announcement_interval = std::time::Duration::new(0,0);    
+            cfg.announcement_interval = std::time::Duration::new(0, 0);
         } else {
-            cfg.announcement_interval = humantime::parse_duration(i)
-                .expect("Could not parse interval parameter!");
+            cfg.announcement_interval =
+                humantime::parse_duration(i).expect("Could not parse interval parameter!");
         }
     }
     if let Some(i) = matches.value_of("webport") {
@@ -182,20 +180,19 @@ async fn main() -> std::io::Result<()> {
 
     if let Some(i) = matches.value_of("janitor") {
         if i == "0" {
-            cfg.janitor_interval = std::time::Duration::new(0,0);    
+            cfg.janitor_interval = std::time::Duration::new(0, 0);
         } else {
-            cfg.janitor_interval = humantime::parse_duration(i)
-                .expect("Could not parse janitor parameter!");
-        }        
+            cfg.janitor_interval =
+                humantime::parse_duration(i).expect("Could not parse janitor parameter!");
+        }
     }
-    
     if let Some(i) = matches.value_of("peertimeout") {
         if i == "0" {
-            cfg.peer_timeout = std::time::Duration::new(0,0);    
+            cfg.peer_timeout = std::time::Duration::new(0, 0);
         } else {
-            cfg.peer_timeout = humantime::parse_duration(i)
-                .expect("Could not parse peer timeout parameter!");
-        }            
+            cfg.peer_timeout =
+                humantime::parse_duration(i).expect("Could not parse peer timeout parameter!");
+        }
     }
 
     if let Some(r) = matches.value_of("routing") {
