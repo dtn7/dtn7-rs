@@ -133,8 +133,6 @@ pub fn receive(mut bp: BundlePack) -> Result<()> {
 pub fn dispatch(bp: BundlePack) -> Result<()> {
     info!("Dispatching bundle: {}", bp.id());
 
-    // TODO: impl routing
-    //c.routing.NotifyIncoming(bp)
     routing_notify(RoutingNotifcation::IncomingBundle(&bp.bundle));
 
     if (*DTNCORE.lock())
@@ -207,9 +205,8 @@ fn handle_previous_node_block(mut bp: BundlePack) -> Result<BundlePack> {
             .previous_node_get()
             .expect("no previoud node EID found!")
             .clone();
-        let local_eid: &str = &(*CONFIG.lock()).nodeid;
-        pnb.previous_node_update(format!("dtn://{}", local_eid).into());
-
+        let local_eid = (*CONFIG.lock()).host_eid.clone();
+        pnb.previous_node_update(local_eid.clone());
         debug!(
             "Previous Node Block was updated: {} {} {}",
             bp.id(),
@@ -218,9 +215,8 @@ fn handle_previous_node_block(mut bp: BundlePack) -> Result<BundlePack> {
         );
     } else {
         // according to rfc always add a previous node block
-        let local_eid: &str = &(*CONFIG.lock()).nodeid;
-        let pnb =
-            bp7::canonical::new_previous_node_block(0, 0, format!("dtn://{}", local_eid).into());
+        let local_eid = (*CONFIG.lock()).host_eid.clone();
+        let pnb = bp7::canonical::new_previous_node_block(0, 0, local_eid);
         bp.bundle.add_canonical_block(pnb);
     }
     Ok(bp)

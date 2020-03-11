@@ -59,7 +59,7 @@ pub async fn start_dtnd(cfg: DtnConfig) -> std::io::Result<()> {
     {
         (*CONFIG.lock()).set(cfg);
     }
-    info!("Local Node ID: {}", (*CONFIG.lock()).nodeid);
+    info!("Local Node ID: {}", (*CONFIG.lock()).host_eid);
 
     info!(
         "Announcement Interval: {}",
@@ -106,17 +106,16 @@ pub async fn start_dtnd(cfg: DtnConfig) -> std::io::Result<()> {
         );
         peers_add(s.clone());
     }
-    let my_node_id = (*CONFIG.lock()).nodeid.clone();
 
-    (*DTNCORE.lock()).register_application_agent(SimpleApplicationAgent::new_with(
-        (*CONFIG.lock()).host_eid.clone(),
-    ));
-
+    let local_host_id = (*CONFIG.lock()).host_eid.clone();
+    (*DTNCORE.lock())
+        .register_application_agent(SimpleApplicationAgent::new_with(local_host_id.clone()));
     for e in &(*CONFIG.lock()).endpoints {
-        let eid = format!("dtn://{}/{}", my_node_id, e);
-        (*DTNCORE.lock()).register_application_agent(SimpleApplicationAgent::new_with(eid.into()));
+        let eid = local_host_id
+            .endpoint(e)
+            .expect("Error constructing new endpoint");
+        (*DTNCORE.lock()).register_application_agent(SimpleApplicationAgent::new_with(eid));
     }
-
     start_convergencylayers().await;
     if CONFIG.lock().janitor_interval.as_micros() != 0 {
         janitor::spawn_janitor();

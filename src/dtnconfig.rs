@@ -49,8 +49,14 @@ impl From<PathBuf> for DtnConfig {
         debug!("ipv6: {:?}", dtncfg.v6);
 
         debug!("debug: {:?}", dtncfg.debug);
-        dtncfg.nodeid = s.get_str("nodeid").unwrap_or(dtncfg.nodeid);
-        debug!("nodeid: {:?}", dtncfg.nodeid);
+        let nodeid = s.get_str("nodeid").unwrap_or(rnd_node_name());
+        dtncfg.host_eid = if let Ok(number) = nodeid.parse::<u64>() {
+            format!("ipn://{}.0", number).into()
+        } else {
+            format!("dtn://{}", nodeid).into()
+        };
+        debug!("nodeid: {:?}", dtncfg.host_eid);
+        dtncfg.nodeid = dtncfg.host_eid.to_string();
 
         dtncfg.routing = s.get_str("routing").unwrap_or(dtncfg.routing);
         debug!("routing: {:?}", dtncfg.routing);
@@ -118,12 +124,13 @@ impl From<PathBuf> for DtnConfig {
 impl DtnConfig {
     pub fn new() -> DtnConfig {
         let node_rnd: String = rnd_node_name();
+        let local_node_id: EndpointID = format!("dtn://{}", node_rnd).into();
         DtnConfig {
             debug: false,
             v4: true,
             v6: false,
-            nodeid: node_rnd.clone(),
-            host_eid: format!("dtn://{}", node_rnd).into(),
+            nodeid: local_node_id.to_string(),
+            host_eid: local_node_id,
             announcement_interval: "2s".parse::<humantime::Duration>().unwrap().into(),
             webport: 3000,
             janitor_interval: "10s".parse::<humantime::Duration>().unwrap().into(),
@@ -138,8 +145,8 @@ impl DtnConfig {
         self.debug = cfg.debug;
         self.v4 = cfg.v4;
         self.v6 = cfg.v6;
-        self.nodeid = cfg.nodeid.clone();
-        self.host_eid = format!("dtn://{}", cfg.nodeid).into();
+        self.nodeid = cfg.host_eid.to_string();
+        self.host_eid = cfg.host_eid;
         self.webport = cfg.webport;
         self.announcement_interval = cfg.announcement_interval;
         self.janitor_interval = cfg.janitor_interval;

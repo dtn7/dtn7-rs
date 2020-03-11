@@ -157,10 +157,14 @@ async fn main() -> std::io::Result<()> {
         cfg = DtnConfig::from(std::path::PathBuf::from(cfgfile));
     }
 
-    if let Some(nodeid) = matches.value_of("nodeid") {
-        cfg.nodeid = nodeid.to_string();
+    if let Some(nodeid) = matches.value_of("nodeid") {        
+        cfg.host_eid =  if let Ok(number) = nodeid.parse::<u64>() {
+            format!("ipn://{}.0", number).into()
+        } else {
+            format!("dtn://{}", nodeid).into()
+        };
     }
-    bp7::EndpointID::from(format!("dtn://{}", cfg.nodeid.clone())); // validate node id
+    
 
     if let Some(i) = matches.value_of("interval") {
         if i == "0" {

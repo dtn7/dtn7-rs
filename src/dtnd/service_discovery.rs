@@ -8,7 +8,6 @@ use net2::UdpBuilder;
 use serde::{Deserialize, Serialize};
 use std::io;
 use std::net::SocketAddrV4;
-use std::time::Duration;
 use tokio::net::UdpSocket;
 use tokio::time::interval;
 
@@ -75,7 +74,7 @@ async fn announcer(socket: std::net::UdpSocket) {
         //let addr = "127.0.0.1:3003".parse().unwrap();
         let addr: SocketAddrV4 = "224.0.0.26:3003".parse().unwrap();
         let pkt = AnnouncementPkt {
-            eid: format!("dtn://{}", (*CONFIG.lock()).nodeid.clone()).into(),
+            eid: (*CONFIG.lock()).host_eid.clone(),
             cl: cls,
         };
         if let Err(err) = sock.send_to(&serde_cbor::to_vec(&pkt).unwrap(), addr).await {
