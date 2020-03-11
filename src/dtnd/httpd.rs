@@ -1,6 +1,5 @@
 use crate::core::application_agent::SimpleApplicationAgent;
 use crate::core::helpers::rnd_peer;
-use crate::core::peer::DtnPeer;
 use crate::core::peer::PeerType;
 use crate::peers_count;
 use crate::DtnConfig;

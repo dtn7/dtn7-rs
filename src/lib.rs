@@ -14,6 +14,7 @@ pub use dtnconfig::DtnConfig;
 pub use crate::core::{DtnCore, DtnPeer};
 pub use crate::routing::RoutingNotifcation;
 
+use anyhow::Result;
 use lazy_static::*;
 use parking_lot::Mutex;
 use std::collections::HashMap;
@@ -63,16 +64,16 @@ pub fn peer_find_by_remote(addr: &IpAddr) -> Option<String> {
     None
 }
 
-pub fn store_push(bp: &BundlePack) {
-    (*STORE.lock()).push(&bp);
+pub fn store_push(bp: &BundlePack) -> Result<()> {
+    (*STORE.lock()).push(&bp)
 }
 
 pub fn store_remove(bid: &str) {
     (*STORE.lock()).remove(bid);
 }
 
-pub fn store_update(bp: &BundlePack) {
-    (*STORE.lock()).update(bp);
+pub fn store_update(bp: &BundlePack) -> Result<()> {
+    (*STORE.lock()).update(bp)
 }
 pub fn store_has_item(bid: &str) -> bool {
     (*STORE.lock()).has_item(bid)
