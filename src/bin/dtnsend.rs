@@ -4,16 +4,16 @@ use clap::{crate_authors, crate_version, App, Arg};
 use std::io;
 use std::io::prelude::*;
 
-fn get_local_node_id(port: &str) -> String {
-    attohttpc::get(&format!("http://127.0.0.1:{}/status/nodeid", port))
+fn get_local_node_id(localhost: &str, port: &str) -> String {
+    attohttpc::get(&format!("http://{}:{}/status/nodeid", localhost, port))
         .send()
         .expect("error connecting to local dtnd")
         .text()
         .unwrap()
 }
 
-fn get_cts(port: &str) -> CreationTimestamp {
-    let response = attohttpc::get(&format!("http://127.0.0.1:{}/cts", port))
+fn get_cts(localhost: &str, port: &str) -> CreationTimestamp {
+    let response = attohttpc::get(&format!("http://{}:{}/cts", localhost, port))
         .send()
         .expect("error connecting to local dtnd")
         .text()
@@ -77,19 +77,30 @@ fn main() {
                 .takes_value(false),
         )
         .arg(
+            Arg::with_name("ipv6")
+                .short("6")
+                .long("ipv6")
+                .help("Use IPv6")
+                .takes_value(false),
+        )
+        .arg(
             Arg::with_name("infile")
                 .index(1)
                 .help("File to send, if omitted data is read from stdin till EOF"),
         )
         .get_matches();
-
+    let localhost = if matches.is_present("ipv6") {
+        "[::1]"
+    } else {
+        "127.0.0.1"
+    };
     let dryrun: bool = matches.is_present("dryrun");
     let verbose: bool = matches.is_present("verbose");
     let port = std::env::var("DTN_WEB_PORT").unwrap_or_else(|_| "3000".into());
     let port = matches.value_of("port").unwrap_or(&port); // string is fine no need to parse number
     let sender: EndpointID = matches
         .value_of("sender")
-        .unwrap_or(&get_local_node_id(port))
+        .unwrap_or(&get_local_node_id(localhost, port))
         .into();
     let receiver: EndpointID = matches.value_of("receiver").unwrap().into();
     let lifetime: u64 = matches
@@ -97,7 +108,7 @@ fn main() {
         .unwrap_or("3600")
         .parse::<u64>()
         .unwrap();
-    let cts = get_cts(port);
+    let cts = get_cts(localhost, port);
     let mut buffer = Vec::new();
     if let Some(infile) = matches.value_of("infile") {
         if verbose {
@@ -130,7 +141,7 @@ fn main() {
     //let local_url = format!("http://127.0.0.1:3000/send?bundle={}", hexstr);
     //let res = reqwest::get(&local_url).expect("error connecting to local dtnd").text().unwrap();
     if !dryrun {
-        let res = attohttpc::post(&format!("http://127.0.0.1:{}/insert", port))
+        let res = attohttpc::post(&format!("http://{}:{}/insert", localhost, port))
             .bytes(binbundle)
             .send()
             .expect("error send bundle to dtnd")

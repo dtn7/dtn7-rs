@@ -1,6 +1,6 @@
 [package]
 name = "dtn7"
-version = "0.8.3"
+version = "0.8.4"
 authors = ["Lars Baumgaertner <baumgaertner@cs.tu-darmstadt.de>"]
 description = "Rust delay-tolerant-networking daemon and CLI tools based upon bp7 (dtn version 7 draft)"
 edition = "2018"
@@ -39,6 +39,7 @@ tokio-util = "0.2.0"
 futures-util = "0.3.4"
 async-trait = "0.1.24"
 attohttpc = { version = "0.11.1", default-features = false }
+#attohttpc = { git = "https://github.com/adamreichold/attohttpc.git", rev="ef2015c2d3d898e8a31000e443de5ba55d75eea2", default-features = false }
 tinytemplate = "1.0.3"
 humantime = "2.0.0"
 #rweb = { version = "0.4.0", default-features = false }
