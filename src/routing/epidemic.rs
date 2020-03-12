@@ -69,7 +69,7 @@ impl RoutingAgent for EpidemicRoutingAgent {
             }
             RoutingNotifcation::IncomingBundle(bndl) => {
                 if let Some(eid) = bndl.previous_node() {
-                    if let Some(node_name) = eid.node_part() {
+                    if let Some(node_name) = eid.node() {
                         self.incoming_bundle(&bndl.id(), &node_name);
                     }
                 };

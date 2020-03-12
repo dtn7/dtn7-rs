@@ -38,7 +38,7 @@ pub fn transmit(mut bp: BundlePack) -> Result<()> {
     bp.add_constraint(Constraint::DispatchPending);
     bp.sync()?;
     let src = &bp.bundle.primary.source;
-    if src != &bp7::DTN_NONE && (*DTNCORE.lock()).get_endpoint_mut(&src).is_none() {
+    if src != &bp7::EndpointID::none() && (*DTNCORE.lock()).get_endpoint_mut(&src).is_none() {
         info!(
             "Bundle's source is neither dtn:none nor an endpoint of this node: {} {}",
             bp.id(),

@@ -6,7 +6,7 @@ use rand::distributions::Alphanumeric;
 use rand::{thread_rng, Rng};
 use serde::Serialize;
 use std::path::PathBuf;
-use std::time::Duration;
+use std::{convert::TryInto, time::Duration};
 
 #[derive(Debug, Default, Clone, Serialize)]
 pub struct DtnConfig {
@@ -51,9 +51,9 @@ impl From<PathBuf> for DtnConfig {
         debug!("debug: {:?}", dtncfg.debug);
         let nodeid = s.get_str("nodeid").unwrap_or(rnd_node_name());
         dtncfg.host_eid = if let Ok(number) = nodeid.parse::<u64>() {
-            format!("ipn://{}.0", number).into()
+            format!("ipn://{}.0", number).try_into().unwrap()
         } else {
-            format!("dtn://{}", nodeid).into()
+            format!("dtn://{}", nodeid).try_into().unwrap()
         };
         debug!("nodeid: {:?}", dtncfg.host_eid);
         dtncfg.nodeid = dtncfg.host_eid.to_string();
@@ -124,7 +124,7 @@ impl From<PathBuf> for DtnConfig {
 impl DtnConfig {
     pub fn new() -> DtnConfig {
         let node_rnd: String = rnd_node_name();
-        let local_node_id: EndpointID = format!("dtn://{}", node_rnd).into();
+        let local_node_id: EndpointID = format!("dtn://{}", node_rnd).try_into().unwrap();
         DtnConfig {
             debug: false,
             v4: true,

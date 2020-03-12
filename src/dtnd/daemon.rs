@@ -102,7 +102,7 @@ pub async fn start_dtnd(cfg: DtnConfig) -> std::io::Result<()> {
             s.cla_list[0].0,
             s.addr,
             port_str,
-            s.eid.node_part().unwrap()
+            s.eid.node().unwrap()
         );
         peers_add(s.clone());
     }
@@ -112,7 +112,7 @@ pub async fn start_dtnd(cfg: DtnConfig) -> std::io::Result<()> {
         .register_application_agent(SimpleApplicationAgent::new_with(local_host_id.clone()));
     for e in &(*CONFIG.lock()).endpoints {
         let eid = local_host_id
-            .endpoint(e)
+            .new_endpoint(e)
             .expect("Error constructing new endpoint");
         (*DTNCORE.lock()).register_application_agent(SimpleApplicationAgent::new_with(eid));
     }

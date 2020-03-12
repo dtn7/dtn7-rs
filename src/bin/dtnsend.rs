@@ -2,7 +2,7 @@ use bp7::bundle::*;
 use bp7::*;
 use clap::{crate_authors, crate_version, App, Arg};
 use std::io;
-use std::io::prelude::*;
+use std::{convert::TryInto, io::prelude::*};
 
 fn get_local_node_id(localhost: &str, port: &str) -> String {
     attohttpc::get(&format!("http://{}:{}/status/nodeid", localhost, port))
@@ -101,8 +101,9 @@ fn main() {
     let sender: EndpointID = matches
         .value_of("sender")
         .unwrap_or(&get_local_node_id(localhost, port))
-        .into();
-    let receiver: EndpointID = matches.value_of("receiver").unwrap().into();
+        .try_into()
+        .unwrap();
+    let receiver: EndpointID = matches.value_of("receiver").unwrap().try_into().unwrap();
     let lifetime: u64 = matches
         .value_of("lifetime")
         .unwrap_or("3600")

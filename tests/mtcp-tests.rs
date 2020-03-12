@@ -1,14 +1,15 @@
 use bp7::{bundle, canonical, crc, dtntime, primary};
 use dtn7::cla::mtcp;
+use std::convert::TryInto;
 
 #[test]
 
 fn mpdu_encoding() {
     let day0 = dtntime::CreationTimestamp::with_time_and_seq(dtntime::DTN_TIME_EPOCH, 0);
     let pblock = primary::PrimaryBlockBuilder::default()
-        .destination(String::from("dtn://dest").into())
-        .source(String::from("dtn://src").into())
-        .report_to(String::from("dtn://src").into())
+        .destination("dtn://dest".try_into().unwrap())
+        .source("dtn://src".try_into().unwrap())
+        .report_to("dtn://src".try_into().unwrap())
         .creation_timestamp(day0)
         .lifetime(std::time::Duration::from_secs(60 * 60))
         .build()
