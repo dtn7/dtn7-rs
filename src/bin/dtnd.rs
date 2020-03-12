@@ -4,7 +4,7 @@ use dtn7::DtnConfig;
 use log::info;
 use pretty_env_logger;
 use std::panic;
-use std::process;
+use std::{convert::TryInto, process};
 
 #[actix_rt::main]
 async fn main() -> std::io::Result<()> {
@@ -158,9 +158,9 @@ async fn main() -> std::io::Result<()> {
 
     if let Some(nodeid) = matches.value_of("nodeid") {
         cfg.host_eid = if let Ok(number) = nodeid.parse::<u64>() {
-            format!("ipn://{}.0", number).into()
+            format!("ipn://{}.0", number).try_into().unwrap()
         } else {
-            format!("dtn://{}", nodeid).into()
+            format!("dtn://{}", nodeid).try_into().unwrap()
         };
     }
 

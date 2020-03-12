@@ -3,7 +3,7 @@ use crate::store_push;
 use crate::store_remove;
 use crate::store_update;
 use anyhow::Result;
-use bp7::{Bundle, CanonicalData, EndpointID, BUNDLE_AGE_BLOCK, DTN_NONE};
+use bp7::{Bundle, CanonicalData, EndpointID, BUNDLE_AGE_BLOCK};
 use std::collections::HashSet;
 use std::fmt;
 use std::time::{SystemTime, UNIX_EPOCH};
@@ -89,7 +89,7 @@ impl BundlePack {
         Ok(())
     }
     pub fn has_receiver(&self) -> bool {
-        self.receiver != DTN_NONE
+        self.receiver != EndpointID::none()
     }
     pub fn has_constraint(&self, constraint: Constraint) -> bool {
         self.constraints.contains(&constraint)

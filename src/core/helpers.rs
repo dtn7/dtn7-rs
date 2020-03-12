@@ -3,7 +3,10 @@ use bp7::EndpointID;
 use rand::distributions::Alphanumeric;
 use rand::thread_rng;
 use rand::Rng;
-use std::net::IpAddr;
+use std::{
+    convert::{TryFrom, TryInto},
+    net::IpAddr,
+};
 use url::Url;
 
 pub fn rnd_peer() -> DtnPeer {
@@ -12,7 +15,7 @@ pub fn rnd_peer() -> DtnPeer {
         _ => PeerType::Dynamic,
     };
     let rstr: String = thread_rng().sample_iter(&Alphanumeric).take(10).collect();
-    let eid = EndpointID::from(format!("dtn://{}", rstr));
+    let eid = EndpointID::try_from(format!("dtn://{}", rstr)).unwrap();
     match rand::thread_rng().gen_range(0, 2) {
         0 => {
             let random_bytes = rand::thread_rng().gen::<[u8; 4]>();
@@ -28,11 +31,12 @@ pub fn rnd_peer() -> DtnPeer {
 /// # Example
 ///
 /// ```
+/// use std::convert::TryFrom;
 /// use dtn7::core::helpers::parse_peer_url;
 /// use bp7::EndpointID;
 ///
 /// let peer = parse_peer_url("mtcp://192.168.2.1:2342/node1");
-/// assert_eq!(peer.eid, EndpointID::from("dtn://node1".to_string()));
+/// assert_eq!(peer.eid, EndpointID::try_from("dtn://node1".to_string()).unwrap());
 /// ```
 ///
 /// An invalid convergency layer should panic:
@@ -67,7 +71,9 @@ pub fn parse_peer_url(peer_url: &str) -> DtnPeer {
         panic!("Missing node id");
     }
     DtnPeer::new(
-        format!("dtn://{}", nodeid.replace('/', "")).into(),
+        format!("dtn://{}", nodeid.replace('/', ""))
+            .try_into()
+            .unwrap(),
         ipaddr.parse().unwrap(),
         PeerType::Static,
         vec![(scheme.into(), port)],

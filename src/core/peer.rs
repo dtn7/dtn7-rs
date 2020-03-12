@@ -80,7 +80,7 @@ impl DtnPeer {
     }
 
     pub fn node_name(&self) -> String {
-        self.eid.node_part().unwrap_or_default()
+        self.eid.node().unwrap_or_default()
     }
     pub fn first_cla(&self) -> Option<crate::cla::ClaSender> {
         for c in self.cla_list.iter() {

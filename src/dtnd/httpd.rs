@@ -17,11 +17,10 @@ use anyhow::anyhow;
 use bp7::dtntime::CreationTimestamp;
 use bp7::helpers::rnd_bundle;
 use bp7::EndpointID;
-use bp7::DTN_NONE;
 use futures::StreamExt;
 use log::{debug, info};
 use serde::Serialize;
-use std::convert::TryFrom;
+use std::convert::{TryFrom, TryInto};
 use tinytemplate::TinyTemplate;
 
 #[derive(Serialize)]
@@ -214,7 +213,7 @@ async fn debug_rnd_peer() -> String {
     println!("generating debug peer");
     let p = rnd_peer();
     let res = serde_json::to_string_pretty(&p).unwrap();
-    (*PEERS.lock()).insert(p.eid.node_part().unwrap_or_default(), p);
+    (*PEERS.lock()).insert(p.eid.node().unwrap_or_default(), p);
     res
 }
 #[get("/insert", guard = "fn_guard_localhost")]
@@ -278,18 +277,18 @@ async fn insert_post(mut body: web::Payload) -> Result<String> {
 #[post("/send", guard = "fn_guard_localhost")]
 async fn send_post(req: HttpRequest, mut body: web::Payload) -> Result<String> {
     let params = url::form_urlencoded::parse(req.query_string().as_bytes());
-    let mut dst: EndpointID = DTN_NONE;
+    let mut dst: EndpointID = EndpointID::none();
     let mut lifetime = std::time::Duration::from_secs(60 * 60);
     for (k, v) in params {
         if k == "dst" {
-            dst = v.to_string().into();
+            dst = v.to_string().try_into().unwrap();
         } else if k == "lifetime" {
             if let Ok(dur) = humantime::parse_duration(&v) {
                 lifetime = dur;
             }
         }
     }
-    if dst == DTN_NONE {
+    if dst == EndpointID::none() {
         return Err(actix_web::error::ErrorBadRequest(anyhow!(
             "Missing destination endpoint id!"
         )));
@@ -359,7 +358,7 @@ async fn register(req: HttpRequest) -> Result<String> {
     if path.chars().all(char::is_alphanumeric) {
         let host_eid = (*CONFIG.lock()).host_eid.clone();
         let eid = host_eid
-            .endpoint(path)
+            .new_endpoint(path)
             .expect("Error constructing new endpoint");
         (*DTNCORE.lock()).register_application_agent(SimpleApplicationAgent::new_with(eid.clone()));
         Ok(format!("Registered {}", eid))
@@ -377,7 +376,7 @@ async fn unregister(req: HttpRequest) -> Result<String> {
     if path.chars().all(char::is_alphanumeric) {
         let host_eid = (*CONFIG.lock()).host_eid.clone();
         let eid = host_eid
-            .endpoint(path)
+            .new_endpoint(path)
             .expect("Error constructing new endpoint");
 
         (*DTNCORE.lock())
@@ -396,7 +395,7 @@ async fn endpoint(req: HttpRequest) -> Result<HttpResponse> {
     if path.chars().all(char::is_alphanumeric) {
         let host_eid = (*CONFIG.lock()).host_eid.clone();
         let eid = host_eid
-            .endpoint(path)
+            .new_endpoint(path)
             .expect("Error constructing new endpoint"); // TODO: support non-node-specific EIDs
         if let Some(aa) = (*DTNCORE.lock()).get_endpoint_mut(&eid) {
             if let Some(mut bundle) = aa.pop() {
@@ -427,7 +426,7 @@ async fn endpoint_hex(req: HttpRequest) -> Result<String> {
     if path.chars().all(char::is_alphanumeric) {
         let host_eid = (*CONFIG.lock()).host_eid.clone();
         let eid = host_eid
-            .endpoint(path)
+            .new_endpoint(path)
             .expect("Error constructing new endpoint");
         // TODO: support non-node-specific EIDs
         if let Some(aa) = (*DTNCORE.lock()).get_endpoint_mut(&eid) {

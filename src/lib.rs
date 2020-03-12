@@ -33,7 +33,7 @@ pub fn cla_add(cla: Box<dyn ConvergencyLayerAgent>) {
     (*DTNCORE.lock()).cl_list.push(cla);
 }
 pub fn peers_add(peer: DtnPeer) {
-    (*PEERS.lock()).insert(peer.eid.node_part().unwrap(), peer);
+    (*PEERS.lock()).insert(peer.eid.node().unwrap(), peer);
 }
 pub fn peers_count() -> usize {
     (*PEERS.lock()).len()
@@ -43,7 +43,7 @@ pub fn peers_clear() {
 }
 pub fn peers_get_for_node(eid: &EndpointID) -> Option<DtnPeer> {
     for (_, p) in (*PEERS.lock()).iter() {
-        if p.node_name() == eid.node_part().unwrap_or_default() {
+        if p.node_name() == eid.node().unwrap_or_default() {
             return Some(p.clone());
         }
     }
