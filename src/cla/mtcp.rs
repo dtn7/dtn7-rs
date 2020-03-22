@@ -2,7 +2,7 @@ use crate::cla::ConvergencyLayerAgent;
 use async_trait::async_trait;
 use bp7::{Bundle, ByteBuffer};
 use bytes::buf::Buf;
-use bytes::{BufMut, BytesMut};
+use bytes::{BufMut, Bytes, BytesMut};
 use core::convert::TryFrom;
 use futures_util::stream::StreamExt;
 use log::{debug, error, info};
@@ -111,11 +111,10 @@ struct MPDUCodec {
     last_pos: usize,
 }
 
-impl Encoder for MPDUCodec {
-    type Item = MPDU;
+impl Encoder<MPDU> for MPDUCodec {
     type Error = io::Error;
 
-    fn encode(&mut self, item: MPDU, dst: &mut BytesMut) -> Result<(), io::Error> {
+    fn encode(&mut self, item: MPDU, dst: &mut BytesMut) -> Result<(), Self::Error> {
         let buf = serde_cbor::to_vec(&item).unwrap();
         dst.reserve(buf.len());
         dst.put_slice(&buf);

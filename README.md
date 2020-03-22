@@ -13,6 +13,7 @@ Plus:
 * A simple HTTP Convergence Layer 
 * Convenient command line tools to interact with the daemon
 * A simple web interface for status information about `dtnd` 
+* A web-socket interface for application agents
 
 A similar golang implementation can be found here: https://github.com/dtn7/dtn7-go
 
@@ -22,10 +23,11 @@ Currently a very basic service discovery, MTCP & HTTP CLs, flooding/epidemic/sin
 
 **Beware, the API is not always idiomatic rust and lacks documentation and tests at the moment.**
 
-I consider this code to be work-in-progress and not finished yet. Also the rest interface is totally undocumented and unfinished at the moment:)
+I consider this code to be work-in-progress and not finished yet. Also the rest and web-socket interface is totally undocumented and unfinished at the moment:)
 
 ## Installation
 
+Installation from source using cargo:
 ```
 cargo install dtn7
 ```
@@ -148,6 +150,28 @@ OPTIONS:
 
 ARGS:
     <infile>    File to send, if omitted data is read from stdin till EOF
+```
+
+Automatic triggering of external binaries for incoming bundles:
+```
+$ dtntrigger -h
+dtntrigger 0.9.0
+Lars Baumgaertner <baumgaertner@cs.tu-darmstadt.de>
+A simple Bundle Protocol 7 Incoming Trigger Utility for Delay Tolerant Networking
+
+USAGE:
+    dtntrigger [FLAGS] [OPTIONS] --command <CMD>
+
+FLAGS:
+    -h, --help       Prints help information
+    -6, --ipv6       Use IPv6
+    -V, --version    Prints version information
+    -v, --verbose    verbose output
+
+OPTIONS:
+    -c, --command <CMD>          Command to execute for incoming bundles, param1 = source, param2 = payload file
+    -e, --endpoint <ENDPOINT>    Specify local endpoint, e.g. '/incoming')
+    -p, --port <PORT>            Local web port (default = 3000)
 ```
 
 ### Acknowledging this work

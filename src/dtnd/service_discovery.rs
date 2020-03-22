@@ -7,7 +7,7 @@ use log::{debug, error, info};
 use net2::UdpBuilder;
 use serde::{Deserialize, Serialize};
 use std::io;
-use std::net::SocketAddrV4;
+use std::net::SocketAddr;
 use tokio::net::UdpSocket;
 use tokio::time::interval;
 
@@ -57,7 +57,7 @@ impl Server {
     }
 }
 
-async fn announcer(socket: std::net::UdpSocket) {
+async fn announcer(socket: std::net::UdpSocket, v6: bool) {
     let mut task = interval(crate::CONFIG.lock().announcement_interval);
     let mut sock = UdpSocket::from_std(socket).unwrap();
     loop {
@@ -72,7 +72,12 @@ async fn announcer(socket: std::net::UdpSocket) {
         }
         //let nodeid = format!("dtn://{}", (*DTNCORE.lock()).nodeid);
         //let addr = "127.0.0.1:3003".parse().unwrap();
-        let addr: SocketAddrV4 = "224.0.0.26:3003".parse().unwrap();
+
+        let addr: SocketAddr = if v6 {
+            "[FF02::300]:3003".parse().unwrap()
+        } else {
+            "224.0.0.26:3003".parse().unwrap()
+        };
         let pkt = AnnouncementPkt {
             eid: (*CONFIG.lock()).host_eid.clone(),
             cl: cls,
@@ -83,29 +88,66 @@ async fn announcer(socket: std::net::UdpSocket) {
     }
 }
 pub async fn spawn_service_discovery() -> Result<()> {
-    let addr: std::net::SocketAddr = "0.0.0.0:3003".parse()?;
-    let socket = UdpBuilder::new_v4()?;
-    socket.reuse_address(true)?;
-    let socket = socket.bind(addr)?;
-    // DEBUG: setup multicast on loopback to true
-    socket
-        .set_multicast_loop_v4(false)
-        .expect("error activating multicast loop v4");
-    socket
-        .join_multicast_v4(&"224.0.0.26".parse()?, &std::net::Ipv4Addr::new(0, 0, 0, 0))
-        .expect("error joining multicast v4 group");
-    let socket_clone = socket.try_clone()?;
-    let sock = UdpSocket::from_std(socket)?;
+    let v4 = (*CONFIG.lock()).v4;
+    let v6 = (*CONFIG.lock()).v6;
+    let port = 3003;
+    if v4 {
+        let addr: std::net::SocketAddr = format!("0.0.0.0:{}", port).parse()?;
+        let socket = UdpBuilder::new_v4()?;
+        socket.reuse_address(true)?;
+        let socket = socket.bind(addr)?;
 
-    info!("Listening on {}", sock.local_addr()?);
-    let server = Server {
-        socket: sock,
-        buf: vec![0; 1024],
-    };
-    tokio::spawn(server.run());
+        // DEBUG: setup multicast on loopback to true
+        socket
+            .set_multicast_loop_v4(false)
+            .expect("error activating multicast loop v4");
+        socket
+            .join_multicast_v4(&"224.0.0.26".parse()?, &std::net::Ipv4Addr::new(0, 0, 0, 0))
+            .expect("error joining multicast v4 group");
+        let socket_clone = socket.try_clone()?;
+        let sock = UdpSocket::from_std(socket)?;
 
-    tokio::spawn(announcer(
-        socket_clone.try_clone().expect("couldn't clone the socket"),
-    ));
+        info!("Listening on {}", sock.local_addr()?);
+        let server = Server {
+            socket: sock,
+            buf: vec![0; 1024],
+        };
+        tokio::spawn(server.run());
+
+        tokio::spawn(announcer(
+            socket_clone.try_clone().expect("couldn't clone the socket"),
+            false,
+        ));
+    }
+    if v6 {
+        let addr: std::net::SocketAddr = format!("[::1]:{}", port).parse()?;
+        let socket = UdpBuilder::new_v6()?;
+        socket.reuse_address(true)?;
+        socket.only_v6(true)?;
+        let socket = socket.bind(addr)?;
+
+        // DEBUG: setup multicast on loopback to true
+        socket
+            .set_multicast_loop_v6(false)
+            .expect("error activating multicast loop v6");
+        socket
+            .join_multicast_v6(&"FF02::300".parse()?, 0)
+            .expect("error joining multicast v6 group");
+        let socket_clone = socket.try_clone()?;
+        let sock = UdpSocket::from_std(socket)?;
+
+        info!("Listening on {}", sock.local_addr()?);
+        let server = Server {
+            socket: sock,
+            buf: vec![0; 1024],
+        };
+        tokio::spawn(server.run());
+
+        tokio::spawn(announcer(
+            socket_clone.try_clone().expect("couldn't clone the socket"),
+            true,
+        ));
+    }
+
     Ok(())
 }
