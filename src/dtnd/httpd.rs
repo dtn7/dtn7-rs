@@ -8,11 +8,14 @@ use crate::DTNCORE;
 use crate::PEERS;
 use crate::STATS;
 use crate::STORE;
+use actix::*;
 use actix_web::dev::RequestHead;
 use actix_web::HttpResponse;
 use actix_web::{
-    get, http::StatusCode, post, web, App, HttpRequest, HttpServer, Responder, Result,
+    get, http::StatusCode, post, web, App, Error, HttpRequest, HttpServer, Responder, Result,
 };
+use actix_web_actors::ws;
+
 use anyhow::anyhow;
 use bp7::dtntime::CreationTimestamp;
 use bp7::helpers::rnd_bundle;
@@ -20,8 +23,184 @@ use bp7::EndpointID;
 use futures::StreamExt;
 use log::{debug, info};
 use serde::Serialize;
-use std::convert::{TryFrom, TryInto};
+use std::{
+    convert::{TryFrom, TryInto},
+    time::{Duration, Instant},
+};
 use tinytemplate::TinyTemplate;
+
+// Begin application agent WebSocket specific stuff
+
+/// How often new bundles are checked
+const CHECK_INTERVAL: Duration = Duration::from_millis(50);
+/// How often heartbeat pings are sent
+const HEARTBEAT_INTERVAL: Duration = Duration::from_secs(5);
+/// How long before lack of client response causes a timeout
+const CLIENT_TIMEOUT: Duration = Duration::from_secs(10);
+
+/// WebSocket Applicatin Agent Session
+struct WsAASession {
+    /// unique session id
+    id: usize,
+    /// Client must send ping at least once per 10 seconds (CLIENT_TIMEOUT),
+    /// otherwise we drop connection.
+    hb: Instant,
+    /// endpoint name
+    endpoint: Option<EndpointID>,
+}
+
+impl Actor for WsAASession {
+    type Context = ws::WebsocketContext<Self>;
+
+    fn started(&mut self, ctx: &mut Self::Context) {
+        // we'll start heartbeat process on session start.
+        self.hb(ctx);
+        debug!("Started new WebSocket for application agent");
+    }
+
+    fn stopping(&mut self, _: &mut Self::Context) -> Running {
+        debug!("Stopped WebSocket for application agent");
+        Running::Stop
+    }
+}
+/// WebSocket message handler
+impl StreamHandler<Result<ws::Message, ws::ProtocolError>> for WsAASession {
+    fn handle(&mut self, msg: Result<ws::Message, ws::ProtocolError>, ctx: &mut Self::Context) {
+        let msg = match msg {
+            Err(_) => {
+                ctx.stop();
+                return;
+            }
+            Ok(msg) => msg,
+        };
+
+        debug!("WEBSOCKET MESSAGE: {:?}", msg);
+        match msg {
+            ws::Message::Ping(msg) => {
+                self.hb = Instant::now();
+                ctx.pong(&msg);
+            }
+            ws::Message::Pong(_) => {
+                self.hb = Instant::now();
+            }
+            ws::Message::Text(text) => {
+                let m = text.trim();
+                if m.starts_with('/') {
+                    let v: Vec<&str> = m.splitn(2, ' ').collect();
+                    match v[0] {
+                        "/subscribe" => {
+                            if v.len() == 2 {
+                                if let Ok(eid) = EndpointID::try_from(v[1]) {
+                                    if (*DTNCORE.lock()).get_endpoint(&eid).is_none() {
+                                        debug!(
+                                            "Attempted to subscribe to unknown endpoint: {}",
+                                            eid
+                                        );
+                                        ctx.text("!!! unknown endpoint");
+                                    } else {
+                                        debug!("Subscribed to endpoint: {}", eid);
+                                        self.endpoint = Some(eid);
+                                        ctx.text("subscribed");
+                                        self.monitor(ctx);
+                                    }
+                                } else {
+                                    let this_host: EndpointID = (*CONFIG.lock()).host_eid.clone();
+                                    if let Ok(eid) = this_host.new_endpoint(v[1]) {
+                                        if (*DTNCORE.lock()).get_endpoint(&eid).is_none() {
+                                            debug!(
+                                                "Attempted to subscribe to unknown endpoint: {}",
+                                                eid
+                                            );
+                                            ctx.text("!!! unknown endpoint");
+                                        } else {
+                                            debug!("Subscribed to endpoint: {}", eid);
+                                            self.endpoint = Some(eid);
+                                            ctx.text("subscribed");
+                                            self.monitor(ctx);
+                                        }
+                                    } else {
+                                        debug!(
+                                            "Invalid endpoint combination: {} and {}",
+                                            this_host, v[1]
+                                        );
+                                        ctx.text("!!! invalid endpoint combination");
+                                    }
+                                }
+                            } else {
+                                ctx.text("!!! endpoint is missing");
+                            }
+                        }
+                        _ => ctx.text(format!("!!! unknown command: {:?}", m)),
+                    }
+                } else {
+                }
+            }
+            ws::Message::Binary(_) => println!("Unexpected binary"),
+            ws::Message::Close(_) => {
+                ctx.stop();
+            }
+            ws::Message::Continuation(_) => {
+                ctx.stop();
+            }
+            ws::Message::Nop => (),
+        }
+    }
+}
+impl WsAASession {
+    /// helper method that sends ping to client every second.
+    ///
+    /// also this method checks heartbeats from client
+    fn hb(&self, ctx: &mut ws::WebsocketContext<Self>) {
+        ctx.run_interval(HEARTBEAT_INTERVAL, |act, ctx| {
+            // check client heartbeats
+            if Instant::now().duration_since(act.hb) > CLIENT_TIMEOUT {
+                // heartbeat timed out
+                debug!("Websocket Client heartbeat failed, disconnecting!");
+
+                // stop actor
+                ctx.stop();
+
+                // don't try to send a ping
+                return;
+            }
+
+            ctx.ping(b"");
+        });
+    }
+    /// helper method that checks for new bundles.
+    fn monitor(&self, ctx: &mut ws::WebsocketContext<Self>) {
+        ctx.run_interval(CHECK_INTERVAL, |act, ctx| {
+            if let Some(eid) = &act.endpoint {
+                if let Some(aa) = (*DTNCORE.lock()).get_endpoint_mut(&eid) {
+                    if let Some(mut bundle) = aa.pop() {
+                        let cbor_bundle = bundle.to_cbor();
+                        ctx.binary(cbor_bundle);
+                    }
+                }
+            }
+        });
+    }
+}
+
+#[get("/ws", guard = "fn_guard_localhost")]
+async fn ws_application_agent(
+    req: HttpRequest,
+    stream: web::Payload,
+) -> Result<HttpResponse, Error> {
+    ws::start(
+        WsAASession {
+            id: 0,
+            hb: Instant::now(),
+            endpoint: None,
+        },
+        &req,
+        stream,
+    )
+}
+
+// End application agent WebSocket specific stuff
+
+// Begin of web UI specific structs
 
 #[derive(Serialize)]
 struct IndexContext<'a> {
@@ -56,6 +235,9 @@ struct BundleEntry {
     src: String,
     dst: String,
 }
+
+// End of web UI specific structs
+
 pub fn fn_guard_localhost(req: &RequestHead) -> bool {
     if let Some(addr) = req.peer_addr {
         if addr.ip().is_loopback() {
@@ -502,6 +684,7 @@ pub async fn spawn_httpd() -> std::io::Result<()> {
             .service(endpoint_hex)
             .service(download)
             .service(download_hex)
+            .service(ws_application_agent)
     });
     let v4 = (*CONFIG.lock()).v4;
     let v6 = (*CONFIG.lock()).v6;
