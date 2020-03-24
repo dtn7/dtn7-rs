@@ -50,6 +50,9 @@ pub fn peers_get_for_node(eid: &EndpointID) -> Option<DtnPeer> {
     }
     None
 }
+pub fn is_local_node_id(eid: &EndpointID) -> bool {
+    eid.node_id() == (*CONFIG.lock()).host_eid.node_id()
+}
 pub fn peers_cla_for_node(eid: &EndpointID) -> Option<crate::cla::ClaSender> {
     if let Some(peer) = peers_get_for_node(eid) {
         return peer.first_cla();

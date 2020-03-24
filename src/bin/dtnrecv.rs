@@ -15,7 +15,7 @@ fn main() {
                 .short("e")
                 .long("endpoint")
                 .value_name("ENDPOINT")
-                .help("Specify local endpoint, e.g. '/incoming')")
+                .help("Specify local endpoint, e.g. '/incoming', or a group endpoint 'dtn://helpers/incoming'")
                 .required_unless("bundleid")
                 .takes_value(true),
         )

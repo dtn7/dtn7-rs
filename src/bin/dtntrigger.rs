@@ -69,7 +69,6 @@ impl Handler for Connection {
                         }
                         let data_file = self.write_temp_file(data)?;
                         self.execute_cmd(data_file, &bndl)?;
-                    //std::thread::sleep(std::time::Duration::from_secs(10));
                     } else {
                         if self.verbose {
                             eprintln!("Unexpected payload!");
@@ -92,7 +91,7 @@ fn main() -> anyhow::Result<()> {
                 .short("e")
                 .long("endpoint")
                 .value_name("ENDPOINT")
-                .help("Specify local endpoint, e.g. '/incoming')")
+                .help("Specify local endpoint, e.g. '/incoming', or a group endpoint 'dtn://helpers/incoming'")
                 .takes_value(true),
         )
         .arg(

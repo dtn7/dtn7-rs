@@ -92,7 +92,7 @@ impl DtnCore {
             .map(|e| e.bundle.to_string())
             .collect()
     }
-    fn is_in_endpoints(&self, eid: &EndpointID) -> bool {
+    pub fn is_in_endpoints(&self, eid: &EndpointID) -> bool {
         for aa in self.endpoints.iter() {
             if eid == aa.eid() {
                 return true;
