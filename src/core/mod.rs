@@ -61,8 +61,12 @@ impl DtnCore {
     }
 
     pub fn register_application_agent<T: 'static + ApplicationAgent + Send>(&mut self, aa: T) {
-        info!("Registered new application agent for EID: {}", aa.eid());
-        self.endpoints.push(Box::new(aa));
+        if self.is_in_endpoints(&aa.eid()) {
+            info!("Application agent already registered for EID: {}", aa.eid());
+        } else {
+            info!("Registered new application agent for EID: {}", aa.eid());
+            self.endpoints.push(Box::new(aa));
+        }
     }
     pub fn unregister_application_agent<T: 'static + ApplicationAgent>(&mut self, aa: T) {
         info!("Unregistered application agent for EID: {}", aa.eid());

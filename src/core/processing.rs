@@ -80,7 +80,7 @@ pub fn receive(mut bp: BundlePack) -> Result<()> {
     let mut remove_idx = Vec::new();
     let mut index = 0;
     for cb in bp.bundle.canonicals.iter() {
-        if cb.block_type < 10 {
+        if cb.block_type < 11 {
             // TODO: fix magic number to check for a known block type
             continue;
         }

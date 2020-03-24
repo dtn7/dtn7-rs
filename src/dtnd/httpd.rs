@@ -7,7 +7,7 @@ use crate::CONFIG;
 use crate::DTNCORE;
 use crate::PEERS;
 use crate::STATS;
-use crate::STORE;
+use crate::{client::WsSendBundle, STORE};
 use actix::*;
 use actix_web::dev::RequestHead;
 use actix_web::HttpResponse;
@@ -22,7 +22,7 @@ use bp7::helpers::rnd_bundle;
 use bp7::EndpointID;
 use futures::StreamExt;
 use log::{debug, info};
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use std::{
     convert::{TryFrom, TryInto},
     time::{Duration, Instant},
@@ -135,7 +135,49 @@ impl StreamHandler<Result<ws::Message, ws::ProtocolError>> for WsAASession {
                 } else {
                 }
             }
-            ws::Message::Binary(_) => println!("Unexpected binary"),
+            ws::Message::Binary(bin) => {
+                if let Ok(send_req) = serde_cbor::from_slice::<WsSendBundle>(&bin) {
+                    //let src = (*CONFIG.lock()).host_eid.clone();
+                    let bcf = if send_req.delivery_notification {
+                        bp7::bundle::BUNDLE_MUST_NOT_FRAGMENTED
+                            | bp7::bundle::BUNDLE_STATUS_REQUEST_DELIVERY
+                    } else {
+                        bp7::bundle::BUNDLE_MUST_NOT_FRAGMENTED
+                    };
+                    let pblock = bp7::primary::PrimaryBlockBuilder::default()
+                        .bundle_control_flags(bcf)
+                        .destination(send_req.dst)
+                        .source(send_req.src.clone())
+                        .report_to(send_req.src)
+                        .creation_timestamp(CreationTimestamp::now())
+                        .lifetime(send_req.lifetime)
+                        .build()
+                        .unwrap();
+
+                    let b_len = send_req.data.len();
+                    debug!("Received via WS for sending: {:?} bytes", b_len);
+                    let mut bndl = bp7::bundle::BundleBuilder::default()
+                        .primary(pblock)
+                        .canonicals(vec![
+                            bp7::canonical::new_payload_block(0, send_req.data),
+                            bp7::canonical::new_hop_count_block(2, 0, 32),
+                        ])
+                        .build()
+                        .unwrap();
+                    bndl.set_crc(bp7::crc::CRC_NO);
+
+                    debug!(
+                        "Sending bundle {} to {} from WS",
+                        bndl.id(),
+                        bndl.primary.destination
+                    );
+
+                    crate::core::processing::send_bundle(bndl);
+                    ctx.text(format!("Sent payload with {} bytes", b_len));
+                } else {
+                    ctx.text("Unexpected binary");
+                }
+            }
             ws::Message::Close(_) => {
                 ctx.stop();
             }
