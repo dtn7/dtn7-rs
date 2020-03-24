@@ -45,8 +45,8 @@ struct WsAASession {
     /// Client must send ping at least once per 10 seconds (CLIENT_TIMEOUT),
     /// otherwise we drop connection.
     hb: Instant,
-    /// endpoint name
-    endpoint: Option<EndpointID>,
+    /// list of endpoints subscribed to
+    endpoints: Option<Vec<EndpointID>>,
 }
 
 impl Actor for WsAASession {
@@ -91,17 +91,23 @@ impl StreamHandler<Result<ws::Message, ws::ProtocolError>> for WsAASession {
                         "/subscribe" => {
                             if v.len() == 2 {
                                 if let Ok(eid) = EndpointID::try_from(v[1]) {
-                                    if (*DTNCORE.lock()).get_endpoint(&eid).is_none() {
+                                    if (*DTNCORE.lock()).is_in_endpoints(&eid) {
+                                        debug!("Subscribed to endpoint: {}", eid);
+                                        if let Some(endpoints) = &mut self.endpoints {
+                                            if !endpoints.contains(&eid) {
+                                                endpoints.push(eid);
+                                            }
+                                        } else {
+                                            self.endpoints = Some(vec![eid]);
+                                        }
+                                        ctx.text("subscribed");
+                                        self.monitor(ctx);
+                                    } else {
                                         debug!(
                                             "Attempted to subscribe to unknown endpoint: {}",
                                             eid
                                         );
                                         ctx.text("!!! unknown endpoint");
-                                    } else {
-                                        debug!("Subscribed to endpoint: {}", eid);
-                                        self.endpoint = Some(eid);
-                                        ctx.text("subscribed");
-                                        self.monitor(ctx);
                                     }
                                 } else {
                                     let this_host: EndpointID = (*CONFIG.lock()).host_eid.clone();
@@ -114,7 +120,13 @@ impl StreamHandler<Result<ws::Message, ws::ProtocolError>> for WsAASession {
                                             ctx.text("!!! unknown endpoint");
                                         } else {
                                             debug!("Subscribed to endpoint: {}", eid);
-                                            self.endpoint = Some(eid);
+                                            if let Some(endpoints) = &mut self.endpoints {
+                                                if !endpoints.contains(&eid) {
+                                                    endpoints.push(eid);
+                                                }
+                                            } else {
+                                                self.endpoints = Some(vec![eid]);
+                                            }
                                             ctx.text("subscribed");
                                             self.monitor(ctx);
                                         }
@@ -212,11 +224,13 @@ impl WsAASession {
     /// helper method that checks for new bundles.
     fn monitor(&self, ctx: &mut ws::WebsocketContext<Self>) {
         ctx.run_interval(CHECK_INTERVAL, |act, ctx| {
-            if let Some(eid) = &act.endpoint {
-                if let Some(aa) = (*DTNCORE.lock()).get_endpoint_mut(&eid) {
-                    if let Some(mut bundle) = aa.pop() {
-                        let cbor_bundle = bundle.to_cbor();
-                        ctx.binary(cbor_bundle);
+            if let Some(endpoints) = act.endpoints.clone() {
+                for eid in endpoints {
+                    if let Some(aa) = (*DTNCORE.lock()).get_endpoint_mut(&eid) {
+                        if let Some(mut bundle) = aa.pop() {
+                            let cbor_bundle = bundle.to_cbor();
+                            ctx.binary(cbor_bundle);
+                        }
                     }
                 }
             }
@@ -233,7 +247,7 @@ async fn ws_application_agent(
         WsAASession {
             id: 0,
             hb: Instant::now(),
-            endpoint: None,
+            endpoints: None,
         },
         &req,
         stream,
@@ -584,32 +598,41 @@ async fn register(req: HttpRequest) -> Result<String> {
         let eid = host_eid
             .new_endpoint(path)
             .expect("Error constructing new endpoint");
-        (*DTNCORE.lock()).register_application_agent(SimpleApplicationAgent::new_with(eid.clone()));
+        (*DTNCORE.lock()).register_application_agent(SimpleApplicationAgent::with(eid.clone()));
         Ok(format!("Registered {}", eid))
     } else {
-        Err(actix_web::error::ErrorBadRequest(anyhow!(
-            "Malformed endpoint path, only alphanumeric strings allowed!"
-        )))
+        if let Ok(eid) = EndpointID::try_from(path) {
+            (*DTNCORE.lock()).register_application_agent(SimpleApplicationAgent::with(eid.clone()));
+            Ok(format!("Registered URI: {}", eid))
+        } else {
+            Err(actix_web::error::ErrorBadRequest(anyhow!(
+                "Malformed endpoint path, only alphanumeric strings or endpoint URIs are allowed!"
+            )))
+        }
     }
 }
 
 #[get("/unregister", guard = "fn_guard_localhost")]
 async fn unregister(req: HttpRequest) -> Result<String> {
     let path = req.query_string();
-    // TODO: support non-node-specific EIDs
     if path.chars().all(char::is_alphanumeric) {
         let host_eid = (*CONFIG.lock()).host_eid.clone();
         let eid = host_eid
             .new_endpoint(path)
             .expect("Error constructing new endpoint");
 
-        (*DTNCORE.lock())
-            .unregister_application_agent(SimpleApplicationAgent::new_with(eid.clone()));
+        (*DTNCORE.lock()).unregister_application_agent(SimpleApplicationAgent::with(eid.clone()));
         Ok(format!("Unregistered {}", eid))
     } else {
-        Err(actix_web::error::ErrorBadRequest(anyhow!(
-            "Malformed endpoint path, only alphanumeric strings allowed!"
-        )))
+        if let Ok(eid) = EndpointID::try_from(path) {
+            (*DTNCORE.lock())
+                .unregister_application_agent(SimpleApplicationAgent::with(eid.clone()));
+            Ok(format!("Unregistered URI: {}", eid))
+        } else {
+            Err(actix_web::error::ErrorBadRequest(anyhow!(
+                "Malformed endpoint path, only alphanumeric strings or endpoint URIs are allowed!"
+            )))
+        }
     }
 }
 
@@ -639,9 +662,29 @@ async fn endpoint(req: HttpRequest) -> Result<HttpResponse> {
             )))
         }
     } else {
-        Err(actix_web::error::ErrorBadRequest(anyhow!(
-            "Malformed endpoint path, only alphanumeric strings allowed!"
-        )))
+        if let Ok(eid) = EndpointID::try_from(path) {
+            if let Some(aa) = (*DTNCORE.lock()).get_endpoint_mut(&eid) {
+                if let Some(mut bundle) = aa.pop() {
+                    let cbor_bundle = bundle.to_cbor();
+                    Ok(HttpResponse::Ok()
+                        .content_type("application/octet-stream")
+                        .body(cbor_bundle))
+                } else {
+                    Ok(HttpResponse::Ok()
+                        .content_type("plain/text")
+                        .body("Nothing to receive"))
+                }
+            } else {
+                //*response.status_mut() = StatusCode::NOT_FOUND;
+                Err(actix_web::error::ErrorBadRequest(anyhow!(
+                    "No such endpoint registered!"
+                )))
+            }
+        } else {
+            Err(actix_web::error::ErrorBadRequest(anyhow!(
+                "Malformed endpoint path, only alphanumeric strings allowed!"
+            )))
+        }
     }
 }
 #[get("/endpoint.hex", guard = "fn_guard_localhost")]
@@ -666,9 +709,24 @@ async fn endpoint_hex(req: HttpRequest) -> Result<String> {
             )))
         }
     } else {
-        Err(actix_web::error::ErrorBadRequest(anyhow!(
-            "Malformed endpoint path, only alphanumeric strings allowed!"
-        )))
+        if let Ok(eid) = EndpointID::try_from(path) {
+            if let Some(aa) = (*DTNCORE.lock()).get_endpoint_mut(&eid) {
+                if let Some(mut bundle) = aa.pop() {
+                    Ok(bp7::helpers::hexify(&bundle.to_cbor()))
+                } else {
+                    Ok("Nothing to receive".to_string())
+                }
+            } else {
+                //*response.status_mut() = StatusCode::NOT_FOUND;
+                Err(actix_web::error::ErrorBadRequest(anyhow!(
+                    "No such endpoint registered!"
+                )))
+            }
+        } else {
+            Err(actix_web::error::ErrorBadRequest(anyhow!(
+                "Malformed endpoint path, only alphanumeric strings allowed!"
+            )))
+        }
     }
 }
 

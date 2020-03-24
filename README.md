@@ -19,11 +19,11 @@ A similar golang implementation can be found here: https://github.com/dtn7/dtn7-
 
 The actual BP7 implementation can be found here: https://github.com/dtn7/bp7-rs
 
-Currently a very basic service discovery, MTCP & HTTP CLs, flooding/epidemic/sink-routing and a rest command interface are implemented. Both addressing schemes, *dtn* as well as *ipn* are supported. 
+Currently a very basic service discovery, MTCP & HTTP CLs, flooding/epidemic/sink-routing and rest/ws command interfaces are implemented. Both addressing schemes, *dtn* as well as *ipn* are supported. Furthermore, some CLI tools are provided to easily integrate *dtn7* into shell scripts.
 
 **Beware, the API is not always idiomatic rust and lacks documentation and tests at the moment.**
 
-I consider this code to be work-in-progress and not finished yet. Also the rest and web-socket interface is totally undocumented and unfinished at the moment:)
+I consider this code to be work-in-progress and not finished yet. Also the rest and web-socket interface is totally undocumented and unfinished at the moment :)
 
 ## Installation
 

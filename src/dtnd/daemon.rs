@@ -109,12 +109,12 @@ pub async fn start_dtnd(cfg: DtnConfig) -> std::io::Result<()> {
 
     let local_host_id = (*CONFIG.lock()).host_eid.clone();
     (*DTNCORE.lock())
-        .register_application_agent(SimpleApplicationAgent::new_with(local_host_id.clone()));
+        .register_application_agent(SimpleApplicationAgent::with(local_host_id.clone()));
     for e in &(*CONFIG.lock()).endpoints {
         let eid = local_host_id
             .new_endpoint(e)
             .expect("Error constructing new endpoint");
-        (*DTNCORE.lock()).register_application_agent(SimpleApplicationAgent::new_with(eid));
+        (*DTNCORE.lock()).register_application_agent(SimpleApplicationAgent::with(eid));
     }
     start_convergencylayers().await;
     if CONFIG.lock().janitor_interval.as_micros() != 0 {

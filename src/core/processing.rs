@@ -8,7 +8,7 @@ use crate::routing_notify;
 use crate::store_remove;
 use crate::CONFIG;
 use crate::DTNCORE;
-use crate::STATS;
+use crate::{is_local_node_id, STATS};
 
 use bp7::administrative_record::*;
 use bp7::bundle::BundleValidation;
@@ -135,15 +135,15 @@ pub fn dispatch(bp: BundlePack) -> Result<()> {
 
     routing_notify(RoutingNotifcation::IncomingBundle(&bp.bundle));
 
-    if (*DTNCORE.lock())
-        .get_endpoint_mut(&bp.bundle.primary.destination)
-        .is_some()
+    if (*DTNCORE.lock()).is_in_endpoints(&bp.bundle.primary.destination)
     // TODO: lookup here AND in local delivery, optmize for just one
     {
-        local_delivery(bp)
-    } else {
-        forward(bp)
+        local_delivery(bp.clone())?;
     }
+    if !is_local_node_id(&bp.bundle.primary.destination) {
+        forward(bp)?;
+    }
+    Ok(())
 }
 
 fn handle_hop_count_block(mut bp: BundlePack) -> Result<BundlePack> {
@@ -349,15 +349,24 @@ pub fn local_delivery(mut bp: BundlePack) -> Result<()> {
         aa.push(&bp.bundle);
         (*STATS.lock()).delivered += 1;
     }
-    if bp
-        .bundle
-        .primary
-        .bundle_control_flags
-        .has(bp7::bundle::BUNDLE_STATUS_REQUEST_DELIVERY)
-    {
-        send_status_report(&bp, DELIVERED_BUNDLE, NO_INFORMATION);
+    if is_local_node_id(&bp.bundle.primary.destination) {
+        if bp
+            .bundle
+            .primary
+            .bundle_control_flags
+            .has(bp7::bundle::BUNDLE_STATUS_REQUEST_DELIVERY)
+        {
+            send_status_report(&bp, DELIVERED_BUNDLE, NO_INFORMATION);
+        }
+        // TODO: might not be okay to clear if it was a group message, check in various setups
+        bp.clear_constraints();
+    } else {
+        info!(
+            "Add forwarding constraint again as bundle is non-local destination: {}",
+            bp.id()
+        );
+        bp.add_constraint(Constraint::ForwardPending);
     }
-    bp.clear_constraints();
     bp.sync()?;
     Ok(())
 }

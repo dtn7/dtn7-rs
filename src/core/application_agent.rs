@@ -30,7 +30,7 @@ impl ApplicationAgent for SimpleApplicationAgent {
 }
 
 impl SimpleApplicationAgent {
-    pub fn new_with(eid: EndpointID) -> SimpleApplicationAgent {
+    pub fn with(eid: EndpointID) -> SimpleApplicationAgent {
         SimpleApplicationAgent {
             eid,
             bundles: VecDeque::new(),
