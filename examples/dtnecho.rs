@@ -1,10 +1,10 @@
 use bp7::*;
 use clap::{crate_authors, crate_version, App, Arg};
 use dtn7::client::DtnClient;
+use dtn7::client::WsSendBundle;
 use std::convert::TryFrom;
-use std::io::prelude::*;
-use std::process::Command;
-use tempfile::NamedTempFile;
+use std::io::{self, Write};
+use std::str::from_utf8;
 use ws::{Builder, CloseCode, Handler, Handshake, Message, Result, Sender};
 
 struct Connection {
@@ -12,34 +12,6 @@ struct Connection {
     out: Sender,
     subscribed: bool,
     verbose: bool,
-    command: String,
-}
-
-impl Connection {
-    fn write_temp_file(&self, data: &[u8]) -> Result<NamedTempFile> {
-        let mut data_file = NamedTempFile::new()?;
-        data_file.write_all(data)?;
-        data_file.flush()?;
-        let fname_param = format!("{}", data_file.path().display());
-        if self.verbose {
-            eprintln!("data file: {}", fname_param);
-        }
-        Ok(data_file)
-    }
-    fn execute_cmd(&self, data_file: NamedTempFile, bndl: &Bundle) -> Result<()> {
-        let fname_param = format!("{}", data_file.path().display());
-        let output = Command::new(&self.command)
-            .arg(bndl.primary.source.to_string())
-            .arg(fname_param)
-            .output()?;
-
-        if !output.status.success() || self.verbose {
-            println!("status: {}", output.status);
-            std::io::stdout().write_all(&output.stdout)?;
-            std::io::stderr().write_all(&output.stderr)?;
-        }
-        Ok(())
-    }
 }
 
 impl Handler for Connection {
@@ -53,6 +25,10 @@ impl Handler for Connection {
             Message::Text(txt) => {
                 if txt == "subscribed" {
                     self.subscribed = true;
+                    if self.verbose {
+                        println!("Subscribed to endpoint {}", self.endpoint);
+                    }
+                } else if txt.starts_with("Sent payload") {
                 } else {
                     self.out.close(CloseCode::Error)?;
                 }
@@ -65,11 +41,34 @@ impl Handler for Connection {
                 } else {
                     if let Some(data) = bndl.payload() {
                         if self.verbose {
-                            eprintln!("Bundle-Id: {}", bndl.id());
+                            eprintln!(
+                                "Bundle-Id: {} // From: {} / To: {}",
+                                bndl.id(),
+                                bndl.primary.source,
+                                bndl.primary.destination
+                            );
+
+                            if let Ok(data_str) = from_utf8(&data) {
+                                eprintln!("Data: {}", data_str);
+                            }
+                        } else {
+                            print!(".");
+                            std::io::stdout().flush().unwrap();
                         }
-                        let data_file = self.write_temp_file(data)?;
-                        self.execute_cmd(data_file, &bndl)?;
-                    //std::thread::sleep(std::time::Duration::from_secs(10));
+                        // flip src and destionation
+                        let src = bndl.primary.destination.clone();
+                        let dst = bndl.primary.source.clone();
+                        // construct response with copied payload
+                        let echo_response = WsSendBundle {
+                            src,
+                            dst,
+                            delivery_notification: false,
+                            lifetime: bndl.primary.lifetime,
+                            data: data.clone(),
+                        };
+                        self.out
+                            .send(serde_cbor::to_vec(&echo_response).unwrap())
+                            .expect("error sending echo response");
                     } else {
                         if self.verbose {
                             eprintln!("Unexpected payload!");
@@ -83,18 +82,10 @@ impl Handler for Connection {
 }
 
 fn main() -> anyhow::Result<()> {
-    let matches = App::new("dtntrigger")
+    let matches = App::new("dtnecho")
         .version(crate_version!())
         .author(crate_authors!())
-        .about("A simple Bundle Protocol 7 Incoming Trigger Utility for Delay Tolerant Networking")
-        .arg(
-            Arg::with_name("endpoint")
-                .short("e")
-                .long("endpoint")
-                .value_name("ENDPOINT")
-                .help("Specify local endpoint, e.g. '/incoming')")
-                .takes_value(true),
-        )
+        .about("A simple Bundle Protocol 7 Echo Service for Delay Tolerant Networking")
         .arg(
             Arg::with_name("port")
                 .short("p")
@@ -102,15 +93,6 @@ fn main() -> anyhow::Result<()> {
                 .value_name("PORT")
                 .help("Local web port (default = 3000)")
                 .required(false)
-                .takes_value(true),
-        )
-        .arg(
-            Arg::with_name("cmd")
-                .short("c")
-                .long("command")
-                .value_name("CMD")
-                .help("Command to execute for incoming bundles, param1 = source, param2 = payload file")
-                .required(true)
                 .takes_value(true),
         )
         .arg(
@@ -143,18 +125,24 @@ fn main() -> anyhow::Result<()> {
         localhost.into(),
         port.parse::<u16>().expect("invalid port number"),
     );
-
-    let endpoint: String = matches.value_of("endpoint").unwrap().into();
-    let command: String = matches.value_of("cmd").unwrap().into();
-
+    let endpoint: String = if client
+        .local_node_id()
+        .expect("failed to get local node id")
+        .scheme()
+        == "dtn"
+    {
+        "echo".into()
+    } else {
+        "7".into()
+    };
     client.register_application_endpoint(&endpoint)?;
+
     let mut ws = Builder::new()
         .build(|out| Connection {
             endpoint: endpoint.clone(),
             out,
             subscribed: false,
             verbose,
-            command: command.clone(),
         })
         .unwrap();
     ws.connect(url::Url::parse(&local_url)?)?;

@@ -174,6 +174,13 @@ OPTIONS:
     -p, --port <PORT>            Local web port (default = 3000)
 ```
 
+### Examples
+
+A simple DTN echo service can be found under `examples/dtnecho.rs`. 
+
+This service automatically registers its endpoint and listens for any incoming bundles on the local `/echo` endpoint or for *ipn* addresses on service number `7`. 
+Each bundle is sent back to its source with the same payload and lifetime, no delivery report is requested. 
+
 ### Acknowledging this work
 
 If you use this software in a scientific publication, please cite the following paper:

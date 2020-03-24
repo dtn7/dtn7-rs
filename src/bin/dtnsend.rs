@@ -1,25 +1,9 @@
 use bp7::bundle::*;
 use bp7::*;
 use clap::{crate_authors, crate_version, App, Arg};
+use dtn7::client::DtnClient;
 use std::io;
 use std::{convert::TryInto, io::prelude::*};
-
-fn get_local_node_id(localhost: &str, port: &str) -> String {
-    attohttpc::get(&format!("http://{}:{}/status/nodeid", localhost, port))
-        .send()
-        .expect("error connecting to local dtnd")
-        .text()
-        .unwrap()
-}
-
-fn get_cts(localhost: &str, port: &str) -> CreationTimestamp {
-    let response = attohttpc::get(&format!("http://{}:{}/cts", localhost, port))
-        .send()
-        .expect("error connecting to local dtnd")
-        .text()
-        .unwrap();
-    serde_json::from_str(&response).unwrap()
-}
 
 fn main() {
     let matches = App::new("dtnsend")
@@ -94,13 +78,22 @@ fn main() {
     } else {
         "127.0.0.1"
     };
-    let dryrun: bool = matches.is_present("dryrun");
-    let verbose: bool = matches.is_present("verbose");
     let port = std::env::var("DTN_WEB_PORT").unwrap_or_else(|_| "3000".into());
     let port = matches.value_of("port").unwrap_or(&port); // string is fine no need to parse number
+    let client = DtnClient::with_host_and_port(
+        localhost.into(),
+        port.parse::<u16>().expect("invalid port number"),
+    );
+    let dryrun: bool = matches.is_present("dryrun");
+    let verbose: bool = matches.is_present("verbose");
     let sender: EndpointID = matches
         .value_of("sender")
-        .unwrap_or(&get_local_node_id(localhost, port))
+        .unwrap_or(
+            &client
+                .local_node_id()
+                .expect("error getting node id from local dtnd")
+                .to_string(),
+        )
         .try_into()
         .unwrap();
     let receiver: EndpointID = matches.value_of("receiver").unwrap().try_into().unwrap();
@@ -109,7 +102,9 @@ fn main() {
         .unwrap_or("3600")
         .parse::<u64>()
         .unwrap();
-    let cts = get_cts(localhost, port);
+    let cts = client
+        .creation_timestamp()
+        .expect("error getting creation timestamp from local dtnd");
     let mut buffer = Vec::new();
     if let Some(infile) = matches.value_of("infile") {
         if verbose {
