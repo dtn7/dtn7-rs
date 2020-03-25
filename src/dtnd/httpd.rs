@@ -1,6 +1,6 @@
 use crate::core::application_agent::SimpleApplicationAgent;
 use crate::core::helpers::rnd_peer;
-use crate::core::peer::PeerType;
+use crate::core::{bundlepack::BundlePack, peer::PeerType};
 use crate::peers_count;
 use crate::DtnConfig;
 use crate::CONFIG;
@@ -281,9 +281,15 @@ struct PeerEntry {
 }
 
 #[derive(Serialize)]
+struct BundleInfo {
+    id: String,
+    size: String,
+}
+
+#[derive(Serialize)]
 struct BundlesContext<'a> {
     config: &'a DtnConfig,
-    bundles: &'a [String],
+    bundles: &'a [BundleInfo],
 }
 #[derive(Serialize)]
 struct BundleEntry {
@@ -378,6 +384,7 @@ async fn web_peers() -> impl Responder {
         .body(rendered)
 }
 
+use humansize::{file_size_opts, FileSize};
 #[get("/bundles")]
 async fn web_bundles() -> impl Responder {
     // "dtn7 ctrl interface"
@@ -385,7 +392,14 @@ async fn web_bundles() -> impl Responder {
     let mut tt = TinyTemplate::new();
     tt.add_template("bundles", template_str)
         .expect("error adding template");
-    let bundles_vec = (*DTNCORE.lock()).bundles();
+    let bundles_vec: Vec<BundleInfo> = (STORE.lock())
+        .bundles()
+        .iter()
+        .map(|bp| BundleInfo {
+            id: bp.id.to_string(),
+            size: bp.size.file_size(file_size_opts::DECIMAL).unwrap().into(),
+        })
+        .collect();
     let context = BundlesContext {
         config: &(*CONFIG.lock()),
         bundles: bundles_vec.as_slice(),

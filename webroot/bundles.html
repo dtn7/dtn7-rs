@@ -20,10 +20,12 @@
             <table margin="4px">
                 <tr>
                     <th width="40%" align="left">Bundle ID</th>
+                    <th width="40%" align="left">Size</th>
                 </tr>
                 {{for b in bundles}}
                 <tr>
-                    <td><a href="/download?{b}">{b}</a></td>
+                    <td><a href="/download?{b.id}">{b.id}</a></td>
+                    <td>{b.size}</td>
                 </tr>
                 {{ endfor }}
             </table>

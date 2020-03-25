@@ -47,6 +47,7 @@ pub struct BundlePack {
     pub receiver: EndpointID,
     pub timestamp: u64,
     pub id: String,
+    pub size: usize,
     constraints: HashSet<Constraint>,
 }
 
@@ -58,8 +59,9 @@ impl fmt::Display for BundlePack {
 
 /// Create from a given bundle.
 impl From<Bundle> for BundlePack {
-    fn from(bundle: Bundle) -> Self {
+    fn from(mut bundle: Bundle) -> Self {
         let bid = bundle.id();
+        let size = bundle.to_cbor().len();
         BundlePack {
             receiver: bundle.primary.destination.clone(),
             bundle,
@@ -68,6 +70,7 @@ impl From<Bundle> for BundlePack {
                 .expect("Time went backwards")
                 .as_millis() as u64,
             id: bid,
+            size,
             constraints: HashSet::new(),
         }
     }
