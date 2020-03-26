@@ -53,7 +53,9 @@ impl Handler for Connection {
             Message::Text(txt) => {
                 if txt == "subscribed" {
                     self.subscribed = true;
+                } else if txt.starts_with("200") {
                 } else {
+                    eprintln!("Unexpected response: {}", txt);
                     self.out.close(CloseCode::Error)?;
                 }
             }

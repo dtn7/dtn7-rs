@@ -7,7 +7,7 @@ use crate::CONFIG;
 use crate::DTNCORE;
 use crate::PEERS;
 use crate::STATS;
-use crate::{client::WsSendBundle, STORE};
+use crate::{client::WsSendData, STORE};
 use actix::*;
 use actix_web::dev::RequestHead;
 use actix_web::HttpResponse;
@@ -47,6 +47,13 @@ struct WsAASession {
     hb: Instant,
     /// list of endpoints subscribed to
     endpoints: Option<Vec<EndpointID>>,
+    /// receive either complete bundles or data and construct bundle server side
+    mode: WsReceiveMode,
+}
+
+enum WsReceiveMode {
+    Bundle,
+    Data,
 }
 
 impl Actor for WsAASession {
@@ -88,11 +95,19 @@ impl StreamHandler<Result<ws::Message, ws::ProtocolError>> for WsAASession {
                 if m.starts_with('/') {
                     let v: Vec<&str> = m.splitn(2, ' ').collect();
                     match v[0] {
+                        "/bundle" => {
+                            self.mode = WsReceiveMode::Bundle;
+                            ctx.text("200 tx mode: bundle");
+                        }
+                        "/data" => {
+                            self.mode = WsReceiveMode::Data;
+                            ctx.text("200 tx mode: data");
+                        }
                         "/subscribe" => {
                             if v.len() == 2 {
                                 if let Ok(eid) = EndpointID::try_from(v[1]) {
                                     if (*DTNCORE.lock()).is_in_endpoints(&eid) {
-                                        debug!("Subscribed to endpoint: {}", eid);
+                                        debug!("subscribed to endpoint: {}", eid);
                                         if let Some(endpoints) = &mut self.endpoints {
                                             if !endpoints.contains(&eid) {
                                                 endpoints.push(eid);
@@ -100,14 +115,14 @@ impl StreamHandler<Result<ws::Message, ws::ProtocolError>> for WsAASession {
                                         } else {
                                             self.endpoints = Some(vec![eid]);
                                         }
-                                        ctx.text("subscribed");
+                                        ctx.text("200 subscribed");
                                         self.monitor(ctx);
                                     } else {
                                         debug!(
                                             "Attempted to subscribe to unknown endpoint: {}",
                                             eid
                                         );
-                                        ctx.text("!!! unknown endpoint");
+                                        ctx.text("404 unknown endpoint");
                                     }
                                 } else {
                                     let this_host: EndpointID = (*CONFIG.lock()).host_eid.clone();
@@ -117,7 +132,7 @@ impl StreamHandler<Result<ws::Message, ws::ProtocolError>> for WsAASession {
                                                 "Attempted to subscribe to unknown endpoint: {}",
                                                 eid
                                             );
-                                            ctx.text("!!! unknown endpoint");
+                                            ctx.text("404 unknown endpoint");
                                         } else {
                                             debug!("Subscribed to endpoint: {}", eid);
                                             if let Some(endpoints) = &mut self.endpoints {
@@ -127,7 +142,7 @@ impl StreamHandler<Result<ws::Message, ws::ProtocolError>> for WsAASession {
                                             } else {
                                                 self.endpoints = Some(vec![eid]);
                                             }
-                                            ctx.text("subscribed");
+                                            ctx.text("200 subscribed");
                                             self.monitor(ctx);
                                         }
                                     } else {
@@ -135,59 +150,76 @@ impl StreamHandler<Result<ws::Message, ws::ProtocolError>> for WsAASession {
                                             "Invalid endpoint combination: {} and {}",
                                             this_host, v[1]
                                         );
-                                        ctx.text("!!! invalid endpoint combination");
+                                        ctx.text("400 invalid endpoint combination");
                                     }
                                 }
                             } else {
-                                ctx.text("!!! endpoint is missing");
+                                ctx.text("400 endpoint is missing");
                             }
                         }
-                        _ => ctx.text(format!("!!! unknown command: {:?}", m)),
+                        _ => ctx.text(format!("501 unknown command: {:?}", m)),
                     }
                 } else {
                 }
             }
             ws::Message::Binary(bin) => {
-                if let Ok(send_req) = serde_cbor::from_slice::<WsSendBundle>(&bin) {
-                    //let src = (*CONFIG.lock()).host_eid.clone();
-                    let bcf = if send_req.delivery_notification {
-                        bp7::bundle::BUNDLE_MUST_NOT_FRAGMENTED
-                            | bp7::bundle::BUNDLE_STATUS_REQUEST_DELIVERY
-                    } else {
-                        bp7::bundle::BUNDLE_MUST_NOT_FRAGMENTED
-                    };
-                    let pblock = bp7::primary::PrimaryBlockBuilder::default()
-                        .bundle_control_flags(bcf)
-                        .destination(send_req.dst)
-                        .source(send_req.src.clone())
-                        .report_to(send_req.src)
-                        .creation_timestamp(CreationTimestamp::now())
-                        .lifetime(send_req.lifetime)
-                        .build()
-                        .unwrap();
+                match self.mode {
+                    WsReceiveMode::Bundle => {
+                        if let Ok(bndl) = serde_cbor::from_slice::<bp7::Bundle>(&bin) {
+                            debug!(
+                                "Sending bundle {} to {} from WS",
+                                bndl.id(),
+                                bndl.primary.destination
+                            );
+                            crate::core::processing::send_bundle(bndl);
+                            ctx.text(format!("Sent payload with {} bytes", bin.len()));
+                        } else {
+                            ctx.text("Invalid binary bundle");
+                        }
+                    }
+                    WsReceiveMode::Data => {
+                        if let Ok(send_req) = serde_cbor::from_slice::<WsSendData>(&bin) {
+                            //let src = (*CONFIG.lock()).host_eid.clone();
+                            let bcf = if send_req.delivery_notification {
+                                bp7::bundle::BUNDLE_MUST_NOT_FRAGMENTED
+                                    | bp7::bundle::BUNDLE_STATUS_REQUEST_DELIVERY
+                            } else {
+                                bp7::bundle::BUNDLE_MUST_NOT_FRAGMENTED
+                            };
+                            let pblock = bp7::primary::PrimaryBlockBuilder::default()
+                                .bundle_control_flags(bcf)
+                                .destination(send_req.dst)
+                                .source(send_req.src.clone())
+                                .report_to(send_req.src)
+                                .creation_timestamp(CreationTimestamp::now())
+                                .lifetime(send_req.lifetime)
+                                .build()
+                                .unwrap();
 
-                    let b_len = send_req.data.len();
-                    debug!("Received via WS for sending: {:?} bytes", b_len);
-                    let mut bndl = bp7::bundle::BundleBuilder::default()
-                        .primary(pblock)
-                        .canonicals(vec![
-                            bp7::canonical::new_payload_block(0, send_req.data),
-                            bp7::canonical::new_hop_count_block(2, 0, 32),
-                        ])
-                        .build()
-                        .unwrap();
-                    bndl.set_crc(bp7::crc::CRC_NO);
+                            let b_len = send_req.data.len();
+                            debug!("Received via WS for sending: {:?} bytes", b_len);
+                            let mut bndl = bp7::bundle::BundleBuilder::default()
+                                .primary(pblock)
+                                .canonicals(vec![
+                                    bp7::canonical::new_payload_block(0, send_req.data),
+                                    bp7::canonical::new_hop_count_block(2, 0, 32),
+                                ])
+                                .build()
+                                .unwrap();
+                            bndl.set_crc(bp7::crc::CRC_NO);
 
-                    debug!(
-                        "Sending bundle {} to {} from WS",
-                        bndl.id(),
-                        bndl.primary.destination
-                    );
+                            debug!(
+                                "Sending bundle {} to {} from WS",
+                                bndl.id(),
+                                bndl.primary.destination
+                            );
 
-                    crate::core::processing::send_bundle(bndl);
-                    ctx.text(format!("Sent payload with {} bytes", b_len));
-                } else {
-                    ctx.text("Unexpected binary");
+                            crate::core::processing::send_bundle(bndl);
+                            ctx.text(format!("Sent payload with {} bytes", b_len));
+                        } else {
+                            ctx.text("Unexpected binary");
+                        }
+                    }
                 }
             }
             ws::Message::Close(_) => {
@@ -248,6 +280,7 @@ async fn ws_application_agent(
             id: 0,
             hb: Instant::now(),
             endpoints: None,
+            mode: WsReceiveMode::Data,
         },
         &req,
         stream,

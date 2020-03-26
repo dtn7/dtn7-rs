@@ -46,7 +46,7 @@ impl DtnClient {
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct WsSendBundle {
+pub struct WsSendData {
     pub src: EndpointID,
     pub dst: EndpointID,
     pub delivery_notification: bool,

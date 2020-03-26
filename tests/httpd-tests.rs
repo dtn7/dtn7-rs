@@ -1,7 +1,6 @@
 use dtn7::dtnconfig::DtnConfig;
+use serde::Serialize;
 use tinytemplate::TinyTemplate;
-#[macro_use]
-extern crate serde_derive;
 
 #[derive(Serialize)]
 struct Context<'a> {
