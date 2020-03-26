@@ -1,7 +1,7 @@
 use bp7::*;
 use clap::{crate_authors, crate_version, App, Arg};
 use dtn7::client::DtnClient;
-use dtn7::client::WsSendBundle;
+use dtn7::client::WsSendData;
 use std::convert::TryFrom;
 use std::io::{self, Write};
 use std::str::from_utf8;
@@ -28,8 +28,9 @@ impl Handler for Connection {
                     if self.verbose {
                         println!("Subscribed to endpoint {}", self.endpoint);
                     }
-                } else if txt.starts_with("Sent payload") {
+                } else if txt.starts_with("200") {
                 } else {
+                    eprintln!("Unexpected response: {}", txt);
                     self.out.close(CloseCode::Error)?;
                 }
             }
@@ -59,7 +60,7 @@ impl Handler for Connection {
                         let src = bndl.primary.destination.clone();
                         let dst = bndl.primary.source.clone();
                         // construct response with copied payload
-                        let echo_response = WsSendBundle {
+                        let echo_response = WsSendData {
                             src,
                             dst,
                             delivery_notification: false,
