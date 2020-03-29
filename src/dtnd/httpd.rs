@@ -15,6 +15,7 @@ use actix_web::{
     get, http::StatusCode, post, web, App, Error, HttpRequest, HttpServer, Responder, Result,
 };
 use actix_web_actors::ws;
+use std::collections::{HashMap, HashSet};
 
 use anyhow::anyhow;
 use bp7::dtntime::CreationTimestamp;
@@ -46,7 +47,7 @@ struct WsAASession {
     /// otherwise we drop connection.
     hb: Instant,
     /// list of endpoints subscribed to
-    endpoints: Option<Vec<EndpointID>>,
+    endpoints: Option<HashSet<EndpointID>>,
     /// receive either complete bundles or data and construct bundle server side
     mode: WsReceiveMode,
 }
@@ -62,6 +63,7 @@ impl Actor for WsAASession {
     fn started(&mut self, ctx: &mut Self::Context) {
         // we'll start heartbeat process on session start.
         self.hb(ctx);
+        self.monitor(ctx);
         debug!("Started new WebSocket for application agent");
     }
 
@@ -103,20 +105,33 @@ impl StreamHandler<Result<ws::Message, ws::ProtocolError>> for WsAASession {
                             self.mode = WsReceiveMode::Data;
                             ctx.text("200 tx mode: data");
                         }
+                        "/unsubscribe" => {
+                            if v.len() == 2 {
+                                if let Ok(eid) = EndpointID::try_from(v[1]) {
+                                    if let Some(endpoints) = &mut self.endpoints {
+                                        endpoints.remove(&eid);
+                                        debug!("unsubscribed endpoint: {}", eid);
+                                        ctx.text("200 unsubscribed");
+                                    } else {
+                                        ctx.text("404 endpoint not found");
+                                    }
+                                } else {
+                                    ctx.text("400 invalid endpoint");
+                                }
+                            }
+                        }
                         "/subscribe" => {
                             if v.len() == 2 {
                                 if let Ok(eid) = EndpointID::try_from(v[1]) {
                                     if (*DTNCORE.lock()).is_in_endpoints(&eid) {
                                         debug!("subscribed to endpoint: {}", eid);
+                                        if self.endpoints.is_none() {
+                                            self.endpoints = Some(HashSet::new());
+                                        }
                                         if let Some(endpoints) = &mut self.endpoints {
-                                            if !endpoints.contains(&eid) {
-                                                endpoints.push(eid);
-                                            }
-                                        } else {
-                                            self.endpoints = Some(vec![eid]);
+                                            endpoints.insert(eid);
                                         }
                                         ctx.text("200 subscribed");
-                                        self.monitor(ctx);
                                     } else {
                                         debug!(
                                             "Attempted to subscribe to unknown endpoint: {}",
@@ -135,15 +150,13 @@ impl StreamHandler<Result<ws::Message, ws::ProtocolError>> for WsAASession {
                                             ctx.text("404 unknown endpoint");
                                         } else {
                                             debug!("Subscribed to endpoint: {}", eid);
+                                            if self.endpoints.is_none() {
+                                                self.endpoints = Some(HashSet::new());
+                                            }
                                             if let Some(endpoints) = &mut self.endpoints {
-                                                if !endpoints.contains(&eid) {
-                                                    endpoints.push(eid);
-                                                }
-                                            } else {
-                                                self.endpoints = Some(vec![eid]);
+                                                endpoints.insert(eid);
                                             }
                                             ctx.text("200 subscribed");
-                                            self.monitor(ctx);
                                         }
                                     } else {
                                         debug!(
@@ -172,9 +185,9 @@ impl StreamHandler<Result<ws::Message, ws::ProtocolError>> for WsAASession {
                                 bndl.primary.destination
                             );
                             crate::core::processing::send_bundle(bndl);
-                            ctx.text(format!("Sent payload with {} bytes", bin.len()));
+                            ctx.text(format!("200 Sent payload with {} bytes", bin.len()));
                         } else {
-                            ctx.text("Invalid binary bundle");
+                            ctx.text("400 Invalid binary bundle");
                         }
                     }
                     WsReceiveMode::Data => {
@@ -215,9 +228,9 @@ impl StreamHandler<Result<ws::Message, ws::ProtocolError>> for WsAASession {
                             );
 
                             crate::core::processing::send_bundle(bndl);
-                            ctx.text(format!("Sent payload with {} bytes", b_len));
+                            ctx.text(format!("200 Sent payload with {} bytes", b_len));
                         } else {
-                            ctx.text("Unexpected binary");
+                            ctx.text("400 Unexpected binary");
                         }
                     }
                 }
