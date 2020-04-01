@@ -1,3 +1,4 @@
+use bp7::EndpointID;
 use clap::{crate_authors, crate_version, App, Arg};
 use dtn7::dtnd::daemon::*;
 use dtn7::DtnConfig;
@@ -157,11 +158,18 @@ async fn main() -> std::io::Result<()> {
     }
 
     if let Some(nodeid) = matches.value_of("nodeid") {
-        cfg.host_eid = if let Ok(number) = nodeid.parse::<u64>() {
-            format!("ipn://{}.0", number).try_into().unwrap()
+        if nodeid.chars().all(char::is_alphanumeric) {
+            cfg.host_eid = if let Ok(number) = nodeid.parse::<u64>() {
+                format!("ipn://{}.0", number).try_into().unwrap()
+            } else {
+                format!("dtn://{}", nodeid).try_into().unwrap()
+            };
         } else {
-            format!("dtn://{}", nodeid).try_into().unwrap()
-        };
+            cfg.host_eid = nodeid.try_into().unwrap();
+            if !cfg.host_eid.is_node_id() {
+                panic!("Invalid node id!");
+            }
+        }
     }
 
     if let Some(i) = matches.value_of("interval") {
