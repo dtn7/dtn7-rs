@@ -50,11 +50,18 @@ impl From<PathBuf> for DtnConfig {
 
         debug!("debug: {:?}", dtncfg.debug);
         let nodeid = s.get_str("nodeid").unwrap_or(rnd_node_name());
-        dtncfg.host_eid = if let Ok(number) = nodeid.parse::<u64>() {
-            format!("ipn://{}.0", number).try_into().unwrap()
+        if nodeid.chars().all(char::is_alphanumeric) {
+            dtncfg.host_eid = if let Ok(number) = nodeid.parse::<u64>() {
+                format!("ipn://{}.0", number).try_into().unwrap()
+            } else {
+                format!("dtn://{}", nodeid).try_into().unwrap()
+            };
         } else {
-            format!("dtn://{}", nodeid).try_into().unwrap()
-        };
+            dtncfg.host_eid = nodeid.try_into().unwrap();
+            if !dtncfg.host_eid.is_node_id() {
+                panic!("Invalid node id!");
+            }
+        }
         debug!("nodeid: {:?}", dtncfg.host_eid);
         dtncfg.nodeid = dtncfg.host_eid.to_string();
 
