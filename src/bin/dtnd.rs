@@ -157,11 +157,21 @@ async fn main() -> std::io::Result<()> {
     }
 
     if let Some(nodeid) = matches.value_of("nodeid") {
-        cfg.host_eid = if let Ok(number) = nodeid.parse::<u64>() {
-            format!("ipn://{}.0", number).try_into().unwrap()
-        } else {
-            format!("dtn://{}", nodeid).try_into().unwrap()
+        let mut split = nodeid.split("://");
+        split.next().unwrap();
+        let host_eid : bp7::EndpointID = match split.next() {
+            Some(_) => nodeid.try_into().unwrap(),
+            None => {
+                if let Ok(number) = nodeid.parse::<u64>() {
+                    format!("ipn://{}.0", number).try_into().unwrap()
+                } else {
+                    format!("dtn://{}", nodeid).try_into().unwrap()
+        
+                }
+            },
         };
+
+        cfg.host_eid = host_eid;
     }
 
     if let Some(i) = matches.value_of("interval") {
