@@ -29,7 +29,7 @@ impl Connection {
     }
     fn execute_cmd(&self, data_file: NamedTempFile, bndl: &Bundle) -> Result<()> {
         let fname_param = format!("{}", data_file.path().display());
-        let cmd_args = &mut self.command.split(" ");
+        let cmd_args = &mut self.command.split_whitespace();
         let mut command = Command::new(cmd_args.next().unwrap());
         while let Some(arg) = cmd_args.next() {
             command.arg(arg);
