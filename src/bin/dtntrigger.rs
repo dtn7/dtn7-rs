@@ -30,7 +30,7 @@ impl Connection {
     fn execute_cmd(&self, data_file: NamedTempFile, bndl: &Bundle) -> Result<()> {
         let fname_param = format!("{}", data_file.path().display());
         let cmd_args = &mut self.command.split_whitespace();
-        let mut command = Command::new(cmd_args.next().unwrap());
+        let mut command = Command::new(cmd_args.next().unwrap());  //empty string handled by clap
         while let Some(arg) = cmd_args.next() {
             command.arg(arg);
         }
@@ -45,7 +45,7 @@ impl Connection {
                     process::exit(1);
                 },
             };
-
+            
         if !output.status.success() || self.verbose {
             println!("status: {}", output.status);
             std::io::stdout().write_all(&output.stdout)?;
@@ -125,7 +125,8 @@ fn main() -> anyhow::Result<()> {
                 .value_name("CMD")
                 .help("Command to execute for incoming bundles, param1 = source, param2 = payload file")
                 .required(true)
-                .takes_value(true),
+                .takes_value(true)
+                .empty_values(false),
         )
         .arg(
             Arg::with_name("verbose")
