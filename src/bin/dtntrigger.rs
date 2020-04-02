@@ -38,7 +38,11 @@ impl Connection {
             .arg(bndl.primary.source.to_string())
             .arg(fname_param)
             .output() 
-            {
+          .unwrap_or_else(
+                |e| {
+                    eprintln!("Error executing command: {}", e);
+                    std::process::exit(1);
+                }); 
                 Ok(out) => out,
                 Err(e) => {
                     eprintln!("Error executing command: {}", e);
