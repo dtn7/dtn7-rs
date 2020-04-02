@@ -4,6 +4,7 @@ use dtn7::client::DtnClient;
 use std::convert::TryFrom;
 use std::io::prelude::*;
 use std::process::Command;
+use std::process;
 use tempfile::NamedTempFile;
 use ws::{Builder, CloseCode, Handler, Handshake, Message, Result, Sender};
 
@@ -28,10 +29,22 @@ impl Connection {
     }
     fn execute_cmd(&self, data_file: NamedTempFile, bndl: &Bundle) -> Result<()> {
         let fname_param = format!("{}", data_file.path().display());
-        let output = Command::new(&self.command)
+        let cmd_args = &mut self.command.split(" ");
+        let mut command = Command::new(cmd_args.next().unwrap());
+        while let Some(arg) = cmd_args.next() {
+            command.arg(arg);
+        }
+        let output = match command
             .arg(bndl.primary.source.to_string())
             .arg(fname_param)
-            .output()?;
+            .output() 
+            {
+                Ok(out) => out,
+                Err(e) => {
+                    eprintln!("Error executing command: {}", e);
+                    process::exit(1);
+                },
+            };
 
         if !output.status.success() || self.verbose {
             println!("status: {}", output.status);
