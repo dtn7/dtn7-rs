@@ -34,22 +34,16 @@ impl Connection {
         while let Some(arg) = cmd_args.next() {
             command.arg(arg);
         }
-        let output = match command
+        let output = command
             .arg(bndl.primary.source.to_string())
             .arg(fname_param)
             .output() 
-          .unwrap_or_else(
+            .unwrap_or_else(
                 |e| {
                     eprintln!("Error executing command: {}", e);
                     std::process::exit(1);
-                }); 
-                Ok(out) => out,
-                Err(e) => {
-                    eprintln!("Error executing command: {}", e);
-                    process::exit(1);
-                },
-            };
-            
+            }); 
+
         if !output.status.success() || self.verbose {
             println!("status: {}", output.status);
             std::io::stdout().write_all(&output.stdout)?;
