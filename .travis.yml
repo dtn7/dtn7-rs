@@ -12,3 +12,6 @@ matrix:
     - rust: nightly
   fast_finish: true
 
+script:
+  - travis_wait 30 cargo build --verbose --all
+  - travis_wait 20 cargo test --verbose --all
