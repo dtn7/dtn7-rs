@@ -4,6 +4,7 @@ use dtn7::client::DtnClient;
 use std::convert::TryFrom;
 use std::io::prelude::*;
 use std::process::Command;
+use std::process;
 use tempfile::NamedTempFile;
 use ws::{Builder, CloseCode, Handler, Handshake, Message, Result, Sender};
 
@@ -28,10 +29,20 @@ impl Connection {
     }
     fn execute_cmd(&self, data_file: NamedTempFile, bndl: &Bundle) -> Result<()> {
         let fname_param = format!("{}", data_file.path().display());
-        let output = Command::new(&self.command)
+        let cmd_args = &mut self.command.split_whitespace();
+        let mut command = Command::new(cmd_args.next().unwrap());  //empty string handled by clap
+        while let Some(arg) = cmd_args.next() {
+            command.arg(arg);
+        }
+        let output = command
             .arg(bndl.primary.source.to_string())
             .arg(fname_param)
-            .output()?;
+            .output() 
+            .unwrap_or_else(
+                |e| {
+                    eprintln!("Error executing command: {}", e);
+                    std::process::exit(1);
+            }); 
 
         if !output.status.success() || self.verbose {
             println!("status: {}", output.status);
@@ -112,7 +123,8 @@ fn main() -> anyhow::Result<()> {
                 .value_name("CMD")
                 .help("Command to execute for incoming bundles, param1 = source, param2 = payload file")
                 .required(true)
-                .takes_value(true),
+                .takes_value(true)
+                .empty_values(false),
         )
         .arg(
             Arg::with_name("verbose")
