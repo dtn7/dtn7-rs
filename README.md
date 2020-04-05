@@ -15,9 +15,11 @@ Plus:
 * A simple web interface for status information about `dtnd` 
 * A web-socket interface for application agents
 
-A similar golang implementation can be found here: https://github.com/dtn7/dtn7-go
-
 The actual BP7 implementation can be found here: https://github.com/dtn7/bp7-rs
+
+Additional dtn related stuff and some client code can be found here: https://github.com/dtn7/bp7-plus-rs
+
+A similar golang implementation can be found here: https://github.com/dtn7/dtn7-go
 
 Currently a very basic service discovery, MTCP & HTTP CLs, flooding/epidemic/sink-routing and rest/ws command interfaces are implemented. Both addressing schemes, *dtn* as well as *ipn* are supported. Furthermore, some CLI tools are provided to easily integrate *dtn7* into shell scripts.
 

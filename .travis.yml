@@ -4,6 +4,14 @@ rust:
   - beta
   - nightly
 cache: cargo
+before_cache:
+  - rm -rfv target/debug/incremental/dtn*
+  - rm -rfv target/debug/.fingerprint/dtn7-*
+  - rm -rfv target/debug/build/dtn7-*
+  - rm -rfv target/debug/deps/libdtn7-*
+  - rm -rfv target/debug/deps/dtn-*
+  - rm -rfv target/debug/dtn*.d
+  - cargo clean -p dtn7
 os:
   - linux
   - osx
