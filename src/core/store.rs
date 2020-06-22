@@ -21,11 +21,11 @@ pub trait BundleStore: Debug {
 }
 
 #[derive(Debug, Clone, PartialEq, Default)]
-pub struct SimpleBundleStore {
+pub struct InMemoryBundleStore {
     bundles: HashMap<String, BundlePack>,
 }
 
-impl BundleStore for SimpleBundleStore {
+impl BundleStore for InMemoryBundleStore {
     fn push(&mut self, bp: &BundlePack) -> Result<()> {
         // TODO: check for duplicates, update, remove etc
         if self.bundles.contains_key(bp.id()) {
@@ -87,9 +87,9 @@ impl BundleStore for SimpleBundleStore {
     }
 }
 
-impl SimpleBundleStore {
-    pub fn new() -> SimpleBundleStore {
-        SimpleBundleStore {
+impl InMemoryBundleStore {
+    pub fn new() -> InMemoryBundleStore {
+        InMemoryBundleStore {
             bundles: HashMap::new(),
         }
     }
