@@ -1,5 +1,4 @@
 pub mod cla;
-pub mod client;
 pub mod core;
 pub mod dtnconfig;
 pub mod dtnd;
@@ -7,7 +6,7 @@ pub mod routing;
 
 use crate::cla::ConvergencyLayerAgent;
 use crate::core::bundlepack::BundlePack;
-use crate::core::store::{BundleStore, SimpleBundleStore};
+use crate::core::store::{BundleStore, InMemoryBundleStore};
 use crate::core::DtnStatistics;
 use bp7::EndpointID;
 pub use dtnconfig::DtnConfig;
@@ -27,7 +26,7 @@ lazy_static! {
     pub static ref PEERS: Mutex<HashMap<String, DtnPeer>> = Mutex::new(HashMap::new());
     pub static ref STATS: Mutex<DtnStatistics> = Mutex::new(DtnStatistics::new());
     pub static ref STORE: Mutex<Box<dyn BundleStore + Send>> =
-        Mutex::new(Box::new(SimpleBundleStore::new()));
+        Mutex::new(Box::new(InMemoryBundleStore::new()));
 }
 
 pub fn cla_add(cla: Box<dyn ConvergencyLayerAgent>) {

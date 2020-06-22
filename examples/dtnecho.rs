@@ -1,7 +1,7 @@
 use bp7::*;
 use clap::{crate_authors, crate_version, App, Arg};
-use dtn7::client::DtnClient;
-use dtn7::client::WsSendData;
+use dtn7_plus::client::DtnClient;
+use dtn7_plus::client::WsSendData;
 use std::convert::TryFrom;
 use std::io::{self, Write};
 use std::str::from_utf8;

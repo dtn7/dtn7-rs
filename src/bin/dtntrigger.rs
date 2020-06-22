@@ -1,6 +1,6 @@
 use bp7::*;
 use clap::{crate_authors, crate_version, App, Arg};
-use dtn7::client::DtnClient;
+use dtn7_plus::client::DtnClient;
 use std::convert::TryFrom;
 use std::io::prelude::*;
 use std::process::Command;
