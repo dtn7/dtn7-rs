@@ -119,6 +119,13 @@ async fn main() -> std::io::Result<()> {
                 .takes_value(false),
         )
         .arg(
+            Arg::with_name("unsafe_httpd")
+                .short("U")
+                .long("unsafe-httpd")
+                .help("Allow httpd RPC calls from anyhwere")
+                .takes_value(false),
+        )
+        .arg(
             Arg::with_name("ipv4")
                 .short("4")
                 .long("ipv4")
@@ -152,6 +159,7 @@ async fn main() -> std::io::Result<()> {
         cfg.v4 = false;
     }
     cfg.v4 = matches.is_present("ipv4") || cfg.v4;
+    cfg.unsafe_httpd = matches.is_present("unsafe_httpd") || cfg.unsafe_httpd;
 
     if let Some(cfgfile) = matches.value_of("config") {
         cfg = DtnConfig::from(std::path::PathBuf::from(cfgfile));
