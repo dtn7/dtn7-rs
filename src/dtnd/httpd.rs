@@ -8,7 +8,6 @@ use crate::DTNCORE;
 use crate::PEERS;
 use crate::STATS;
 use crate::STORE;
-use dtn7_plus::client::WsSendData;
 use actix::*;
 use actix_web::dev::RequestHead;
 use actix_web::HttpResponse;
@@ -16,6 +15,7 @@ use actix_web::{
     get, http::StatusCode, post, web, App, Error, HttpRequest, HttpServer, Responder, Result,
 };
 use actix_web_actors::ws;
+use dtn7_plus::client::WsSendData;
 use std::collections::{HashMap, HashSet};
 
 use anyhow::anyhow;
@@ -348,6 +348,9 @@ struct BundleEntry {
 // End of web UI specific structs
 
 pub fn fn_guard_localhost(req: &RequestHead) -> bool {
+    if (*CONFIG.lock()).unsafe_httpd {
+        return true;
+    }
     if let Some(addr) = req.peer_addr {
         if addr.ip().is_loopback() {
             return true;

@@ -11,6 +11,7 @@ use std::{convert::TryInto, time::Duration};
 #[derive(Debug, Default, Clone, Serialize)]
 pub struct DtnConfig {
     pub debug: bool,
+    pub unsafe_httpd: bool,
     pub v4: bool,
     pub v6: bool,
     pub nodeid: String,
@@ -43,6 +44,7 @@ impl From<PathBuf> for DtnConfig {
         if dtncfg.debug {
             //std::env::set_var("RUST_LOG", "dtn7=debug,dtnd=debug");
         }
+        dtncfg.unsafe_httpd = s.get_bool("unsafe_httpd").unwrap_or(false);
         dtncfg.v4 = s.get_bool("ipv4").unwrap_or(true);
         debug!("ipv4: {:?}", dtncfg.v4);
         dtncfg.v6 = s.get_bool("ipv6").unwrap_or(false);
@@ -134,6 +136,7 @@ impl DtnConfig {
         let local_node_id: EndpointID = format!("dtn://{}", node_rnd).try_into().unwrap();
         DtnConfig {
             debug: false,
+            unsafe_httpd: false,
             v4: true,
             v6: false,
             nodeid: local_node_id.to_string(),
@@ -150,6 +153,7 @@ impl DtnConfig {
     }
     pub fn set(&mut self, cfg: DtnConfig) {
         self.debug = cfg.debug;
+        self.unsafe_httpd = cfg.unsafe_httpd;
         self.v4 = cfg.v4;
         self.v6 = cfg.v6;
         self.nodeid = cfg.host_eid.to_string();
