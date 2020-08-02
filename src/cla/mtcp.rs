@@ -107,10 +107,15 @@ impl TryFrom<MPDU> for bp7::Bundle {
     }
 }
 
-struct MPDUCodec {
+pub struct MPDUCodec {
     last_pos: usize,
 }
 
+impl MPDUCodec {
+    pub fn new() -> MPDUCodec {
+        MPDUCodec { last_pos: 0 }
+    }
+}
 impl Encoder<MPDU> for MPDUCodec {
     type Error = io::Error;
 
@@ -137,24 +142,39 @@ impl Decoder for MPDUCodec {
                 "Invalid MPDU data (length)",
             ));
         };
-        let expected_pos = cbor_hdr_len(buf[0]) + cbor_parse_byte_string_len(&buf[0..10]) - 1;
-        if expected_pos < buf.len() {
-            if 0xff != buf[expected_pos] {
-                return Err(io::Error::new(
-                    io::ErrorKind::InvalidData,
-                    "Invalid MPDU data (terminator not found)",
-                ));
-            }
-            if let Ok(res) = serde_cbor::from_slice(&buf[0..=expected_pos]) {
-                buf.advance(expected_pos + 1);
-                self.last_pos = 0;
-                return Ok(Some(res));
+        if let Some(expected_pos) =
+            cbor_hdr_len(buf[0]).checked_add(cbor_parse_byte_string_len(&buf[0..10]))
+        {
+            if let Some(expected_pos) = expected_pos.checked_sub(1) {
+                if expected_pos < buf.len() {
+                    if 0xff != buf[expected_pos] {
+                        return Err(io::Error::new(
+                            io::ErrorKind::InvalidData,
+                            "Invalid MPDU data (terminator not found)",
+                        ));
+                    }
+                    if let Ok(res) = serde_cbor::from_slice(&buf[0..=expected_pos]) {
+                        buf.advance(expected_pos + 1);
+                        self.last_pos = 0;
+                        return Ok(Some(res));
+                    } else {
+                        return Err(io::Error::new(
+                            io::ErrorKind::InvalidData,
+                            "Invalid MPDU data (decoding error)",
+                        ));
+                    }
+                }
             } else {
                 return Err(io::Error::new(
                     io::ErrorKind::InvalidData,
-                    "Invalid MPDU data (decoding error)",
+                    "Invalid MPDU data (position overflow)",
                 ));
             }
+        } else {
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidData,
+                "Invalid MPDU data (position overflow)",
+            ));
         }
         Ok(None)
     }
@@ -176,7 +196,7 @@ impl MtcpConversionLayer {
 
             let peer_addr = socket.peer_addr().unwrap();
             info!("Incoming connection from {}", peer_addr);
-            let mut framed_sock = Framed::new(socket, MPDUCodec { last_pos: 0 });
+            let mut framed_sock = Framed::new(socket, MPDUCodec::new());
             while let Some(frame) = framed_sock.next().await {
                 match frame {
                     Ok(frame) => {
