@@ -1,6 +1,6 @@
 [package]
 name = "dtn7"
-version = "0.10.1"
+version = "0.10.2"
 authors = ["Lars Baumgaertner <baumgaertner@cs.tu-darmstadt.de>"]
 description = "Rust delay-tolerant-networking daemon and CLI tools based upon bp7 (dtn version 7 draft)"
 edition = "2018"
@@ -30,13 +30,13 @@ lazy_static = "1.4.0"
 bp7 = "0.6.2"
 crossbeam = "0.7"
 anyhow = "1.0.31"
-parking_lot = "0.10"
+parking_lot = "0.11"
 actix-web = "2.0.0"
 actix-rt = "1.1.1"
 tokio-util = { version = "0.3.1", features = ["codec"] }
 futures-util = "0.3.5"
 async-trait = "0.1.36"
-attohttpc = { version = "0.14", default-features = false }
+attohttpc = { version = "0.15", default-features = false }
 tinytemplate = "1.1.0"
 humantime = "2.0.1"
 actix-web-actors = "2.0.0"
