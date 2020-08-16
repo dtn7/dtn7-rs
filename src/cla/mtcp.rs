@@ -2,7 +2,7 @@ use crate::cla::ConvergencyLayerAgent;
 use async_trait::async_trait;
 use bp7::{Bundle, ByteBuffer};
 use bytes::buf::Buf;
-use bytes::{BufMut, Bytes, BytesMut};
+use bytes::{BufMut, BytesMut};
 use core::convert::TryFrom;
 use futures_util::stream::StreamExt;
 use log::{debug, error, info};

@@ -6,7 +6,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE-MIT)
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE-APACHE)
 
-Rust implementation of a daemon for DTN7 Bundle Protocol draft https://tools.ietf.org/html/draft-ietf-dtn-bpbis-23
+Rust implementation of a daemon for DTN7 Bundle Protocol draft https://tools.ietf.org/html/draft-ietf-dtn-bpbis-26
 
 Plus:
 * Minimal TCP Convergence Layer Protocol https://tools.ietf.org/html/draft-ietf-dtn-mtcpcl-01
@@ -40,7 +40,7 @@ cargo install dtn7
 
 ```
 $ dtnd -h
-dtn7-rs 0.6.0
+dtn7-rs 0.11.0
 Lars Baumgaertner <baumgaertner@cs.tu-darmstadt.de>
 A simple Bundle Protocol 7 Daemon for Delay Tolerant Networking
 
@@ -48,22 +48,28 @@ USAGE:
     dtnd [FLAGS] [OPTIONS]
 
 FLAGS:
-    -d, --debug      Set log level to debug
-    -h, --help       Prints help information
-    -V, --version    Prints version information
+    -d, --debug           Set log level to debug
+    -h, --help            Prints help information
+    -4, --ipv4            Use IPv4
+    -6, --ipv6            Use IPv6
+    -U, --unsafe-httpd    Allow httpd RPC calls from anyhwere
+    -V, --version         Prints version information
 
 OPTIONS:
     -C, --cla <CLA[:local_port]>...    Add convergency layer agent: dummy, mtcp, http
     -c, --config <FILE>                Sets a custom config file
+    -D, --db <STORE>                   Set bundle store: mem, sled
     -e, --endpoint <ENDPOINT>...       Registers an application agent for a node local endpoint (e.g. 'incoming' listens
                                        on 'dtn://node1/incoming')
-    -i, --interval <MS>                Sets service discovery interval (0 = deactive)
-    -j, --janitor <MS>                 Sets janitor interval (0 = deactive)
+    -i, --interval <humantime>         Sets service discovery interval (0 = deactive, 2s = 2 seconds, 3m = 3 minutes,
+                                       etc.)
+    -j, --janitor <humantime>          Sets janitor interval (0 = deactive, 2s = 2 seconds, 3m = 3 minutes, etc.)
     -n, --nodeid <NODEID>              Sets local node name (e.g. 'dtn://node1')
-    -p, --peer-timeout <SECONDS>       Sets timeout to remove peer
+    -p, --peer-timeout <humantime>     Sets timeout to remove peer (default = 20s)
     -r, --routing <ROUTING>            Set routing algorithm: epidemic, flooding, sink
     -s, --static-peer <PEER>...        Adds a static peer (e.g. mtcp://192.168.2.1:2342/node2)
     -w, --web-port <PORT>              Sets web interface port (default = 3000)
+    -W, --workdir <PATH>               Sets the working directory (e.g. '/tmp/node1', default '.')
 ```
 
 Example usage for *node1* with *epidemic* routing, *mtcp* convergence layer and the default endpoint *'incoming'*:
@@ -84,15 +90,16 @@ For an example take a look at `examples/dtn7.toml.example`.
 Querying information from `dtnd`:
 ```
 $ dtnquery -h
-dtnquery 0.6.0
+dtnquery 0.11.0
 Lars Baumgaertner <baumgaertner@cs.tu-darmstadt.de>
 A simple Bundle Protocol 7 Query Utility for Delay Tolerant Networking
 
 USAGE:
-    dtnquery [OPTIONS] [SUBCOMMAND]
+    dtnquery [FLAGS] [OPTIONS] [SUBCOMMAND]
 
 FLAGS:
     -h, --help       Prints help information
+    -6, --ipv6       Use IPv6
     -V, --version    Prints version information
 
 OPTIONS:
@@ -111,7 +118,7 @@ SUBCOMMANDS:
 Receiving bundles: 
 ```
 $ dtnrecv -h
-dtnrecv 0.4.0
+dtnrecv 0.11.0
 Lars Baumgaertner <baumgaertner@cs.tu-darmstadt.de>
 A simple Bundle Protocol 7 Receive Utility for Delay Tolerant Networking
 
@@ -120,11 +127,14 @@ USAGE:
 
 FLAGS:
     -h, --help       Prints help information
+    -x, --hex        hex output
+    -6, --ipv6       Use IPv6
     -V, --version    Prints version information
     -v, --verbose    verbose output
 
 OPTIONS:
-    -e, --endpoint <ENDPOINT>    Specify local endpoint, e.g. '/incoming')
+    -b, --bundle-id <BID>        Download any bundle by ID
+    -e, --endpoint <ENDPOINT>    Specify local endpoint, e.g. '/incoming', or a group endpoint 'dtn://helpers/incoming'
     -o, --output <FILE>          Write bundle payload to file instead of stdout
     -p, --port <PORT>            Local web port (default = 3000)
 ```
@@ -132,7 +142,7 @@ OPTIONS:
 Sending bundles:
 ```
 $ dtnsend -h
-dtnsend 0.6.0
+dtnsend 0.11.0
 Lars Baumgaertner <baumgaertner@cs.tu-darmstadt.de>
 A simple Bundle Protocol 7 Send Utility for Delay Tolerant Networking
 
@@ -142,10 +152,12 @@ USAGE:
 FLAGS:
     -D, --dry-run    Don't actually send packet, just dump the encoded one.
     -h, --help       Prints help information
+    -6, --ipv6       Use IPv6
     -V, --version    Prints version information
     -v, --verbose    verbose output
 
 OPTIONS:
+    -l, --lifetime <SECONDS>     Bundle lifetime in seconds (default = 3600)
     -p, --port <PORT>            Local web port (default = 3000)
     -r, --receiver <RECEIVER>    Receiver EID (e.g. 'dtn://node2/incoming')
     -s, --sender <SENDER>        Sets sender name (e.g. 'dtn://node1')
@@ -157,7 +169,7 @@ ARGS:
 Automatic triggering of external binaries for incoming bundles:
 ```
 $ dtntrigger -h
-dtntrigger 0.9.0
+dtntrigger 0.11.0
 Lars Baumgaertner <baumgaertner@cs.tu-darmstadt.de>
 A simple Bundle Protocol 7 Incoming Trigger Utility for Delay Tolerant Networking
 
@@ -172,7 +184,7 @@ FLAGS:
 
 OPTIONS:
     -c, --command <CMD>          Command to execute for incoming bundles, param1 = source, param2 = payload file
-    -e, --endpoint <ENDPOINT>    Specify local endpoint, e.g. '/incoming')
+    -e, --endpoint <ENDPOINT>    Specify local endpoint, e.g. '/incoming', or a group endpoint 'dtn://helpers/incoming'
     -p, --port <PORT>            Local web port (default = 3000)
 ```
 

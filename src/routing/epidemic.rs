@@ -3,7 +3,7 @@ use crate::cla::ClaSender;
 use crate::core::bundlepack::BundlePack;
 use crate::routing::RoutingNotifcation;
 use crate::PEERS;
-use log::{debug, info, warn};
+use log::debug;
 use std::collections::{HashMap, HashSet};
 
 /// Simple epidemic routing.

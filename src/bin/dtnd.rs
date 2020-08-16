@@ -1,4 +1,3 @@
-use bp7::EndpointID;
 use clap::{crate_authors, crate_version, App, Arg};
 use dtn7::dtnd::daemon::*;
 use dtn7::DtnConfig;
@@ -39,6 +38,13 @@ async fn main() -> std::io::Result<()> {
                 .takes_value(true),
         )
         .arg(
+            Arg::with_name("workdir")
+                .short("W")
+                .long("workdir")
+                .value_name("PATH")
+                .help("Sets the working directory (e.g. '/tmp/node1', default '.')")
+                .takes_value(true),
+        ).arg(
             Arg::with_name("endpoint")
                 .short("e")
                 .long("endpoint")
@@ -87,6 +93,16 @@ async fn main() -> std::io::Result<()> {
                 .help(&format!(
                     "Set routing algorithm: {}",
                     dtn7::routing::routing_algorithms().join(", ")
+                ))
+                .takes_value(true),
+        ).arg(
+            Arg::with_name("db")
+                .short("D")
+                .long("db")
+                .value_name("STORE")
+                .help(&format!(
+                    "Set bundle store: {}",
+                    dtn7::core::store::bundle_stores().join(", ")
                 ))
                 .takes_value(true),
         )
@@ -165,6 +181,10 @@ async fn main() -> std::io::Result<()> {
         cfg = DtnConfig::from(std::path::PathBuf::from(cfgfile));
     }
 
+    if let Some(workdir) = matches.value_of("workdir") {
+        cfg.workdir = std::path::PathBuf::from(workdir);
+    }
+
     if let Some(nodeid) = matches.value_of("nodeid") {
         if nodeid.chars().all(char::is_alphanumeric) {
             cfg.host_eid = if let Ok(number) = nodeid.parse::<u64>() {
@@ -214,6 +234,12 @@ async fn main() -> std::io::Result<()> {
     if let Some(r) = matches.value_of("routing") {
         if dtn7::routing::routing_algorithms().contains(&r) {
             cfg.routing = r.into();
+        }
+    }
+
+    if let Some(db) = matches.value_of("db") {
+        if dtn7::core::store::bundle_stores().contains(&db) {
+            cfg.db = db.into();
         }
     }
 

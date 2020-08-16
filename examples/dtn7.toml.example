@@ -5,6 +5,10 @@ nodeid = "node1"
 routing = "epidemic"
 webport = 3000
 
+workdir = "/tmp/dtn7"
+
+db = "mem"
+
 [core]
 # the janitor is responsible for cleaning the bundle buffer
 # and schedule resubmissions.
