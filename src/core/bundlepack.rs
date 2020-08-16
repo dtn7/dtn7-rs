@@ -4,13 +4,14 @@ use crate::store_remove;
 use crate::store_update;
 use anyhow::Result;
 use bp7::{Bundle, CanonicalData, EndpointID, BUNDLE_AGE_BLOCK};
+use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
 use std::fmt;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 /// Constraint is a retention constraint as defined in the subsections of the
 /// fifth chapter of draft-ietf-dtn-bpbis-12.
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum Constraint {
     /// DispatchPending is assigned to a bundle if its dispatching is pending.
     DispatchPending,
@@ -41,7 +42,7 @@ impl fmt::Display for Constraint {
 
 /// BundlePack is a set of a bundle, it's creation or reception time stamp and
 /// a set of constraints used in the process of delivering this bundle.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct BundlePack {
     pub bundle: Bundle,
     pub receiver: EndpointID,
@@ -135,5 +136,15 @@ impl BundlePack {
             }
         }
         None
+    }
+    pub fn to_cbor(&self) -> bp7::ByteBuffer {
+        serde_cbor::to_vec(self).expect("unexpected error converting BundlePack to cbor buffer")
+    }
+}
+
+/// Create from a given bundle.
+impl From<&[u8]> for BundlePack {
+    fn from(buf: &[u8]) -> Self {
+        serde_cbor::from_slice(&buf).expect("unexpected error converting cbor buffer to BundlePack")
     }
 }

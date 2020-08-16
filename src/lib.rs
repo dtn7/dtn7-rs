@@ -86,13 +86,18 @@ pub fn store_get(bpid: &str) -> Option<BundlePack> {
 }
 
 pub fn store_delete_expired() {
-    let bids: Vec<String> = (*STORE.lock())
-        .pending()
+    let pending_bids: Vec<String> = (*STORE.lock()).pending();
+
+    let expired: Vec<String> = pending_bids
         .iter()
+        .map(|b| (*STORE.lock()).get(b))
+        //.filter(|b| b.is_some())
+        //.map(|b| b.unwrap())
+        .filter_map(|b| b)
         .filter(|e| e.bundle.primary.is_lifetime_exceeded())
         .map(|e| e.id().into())
         .collect();
-    for bid in bids {
+    for bid in expired {
         store_remove(&bid);
     }
 }

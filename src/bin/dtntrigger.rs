@@ -3,7 +3,6 @@ use clap::{crate_authors, crate_version, App, Arg};
 use dtn7_plus::client::DtnClient;
 use std::convert::TryFrom;
 use std::io::prelude::*;
-use std::process;
 use std::process::Command;
 use tempfile::NamedTempFile;
 use ws::{Builder, CloseCode, Handler, Handshake, Message, Result, Sender};

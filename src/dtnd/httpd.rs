@@ -16,7 +16,7 @@ use actix_web::{
 };
 use actix_web_actors::ws;
 use dtn7_plus::client::WsSendData;
-use std::collections::{HashMap, HashSet};
+use std::collections::HashSet;
 
 use anyhow::anyhow;
 use bp7::dtntime::CreationTimestamp;

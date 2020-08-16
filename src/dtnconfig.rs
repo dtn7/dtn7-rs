@@ -24,6 +24,8 @@ pub struct DtnConfig {
     pub routing: String,
     pub peer_timeout: Duration,
     pub statics: Vec<DtnPeer>,
+    pub workdir: PathBuf,
+    pub db: String,
 }
 
 pub fn rnd_node_name() -> String {
@@ -69,6 +71,16 @@ impl From<PathBuf> for DtnConfig {
 
         dtncfg.routing = s.get_str("routing").unwrap_or(dtncfg.routing);
         debug!("routing: {:?}", dtncfg.routing);
+
+        dtncfg.workdir = if let Ok(wd) = s.get_str("workdir") {
+            PathBuf::from(wd)
+        } else {
+            std::env::current_dir().unwrap()
+        };
+        debug!("workdir: {:?}", dtncfg.workdir);
+
+        dtncfg.db = s.get_str("db").unwrap_or("mem".into());
+        debug!("db: {:?}", dtncfg.db);
 
         dtncfg.webport = s
             .get_int("webport")
@@ -149,6 +161,8 @@ impl DtnConfig {
             routing: "epidemic".into(),
             peer_timeout: "20s".parse::<humantime::Duration>().unwrap().into(),
             statics: Vec::new(),
+            workdir: std::env::current_dir().unwrap(),
+            db: String::from("mem"),
         }
     }
     pub fn set(&mut self, cfg: DtnConfig) {
@@ -166,5 +180,7 @@ impl DtnConfig {
         self.routing = cfg.routing;
         self.peer_timeout = cfg.peer_timeout;
         self.statics = cfg.statics;
+        self.workdir = cfg.workdir;
+        self.db = cfg.db;
     }
 }

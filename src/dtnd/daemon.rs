@@ -3,7 +3,7 @@ use crate::cla_add;
 use crate::core::application_agent::SimpleApplicationAgent;
 use crate::dtnconfig::DtnConfig;
 use crate::peers_add;
-use crate::{CONFIG, DTNCORE};
+use crate::{CONFIG, DTNCORE, STORE};
 use log::{error, info};
 
 /*
@@ -60,6 +60,13 @@ pub async fn start_dtnd(cfg: DtnConfig) -> std::io::Result<()> {
         (*CONFIG.lock()).set(cfg);
     }
     info!("Local Node ID: {}", (*CONFIG.lock()).host_eid);
+
+    info!("Work Dir: {:?}", (*CONFIG.lock()).workdir);
+
+    let db = (*CONFIG.lock()).db.clone();
+    info!("DB Backend: {}", db);
+
+    (*STORE.lock()) = crate::core::store::new(&db);
 
     info!(
         "Announcement Interval: {}",

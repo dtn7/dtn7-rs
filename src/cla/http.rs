@@ -2,7 +2,7 @@ use crate::cla::ConvergencyLayerAgent;
 use crate::CONFIG;
 use async_trait::async_trait;
 use bp7::ByteBuffer;
-use log::{debug, error, info};
+use log::debug;
 use std::net::SocketAddr;
 
 #[derive(Debug, Clone, Default, Copy)]
