@@ -112,8 +112,8 @@ async fn main() -> std::io::Result<()> {
                 .long("cla")
                 .value_name("CLA[:local_port]")
                 .help(&format!(
-                    "Add convergency layer agent: {}",
-                    dtn7::cla::convergency_layer_agents().join(", ")
+                    "Add convergence layer agent: {}",
+                    dtn7::cla::convergence_layer_agents().join(", ")
                 ))
                 .multiple(true)
                 .takes_value(true),
@@ -246,7 +246,7 @@ async fn main() -> std::io::Result<()> {
     if let Some(clas) = matches.values_of("cla") {
         for cla in clas {
             let cla_split: Vec<&str> = cla.split(':').collect();
-            if dtn7::cla::convergency_layer_agents().contains(&cla_split[0]) {
+            if dtn7::cla::convergence_layer_agents().contains(&cla_split[0]) {
                 cfg.clas.push(cla.to_string());
             }
         }

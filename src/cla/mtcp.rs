@@ -1,4 +1,4 @@
-use crate::cla::ConvergencyLayerAgent;
+use crate::cla::ConvergenceLayerAgent;
 use async_trait::async_trait;
 use bp7::{Bundle, ByteBuffer};
 use bytes::buf::Buf;
@@ -181,12 +181,12 @@ impl Decoder for MPDUCodec {
 }
 
 #[derive(Debug, Clone, Default, Copy)]
-pub struct MtcpConversionLayer {
+pub struct MtcpConvergenceLayer {
     counter: u64,
     local_port: u16,
 }
 
-impl MtcpConversionLayer {
+impl MtcpConvergenceLayer {
     async fn run(self) -> Result<(), io::Error> {
         let addr: SocketAddrV4 = format!("0.0.0.0:{}", self.port()).parse().unwrap();
         let mut listener = TcpListener::bind(&addr).await?;
@@ -203,8 +203,8 @@ impl MtcpConversionLayer {
                         if let Ok(bndl) = Bundle::try_from(frame) {
                             info!("Received bundle: {} from {}", bndl.id(), peer_addr);
                             {
-                                std::thread::spawn(move || {
-                                    crate::core::processing::receive(bndl.into());
+                                tokio::spawn(async move {
+                                    crate::core::processing::receive(bndl.into()).await;
                                 });
                             }
                         } else {
@@ -221,8 +221,8 @@ impl MtcpConversionLayer {
             info!("Disconnected {}", peer_addr);
         }
     }
-    pub fn new(port: Option<u16>) -> MtcpConversionLayer {
-        MtcpConversionLayer {
+    pub fn new(port: Option<u16>) -> MtcpConvergenceLayer {
+        MtcpConvergenceLayer {
             counter: 0,
             local_port: port.unwrap_or(16162),
         }
@@ -269,7 +269,7 @@ impl MtcpConversionLayer {
 }
 
 #[async_trait]
-impl ConvergencyLayerAgent for MtcpConversionLayer {
+impl ConvergenceLayerAgent for MtcpConvergenceLayer {
     async fn setup(&mut self) {
         self.spawn_listener()
             .await
@@ -281,7 +281,7 @@ impl ConvergencyLayerAgent for MtcpConversionLayer {
     fn name(&self) -> &'static str {
         "mtcp"
     }
-    fn scheduled_submission(&self, dest: &str, ready: &[ByteBuffer]) -> bool {
+    async fn scheduled_submission(&self, dest: &str, ready: &[ByteBuffer]) -> bool {
         debug!("Scheduled MTCP submission: {:?}", dest);
         if !ready.is_empty() {
             let peeraddr: SocketAddr = dest.parse().unwrap();
@@ -294,7 +294,7 @@ impl ConvergencyLayerAgent for MtcpConversionLayer {
     }
 }
 
-impl std::fmt::Display for MtcpConversionLayer {
+impl std::fmt::Display for MtcpConvergenceLayer {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         write!(f, "mtcp:{}", self.local_port)
     }

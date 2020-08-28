@@ -55,7 +55,7 @@ pub fn rnd_peer() -> DtnPeer {
 pub fn parse_peer_url(peer_url: &str) -> DtnPeer {
     let u = Url::parse(&peer_url).expect("Static peer url parsing error");
     let scheme = u.scheme();
-    if !crate::cla::convergency_layer_agents().contains(&scheme) {
+    if !crate::cla::convergence_layer_agents().contains(&scheme) {
         panic!("Unknown convergency layer selected: {}", scheme);
     }
     let ipaddr = u.host_str().expect("Host parsing error");

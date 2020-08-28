@@ -1,6 +1,6 @@
-use log::{debug, error};
+use log::debug;
 
-fn janitor() {
+async fn janitor() {
     debug!("running janitor");
 
     debug!("cleaning up peers");
@@ -11,9 +11,10 @@ fn janitor() {
     //crate::store_delete_expired();
 
     debug!("reprocessing bundles");
-    if let Err(err) = crate::core::process_bundles() {
+    /*if let Err(err) = crate::core::process_bundles().await {
         error!("Processing bundles failed: {}", err);
-    }
+    }*/
+    crate::core::process_bundles().await;
 }
 
 pub fn spawn_janitor() {

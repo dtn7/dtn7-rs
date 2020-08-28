@@ -185,7 +185,13 @@ impl StreamHandler<Result<ws::Message, ws::ProtocolError>> for WsAASession {
                                 bndl.id(),
                                 bndl.primary.destination
                             );
-                            crate::core::processing::send_bundle(bndl);
+                            // TODO: turn into channel
+                            //                            crate::core::processing::send_bundle(bndl);
+                            //crate::core::processing::send_through_task(bndl);
+                            let rt = tokio::runtime::Handle::current();
+                            rt.spawn(
+                                async move { crate::core::processing::send_bundle(bndl).await },
+                            );
                             ctx.text(format!("200 Sent payload with {} bytes", bin.len()));
                         } else {
                             ctx.text("400 Invalid binary bundle");
@@ -227,8 +233,13 @@ impl StreamHandler<Result<ws::Message, ws::ProtocolError>> for WsAASession {
                                 bndl.id(),
                                 bndl.primary.destination
                             );
-
-                            crate::core::processing::send_bundle(bndl);
+                            //let mut rt = tokio::runtime::Runtime::new().unwrap();
+                            //rt.block_on(async { crate::core::processing::send_bundle(bndl).await });
+                            let rt = tokio::runtime::Handle::current();
+                            rt.spawn(
+                                async move { crate::core::processing::send_bundle(bndl).await },
+                            );
+                            //crate::core::processing::send_through_task(bndl);
                             ctx.text(format!("200 Sent payload with {} bytes", b_len));
                         } else {
                             ctx.text("400 Unexpected binary");
@@ -506,7 +517,7 @@ async fn debug_rnd_bundle() -> String {
     println!("generating debug bundle");
     let b = rnd_bundle(CreationTimestamp::now());
     let res = b.id();
-    crate::core::processing::send_bundle(b);
+    crate::core::processing::send_bundle(b).await;
     res
 }
 
@@ -534,7 +545,7 @@ async fn insert_get(req: HttpRequest) -> Result<String> {
                     bndl.primary.destination
                 );
 
-                crate::core::processing::send_bundle(bndl);
+                crate::core::processing::send_bundle(bndl).await;
                 Ok(format!("Sent {} bytes", b_len))
             } else {
                 Err(actix_web::error::ErrorBadRequest(anyhow!(
@@ -567,7 +578,7 @@ async fn insert_post(mut body: web::Payload) -> Result<String> {
             bndl.primary.destination
         );
 
-        crate::core::processing::send_bundle(bndl);
+        crate::core::processing::send_bundle(bndl).await;
         Ok(format!("Sent {} bytes", b_len))
     } else {
         Err(actix_web::error::ErrorBadRequest(anyhow!(
@@ -630,7 +641,7 @@ async fn send_post(req: HttpRequest, mut body: web::Payload) -> Result<String> {
         bndl.primary.destination
     );
 
-    crate::core::processing::send_bundle(bndl);
+    crate::core::processing::send_bundle(bndl).await;
     Ok(format!("Sent payload with {} bytes", b_len))
 }
 
@@ -644,7 +655,7 @@ async fn push_post(mut body: web::Payload) -> Result<String> {
     debug!("Received: {:?}", b_len);
     if let Ok(bndl) = bp7::Bundle::try_from(bytes.to_vec()) {
         info!("Received bundle {}", bndl.id());
-        crate::core::processing::receive(bndl.into());
+        crate::core::processing::receive(bndl.into()).await;
         Ok(format!("Received {} bytes", b_len))
     } else {
         Err(actix_web::error::ErrorBadRequest(anyhow!(

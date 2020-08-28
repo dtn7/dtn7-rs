@@ -1,6 +1,7 @@
 pub mod dummy;
 pub mod http;
 pub mod mtcp;
+pub mod tcp;
 
 use async_trait::async_trait;
 use bp7::ByteBuffer;
@@ -14,38 +15,39 @@ pub struct ClaSender {
     pub agent: String,
 }
 impl ClaSender {
-    pub fn transfer(&self, ready: &[ByteBuffer]) -> bool {
+    pub async fn transfer(&self, ready: &[ByteBuffer]) -> bool {
         let sender = new(&self.agent); // since we are not listening sender port is irrelevant
         let dest = if self.port.is_some() {
             format!("{}:{}", self.remote, self.port.unwrap())
         } else {
             self.remote.to_string()
         };
-        sender.scheduled_submission(&dest, ready)
+        sender.scheduled_submission(&dest, ready).await
     }
 }
 
 #[async_trait]
-pub trait ConvergencyLayerAgent: Debug + Send + Display {
+pub trait ConvergenceLayerAgent: Debug + Send + Sync + Display {
     async fn setup(&mut self);
     fn port(&self) -> u16;
     fn name(&self) -> &'static str;
-    fn scheduled_submission(&self, dest: &str, ready: &[ByteBuffer]) -> bool;
+    async fn scheduled_submission(&self, dest: &str, ready: &[ByteBuffer]) -> bool;
 }
 
-pub fn convergency_layer_agents() -> Vec<&'static str> {
-    vec!["dummy", "mtcp", "http"]
+pub fn convergence_layer_agents() -> Vec<&'static str> {
+    vec!["dummy", "mtcp", "http", "tcp"]
 }
 
 // returns a new CLA for the corresponding string ("<CLA name>[:local_port]").
 // Example usage: 'dummy', 'mtcp', 'mtcp:16161'
-pub fn new(cla_str: &str) -> Box<dyn ConvergencyLayerAgent> {
+pub fn new(cla_str: &str) -> Box<dyn ConvergenceLayerAgent> {
     let cla: Vec<&str> = cla_str.split(':').collect();
     let port: Option<u16> = cla.get(1).unwrap_or(&"-1").parse::<u16>().ok();
     match cla[0] {
-        "dummy" => Box::new(dummy::DummyConvergencyLayer::new()),
-        "mtcp" => Box::new(mtcp::MtcpConversionLayer::new(port)),
-        "http" => Box::new(http::HttpConversionLayer::new(port)),
-        _ => panic!("Unknown convergency layer agent agent {}", cla[0]),
+        "dummy" => Box::new(dummy::DummyConvergenceLayer::new()),
+        "mtcp" => Box::new(mtcp::MtcpConvergenceLayer::new(port)),
+        "http" => Box::new(http::HttpConvergenceLayer::new(port)),
+        "tcp" => Box::new(tcp::TcpConvergenceLayer::new(port)),
+        _ => panic!("Unknown convergence layer agent agent {}", cla[0]),
     }
 }

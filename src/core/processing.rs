@@ -15,24 +15,54 @@ use bp7::bundle::BundleValidation;
 use bp7::bundle::*;
 
 use anyhow::{bail, Result};
-use crossbeam::sync::WaitGroup;
 use log::{debug, info, warn};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
-use std::thread;
+use tokio::sync::mpsc::{channel, Receiver, Sender};
 
 // transmit an outbound bundle.
-pub fn send_bundle(bndl: Bundle) {
-    thread::spawn(move || {
-        if let Err(err) = transmit(bndl.into()) {
+pub async fn send_bundle(bndl: Bundle) {
+    tokio::spawn(async move {
+        if let Err(err) = transmit(bndl.into()).await {
             warn!("Transmission failed: {}", err);
         }
     });
 }
 
+pub fn send_through_task(bndl: Bundle) {
+    let mut stask = crate::SENDERTASK.lock();
+    if stask.is_none() {
+        let (tx, rx) = channel(50);
+        tokio::spawn(sender_task(rx));
+        *stask = Some(tx.clone());
+    }
+    let mut tx = stask.as_ref().unwrap().clone();
+    //let mut rt = tokio::runtime::Runtime::new().unwrap();
+    let rt = tokio::runtime::Handle::current();
+    rt.spawn(async move { tx.send(bndl).await });
+}
+
+pub async fn send_through_task_async(bndl: Bundle) {
+    let mut stask = crate::SENDERTASK.lock();
+    if stask.is_none() {
+        let (tx, rx) = channel(50);
+        tokio::spawn(sender_task(rx));
+        *stask = Some(tx.clone());
+    }
+    let mut tx = stask.as_ref().unwrap().clone();
+
+    tx.send(bndl).await;
+}
+pub async fn sender_task(mut rx: tokio::sync::mpsc::Receiver<Bundle>) {
+    while let Some(bndl) = rx.recv().await {
+        debug!("sending bundle through task channel");
+        send_bundle(bndl).await;
+    }
+}
+
 // starts the transmission of an outbounding bundle pack. Therefore
 // the source's endpoint ID must be dtn:none or a member of this node.
-pub fn transmit(mut bp: BundlePack) -> Result<()> {
+pub async fn transmit(mut bp: BundlePack) -> Result<()> {
     info!("Transmission of bundle requested: {}", bp.id());
 
     bp.add_constraint(Constraint::DispatchPending);
@@ -45,15 +75,15 @@ pub fn transmit(mut bp: BundlePack) -> Result<()> {
             src
         );
 
-        delete(bp, NO_INFORMATION)?;
-        Ok(())
+        delete(bp, NO_INFORMATION).await?;
     } else {
-        dispatch(bp)
+        dispatch(bp).await;
     }
+    Ok(())
 }
 
 // handle received/incoming bundles.
-pub fn receive(mut bp: BundlePack) -> Result<()> {
+pub async fn receive(mut bp: BundlePack) -> Result<()> {
     info!("Received new bundle: {}", bp.id());
 
     if store_has_item(bp.id()) {
@@ -75,7 +105,7 @@ pub fn receive(mut bp: BundlePack) -> Result<()> {
         .bundle_control_flags
         .has(BUNDLE_STATUS_REQUEST_RECEPTION)
     {
-        send_status_report(&bp, RECEIVED_BUNDLE, NO_INFORMATION);
+        send_status_report(&bp, RECEIVED_BUNDLE, NO_INFORMATION).await;
     }
     let mut remove_idx = Vec::new();
     let mut index = 0;
@@ -96,7 +126,7 @@ pub fn receive(mut bp: BundlePack) -> Result<()> {
                 bp.id(),
                 cb.block_type
             );
-            send_status_report(&bp, RECEIVED_BUNDLE, BLOCK_UNINTELLIGIBLE);
+            send_status_report(&bp, RECEIVED_BUNDLE, BLOCK_UNINTELLIGIBLE).await;
         }
         if cb.block_control_flags.has(BLOCK_DELETE_BUNDLE) {
             info!(
@@ -104,7 +134,7 @@ pub fn receive(mut bp: BundlePack) -> Result<()> {
                 bp.id(),
                 cb.block_type
             );
-            delete(bp, BLOCK_UNINTELLIGIBLE)?;
+            delete(bp, BLOCK_UNINTELLIGIBLE).await?;
             return Ok(());
         }
         if cb.block_control_flags.has(BLOCK_REMOVE) {
@@ -123,14 +153,14 @@ pub fn receive(mut bp: BundlePack) -> Result<()> {
         bp.bundle.canonicals.remove(i);
     }
 
-    if let Err(err) = dispatch(bp) {
+    if let Err(err) = dispatch(bp).await {
         warn!("Dispatching failed: {}", err);
     }
     Ok(())
 }
 
 // handle the dispatching of received bundles.
-pub fn dispatch(bp: BundlePack) -> Result<()> {
+pub async fn dispatch(bp: BundlePack) -> Result<()> {
     info!("Dispatching bundle: {}", bp.id());
 
     routing_notify(RoutingNotifcation::IncomingBundle(&bp.bundle));
@@ -138,15 +168,15 @@ pub fn dispatch(bp: BundlePack) -> Result<()> {
     if (*DTNCORE.lock()).is_in_endpoints(&bp.bundle.primary.destination)
     // TODO: lookup here AND in local delivery, optmize for just one
     {
-        local_delivery(bp.clone())?;
+        local_delivery(bp.clone()).await?;
     }
     if !is_local_node_id(&bp.bundle.primary.destination) {
-        forward(bp)?;
+        forward(bp).await?;
     }
     Ok(())
 }
 
-fn handle_hop_count_block(mut bp: BundlePack) -> Result<BundlePack> {
+async fn handle_hop_count_block(mut bp: BundlePack) -> Result<BundlePack> {
     let bpid = bp.id().to_string();
     if let Some(hc) = bp
         .bundle
@@ -165,38 +195,38 @@ fn handle_hop_count_block(mut bp: BundlePack) -> Result<BundlePack> {
                     "Bundle contains an exceeded hop count block: {} {} {}",
                     &bpid, hc_limit, hc_count
                 );
-                delete(bp, HOP_LIMIT_EXCEEDED)?;
+                delete(bp, HOP_LIMIT_EXCEEDED).await?;
                 bail!("hop count exceeded");
             }
         }
     }
     Ok(bp)
 }
-fn handle_primary_lifetime(bp: BundlePack) -> Result<BundlePack> {
+async fn handle_primary_lifetime(bp: BundlePack) -> Result<BundlePack> {
     if bp.bundle.primary.is_lifetime_exceeded() {
         warn!(
             "Bundle's primary block's lifetime is exceeded: {} {:?}",
             bp.id(),
             bp.bundle.primary
         );
-        delete(bp, LIFETIME_EXPIRED)?;
+        delete(bp, LIFETIME_EXPIRED).await?;
         bail!("lifetime exceeded");
     }
     Ok(bp)
 }
 
-fn handle_bundle_age_block(mut bp: BundlePack) -> Result<BundlePack> {
+async fn handle_bundle_age_block(mut bp: BundlePack) -> Result<BundlePack> {
     if let Some(age) = bp.update_bundle_age() {
         if std::time::Duration::from_micros(age) >= bp.bundle.primary.lifetime {
             warn!("Bundle's lifetime has expired: {}", bp.id());
-            delete(bp, LIFETIME_EXPIRED)?;
+            delete(bp, LIFETIME_EXPIRED).await?;
             bail!("age block lifetime exceeded");
         }
     }
     Ok(bp)
 }
 
-fn handle_previous_node_block(mut bp: BundlePack) -> Result<BundlePack> {
+async fn handle_previous_node_block(mut bp: BundlePack) -> Result<BundlePack> {
     if let Some(pnb) = bp
         .bundle
         .extension_block_by_type_mut(bp7::canonical::PREVIOUS_NODE_BLOCK)
@@ -222,7 +252,7 @@ fn handle_previous_node_block(mut bp: BundlePack) -> Result<BundlePack> {
     Ok(bp)
 }
 // forward a bundle pack's bundle to another node.
-pub fn forward(mut bp: BundlePack) -> Result<()> {
+pub async fn forward(mut bp: BundlePack) -> Result<()> {
     let bpid = bp.id().to_string();
 
     info!("Forward request for bundle: {}", bpid);
@@ -233,7 +263,7 @@ pub fn forward(mut bp: BundlePack) -> Result<()> {
     bp.sync()?;
 
     debug!("Handle lifetime");
-    bp = handle_primary_lifetime(bp)?;
+    bp = handle_primary_lifetime(bp).await?;
 
     let mut delete_afterwards = true;
     let bundle_sent = Arc::new(AtomicBool::new(false));
@@ -256,29 +286,33 @@ pub fn forward(mut bp: BundlePack) -> Result<()> {
         debug!("No new peers for forwarding of bundle {}", &bp.id());
     } else {
         debug!("Handle hop count block");
-        bp = handle_hop_count_block(bp)?;
+        bp = handle_hop_count_block(bp).await?;
 
         debug!("Handle previous node block");
         // Handle previous node block
-        bp = handle_previous_node_block(bp)?;
+        bp = handle_previous_node_block(bp).await?;
         debug!("Handle bundle age block");
         // Handle bundle age block
-        bp = handle_bundle_age_block(bp)?;
+        bp = handle_bundle_age_block(bp).await?;
 
-        let wg = WaitGroup::new();
+        //let wg = WaitGroup::new();
+        let mut wg = Vec::new();
         let bundle_data = bp.bundle.to_cbor();
+        debug!("nodes: {:?}", nodes);
         for n in nodes {
-            let wg = wg.clone();
+            //let wg = wg.clone();
             let bd = bundle_data.clone(); // TODO: optimize cloning away, reference should do
             let bpid = bpid.clone();
             //let bp2 = bp.clone();
             let bundle_sent = std::sync::Arc::clone(&bundle_sent);
-            thread::spawn(move || {
+            debug!("spawning tokio task");
+            let n = n.clone();
+            let task_handle = tokio::spawn(async move {
                 info!(
                     "Sending bundle to a CLA: {} {} {}",
                     &bpid, n.remote, n.agent
                 );
-                if n.transfer(&[bd]) {
+                if n.transfer(&[bd]).await {
                     info!(
                         "Sending bundle succeeded: {} {} {}",
                         &bpid, n.remote, n.agent
@@ -292,10 +326,15 @@ pub fn forward(mut bp: BundlePack) -> Result<()> {
                     // TODO: send status report?
                     //send_status_report(&bp2, FORWARDED_BUNDLE, TRANSMISSION_CANCELED);
                 }
-                drop(wg);
+                //drop(wg);
             });
+            wg.push(task_handle);
         }
-        wg.wait();
+        use futures::future::join_all;
+
+        join_all(wg).await;
+        //wg.wait();
+
         // Reset hop count block
         if let Some(hc) = bp
             .bundle
@@ -317,7 +356,7 @@ pub fn forward(mut bp: BundlePack) -> Result<()> {
                 .bundle_control_flags
                 .has(bp7::bundle::BUNDLE_STATUS_REQUEST_FORWARD)
             {
-                send_status_report(&bp, FORWARDED_BUNDLE, NO_INFORMATION);
+                send_status_report(&bp, FORWARDED_BUNDLE, NO_INFORMATION).await;
             }
             if delete_afterwards {
                 bp.clear_constraints();
@@ -335,11 +374,11 @@ pub fn forward(mut bp: BundlePack) -> Result<()> {
     Ok(())
 }
 
-pub fn local_delivery(mut bp: BundlePack) -> Result<()> {
+pub async fn local_delivery(mut bp: BundlePack) -> Result<()> {
     info!("Received bundle for local delivery: {}", bp.id());
 
     if bp.bundle.is_administrative_record() && !is_administrative_record_valid(&bp) {
-        delete(bp, NO_INFORMATION)?;
+        delete(bp, NO_INFORMATION).await?;
         bail!("Empty administrative record");
     }
     bp.add_constraint(Constraint::LocalEndpoint);
@@ -356,7 +395,7 @@ pub fn local_delivery(mut bp: BundlePack) -> Result<()> {
             .bundle_control_flags
             .has(bp7::bundle::BUNDLE_STATUS_REQUEST_DELIVERY)
         {
-            send_status_report(&bp, DELIVERED_BUNDLE, NO_INFORMATION);
+            send_status_report(&bp, DELIVERED_BUNDLE, NO_INFORMATION).await;
         }
         // TODO: might not be okay to clear if it was a group message, check in various setups
         bp.clear_constraints();
@@ -377,14 +416,14 @@ pub fn contraindicated(mut bp: BundlePack) -> Result<()> {
     Ok(())
 }
 
-pub fn delete(mut bp: BundlePack, reason: StatusReportReason) -> Result<()> {
+pub async fn delete(mut bp: BundlePack, reason: StatusReportReason) -> Result<()> {
     if bp
         .bundle
         .primary
         .bundle_control_flags
         .has(bp7::bundle::BUNDLE_STATUS_REQUEST_DELETION)
     {
-        send_status_report(&bp, DELETED_BUNDLE, reason);
+        send_status_report(&bp, DELETED_BUNDLE, reason).await;
     }
     bp.clear_constraints();
     info!("Bundle marked for deletion: {}", bp.id());
@@ -502,7 +541,11 @@ fn inspect_status_report(bp: &BundlePack, ar: AdministrativeRecord) {
 
 // SendStatusReport creates a new status report in response to the given
 // BundlePack and transmits it.
-fn send_status_report(bp: &BundlePack, status: StatusInformationPos, reason: StatusReportReason) {
+async fn send_status_report(
+    bp: &BundlePack,
+    status: StatusInformationPos,
+    reason: StatusReportReason,
+) {
     // Don't repond to other administrative records
     if bp
         .bundle
@@ -533,5 +576,8 @@ fn send_status_report(bp: &BundlePack, status: StatusInformationPos, reason: Sta
         reason,
     );
 
-    send_bundle(out_bndl);
+    // TODO: impl without cycle
+    //send_bundle(out_bndl).await;
+    //dispatch(out_bndl.into()).await;
+    //send_through_task_async(out_bndl).await;
 }

@@ -5,7 +5,7 @@ pub mod peer;
 pub mod processing;
 pub mod store;
 
-use crate::cla::ConvergencyLayerAgent;
+use crate::cla::ConvergenceLayerAgent;
 pub use crate::core::peer::{DtnPeer, PeerType};
 use crate::core::store::BundleStore;
 use crate::routing::RoutingAgent;
@@ -41,7 +41,7 @@ impl DtnStatistics {
 #[derive(Debug)]
 pub struct DtnCore {
     pub endpoints: Vec<Box<dyn ApplicationAgent + Send>>,
-    pub cl_list: Vec<Box<dyn ConvergencyLayerAgent>>,
+    pub cl_list: Vec<Box<dyn ConvergenceLayerAgent>>,
     pub routing_agent: Box<dyn RoutingAgent>,
 }
 
@@ -128,11 +128,11 @@ pub fn process_peers() {
 }
 
 /// Reprocess bundles in store
-pub fn process_bundles() -> Result<()> {
+pub async fn process_bundles() {
     // TODO: check for possible race condition and double send when janitor is triggered while first forwarding attempt is in progress
     let forwarding_bundle_ids: Vec<String> = (*STORE.lock()).forwarding();
-    forwarding_bundle_ids.iter().for_each(|bpid| {
-        crate::core::processing::forward(store_get(&bpid).unwrap());
-    });
-    Ok(())
+    for bpid in forwarding_bundle_ids {
+        crate::core::processing::forward(store_get(&bpid).unwrap()).await;
+    }
+    //forwarding_bundle_ids.iter().for_each(|bpid| {});
 }
