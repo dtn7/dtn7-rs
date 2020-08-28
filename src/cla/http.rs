@@ -1,4 +1,4 @@
-use crate::cla::ConvergencyLayerAgent;
+use crate::cla::ConvergenceLayerAgent;
 use crate::CONFIG;
 use async_trait::async_trait;
 use bp7::ByteBuffer;
@@ -6,14 +6,14 @@ use log::debug;
 use std::net::SocketAddr;
 
 #[derive(Debug, Clone, Default, Copy)]
-pub struct HttpConversionLayer {
+pub struct HttpConvergenceLayer {
     counter: u64,
     local_port: u16,
 }
 
-impl HttpConversionLayer {
-    pub fn new(port: Option<u16>) -> HttpConversionLayer {
-        HttpConversionLayer {
+impl HttpConvergenceLayer {
+    pub fn new(port: Option<u16>) -> HttpConvergenceLayer {
+        HttpConvergenceLayer {
             counter: 0,
             local_port: port.unwrap_or((*CONFIG.lock()).webport),
         }
@@ -21,7 +21,7 @@ impl HttpConversionLayer {
 }
 
 #[async_trait]
-impl ConvergencyLayerAgent for HttpConversionLayer {
+impl ConvergenceLayerAgent for HttpConvergenceLayer {
     async fn setup(&mut self) {}
     fn port(&self) -> u16 {
         self.local_port
@@ -29,7 +29,7 @@ impl ConvergencyLayerAgent for HttpConversionLayer {
     fn name(&self) -> &'static str {
         "http"
     }
-    fn scheduled_submission(&self, dest: &str, ready: &[ByteBuffer]) -> bool {
+    async fn scheduled_submission(&self, dest: &str, ready: &[ByteBuffer]) -> bool {
         debug!("Scheduled HTTP submission: {:?}", dest);
         if !ready.is_empty() {
             let peeraddr: SocketAddr = dest.parse().unwrap();
@@ -54,7 +54,7 @@ impl ConvergencyLayerAgent for HttpConversionLayer {
     }
 }
 
-impl std::fmt::Display for HttpConversionLayer {
+impl std::fmt::Display for HttpConvergenceLayer {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         write!(f, "http:{}", self.local_port)
     }

@@ -1,20 +1,20 @@
-use super::ConvergencyLayerAgent;
+use super::ConvergenceLayerAgent;
 use async_trait::async_trait;
 use bp7::ByteBuffer;
 use log::debug;
 
 #[derive(Debug, Clone, Default, Copy)]
-pub struct DummyConvergencyLayer {
+pub struct DummyConvergenceLayer {
     counter: u64,
 }
 
-impl DummyConvergencyLayer {
-    pub fn new() -> DummyConvergencyLayer {
-        DummyConvergencyLayer { counter: 0 }
+impl DummyConvergenceLayer {
+    pub fn new() -> DummyConvergenceLayer {
+        DummyConvergenceLayer { counter: 0 }
     }
 }
 #[async_trait]
-impl ConvergencyLayerAgent for DummyConvergencyLayer {
+impl ConvergenceLayerAgent for DummyConvergenceLayer {
     async fn setup(&mut self) {}
 
     fn port(&self) -> u16 {
@@ -23,13 +23,13 @@ impl ConvergencyLayerAgent for DummyConvergencyLayer {
     fn name(&self) -> &'static str {
         "dummy"
     }
-    fn scheduled_submission(&self, _dest: &str, _ready: &[ByteBuffer]) -> bool {
+    async fn scheduled_submission(&self, _dest: &str, _ready: &[ByteBuffer]) -> bool {
         debug!("Scheduled submission Dummy Conversion Layer");
         true
     }
 }
 
-impl std::fmt::Display for DummyConvergencyLayer {
+impl std::fmt::Display for DummyConvergenceLayer {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         write!(f, "dummy")
     }

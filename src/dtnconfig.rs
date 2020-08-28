@@ -132,7 +132,7 @@ impl From<PathBuf> for DtnConfig {
                 } else {
                     0
                 };
-                if crate::cla::convergency_layer_agents().contains(&cla_id.as_str()) {
+                if crate::cla::convergence_layer_agents().contains(&cla_id.as_str()) {
                     debug!("CLA: {:?}", cla_id);
                     dtncfg.clas.push(format!("{}:{}", cla_id, cla_port));
                 }

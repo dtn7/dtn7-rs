@@ -84,7 +84,7 @@ impl DtnPeer {
     }
     pub fn first_cla(&self) -> Option<crate::cla::ClaSender> {
         for c in self.cla_list.iter() {
-            if crate::cla::convergency_layer_agents().contains(&c.0.as_str()) {
+            if crate::cla::convergence_layer_agents().contains(&c.0.as_str()) {
                 let sender = crate::cla::ClaSender {
                     remote: self.addr,
                     port: c.1,
