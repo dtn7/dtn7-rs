@@ -13,6 +13,12 @@ use std::time::Instant;
 use tokio::io::{self, AsyncReadExt, AsyncWriteExt};
 use tokio::net::TcpListener;
 use tokio::net::TcpStream;
+use num_derive::*;
+use num_traits::FromPrimitive;
+use anyhow::{bail, anyhow};
+use std::convert::TryInto;
+use std::io::Cursor;
+
 
 bitflags! {
     /// Contact Header flags
@@ -23,6 +29,7 @@ bitflags! {
 }
 
 /// Message Types
+#[derive(Debug, FromPrimitive)]
 #[repr(u8)]
 enum MessageType {
     /// Indicates the transmission of a segment of bundle data.
@@ -49,6 +56,7 @@ bitflags! {
 }
 
 /// MSG_REJECT Reason Codes
+#[derive(Debug, FromPrimitive)]
 #[repr(u8)]
 enum MsgRejectReasonCode {
     /// A message was received with a Message Type code unknown to the TCPCL node.
@@ -68,6 +76,7 @@ bitflags! {
 }
 
 /// XFER_REFUSE Reason Codes
+#[derive(Debug, FromPrimitive)]
 #[repr(u8)]
 enum XferRefuseReasonCode {
     /// Reason for refusal is unknown or not specified.
@@ -99,7 +108,9 @@ bitflags! {
     }
 }
 
+
 /// SESS_TERM Reason Codes
+#[derive(Debug, FromPrimitive)]
 #[repr(u8)]
 enum SessTermReasonCode {
     /// A termination reason is not available.
@@ -121,6 +132,132 @@ struct SessInitData {
     segment_mru: u64,
     transfer_mru: u64,
     node_id: String,
+}
+
+struct XferAckData {
+    flags : XferSegmentFlags,
+    tid : u64,
+    len : u64,
+}
+struct XferRefuseData {
+    reason : XferRefuseReasonCode,
+    tid : u64,
+}
+struct SessTermData {
+    flags : SessTermFlags,
+    reason : SessTermReasonCode,
+}
+
+enum TcpClPacket  {
+    SessInit(SessInitData),
+    SessTerm(SessTermData),
+    XferSeg,
+    XferAck(XferAckData),
+    XferRefuse(XferRefuseData),
+    KeepAlive,
+    MsgReject,
+}
+
+struct Connection {
+    stream: TcpStream,
+    buffer: bytes::BytesMut,
+}
+
+impl Connection {
+    pub fn new(stream: TcpStream) -> Connection {
+        Connection {
+            stream,
+            //buffer: bytes::BytesMut::with_capacity(4096*64),
+            buffer: bytes::BytesMut::with_capacity(4096),
+        }
+    }
+}
+
+async fn parses_packet(mut buffer : bytes::BytesMut) -> anyhow::Result<TcpClPacket> {
+    let mut buf = Cursor::new(&buffer[..]);
+
+    let mtype = buf.read_u8().await?;
+    if let  Some(mtype)= MessageType::from_u8(mtype) {
+        match  mtype {
+            MessageType::XFER_SEGMENT => { // TODO
+                Ok(TcpClPacket::XferSeg)
+            },
+            MessageType::XFER_ACK => {
+                if buffer.len() < 18 {
+                    bail!("Not enough bytes received");
+                }
+                /*let flags = XferSegmentFlags::from_bits_truncate(buf[1]);
+                let tid : u64 = u64::from_be_bytes(buf[2..10].try_into()?);
+                let len : u64 = u64::from_be_bytes(buf[10..18].try_into()?);*/
+                let flags = XferSegmentFlags::from_bits_truncate(buf.read_u8().await?);
+                let tid : u64 = buf.read_u64().await?;
+                let len : u64 = buf.read_u64().await?;
+                let data = XferAckData {
+                    flags,
+                    tid,
+                    len,
+                };
+                let pkt_len = buf.position() as usize;
+                buffer.truncate(pkt_len);
+                Ok(TcpClPacket::XferAck(data))
+            },
+            MessageType::XFER_REFUSE => {
+                if buffer.len() < 10 {
+                    bail!("Not enough bytes received");
+                }
+                if let Some(reason) = XferRefuseReasonCode::from_u8(buf.read_u8().await?) {
+                    let tid : u64 = buf.read_u64().await?;
+                    let data = XferRefuseData {
+                        reason,
+                        tid,
+                    };
+                    let pkt_len = buf.position() as usize;
+                    buffer.truncate(pkt_len);
+                    Ok(TcpClPacket::XferRefuse(data))
+
+                } else {
+                    bail!("Unknown reason code in xfer refuse message");
+                }
+            },
+            MessageType::KEEPALIVE => {Ok(TcpClPacket::KeepAlive)},
+            MessageType::SESS_TERM => {
+                if buffer.len() < 3 {
+                    bail!("Not enough bytes received");
+                }
+                let flags = SessTermFlags::from_bits_truncate(buf.read_u8().await?);
+                if let Some(reason) = SessTermReasonCode::from_u8(buf.read_u8().await?) {
+                    let data = SessTermData {
+                        flags,
+                        reason,
+                    };
+                    let pkt_len = buf.position() as usize;
+                    buffer.truncate(pkt_len);
+                    Ok(TcpClPacket::SessTerm(data))
+
+                } else {
+                    bail!("Unknown reason code in sess term message");
+
+                }
+            },
+            MessageType::SESS_INIT => { // TODO
+                let data = SessInitData {
+                    keepalive: 0,
+                    segment_mru: 0,
+                    transfer_mru: 0,
+                    node_id: "nonode".into(),
+                };
+                Ok(TcpClPacket::SessInit(data))},
+            MessageType::MSG_REJECT => {
+                // TODO
+                Ok(TcpClPacket::MsgReject)
+            },
+        }    
+    } else {
+        // unknown  code
+        bail!("Unknown packet type");
+    }
+    
+    
 }
 
 #[derive(Debug, Clone, Default, Copy)]
