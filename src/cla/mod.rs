@@ -1,7 +1,6 @@
 pub mod dummy;
 pub mod http;
 pub mod mtcp;
-pub mod tcp;
 
 use async_trait::async_trait;
 use bp7::ByteBuffer;
@@ -47,7 +46,6 @@ pub fn new(cla_str: &str) -> Box<dyn ConvergenceLayerAgent> {
         "dummy" => Box::new(dummy::DummyConvergenceLayer::new()),
         "mtcp" => Box::new(mtcp::MtcpConvergenceLayer::new(port)),
         "http" => Box::new(http::HttpConvergenceLayer::new(port)),
-        "tcp" => Box::new(tcp::TcpConvergenceLayer::new(port)),
         _ => panic!("Unknown convergence layer agent agent {}", cla[0]),
     }
 }
