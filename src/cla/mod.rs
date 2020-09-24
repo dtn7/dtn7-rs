@@ -2,6 +2,7 @@ pub mod dummy;
 pub mod http;
 pub mod mtcp;
 pub mod tcp;
+pub mod tcpcl;
 
 use async_trait::async_trait;
 use bp7::ByteBuffer;
