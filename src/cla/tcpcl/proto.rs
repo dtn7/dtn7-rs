@@ -1,4 +1,5 @@
 use bitflags::*;
+use bytes::Bytes;
 use num_derive::*;
 use num_traits::FromPrimitive;
 
@@ -113,6 +114,14 @@ pub(crate) struct SessInitData {
     pub segment_mru: u64,
     pub transfer_mru: u64,
     pub node_id: String,
+}
+
+#[derive(Debug)]
+pub(crate) struct XferSegData {
+    pub flags: XferSegmentFlags,
+    pub tid: u64,
+    pub len: u64,
+    pub buf: Bytes,
 }
 
 #[derive(Debug)]

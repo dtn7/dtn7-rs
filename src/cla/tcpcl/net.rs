@@ -4,7 +4,10 @@ use log::{debug, error, info};
 use anyhow::bail;
 use bytes::Bytes;
 use num_traits::FromPrimitive;
-use std::io::Cursor;
+use std::{
+    io::Cursor,
+    sync::atomic::{AtomicU64, AtomicUsize, Ordering},
+};
 use thiserror::Error;
 use tokio::io::{self, AsyncReadExt, AsyncWriteExt};
 use tokio::net::TcpStream;
@@ -176,7 +179,7 @@ pub(crate) async fn send_sess_init(
     Ok(())
 }
 
-pub(crate) async fn send_xfer_segment(
+pub(crate) async fn send_xfer_ack(
     socket: &mut tokio::net::tcp::OwnedWriteHalf,
     flags: XferSegmentFlags,
     transfer_id: u64,
@@ -189,18 +192,16 @@ pub(crate) async fn send_xfer_segment(
     socket.flush().await?;
     Ok(())
 }
-pub(crate) async fn send_xfer_ack(
+pub(crate) async fn send_xfer_segment(
     socket: &mut tokio::net::tcp::OwnedWriteHalf,
-    flags: XferSegmentFlags,
-    transfer_id: u64,
-    data: Bytes,
+    seg: XferSegData,
 ) -> anyhow::Result<()> {
     socket.write_u8(MessageType::XFER_ACK as u8).await?;
-    socket.write_u8(flags.bits()).await?;
-    socket.write_u64(transfer_id).await?;
+    socket.write_u8(seg.flags.bits()).await?;
+    socket.write_u64(seg.tid).await?;
     socket.write_u32(0).await?;
-    socket.write_u64(data.len() as u64).await?;
-    socket.write_all(&data).await?;
+    socket.write_u64(seg.len).await?;
+    socket.write_all(&seg.buf).await?;
     socket.flush().await?;
     Ok(())
 }
@@ -214,6 +215,56 @@ pub(crate) async fn send_xfer_refuse(
     socket.write_u64(transfer_id).await?;
     socket.flush().await?;
     Ok(())
+}
+
+pub(crate) fn generate_xfer_segments(
+    config: &SessInitData,
+    buf: Bytes,
+) -> anyhow::Result<Vec<XferSegData>> {
+    static LAST_TRANSFER_ID: AtomicU64 = AtomicU64::new(0);
+    // TODO: check for wrap around and SESS_TERM if overflow occurs
+    let tid = LAST_TRANSFER_ID.fetch_add(1, Ordering::SeqCst);
+    let mut segs = Vec::new();
+
+    if buf.len() > config.transfer_mru as usize {
+        bail!("bundle too big");
+    }
+    let fitting = if buf.len() as u64 % config.segment_mru == 0 {
+        0
+    } else {
+        1
+    };
+    let num_segs = (buf.len() as u64 / config.segment_mru) + fitting;
+
+    for i in 0..num_segs {
+        let mut flags = XferSegmentFlags::empty();
+        if i == 0 {
+            flags |= XferSegmentFlags::START;
+        }
+        if i == num_segs - 1 {
+            flags |= XferSegmentFlags::END;
+        }
+        let len = if num_segs == 1 {
+            // data fits in one segment
+            buf.len() as u64
+        } else if i == num_segs - 1 {
+            // segment is the last one remaining
+            buf.len() as u64 % config.segment_mru
+        } else {
+            // middle segment get filled to the max
+            config.segment_mru
+        };
+        let base = (i * config.segment_mru) as usize;
+        let seg = XferSegData {
+            flags,
+            tid,
+            len,
+            buf: buf.slice(base..base + len as usize),
+        };
+        segs.push(seg);
+    }
+
+    Ok(segs)
 }
 
 pub(crate) async fn receive_contact_header(
