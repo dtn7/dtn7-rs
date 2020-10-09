@@ -17,6 +17,7 @@ use application_agent::ApplicationAgent;
 use bp7::EndpointID;
 use log::info;
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 
 #[derive(Debug, Serialize, Deserialize, Default, Clone)]
 pub struct DtnStatistics {
@@ -42,6 +43,7 @@ impl DtnStatistics {
 pub struct DtnCore {
     pub endpoints: Vec<Box<dyn ApplicationAgent + Send>>,
     pub cl_list: Vec<Box<dyn ConvergenceLayerAgent>>,
+    pub service_list: HashMap<u8, String>,
     pub routing_agent: Box<dyn RoutingAgent>,
 }
 
@@ -56,6 +58,7 @@ impl DtnCore {
         DtnCore {
             endpoints: Vec::new(),
             cl_list: Vec::new(),
+            service_list: HashMap::new(),
             //routing_agent: Box::new(crate::routing::flooding::FloodingRoutingAgent::new()),
             routing_agent: Box::new(crate::routing::epidemic::EpidemicRoutingAgent::new()),
         }

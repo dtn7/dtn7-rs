@@ -3,6 +3,7 @@ use dtn7::dtnd::daemon::*;
 use dtn7::DtnConfig;
 use log::info;
 use pretty_env_logger;
+use std::net::SocketAddr;
 use std::panic;
 use std::{convert::TryInto, process};
 
@@ -70,6 +71,15 @@ async fn main() -> std::io::Result<()> {
                 .takes_value(true),
         )
         .arg(
+            Arg::with_name("discoverydestination")
+                .short("E")
+                .long("discovery-destination")
+                .value_name("DD")
+                .help("Sets destination Beacons shall be sent to for discovery purposes (default IPv4 = 224.0.0.26:3003, IPv6 = [FF02::300]:3003")
+                .multiple(true)
+                .takes_value(true),
+        )
+        .arg(
             Arg::with_name("webport")
                 .short("w")
                 .long("web-port")
@@ -119,6 +129,19 @@ async fn main() -> std::io::Result<()> {
                 .takes_value(true),
         )
         .arg(
+            Arg::with_name("service")
+                .short("S")
+                .long("service")
+                .value_name("TAG:payload")
+                .help("Add a self defined service.")
+                .long_help("Tag 63 can be used for any kind of unformatted string message. Usage: -S 63:'Hello World'
+Tag 127 takes 2 floats and is interpreted as latitude/longitude. Usage: -S 128:'52.32 24.42'
+Tag 191 takes 1 integer and is interpreted as battery level in %. Usage -S 192:71
+Tag 255 takes 5 arguments and is interpreted as address. Usage -S 255:'Samplestreet 42 12345 SampleCity SC'")
+                .multiple(true)
+                .takes_value(true),
+        )
+        .arg(
             Arg::with_name("staticpeer")
                 .short("s")
                 .long("static-peer")
@@ -126,6 +149,13 @@ async fn main() -> std::io::Result<()> {
                 .help("Adds a static peer (e.g. mtcp://192.168.2.1:2342/node2)")
                 .multiple(true)
                 .takes_value(true),
+        )
+        .arg(
+            Arg::with_name("beacon-period")
+                .short("b")
+                .long("beacon-period")
+                .help("Enable advertising beacon sending interval to inform neighbors about when to expect new beacons")
+                .takes_value(false),
         )
         .arg(
             Arg::with_name("debug")
@@ -176,7 +206,7 @@ async fn main() -> std::io::Result<()> {
     }
     cfg.v4 = matches.is_present("ipv4") || cfg.v4;
     cfg.unsafe_httpd = matches.is_present("unsafe_httpd") || cfg.unsafe_httpd;
-
+    cfg.enable_period = matches.is_present("beacon-period");
     if let Some(cfgfile) = matches.value_of("config") {
         cfg = DtnConfig::from(std::path::PathBuf::from(cfgfile));
     }
@@ -248,6 +278,74 @@ async fn main() -> std::io::Result<()> {
             let cla_split: Vec<&str> = cla.split(':').collect();
             if dtn7::cla::convergence_layer_agents().contains(&cla_split[0]) {
                 cfg.clas.push(cla.to_string());
+            }
+        }
+    }
+    if let Some(services) = matches.values_of("service") {
+        for service in services {
+            let service_split: Vec<&str> = service.split(':').collect();
+            let tag: u8 = service_split[0]
+                .parse()
+                .expect("Couldn't parse tag properly");
+            if cfg.services.contains_key(&tag) {
+                return Err(std::io::Error::new(
+                    std::io::ErrorKind::InvalidInput,
+                    format!(
+                        "Tags must be unique. You tried to use tag {} multiple times.",
+                        tag
+                    ),
+                ));
+            }
+            let payload = String::from(service_split[1]);
+            cfg.services.insert(tag, payload);
+        }
+    }
+    if let Some(destinations) = matches.values_of("discoverydestination") {
+        for destination in destinations {
+            let full: String = String::from(format!("{}:3003", destination));
+            let addr: SocketAddr = full
+                .parse()
+                .expect("Error: Unable to parse the provided address into IP format");
+
+            match addr {
+                SocketAddr::V4(addr) => {
+                    if cfg.v4 {
+                        cfg.discovery_destinations
+                            .insert(format!("{}:{}", addr.ip(), addr.port()), 0);
+                    }
+                }
+                SocketAddr::V6(addr) => {
+                    if cfg.v6 {
+                        cfg.discovery_destinations
+                            .insert(format!("{}:{}", addr.ip(), addr.port()), 0);
+                    }
+                }
+            }
+        }
+    }
+    // If no discovery destination is specified via CLI or config use the default discovery destinations
+    // depending on whether to use ipv4 or ipv6
+    if cfg.discovery_destinations.len() == 0 {
+        match (cfg.v4, cfg.v6) {
+            (true, true) => {
+                cfg.discovery_destinations
+                    .insert("224.0.0.26:3003".to_string(), 0);
+                cfg.discovery_destinations
+                    .insert("[FF02::1]:3003".to_string(), 0);
+            }
+            (true, false) => {
+                cfg.discovery_destinations
+                    .insert("224.0.0.26:3003".to_string(), 0);
+            }
+            (false, true) => {
+                cfg.discovery_destinations
+                    .insert("[FF02::1]:3003".to_string(), 0);
+            }
+            (false, false) => {
+                return Err(std::io::Error::new(
+                    std::io::ErrorKind::InvalidInput,
+                    String::from("Only IP destinations supported at the moment"),
+                ))
             }
         }
     }

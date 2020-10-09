@@ -1,6 +1,7 @@
 # Example config file for dtn7 daemon
-debug = false
+debug = true
 nodeid = "node1"
+beacon-period = true
 
 routing = "epidemic"
 webport = 3000
@@ -27,6 +28,14 @@ cla.0.id = "mtcp"
 cla.0.port = 16163
 
 cla.1.id = "dummy"
+
+[services]
+
+service.0.tag = 191
+service.0.payload = "75"
+
+service.1.tag = 127
+service.1.payload = "25.31 73.12"
 
 [statics]
 peers = [

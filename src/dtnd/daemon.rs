@@ -1,7 +1,8 @@
-use super::{httpd, janitor, service_discovery};
+use super::{httpd, janitor};
 use crate::cla_add;
 use crate::core::application_agent::SimpleApplicationAgent;
 use crate::dtnconfig::DtnConfig;
+use crate::ipnd::neighbour_discovery;
 use crate::peers_add;
 use crate::{CONFIG, DTNCORE, STORE};
 use log::{error, info};
@@ -128,7 +129,7 @@ pub async fn start_dtnd(cfg: DtnConfig) -> std::io::Result<()> {
         janitor::spawn_janitor();
     }
     if CONFIG.lock().announcement_interval.as_micros() != 0 {
-        if let Err(errmsg) = service_discovery::spawn_service_discovery().await {
+        if let Err(errmsg) = neighbour_discovery::spawn_neighbour_discovery().await {
             error!("Error spawning service discovery: {:?}", errmsg);
         }
     }

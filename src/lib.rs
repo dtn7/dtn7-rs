@@ -2,6 +2,7 @@ pub mod cla;
 pub mod core;
 pub mod dtnconfig;
 pub mod dtnd;
+pub mod ipnd;
 pub mod routing;
 
 use crate::cla::ConvergenceLayerAgent;
@@ -33,6 +34,35 @@ lazy_static! {
 
 pub fn cla_add(cla: Box<dyn ConvergenceLayerAgent>) {
     (*DTNCORE.lock()).cl_list.push(cla);
+}
+pub fn service_add(tag: u8, service: String) {
+    (*DTNCORE.lock()).service_list.insert(tag, service);
+}
+pub fn add_discovery_destination(destination: &String) {
+    (*CONFIG.lock())
+        .discovery_destinations
+        .insert(destination.clone(), 0);
+}
+pub fn update_sequence(destination: &String) {
+    if let Some(sequence) = (*CONFIG.lock()).discovery_destinations.get_mut(destination) {
+        if *sequence == u32::MAX {
+            *sequence = 0;
+        } else {
+            *sequence += 1;
+        }
+    }
+}
+pub fn reset_sequence(destination: &String) {
+    if let Some(sequence) = (*CONFIG.lock()).discovery_destinations.get_mut(destination) {
+        *sequence = 0;
+    }
+}
+pub fn get_sequence(destination: &String) -> u32 {
+    if let Some(sequence) = (*CONFIG.lock()).discovery_destinations.get(destination) {
+        *sequence
+    } else {
+        0
+    }
 }
 pub fn peers_add(peer: DtnPeer) {
     (*PEERS.lock()).insert(peer.eid.node().unwrap(), peer);

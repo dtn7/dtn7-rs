@@ -5,6 +5,7 @@ use log::debug;
 use rand::distributions::Alphanumeric;
 use rand::{thread_rng, Rng};
 use serde::Serialize;
+use std::collections::HashMap;
 use std::path::PathBuf;
 use std::{convert::TryInto, time::Duration};
 
@@ -14,13 +15,17 @@ pub struct DtnConfig {
     pub unsafe_httpd: bool,
     pub v4: bool,
     pub v6: bool,
+    pub custom_timeout: bool,
+    pub enable_period: bool,
     pub nodeid: String,
     pub host_eid: EndpointID,
     pub webport: u16,
     pub announcement_interval: Duration,
+    pub discovery_destinations: HashMap<String, u32>,
     pub janitor_interval: Duration,
     pub endpoints: Vec<String>,
     pub clas: Vec<String>,
+    pub services: HashMap<u8, String>,
     pub routing: String,
     pub peer_timeout: Duration,
     pub statics: Vec<DtnPeer>,
@@ -51,7 +56,8 @@ impl From<PathBuf> for DtnConfig {
         debug!("ipv4: {:?}", dtncfg.v4);
         dtncfg.v6 = s.get_bool("ipv6").unwrap_or(false);
         debug!("ipv6: {:?}", dtncfg.v6);
-
+        dtncfg.enable_period = s.get_bool("beacon-period").unwrap_or(false);
+        debug!("announcing period: {:?}", dtncfg.enable_period);
         debug!("debug: {:?}", dtncfg.debug);
         let nodeid = s.get_str("nodeid").unwrap_or(rnd_node_name());
         if nodeid.chars().all(char::is_alphanumeric) {
@@ -138,6 +144,65 @@ impl From<PathBuf> for DtnConfig {
                 }
             }
         }
+        if let Ok(services) = s.get_table("services.service") {
+            for (_k, v) in services.iter() {
+                let tab = v.clone().into_table().unwrap();
+                let service_tag: u8 = tab["tag"]
+                    .clone()
+                    .into_str()
+                    .unwrap()
+                    .parse()
+                    .expect("Parsing error");
+                if dtncfg.services.contains_key(&service_tag) {
+                    let error = std::io::Error::new(
+                        std::io::ErrorKind::InvalidInput,
+                        format!(
+                            "Tags must be unique. You tried to use tag {} multiple times.",
+                            service_tag
+                        ),
+                    );
+                    panic!("ConfigError: {:?}: {}\n", error.kind(), error.to_string());
+                }
+                let service_payload = tab["payload"].clone().into_str().unwrap();
+                debug!("Added custom service: {:?}", service_tag);
+
+                dtncfg.services.insert(service_tag, service_payload);
+            }
+        }
+        if let Ok(discovery_destinations) = s.get_table("discovery_destinations.target") {
+            for (_k, v) in discovery_destinations.iter() {
+                let tab = v.clone().into_table().unwrap();
+                let destination = tab["destination"].clone().into_str().unwrap();
+                let port = String::from("3003");
+                dtncfg
+                    .discovery_destinations
+                    .insert(format!("{}:{}", destination, port), 0);
+            }
+        } else {
+            match (dtncfg.v4, dtncfg.v6) {
+                (true, true) => {
+                    dtncfg
+                        .discovery_destinations
+                        .insert("224.0.0.26:3003".to_string(), 0);
+                    dtncfg
+                        .discovery_destinations
+                        .insert("[FF02::1]:3003".to_string(), 0);
+                }
+                (true, false) => {
+                    dtncfg
+                        .discovery_destinations
+                        .insert("224.0.0.26:3003".to_string(), 0);
+                }
+                (false, true) => {
+                    dtncfg
+                        .discovery_destinations
+                        .insert("[FF02::1]:3003".to_string(), 0);
+                }
+                (false, false) => {
+                    println!("Protocols different to IP are not yet supported!");
+                }
+            }
+        }
         dtncfg
     }
 }
@@ -151,13 +216,17 @@ impl DtnConfig {
             unsafe_httpd: false,
             v4: true,
             v6: false,
+            custom_timeout: false,
+            enable_period: false,
             nodeid: local_node_id.to_string(),
             host_eid: local_node_id,
             announcement_interval: "2s".parse::<humantime::Duration>().unwrap().into(),
+            discovery_destinations: HashMap::new(),
             webport: 3000,
             janitor_interval: "10s".parse::<humantime::Duration>().unwrap().into(),
             endpoints: Vec::new(),
             clas: Vec::new(),
+            services: HashMap::new(),
             routing: "epidemic".into(),
             peer_timeout: "20s".parse::<humantime::Duration>().unwrap().into(),
             statics: Vec::new(),
@@ -170,13 +239,17 @@ impl DtnConfig {
         self.unsafe_httpd = cfg.unsafe_httpd;
         self.v4 = cfg.v4;
         self.v6 = cfg.v6;
+        self.custom_timeout = cfg.custom_timeout;
+        self.enable_period = cfg.enable_period;
         self.nodeid = cfg.host_eid.to_string();
         self.host_eid = cfg.host_eid;
         self.webport = cfg.webport;
         self.announcement_interval = cfg.announcement_interval;
+        self.discovery_destinations = cfg.discovery_destinations;
         self.janitor_interval = cfg.janitor_interval;
         self.endpoints = cfg.endpoints;
         self.clas = cfg.clas;
+        self.services = cfg.services;
         self.routing = cfg.routing;
         self.peer_timeout = cfg.peer_timeout;
         self.statics = cfg.statics;
