@@ -1,6 +1,7 @@
 # Example config file for dtn7 daemon
-debug = true
+debug = false
 nodeid = "node1"
+# Enables advertisement of the beaon period in discovery beacons
 beacon-period = true
 
 routing = "epidemic"
@@ -29,13 +30,35 @@ cla.0.port = 16163
 
 cla.1.id = "dummy"
 
-[services]
+# Define user specified discovery targets to send announcement beacons to, if not specified the default targets "224.0.0.26:3003" for IPv4 and "[FF02::1]:3003" will be used
+# If a IPv4 address is specified the IPv4 flag has to be enabled, same goes for specifying an IPv6 address
+# [discovery_destinations]
+#
+# target.0.destination = "224.0.0.27:3004"
+#
+# target.1.destination = "[FF02::1]:3004"
 
-service.0.tag = 191
-service.0.payload = "75"
 
-service.1.tag = 127
-service.1.payload = "25.31 73.12"
+# Define user specified services that will be advertised with discovery beacons
+# Each service takes a u8 tag and a payload value who's content depends on the used tag
+#[services]
+# So far 4 Tags are defined and can be used like this:
+#
+# Tag 63 advertises a custom, unformatted string message
+# service.0.tag = 63
+# service.0.payload = "This is a custom string message"
+#
+# Tag 127 advertises 2 floating point numbers represented as geographical location in latitude/longitude
+# service.1.tag = 127
+# service.1.payload = "52.32 24.42"
+#
+# Tag 191 advertises 1 integer represented as battery level in %
+# service.2.tag = 191
+# service.1.payload = "75"
+#
+# Tag 255 advertises an address represented like this: (Street Number PostalNumber City CountryCode)
+# service.3.tag = 255
+# service.3.payload = "Samplestreet 42 12345 SampleCity SC"
 
 [statics]
 peers = [

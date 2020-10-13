@@ -2,7 +2,7 @@ use crate::core::{DtnPeer, PeerType};
 use crate::ipnd::{beacon::Beacon, services::*};
 use crate::routing::RoutingNotifcation;
 use crate::DTNCORE;
-use crate::{peers_add, routing_notify, update_sequence, CONFIG};
+use crate::{peers_add, routing_notify, CONFIG};
 use anyhow::Result;
 use log::{debug, error, info};
 use net2::UdpBuilder;
@@ -41,15 +41,15 @@ impl Server {
                 debug!(":\n{}", deserialized);
                 // Creates a new peer from received beacon
                 let dtnpeer = DtnPeer::new(
-                    deserialized.get_eid().clone(),
+                    deserialized.eid().clone(),
                     peer.ip(),
                     PeerType::Dynamic,
-                    deserialized.get_beacon_period().clone(),
-                    deserialized.get_service_block().get_clas().clone(),
-                    deserialized.get_service_block().convert_services(),
+                    deserialized.beacon_period().clone(),
+                    deserialized.service_block().clas().clone(),
+                    deserialized.service_block().convert_services(),
                 );
                 peers_add(dtnpeer);
-                routing_notify(RoutingNotifcation::EncounteredPeer(&deserialized.get_eid()))
+                routing_notify(RoutingNotifcation::EncounteredPeer(&deserialized.eid()))
             }
         }
     }
@@ -97,7 +97,7 @@ async fn announcer(socket: std::net::UdpSocket, _v6: bool) {
             });
 
         for (destination, bsn) in destinations {
-            update_sequence(&destination.to_string());
+            &(*CONFIG.lock()).update_beacon_sequence_number(&destination.to_string());
             pkt.set_beacon_sequence_number(bsn);
 
             if destination.ip().is_multicast() {

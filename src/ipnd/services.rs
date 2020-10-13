@@ -30,42 +30,34 @@ impl ServiceBlock {
     }
 
     /// Returns the vector of ConvergencyLayerAgents
-    pub fn get_clas(&self) -> &Vec<(String, Option<u16>)> {
+    pub fn clas(&self) -> &Vec<(String, Option<u16>)> {
         &self.clas
     }
 
-    pub fn convert_clas(&self) -> Vec<String> {
-        let copy = self.clas.clone();
-        let mut convert = Vec::new();
-        for (scheme, port) in copy {
-            convert.push(format!("{}:{}", scheme, port.unwrap_or(0)));
-        }
-        convert
-    }
-
+    /// Converts services into the format used by IPND
     pub fn convert_services(&self) -> HashMap<u8, String> {
         let mut convert: HashMap<u8, String> = HashMap::new();
         for (tag, payload) in &self.services {
-            match tag {
-                63 => {
+            match *tag {
+                Service::CUSTOM_STRING => {
                     convert.insert(
                         *tag,
                         String::from_utf8(payload.clone())
                             .expect("Error parsing string from bytebuffer"),
                     );
                 }
-                127 => {
+                Service::GEO_LOCATION => {
                     let latitude: f32 =
                         f32::from_be_bytes([payload[0], payload[1], payload[2], payload[3]]);
                     let longitude: f32 =
                         f32::from_be_bytes([payload[4], payload[5], payload[6], payload[7]]);
                     convert.insert(*tag, format!("{} {}", latitude, longitude));
                 }
-                191 => {
+                Service::BATTERY => {
                     let int: i8 = i8::from_be_bytes([payload[0]]);
                     convert.insert(*tag, format!("{}", int));
                 }
-                255 => {
+                Service::ADDRESS => {
                     let message = String::from_utf8(payload.clone())
                         .expect("Couldn't parse byte array into string");
                     convert.insert(*tag, message);
@@ -79,7 +71,7 @@ impl ServiceBlock {
     }
 
     /// Returns the vector of user defined services
-    pub fn get_services(&self) -> &HashMap<u8, Vec<u8>> {
+    pub fn services(&self) -> &HashMap<u8, Vec<u8>> {
         &self.services
     }
 
@@ -92,11 +84,11 @@ impl ServiceBlock {
     pub fn add_custom_service(&mut self, tag: u8, service: &Vec<u8>) {
         self.services.insert(tag, service.clone());
     }
-
+    /// This method sets the clas vector of a ServiceBlock to the one provided
     pub fn set_clas(&mut self, clas: Vec<(String, Option<u16>)>) {
         self.clas = clas;
     }
-
+    /// This method sets the services hashmap of a ServiceBlock to the one provided
     pub fn set_services(&mut self, services: HashMap<u8, Vec<u8>>) {
         self.services = services;
     }
@@ -108,30 +100,33 @@ impl ServiceBlock {
     /// to make sure that the tag and payload content match
     pub fn build_custom_service(tag: u8, payload: &str) -> Result<(u8, Vec<u8>), String> {
         match tag {
-            // Reserved tags
-            0..=62 => Err(String::from("Please refrain from using tags between 0 and 62. Those tags are reserved for future enhancements.")),
-            // One tag to allow a random unformatted string
-            63 => {
+            // CustomString to allow a random unformatted string
+            Service::CUSTOM_STRING => {
                 if payload.as_bytes().len() > 64 {
-                    Err(String::from("The provided custom message is to big. Aim for less than 64 characters"))
+                    Err(String::from(
+                        "The provided custom message is to big. Aim for less than 64 characters",
+                    ))
                 } else {
                     Ok((tag, payload.as_bytes().to_vec()))
                 }
             }
-            // 127 expects two floats to represent geographical location (Latitude/Longitude)
-            127 => {
+            // GeoLocation expects two floats to represent geographical location (Latitude/Longitude)
+            Service::GEO_LOCATION => {
                 let input: Vec<&str> = payload.split_whitespace().collect();
-                if input.len() < 2 {Err(String::from("Not enough arguments provided to represent geographical location"))}
-                else {
+                if input.len() < 2 {
+                    Err(String::from(
+                        "Not enough arguments provided to represent geographical location",
+                    ))
+                } else {
                     let first: f32 = input[0].parse().expect("Couldn't parse latitude");
                     let second: f32 = input[1].parse().expect("Couldn't parse longitude");
                     let mut bytes = first.to_be_bytes().to_vec();
                     bytes.extend(second.to_be_bytes().to_vec().iter());
                     Ok((tag, bytes))
                 }
-            },
-            // 191 expect an integer between 0 and 100 to represent battery level in %
-            191 => {
+            }
+            // Battery expect an integer between 0 and 100 to represent battery level in %
+            Service::BATTERY => {
                 let res = payload.parse::<i8>();
                 if let Ok(input) = res {
                     if input > 100 || input < 0 {
@@ -140,22 +135,25 @@ impl ServiceBlock {
                         Ok((tag, input.to_be_bytes().to_vec()))
                     }
                 } else {
-                    Err(String::from(format!("Could not parse provided argument into an integer. {}", res.expect_err(""))))
+                    Err(String::from(format!(
+                        "Could not parse provided argument into an integer. {}",
+                        res.expect_err("")
+                    )))
                 }
-            },
-            // 255 expects 5 arguments String Int Int String String to represent an address
-            255 => {
+            }
+            // Address expects 5 arguments String Int Int String String to represent an address
+            Service::ADDRESS => {
                 let input: Vec<&str> = payload.split_whitespace().collect();
                 if input.len() == 5 {
                     Ok((tag, payload.as_bytes().to_vec()))
                 } else {
                     Err(String::from("Can not derive address from provided arguments. Argument order is: Street HouseNumber PostalNumber City CountryCode"))
                 }
-            },
-            // Undefined tags
-            64..=126 | 128..=190 | 192..=254 => {
-                Err(String::from("This custom tag is not yet defined. Please refrain from using it until added."))
             }
+            // Undefined tags
+            _ => Err(String::from(
+                "This custom tag is not yet defined. Please refrain from using it until added.",
+            )),
         }
     }
 
@@ -171,7 +169,7 @@ impl std::fmt::Display for ServiceBlock {
         let mut output = String::new();
         output.push_str("ConvergencyLayerAgents:\n");
         let mut counter = 0;
-        for (name, port) in self.get_clas() {
+        for (name, port) in self.clas() {
             let str = if port.is_some() {
                 format!(
                     "{}. CLA: Name = {} Port = {}\n",
@@ -187,16 +185,16 @@ impl std::fmt::Display for ServiceBlock {
         }
         counter = 0;
         output.push_str("Other services:\n");
-        for (tag, payload) in self.get_services() {
-            let str = match tag {
-                63 => format!(
+        for (tag, payload) in self.services() {
+            let str = match *tag {
+                Service::CUSTOM_STRING => format!(
                     "{}. Tag = {} Custom String Message: {}\n",
                     counter,
                     tag,
                     String::from_utf8(payload.clone())
                         .expect("Error parsing string from bytebuffer")
                 ),
-                127 => {
+                Service::GEO_LOCATION => {
                     let latitude: f32 =
                         f32::from_be_bytes([payload[0], payload[1], payload[2], payload[3]]);
                     let longitude: f32 =
@@ -204,14 +202,14 @@ impl std::fmt::Display for ServiceBlock {
                     format!("{}. Tag = {} Geographic location service. Current location at: Latitude {} Longitude {}\n",
                             counter, tag, latitude, longitude)
                 }
-                191 => {
+                Service::BATTERY => {
                     let int: i8 = i8::from_be_bytes([payload[0]]);
                     format!(
                         "{}. Tag = {} Battery service. Battery level at {}%\n",
                         counter, tag, int
                     )
                 }
-                255 => {
+                Service::ADDRESS => {
                     let message = String::from_utf8(payload.clone())
                         .expect("Couldn't parse byte array into string");
                     let address: Vec<&str> = message.split_whitespace().collect();
@@ -284,4 +282,14 @@ impl<'de> Deserialize<'de> for ServiceBlock {
 
         deserializer.deserialize_any(ServiceBlockVisitor)
     }
+}
+
+/// Enum struct for defining services
+struct Service;
+
+impl Service {
+    pub const CUSTOM_STRING: u8 = 63;
+    pub const GEO_LOCATION: u8 = 127;
+    pub const BATTERY: u8 = 191;
+    pub const ADDRESS: u8 = 255;
 }

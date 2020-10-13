@@ -6,6 +6,7 @@ use rand::distributions::Alphanumeric;
 use rand::{thread_rng, Rng};
 use serde::Serialize;
 use std::collections::HashMap;
+use std::net::SocketAddr;
 use std::path::PathBuf;
 use std::{convert::TryInto, time::Duration};
 
@@ -147,12 +148,10 @@ impl From<PathBuf> for DtnConfig {
         if let Ok(services) = s.get_table("services.service") {
             for (_k, v) in services.iter() {
                 let tab = v.clone().into_table().unwrap();
-                let service_tag: u8 = tab["tag"]
-                    .clone()
-                    .into_str()
-                    .unwrap()
-                    .parse()
-                    .expect("Parsing error");
+                let service_tag: u8 =
+                    tab["tag"].clone().into_str().unwrap().parse().expect(
+                        "Encountered an error while parsing a service tag from config file",
+                    );
                 if dtncfg.services.contains_key(&service_tag) {
                     let error = std::io::Error::new(
                         std::io::ErrorKind::InvalidInput,
@@ -165,7 +164,6 @@ impl From<PathBuf> for DtnConfig {
                 }
                 let service_payload = tab["payload"].clone().into_str().unwrap();
                 debug!("Added custom service: {:?}", service_tag);
-
                 dtncfg.services.insert(service_tag, service_payload);
             }
         }
@@ -173,36 +171,15 @@ impl From<PathBuf> for DtnConfig {
             for (_k, v) in discovery_destinations.iter() {
                 let tab = v.clone().into_table().unwrap();
                 let destination = tab["destination"].clone().into_str().unwrap();
-                let port = String::from("3003");
                 dtncfg
-                    .discovery_destinations
-                    .insert(format!("{}:{}", destination, port), 0);
-            }
-        } else {
-            match (dtncfg.v4, dtncfg.v6) {
-                (true, true) => {
-                    dtncfg
-                        .discovery_destinations
-                        .insert("224.0.0.26:3003".to_string(), 0);
-                    dtncfg
-                        .discovery_destinations
-                        .insert("[FF02::1]:3003".to_string(), 0);
-                }
-                (true, false) => {
-                    dtncfg
-                        .discovery_destinations
-                        .insert("224.0.0.26:3003".to_string(), 0);
-                }
-                (false, true) => {
-                    dtncfg
-                        .discovery_destinations
-                        .insert("[FF02::1]:3003".to_string(), 0);
-                }
-                (false, false) => {
-                    println!("Protocols different to IP are not yet supported!");
-                }
+                    .add_destination(destination.clone())
+                    .expect("Encountered an error while parsing discovery address to config");
+                debug!("Added discovery address: {:?}", destination);
             }
         }
+        dtncfg
+            .check_destinations()
+            .expect("Encountered an error while checking for the existence of discovery addresses");
         dtncfg
     }
 }
@@ -255,5 +232,67 @@ impl DtnConfig {
         self.statics = cfg.statics;
         self.workdir = cfg.workdir;
         self.db = cfg.db;
+    }
+    // Helper function that adds discovery destinations to a config struct
+    pub fn add_destination(&mut self, destination: String) -> std::io::Result<()> {
+        let addr: SocketAddr = destination
+            .parse()
+            .expect("Error: Unable to parse the provided address into IP format");
+        match addr {
+            SocketAddr::V4(addr) => {
+                if self.v4 {
+                    self.discovery_destinations
+                        .insert(format!("{}:{}", addr.ip(), addr.port()), 0);
+                }
+            }
+            SocketAddr::V6(addr) => {
+                if self.v6 {
+                    self.discovery_destinations
+                        .insert(format!("{}:{}", addr.ip(), addr.port()), 0);
+                }
+            }
+        }
+        Ok(())
+    }
+
+    // If no discovery destination is specified via CLI or config use the default discovery destinations
+    // depending on whether to use ipv4 or ipv6
+    pub fn check_destinations(&mut self) -> std::io::Result<()> {
+        if self.discovery_destinations.len() == 0 {
+            match (self.v4, self.v6) {
+                (true, true) => {
+                    self.discovery_destinations
+                        .insert("224.0.0.26:3003".to_string(), 0);
+                    self.discovery_destinations
+                        .insert("[FF02::1]:3003".to_string(), 0);
+                }
+                (true, false) => {
+                    self.discovery_destinations
+                        .insert("224.0.0.26:3003".to_string(), 0);
+                }
+                (false, true) => {
+                    self.discovery_destinations
+                        .insert("[FF02::1]:3003".to_string(), 0);
+                }
+                (false, false) => {
+                    return Err(std::io::Error::new(
+                        std::io::ErrorKind::InvalidInput,
+                        String::from("Only IP destinations supported at the moment"),
+                    ))
+                }
+            }
+        }
+        Ok(())
+    }
+
+    /// Updates the beacon sequence number everytime a beacon is sent to a specific IP address
+    pub fn update_beacon_sequence_number(&mut self, destination: &String) {
+        if let Some(sequence) = self.discovery_destinations.get_mut(destination) {
+            if *sequence == u32::MAX {
+                *sequence = 0;
+            } else {
+                *sequence += 1;
+            }
+        }
     }
 }

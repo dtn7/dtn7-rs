@@ -43,15 +43,7 @@ pub fn add_discovery_destination(destination: &String) {
         .discovery_destinations
         .insert(destination.clone(), 0);
 }
-pub fn update_sequence(destination: &String) {
-    if let Some(sequence) = (*CONFIG.lock()).discovery_destinations.get_mut(destination) {
-        if *sequence == u32::MAX {
-            *sequence = 0;
-        } else {
-            *sequence += 1;
-        }
-    }
-}
+
 pub fn reset_sequence(destination: &String) {
     if let Some(sequence) = (*CONFIG.lock()).discovery_destinations.get_mut(destination) {
         *sequence = 0;

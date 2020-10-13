@@ -3,7 +3,6 @@ use dtn7::dtnd::daemon::*;
 use dtn7::DtnConfig;
 use log::info;
 use pretty_env_logger;
-use std::net::SocketAddr;
 use std::panic;
 use std::{convert::TryInto, process};
 
@@ -59,7 +58,7 @@ async fn main() -> std::io::Result<()> {
                 .short("i")
                 .long("interval")
                 .value_name("humantime")
-                .help("Sets service discovery interval (0 = deactive, 2s = 2 seconds, 3m = 3 minutes, etc.)")
+                .help("Sets service discovery interval (0 = deactive, 2s = 2 seconds, 3m = 3 minutes, etc.) Refers to the discovery interval that is advertised when flag -b is set")
                 .takes_value(true),
         )
         .arg(
@@ -74,8 +73,8 @@ async fn main() -> std::io::Result<()> {
             Arg::with_name("discoverydestination")
                 .short("E")
                 .long("discovery-destination")
-                .value_name("DD")
-                .help("Sets destination Beacons shall be sent to for discovery purposes (default IPv4 = 224.0.0.26:3003, IPv6 = [FF02::300]:3003")
+                .value_name("DD:local_port")
+                .help("Sets destination beacons shall be sent to for discovery purposes (default IPv4 = 224.0.0.26:3003, IPv6 = [FF02::300]:3003")
                 .multiple(true)
                 .takes_value(true),
         )
@@ -135,9 +134,9 @@ async fn main() -> std::io::Result<()> {
                 .value_name("TAG:payload")
                 .help("Add a self defined service.")
                 .long_help("Tag 63 can be used for any kind of unformatted string message. Usage: -S 63:'Hello World'
-Tag 127 takes 2 floats and is interpreted as latitude/longitude. Usage: -S 128:'52.32 24.42'
-Tag 191 takes 1 integer and is interpreted as battery level in %. Usage -S 192:71
-Tag 255 takes 5 arguments and is interpreted as address. Usage -S 255:'Samplestreet 42 12345 SampleCity SC'")
+Tag 127 takes 2 floats and is interpreted as latitude/longitude. Usage: -S 127:'52.32 24.42'
+Tag 191 takes 1 integer and is interpreted as battery level in %. Usage: -S 191:71
+Tag 255 takes 5 arguments and is interpreted as address. Usage: -S 255:'Samplestreet 42 12345 SampleCity SC'")
                 .multiple(true)
                 .takes_value(true),
         )
@@ -154,7 +153,7 @@ Tag 255 takes 5 arguments and is interpreted as address. Usage -S 255:'Samplestr
             Arg::with_name("beacon-period")
                 .short("b")
                 .long("beacon-period")
-                .help("Enable advertising beacon sending interval to inform neighbors about when to expect new beacons")
+                .help("Enables the advertisement of the beacon sending interval to inform neighbors about when to expect new beacons")
                 .takes_value(false),
         )
         .arg(
@@ -302,53 +301,12 @@ Tag 255 takes 5 arguments and is interpreted as address. Usage -S 255:'Samplestr
     }
     if let Some(destinations) = matches.values_of("discoverydestination") {
         for destination in destinations {
-            let full: String = String::from(format!("{}:3003", destination));
-            let addr: SocketAddr = full
-                .parse()
-                .expect("Error: Unable to parse the provided address into IP format");
-
-            match addr {
-                SocketAddr::V4(addr) => {
-                    if cfg.v4 {
-                        cfg.discovery_destinations
-                            .insert(format!("{}:{}", addr.ip(), addr.port()), 0);
-                    }
-                }
-                SocketAddr::V6(addr) => {
-                    if cfg.v6 {
-                        cfg.discovery_destinations
-                            .insert(format!("{}:{}", addr.ip(), addr.port()), 0);
-                    }
-                }
-            }
+            cfg.add_destination(String::from(destination))
+                .expect("Encountered an error while parsing discovery address to config");
         }
     }
-    // If no discovery destination is specified via CLI or config use the default discovery destinations
-    // depending on whether to use ipv4 or ipv6
-    if cfg.discovery_destinations.len() == 0 {
-        match (cfg.v4, cfg.v6) {
-            (true, true) => {
-                cfg.discovery_destinations
-                    .insert("224.0.0.26:3003".to_string(), 0);
-                cfg.discovery_destinations
-                    .insert("[FF02::1]:3003".to_string(), 0);
-            }
-            (true, false) => {
-                cfg.discovery_destinations
-                    .insert("224.0.0.26:3003".to_string(), 0);
-            }
-            (false, true) => {
-                cfg.discovery_destinations
-                    .insert("[FF02::1]:3003".to_string(), 0);
-            }
-            (false, false) => {
-                return Err(std::io::Error::new(
-                    std::io::ErrorKind::InvalidInput,
-                    String::from("Only IP destinations supported at the moment"),
-                ))
-            }
-        }
-    }
+    cfg.check_destinations()
+        .expect("Encountered an error while checking for the existence of discovery addresses");
     if let Some(statics) = matches.values_of("staticpeer") {
         for s in statics {
             cfg.statics.push(dtn7::core::helpers::parse_peer_url(s));

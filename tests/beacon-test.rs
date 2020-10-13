@@ -1,9 +1,9 @@
 use bp7::eid::IpnAddress;
 use bp7::EndpointID;
 use dtn7::core::*;
+use dtn7::get_sequence;
 use dtn7::ipnd::{beacon::*, services::ServiceBlock};
 use dtn7::CONFIG;
-use dtn7::{get_sequence, update_sequence};
 use rand::thread_rng;
 use rand::Rng;
 use std::time::SystemTime;
@@ -32,22 +32,15 @@ pub fn beacon_with_config() {
     println!("{}", beacon);
 }
 
-/// Tests the generation of a random beacon with the convenience function to create random beacons
-#[test]
-pub fn rnd_beacon_test() {
-    let beacon = rnd_beacon();
-    println!("{}", beacon);
-}
-
 #[test]
 pub fn bsn_overflow() {
     (*CONFIG.lock())
         .discovery_destinations
         .insert("Node1".to_string(), u32::MAX - 1);
     assert_eq!(get_sequence(&"Node1".to_string()), u32::MAX - 1);
-    update_sequence(&"Node1".to_string());
+    (*CONFIG.lock()).update_beacon_sequence_number(&"Node1".to_string());
     assert_eq!(get_sequence(&"Node1".to_string()), u32::MAX);
-    update_sequence(&"Node1".to_string());
+    (*CONFIG.lock()).update_beacon_sequence_number(&"Node1".to_string());
     assert_eq!(get_sequence(&"Node1".to_string()), 0);
 }
 
@@ -70,44 +63,6 @@ pub fn plain_serialization() {
     }
     println!("Beacon size: {}", &unwrapped.len());
     println!("");
-
-    let deserialized: Beacon = match serde_cbor::from_slice(&unwrapped) {
-        Ok(pkt) => pkt,
-        Err(e) => {
-            println!("{}", e);
-            Beacon::new(EndpointID::new())
-        }
-    };
-
-    println!("{}", deserialized);
-    assert_eq!(beacon, deserialized);
-}
-
-/// Serializes a Beacon with ServiceBlock & BeaconPeriod
-///
-/// Prints content of Byte array to stdout
-///
-/// Then deserializes said Beacon
-///
-/// and prints the Beacon created by Deserialization to stdout
-#[test]
-pub fn serialization_with_full_config() {
-    let eid = EndpointID::Dtn(1, String::from("n1"));
-    let mut service_block = ServiceBlock::new();
-    let first = (String::from("mtcp"), Some(4556));
-    service_block.add_cla(&first.0, &first.1);
-    let beacon_period = Some(Duration::from_secs(2));
-    let beacon = Beacon::with_config(eid, service_block, beacon_period);
-
-    let serialized = serde_cbor::to_vec(&beacon);
-    let unwrapped = serialized.expect("Error");
-
-    for e in &unwrapped {
-        print!("{:02x?} ", e);
-    }
-
-    println!("");
-    println!("Packet size: {}", unwrapped.len());
 
     let deserialized: Beacon = match serde_cbor::from_slice(&unwrapped) {
         Ok(pkt) => pkt,
@@ -191,6 +146,44 @@ pub fn serialization_with_beacon_period() {
             Beacon::new(EndpointID::new())
         }
     };
+    println!("{}", deserialized);
+    assert_eq!(beacon, deserialized);
+}
+
+/// Serializes a Beacon with ServiceBlock & BeaconPeriod
+///
+/// Prints content of Byte array to stdout
+///
+/// Then deserializes said Beacon
+///
+/// and prints the Beacon created by Deserialization to stdout
+#[test]
+pub fn serialization_with_full_config() {
+    let eid = EndpointID::Dtn(1, String::from("n1"));
+    let mut service_block = ServiceBlock::new();
+    let first = (String::from("mtcp"), Some(4556));
+    service_block.add_cla(&first.0, &first.1);
+    let beacon_period = Some(Duration::from_secs(2));
+    let beacon = Beacon::with_config(eid, service_block, beacon_period);
+
+    let serialized = serde_cbor::to_vec(&beacon);
+    let unwrapped = serialized.expect("Error");
+
+    for e in &unwrapped {
+        print!("{:02x?} ", e);
+    }
+
+    println!("");
+    println!("Packet size: {}", unwrapped.len());
+
+    let deserialized: Beacon = match serde_cbor::from_slice(&unwrapped) {
+        Ok(pkt) => pkt,
+        Err(e) => {
+            println!("{}", e);
+            Beacon::new(EndpointID::new())
+        }
+    };
+
     println!("{}", deserialized);
     assert_eq!(beacon, deserialized);
 }
@@ -302,6 +295,11 @@ pub fn check_time_for_deserialization_of_5000_beacons() {
     println!("Deserialization finished after: {}ns", afterd - startd);
 }
 
+/// Peer validity tests are ignored
+/// They work but they make running cargo test take more time since they are time based
+/// Additionally, when they are run in conjunction with the other tests sometimes they fail, probably because of some weird interactions between the test threads
+/// that lead to weird behaviour in the sleeping threads
+/// That said, they work flawlessly when run individually, they are just ignored out of weird behaviour in conjunction with the others and because of convenience when running the other tests
 #[test]
 #[ignore]
 pub fn peer_validity_with_default_no_period() {

@@ -33,7 +33,7 @@ pub const RESERVED_BITS: BeaconFlags = 0b1111_1000;
 /// Based on RFC5050 with changes to the encoding. Old encoding was based on SDNV, new encoding uses CBOR
 #[derive(Debug, Clone, PartialEq)]
 pub struct Beacon {
-    /// Mandatory, 8-bit field describing the version of the IPND service that constructed this beacon, draft version = 0x04, this version = 0x05
+    /// Mandatory, 8-bit field describing the version of the IPND service that constructed this beacon, draft version = 0x04, this version = 0x07
     version: u8,
 
     /// Mandatory, 8-bit flag field.
@@ -82,10 +82,10 @@ impl Beacon {
             beacon_period,
         };
 
-        if !beacon.get_service_block().is_empty() {
+        if !beacon.service_block().is_empty() {
             beacon.add_flags(SERVICE_BLOCK_PRESENT);
         }
-        if let Some(_bp) = beacon.get_beacon_period() {
+        if let Some(_bp) = beacon.beacon_period() {
             beacon.add_flags(BEACON_PERIOD_PRESENT);
         }
 
@@ -93,32 +93,32 @@ impl Beacon {
     }
 
     /// Returns the currently used IPND version
-    pub fn get_version(&self) -> String {
+    pub fn version(&self) -> String {
         format!("{:#x}", self.version)
     }
 
     /// Returns the current flag configuration
-    pub fn get_flags(&self) -> String {
+    pub fn flags(&self) -> String {
         format!("{:#010b}", self.flags)
     }
 
     /// Returns the sender eid
-    pub fn get_eid(&self) -> &EndpointID {
+    pub fn eid(&self) -> &EndpointID {
         &self.eid
     }
 
     /// Returns the amount of times this beacon was send to the same IP address
-    pub fn get_beacon_sequence_number(&self) -> u32 {
+    pub fn beacon_sequence_number(&self) -> u32 {
         self.beacon_sequence_number
     }
 
     /// Returns the ServiceBlock
-    pub fn get_service_block(&self) -> &ServiceBlock {
+    pub fn service_block(&self) -> &ServiceBlock {
         &self.service_block
     }
 
     /// Returns the BeaconPeriod (if present)
-    pub fn get_beacon_period(&self) -> Option<Duration> {
+    pub fn beacon_period(&self) -> Option<Duration> {
         if let Some(beacon_period) = self.beacon_period {
             Some(beacon_period)
         } else {
@@ -162,9 +162,7 @@ impl Beacon {
 // Implementation of the Display trait for Beacons for proper formatting
 impl std::fmt::Display for Beacon {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let mut temp = format!("{:#010b}", self.flags);
-        temp.remove(0);
-        temp.remove(0);
+        let temp = format!("{:010b}", self.flags);
         let output = if self.beacon_period.is_some() {
             format!("Version: {:#x}\tFlags: {}\tBeaconSequenceNumber: {}\nEID: {}\nServiceBlock:\n{}\nBeaconPeriod: {:#?}",
         self.version, temp, self.beacon_sequence_number, self.eid, self.service_block, self.beacon_period.unwrap())
