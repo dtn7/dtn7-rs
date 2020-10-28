@@ -73,7 +73,7 @@ async fn main() -> std::io::Result<()> {
             Arg::with_name("discoverydestination")
                 .short("E")
                 .long("discovery-destination")
-                .value_name("DD[:local_port]")
+                .value_name("DD[:port]")
                 .help("Sets destination beacons shall be sent to for discovery purposes (default IPv4 = 224.0.0.26:3003, IPv6 = [FF02::300]:3003")
                 .multiple(true)
                 .takes_value(true),
@@ -301,7 +301,7 @@ Tag 255 takes 5 arguments and is interpreted as address. Usage: -S 255:'Samplest
     }
     if let Some(destinations) = matches.values_of("discoverydestination") {
         for destination in destinations {
-            cfg.add_destination(&mut String::from(destination))
+            cfg.add_destination(String::from(destination))
                 .expect("Encountered an error while parsing discovery address to config");
         }
     }

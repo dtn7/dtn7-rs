@@ -170,9 +170,9 @@ impl From<PathBuf> for DtnConfig {
         if let Ok(discovery_destinations) = s.get_table("discovery_destinations.target") {
             for (_k, v) in discovery_destinations.iter() {
                 let tab = v.clone().into_table().unwrap();
-                let mut destination = tab["destination"].clone().into_str().unwrap();
+                let destination = tab["destination"].clone().into_str().unwrap();
                 dtncfg
-                    .add_destination(&mut destination)
+                    .add_destination(destination.clone())
                     .expect("Encountered an error while parsing discovery address to config");
                 debug!("Added discovery address: {:?}", destination);
             }
@@ -237,9 +237,9 @@ impl DtnConfig {
     /// Helper function that adds discovery destinations to a config struct
     /// 
     /// When provided with an IP address without port the default port 3003 is appended
-    pub fn add_destination(&mut self, destination: &mut String) -> std::io::Result<()> {
+    pub fn add_destination(&mut self, destination: String) -> std::io::Result<()> {
         let addr: SocketAddr = if destination.parse::<SocketAddr>().is_err() {
-            destination.push_str(":3003");
+            let destination = format!("{}:3003", destination);
             destination
                 .parse()
                 .expect("Error: Unable to parse given IP address into SocketAddr")
@@ -248,17 +248,19 @@ impl DtnConfig {
                 .parse()
                 .expect("Error: Unable to parse given IP address into SocketAddr")
         };
+
+
         match addr {
             SocketAddr::V4(addr) => {
                 if self.v4 {
                     self.discovery_destinations
-                        .insert(format!("{}:{}", addr.ip(), addr.port()), 0);
+                        .insert(format!("{}", addr), 0);
                 }
             }
             SocketAddr::V6(addr) => {
                 if self.v6 {
                     self.discovery_destinations
-                        .insert(format!("{}:{}", addr.ip(), addr.port()), 0);
+                        .insert(format!("{}", addr), 0);
                 }
             }
         }
