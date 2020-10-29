@@ -19,11 +19,25 @@ pub fn rnd_peer() -> DtnPeer {
     match rand::thread_rng().gen_range(0, 2) {
         0 => {
             let random_bytes = rand::thread_rng().gen::<[u8; 4]>();
-            DtnPeer::new(eid, IpAddr::from(random_bytes), peertype, Vec::new())
+            DtnPeer::new(
+                eid,
+                IpAddr::from(random_bytes),
+                peertype,
+                None,
+                Vec::new(),
+                HashMap::new(),
+            )
         }
         _ => {
             let random_bytes = rand::thread_rng().gen::<[u8; 16]>();
-            DtnPeer::new(eid, IpAddr::from(random_bytes), peertype, Vec::new())
+            DtnPeer::new(
+                eid,
+                IpAddr::from(random_bytes),
+                peertype,
+                None,
+                Vec::new(),
+                HashMap::new(),
+            )
         }
     }
 }
@@ -76,6 +90,8 @@ pub fn parse_peer_url(peer_url: &str) -> DtnPeer {
             .unwrap(),
         ipaddr.parse().unwrap(),
         PeerType::Static,
+        None,
         vec![(scheme.into(), port)],
+        HashMap::new(),
     )
 }
