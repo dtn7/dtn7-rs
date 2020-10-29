@@ -1,8 +1,9 @@
 use crate::CONFIG;
 use bp7::EndpointID;
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 use std::net::IpAddr;
-use std::time::{SystemTime, UNIX_EPOCH};
+use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 #[derive(Debug, Serialize, Deserialize, Clone, Copy, PartialEq)]
 pub enum PeerType {
@@ -15,7 +16,9 @@ pub struct DtnPeer {
     pub eid: EndpointID,
     pub addr: IpAddr,
     pub con_type: PeerType,
+    pub period: Option<Duration>,
     pub cla_list: Vec<(String, Option<u16>)>,
+    pub services: HashMap<u8, String>,
     pub last_contact: u64,
 }
 
@@ -24,13 +27,17 @@ impl DtnPeer {
         eid: EndpointID,
         addr: IpAddr,
         con_type: PeerType,
+        period: Option<Duration>,
         cla_list: Vec<(String, Option<u16>)>,
+        services: HashMap<u8, String>,
     ) -> DtnPeer {
         DtnPeer {
             eid,
             addr,
             con_type,
+            period,
             cla_list,
+            services,
             last_contact: SystemTime::now()
                 .duration_since(UNIX_EPOCH)
                 .unwrap()
@@ -72,11 +79,25 @@ impl DtnPeer {
     /// ```
 
     pub fn still_valid(&self) -> bool {
-        let now = SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .expect("time went backwards")
-            .as_secs();
-        now - self.last_contact < (*CONFIG.lock()).peer_timeout.as_secs()
+        // If a custom peer timeout was specified force remove all peers after specified amount of time
+        // Or if no custom peer timeout was specified force remove all peers after default peer timeout
+        // that didn't advertise a BeaconPeriod
+        let timeout = (*CONFIG.lock()).peer_timeout.as_secs();
+        let custom = (*CONFIG.lock()).custom_timeout;
+        if (custom && timeout > 0) || self.period.is_none() {
+            let now = SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .expect("time went backwards")
+                .as_secs();
+            now - self.last_contact < timeout
+        // Else if a received beacon contains a BeaconPeriod remove this peer after 2 * received BeaconPeriod
+        } else {
+            let now = SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .expect("Time went backwards")
+                .as_secs();
+            now - self.last_contact < self.period.unwrap().as_secs() * 2
+        }
     }
 
     pub fn node_name(&self) -> String {
