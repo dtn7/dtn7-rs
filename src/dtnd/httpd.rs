@@ -834,6 +834,9 @@ async fn download_hex(req: HttpRequest) -> Result<String> {
 
 pub async fn spawn_httpd() -> std::io::Result<()> {
     let port = (*CONFIG.lock()).webport;
+    /*let local = tokio::task::LocalSet::new();
+    let sys = actix_web::rt::System::run_in_tokio("server", &local);*/
+
     let server = HttpServer::new(|| {
         App::new()
             .service(index)
@@ -871,4 +874,5 @@ pub async fn spawn_httpd() -> std::io::Result<()> {
         server.bind(&format!("[::]:{}", port))?
     };
     server.run().await
+    //sys.await
 }

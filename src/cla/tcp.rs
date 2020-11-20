@@ -1,21 +1,24 @@
 use super::ConvergenceLayerAgent;
+use actix::clock::delay_for;
 use async_trait::async_trait;
 use bp7::ByteBuffer;
 //use futures_util::stream::StreamExt;
-use log::{debug, error, info};
+use log::{debug, error, info, warn};
 use std::io::Write;
 use std::net::SocketAddr;
 use std::net::SocketAddrV4;
 //use std::net::TcpStream;
 use anyhow::{anyhow, bail};
+use bytes::BufMut;
 use tokio::io::{self, AsyncReadExt, AsyncWriteExt};
 use tokio::net::TcpListener;
 use tokio::net::TcpStream;
 use tokio::sync::mpsc::{channel, Receiver, Sender};
-use tokio::time::{delay_for, Duration};
+use tokio::time::Duration;
 
 use crate::cla::tcpcl::*;
 
+#[derive(Debug, PartialEq)]
 enum State {
     Unconnected,
     Setup,
@@ -219,6 +222,8 @@ impl TcpConvergenceLayer {
         mut buffer: &mut bytes::BytesMut,
         mut stream: TcpStream,
     ) -> anyhow::Result<()> {
+        let mut state = State::Idle;
+
         let mut connected = true;
         //let (mut reader, mut writer) = tokio::io::split(stream);
         let (mut reader, mut writer) = stream.into_split();
@@ -251,6 +256,11 @@ impl TcpConvergenceLayer {
                 }
             });
         }
+        let mut seg_data = bytes::BytesMut::new();
+        let mut active_tid: Option<u64> = None;
+        let mut ack_sizes: Vec<u64> = Vec::new();
+        let mut all_sent = false;
+
         while connected {
             debug!("looping");
             reader.read_buf(&mut buffer).await?;
@@ -272,11 +282,56 @@ impl TcpConvergenceLayer {
                     TcpClPacket::SessTerm(data) => {
                         unimplemented!();
                     }
-                    TcpClPacket::XferSeg => {
-                        unimplemented!();
+                    TcpClPacket::XferSeg(data) => {
+                        if state != State::Idle || state != State::Receiving {
+                            warn!("unexpected xfer seg received, terminating session");
+                            unimplemented!();
+                        }
+                        if state == State::Idle {
+                            state = State::Receiving;
+                            active_tid = Some(data.tid);
+                        }
+                        if state == State::Receiving {
+                            if active_tid != Some(data.tid) {
+                                warn!("unexpectid transfer id received, terminating session");
+                                unimplemented!();
+                            }
+                        }
+                        seg_data.put(data.buf);
+                        let ack = XferAckData {
+                            flags: data.flags,
+                            tid: data.tid,
+                            len: seg_data.len() as u64,
+                        };
+                        if data.flags.contains(XferSegmentFlags::END) {
+                            debug!("received compelete bundle!");
+                            state = State::Idle;
+                            active_tid = None;
+                            // TODO: handle complete bundle
+                        }
+                        if tx.send(TcpClPacket::XferAck(ack)).await.is_err() {
+                            connected = false;
+                        }
                     }
                     TcpClPacket::XferAck(data) => {
-                        unimplemented!();
+                        if state != State::Sending || ack_sizes.is_empty() || active_tid.is_none() {
+                            warn!("unexpected xfer ack received, terminating session");
+                            unimplemented!();
+                        }
+                        if active_tid != Some(data.tid) {
+                            warn!("unexpected xfer ack tranfer ID received, terminating session");
+                            unimplemented!();
+                        }
+                        if ack_sizes[0] != data.len {
+                            warn!("unexpected xfer ack length, terminating session");
+                            unimplemented!();
+                        }
+                        if ack_sizes.is_empty() && all_sent {
+                            debug!("sent bundle was received completley");
+                            all_sent = false;
+                            state = State::Idle;
+                            active_tid = None;
+                        }
                     }
                     TcpClPacket::XferRefuse(data) => {
                         unimplemented!();

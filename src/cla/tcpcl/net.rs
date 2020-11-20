@@ -1,5 +1,5 @@
 use super::proto::*;
-use log::{debug, error, info};
+use log::{debug, error, info, warn};
 //use std::net::TcpStream;
 use anyhow::bail;
 use bytes::Bytes;
@@ -15,7 +15,7 @@ use tokio::net::TcpStream;
 pub(crate) enum TcpClPacket {
     SessInit(SessInitData),
     SessTerm(SessTermData),
-    XferSeg,
+    XferSeg(XferSegData),
     XferAck(XferAckData),
     XferRefuse(XferRefuseData),
     KeepAlive,
@@ -34,6 +34,8 @@ pub(crate) enum TcpClError {
     UnknownResaonCode(u8),
     #[error("session extension items found but unsupported")]
     SessionExtensionItemsUnsupported,
+    #[error("xfer extension only allowed in first segment")]
+    XferExtensionsInWrongSegment,
 }
 
 pub(crate) async fn parses_packet(buffer: &mut bytes::BytesMut) -> Result<TcpClPacket, TcpClError> {
@@ -43,8 +45,33 @@ pub(crate) async fn parses_packet(buffer: &mut bytes::BytesMut) -> Result<TcpClP
     if let Some(mtype) = MessageType::from_u8(mtype) {
         match mtype {
             MessageType::XFER_SEGMENT => {
-                // TODO
-                Ok(TcpClPacket::XferSeg)
+                let flags = XferSegmentFlags::from_bits_truncate(buf.read_u8().await?);
+                let tid: u64 = buf.read_u64().await?;
+
+                let ext_len: u32 = buf.read_u32().await?;
+                if ext_len != 0 {
+                    warn!("transfer extension are unsupported, ignoring them!");
+                }
+                if !flags.contains(XferSegmentFlags::START) && ext_len != 0 {
+                    return Err(TcpClError::XferExtensionsInWrongSegment);
+                }
+                for _ in 0..ext_len {
+                    buf.read_u8().await?;
+                }
+                let len = buf.read_u64().await?;
+                let mut data = Vec::with_capacity(len as usize);
+                buf.read_exact(&mut data).await?;
+
+                let seg = XferSegData {
+                    flags,
+                    tid,
+                    len,
+                    buf: data.into(),
+                };
+                let pkt_len = buf.position() as usize;
+                let _ = buffer.split_to(pkt_len);
+
+                Ok(TcpClPacket::XferSeg(seg))
             }
             MessageType::XFER_ACK => {
                 if buffer.len() < 18 {

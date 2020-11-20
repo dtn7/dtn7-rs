@@ -6,7 +6,7 @@ use pretty_env_logger;
 use std::panic;
 use std::{convert::TryInto, process};
 
-#[actix_rt::main]
+#[tokio::main]
 async fn main() -> std::io::Result<()> {
     let mut cfg = DtnConfig::new();
     if cfg!(debug_assertions) {
