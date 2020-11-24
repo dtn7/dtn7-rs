@@ -188,10 +188,16 @@ impl StreamHandler<Result<ws::Message, ws::ProtocolError>> for WsAASession {
                             // TODO: turn into channel
                             //                            crate::core::processing::send_bundle(bndl);
                             //crate::core::processing::send_through_task(bndl);
-                            let rt = tokio::runtime::Handle::current();
+                            /*let rt = tokio::runtime::Handle::current();
                             rt.spawn(
                                 async move { crate::core::processing::send_bundle(bndl).await },
-                            );
+                            );*/
+
+                            let mut rt = actix_rt::Runtime::new().unwrap();
+                            let send = crate::core::processing::send_through_task_async(bndl);
+                            //rt.block_on(send);
+                            actix_rt::Arbiter::spawn(send);
+
                             ctx.text(format!("200 Sent payload with {} bytes", bin.len()));
                         } else {
                             ctx.text("400 Invalid binary bundle");
@@ -235,10 +241,15 @@ impl StreamHandler<Result<ws::Message, ws::ProtocolError>> for WsAASession {
                             );
                             //let mut rt = tokio::runtime::Runtime::new().unwrap();
                             //rt.block_on(async { crate::core::processing::send_bundle(bndl).await });
-                            let rt = tokio::runtime::Handle::current();
+                            /*let rt = tokio::runtime::Handle::current();
                             rt.spawn(
                                 async move { crate::core::processing::send_bundle(bndl).await },
-                            );
+                            );*/
+                            let mut rt = actix_rt::Runtime::new().unwrap();
+                            let send = crate::core::processing::send_through_task_async(bndl);
+                            //rt.block_on(send);
+                            actix_rt::Arbiter::spawn(send);
+
                             //crate::core::processing::send_through_task(bndl);
                             ctx.text(format!("200 Sent payload with {} bytes", b_len));
                         } else {
@@ -515,9 +526,10 @@ async fn creation_timestamp() -> String {
 #[get("/debug/rnd_bundle", guard = "fn_guard_localhost")]
 async fn debug_rnd_bundle() -> String {
     println!("generating debug bundle");
-    let b = rnd_bundle(CreationTimestamp::now());
-    let res = b.id();
-    crate::core::processing::send_bundle(b).await;
+    let bndl = rnd_bundle(CreationTimestamp::now());
+    let res = bndl.id();
+    //crate::core::processing::send_bundle(bndl).await;
+    crate::core::processing::send_through_task_async(bndl).await;
     res
 }
 
@@ -545,7 +557,8 @@ async fn insert_get(req: HttpRequest) -> Result<String> {
                     bndl.primary.destination
                 );
 
-                crate::core::processing::send_bundle(bndl).await;
+                //crate::core::processing::send_bundle(bndl).await;
+                crate::core::processing::send_through_task_async(bndl).await;
                 Ok(format!("Sent {} bytes", b_len))
             } else {
                 Err(actix_web::error::ErrorBadRequest(anyhow!(
@@ -578,7 +591,9 @@ async fn insert_post(mut body: web::Payload) -> Result<String> {
             bndl.primary.destination
         );
 
-        crate::core::processing::send_bundle(bndl).await;
+        //crate::core::processing::send_bundle(bndl).await;
+        crate::core::processing::send_through_task_async(bndl).await;
+        //crate::core::processing::send_through_task(bndl);
         Ok(format!("Sent {} bytes", b_len))
     } else {
         Err(actix_web::error::ErrorBadRequest(anyhow!(
@@ -641,7 +656,8 @@ async fn send_post(req: HttpRequest, mut body: web::Payload) -> Result<String> {
         bndl.primary.destination
     );
 
-    crate::core::processing::send_bundle(bndl).await;
+    //crate::core::processing::send_bundle(bndl).await;
+    crate::core::processing::send_through_task_async(bndl).await;
     Ok(format!("Sent payload with {} bytes", b_len))
 }
 
@@ -834,9 +850,10 @@ async fn download_hex(req: HttpRequest) -> Result<String> {
 
 pub async fn spawn_httpd() -> std::io::Result<()> {
     let port = (*CONFIG.lock()).webport;
-    /*let local = tokio::task::LocalSet::new();
-    let sys = actix_web::rt::System::run_in_tokio("server", &local);*/
+    //let local = tokio::task::LocalSet::new();
+    //let sys = actix_web::rt::System::run_in_tokio("server", &local);
 
+    //let sys = actix_web::rt::System::new("http_server");
     let server = HttpServer::new(|| {
         App::new()
             .service(index)

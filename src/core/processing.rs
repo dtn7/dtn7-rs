@@ -53,6 +53,14 @@ pub async fn send_through_task_async(bndl: Bundle) {
 
     tx.send(bndl).await;
 }
+pub fn start_sender_task() {
+    let mut stask = crate::SENDERTASK.lock();
+    if stask.is_none() {
+        let (tx, rx) = channel(50);
+        tokio::spawn(sender_task(rx));
+        *stask = Some(tx.clone());
+    }
+}
 pub async fn sender_task(mut rx: tokio::sync::mpsc::Receiver<Bundle>) {
     while let Some(bndl) = rx.recv().await {
         debug!("sending bundle through task channel");

@@ -132,5 +132,12 @@ pub async fn start_dtnd(cfg: DtnConfig) -> std::io::Result<()> {
             error!("Error spawning service discovery: {:?}", errmsg);
         }
     }
-    httpd::spawn_httpd().await
+    crate::core::processing::start_sender_task();
+
+    std::thread::spawn(move || {
+        actix_web::rt::System::new("actix").block_on(httpd::spawn_httpd());
+    })
+    .join()
+    .unwrap();
+    Ok(())
 }

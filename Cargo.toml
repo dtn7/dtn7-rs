@@ -33,7 +33,7 @@ crossbeam = "0.8.0"
 anyhow = "1.0.34"
 parking_lot = "0.11.1"
 actix-web = "3.2.0"
-#actix-rt = "1.1.1"
+actix-rt = "1.1.1"
 tokio-util = { version = "0.5.0", features = ["codec"] }
 futures-util = "0.3.8"
 async-trait = "0.1.41"
