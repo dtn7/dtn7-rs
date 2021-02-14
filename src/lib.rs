@@ -19,7 +19,7 @@ use lazy_static::*;
 use parking_lot::Mutex;
 use std::collections::HashMap;
 use std::net::IpAddr;
-use tokio::sync::mpsc::{channel, Receiver, Sender};
+use tokio::sync::mpsc::Sender;
 
 lazy_static! {
     pub static ref CONFIG: Mutex<DtnConfig> = Mutex::new(DtnConfig::new());

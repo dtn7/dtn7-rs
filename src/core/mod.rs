@@ -7,15 +7,13 @@ pub mod store;
 
 use crate::cla::ConvergenceLayerAgent;
 pub use crate::core::peer::{DtnPeer, PeerType};
-use crate::core::store::BundleStore;
 use crate::routing::RoutingAgent;
 use crate::store_get;
 pub use crate::{store_has_item, store_push};
 use crate::{PEERS, STORE};
-use anyhow::Result;
 use application_agent::ApplicationAgent;
 use bp7::EndpointID;
-use log::info;
+use log::{error, info};
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Serialize, Deserialize, Default, Clone)]
@@ -132,7 +130,9 @@ pub async fn process_bundles() {
     // TODO: check for possible race condition and double send when janitor is triggered while first forwarding attempt is in progress
     let forwarding_bundle_ids: Vec<String> = (*STORE.lock()).forwarding();
     for bpid in forwarding_bundle_ids {
-        crate::core::processing::forward(store_get(&bpid).unwrap()).await;
+        if let Err(err) = crate::core::processing::forward(store_get(&bpid).unwrap()).await {
+            error!("Error forwarding bundle: {}", err);
+        }
     }
     //forwarding_bundle_ids.iter().for_each(|bpid| {});
 }

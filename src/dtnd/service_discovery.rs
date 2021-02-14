@@ -23,10 +23,7 @@ struct Server {
 
 impl Server {
     async fn run(self) -> Result<(), io::Error> {
-        let Server {
-            mut socket,
-            mut buf,
-        } = self;
+        let Server { socket, mut buf } = self;
 
         loop {
             if let Some((size, peer)) = Some(socket.recv_from(&mut buf).await?) {
@@ -59,7 +56,7 @@ impl Server {
 
 async fn announcer(socket: std::net::UdpSocket, v6: bool) {
     let mut task = interval(crate::CONFIG.lock().announcement_interval);
-    let mut sock = UdpSocket::from_std(socket).unwrap();
+    let sock = UdpSocket::from_std(socket).unwrap();
     loop {
         task.tick().await;
         debug!("running announcer");

@@ -135,7 +135,9 @@ pub async fn start_dtnd(cfg: DtnConfig) -> std::io::Result<()> {
     crate::core::processing::start_sender_task();
 
     std::thread::spawn(move || {
-        actix_web::rt::System::new().block_on(httpd::spawn_httpd());
+        actix_web::rt::System::new()
+            .block_on(httpd::spawn_httpd())
+            .expect("Error spawning httpd");
     })
     .join()
     .unwrap();

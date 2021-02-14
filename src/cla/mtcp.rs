@@ -189,7 +189,7 @@ pub struct MtcpConvergenceLayer {
 impl MtcpConvergenceLayer {
     async fn run(self) -> Result<(), io::Error> {
         let addr: SocketAddrV4 = format!("0.0.0.0:{}", self.port()).parse().unwrap();
-        let mut listener = TcpListener::bind(&addr).await?;
+        let listener = TcpListener::bind(&addr).await?;
         debug!("spawning MTCP listener on port {}", self.local_port);
         loop {
             let (socket, _) = listener.accept().await?;
@@ -204,7 +204,11 @@ impl MtcpConvergenceLayer {
                             info!("Received bundle: {} from {}", bndl.id(), peer_addr);
                             {
                                 tokio::spawn(async move {
-                                    crate::core::processing::receive(bndl.into()).await;
+                                    if let Err(err) =
+                                        crate::core::processing::receive(bndl.into()).await
+                                    {
+                                        error!("Error processing received bundle: {}", err);
+                                    }
                                 });
                             }
                         } else {

@@ -1,6 +1,6 @@
 use crate::core::application_agent::SimpleApplicationAgent;
 use crate::core::helpers::rnd_peer;
-use crate::core::{bundlepack::BundlePack, peer::PeerType};
+use crate::core::peer::PeerType;
 use crate::peers_count;
 use crate::DtnConfig;
 use crate::CONFIG;
@@ -23,8 +23,8 @@ use bp7::dtntime::CreationTimestamp;
 use bp7::helpers::rnd_bundle;
 use bp7::EndpointID;
 use futures::StreamExt;
-use log::{debug, info};
-use serde::{Deserialize, Serialize};
+use log::{debug, error, info};
+use serde::Serialize;
 use std::{
     convert::{TryFrom, TryInto},
     time::{Duration, Instant},
@@ -42,8 +42,6 @@ const CLIENT_TIMEOUT: Duration = Duration::from_secs(10);
 
 /// WebSocket Applicatin Agent Session
 struct WsAASession {
-    /// unique session id
-    id: usize,
     /// Client must send ping at least once per 10 seconds (CLIENT_TIMEOUT),
     /// otherwise we drop connection.
     hb: Instant,
@@ -193,7 +191,7 @@ impl StreamHandler<Result<ws::Message, ws::ProtocolError>> for WsAASession {
                                 async move { crate::core::processing::send_bundle(bndl).await },
                             );*/
 
-                            let mut rt = actix_rt::Runtime::new().unwrap();
+                            let rt = actix_rt::Runtime::new().unwrap();
                             let send = crate::core::processing::send_through_task_async(bndl);
                             //rt.block_on(send);
                             //actix_rt::Arbiter::spawn(send);
@@ -246,7 +244,7 @@ impl StreamHandler<Result<ws::Message, ws::ProtocolError>> for WsAASession {
                             rt.spawn(
                                 async move { crate::core::processing::send_bundle(bndl).await },
                             );*/
-                            let mut rt = actix_rt::Runtime::new().unwrap();
+                            let rt = actix_rt::Runtime::new().unwrap();
                             let send = crate::core::processing::send_through_task_async(bndl);
                             //rt.block_on(send);
                             //actix_rt::Arbiter::spawn(send);
@@ -315,7 +313,6 @@ async fn ws_application_agent(
 ) -> Result<HttpResponse, Error> {
     ws::start(
         WsAASession {
-            id: 0,
             hb: Instant::now(),
             endpoints: None,
             mode: WsReceiveMode::Data,
@@ -673,7 +670,9 @@ async fn push_post(mut body: web::Payload) -> Result<String> {
     debug!("Received: {:?}", b_len);
     if let Ok(bndl) = bp7::Bundle::try_from(bytes.to_vec()) {
         info!("Received bundle {}", bndl.id());
-        crate::core::processing::receive(bndl.into()).await;
+        if let Err(err) = crate::core::processing::receive(bndl.into()).await {
+            error!("Error processing bundle received via http: {}", err);
+        }
         Ok(format!("Received {} bytes", b_len))
     } else {
         Err(actix_web::error::ErrorBadRequest(anyhow!(
