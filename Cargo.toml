@@ -12,45 +12,45 @@ exclude = [".vscode/", ".travis.yml"]
 readme = "README.md"
 
 [dependencies]
-serde = { version = "1.0.117", features = ["derive"] }
+serde = { version = "1.0.123", features = ["derive"] }
 serde_cbor = "0.11.1"
-serde_json = "1.0.59"
+serde_json = "1.0.61"
 serde_bytes = "0.11.5"
 url = "2.2.0"
-rand = "0.7.3"
+rand = "0.8.3"
 #tokio = { version = "0.2.22", features = ["rt-core", "rt-threaded", "tcp", "udp"] }
-tokio = { version = "0.3.4", features = ["full"] }
-futures = "0.3.8"
+tokio = { version = "1.1.1", features = ["full"] }
+futures = "0.3.12"
 pretty_env_logger = "0.4.0"
-log = "0.4.11"
-net2 = "0.2.35"
-bytes = "0.6.0"
+log = "0.4.14"
+net2 = "0.2.37"
+bytes = "1.0.1"
 clap = "2.33.3"
 config = "0.10.1"
 lazy_static = "1.4.0"
 bp7 = "0.6.6"
 crossbeam = "0.8.0"
-anyhow = "1.0.34"
+anyhow = "1.0.38"
 parking_lot = "0.11.1"
-actix-web = "3.2.0"
-actix-rt = "1.1.1"
-tokio-util = { version = "0.5.0", features = ["codec"] }
-futures-util = "0.3.8"
-async-trait = "0.1.41"
-attohttpc = { version = "0.16.0", default-features = false }
-tinytemplate = "1.1.0"
-humantime = "2.0.1"
-actix-web-actors = "3.0.0"
-actix = "0.10.0"
+actix-web = "4.0.0-beta.3"
+actix-rt = "2.0.2"
+tokio-util = { version = "0.6.3", features = ["codec"] }
+futures-util = "0.3.12"
+async-trait = "0.1.42"
+attohttpc = { version = "0.16.1", default-features = false }
+tinytemplate = "1.2.0"
+humantime = "2.1.0"
+actix-web-actors = "4.0.0-beta.2"
+actix = "0.11.0-beta.2"
 ws = "0.9.1"
-tempfile = "3.1.0"
+tempfile = "3.2.0"
 humansize = "1.1.0"
 dtn7-plus = "0.1.6"
 sled = "0.34.6"
 bitflags = "1.2.1"
 num-derive = "0.3.3"
 num-traits = "0.2.14"
-thiserror = "1.0.22"
+thiserror = "1.0.23"
 #rweb = { version = "0.4.0", default-features = false }
 
 [lib]

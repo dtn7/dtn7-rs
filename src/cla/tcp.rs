@@ -1,5 +1,5 @@
 use super::ConvergenceLayerAgent;
-use actix::clock::delay_for;
+use actix::clock::sleep;
 use async_trait::async_trait;
 use bp7::ByteBuffer;
 //use futures_util::stream::StreamExt;
@@ -248,7 +248,7 @@ impl TcpConvergenceLayer {
                 //self::msg_writer(mut writer, mut rx).await;
                 loop {
                     debug!("keepalive delay: {}s", ka_interval);
-                    delay_for(Duration::from_secs(ka_interval as u64)).await;
+                    sleep(Duration::from_secs(ka_interval as u64)).await;
                     debug!("keepalive send");
                     if tx.send(TcpClPacket::KeepAlive).await.is_err() {
                         break;

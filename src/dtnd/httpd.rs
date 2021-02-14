@@ -196,7 +196,8 @@ impl StreamHandler<Result<ws::Message, ws::ProtocolError>> for WsAASession {
                             let mut rt = actix_rt::Runtime::new().unwrap();
                             let send = crate::core::processing::send_through_task_async(bndl);
                             //rt.block_on(send);
-                            actix_rt::Arbiter::spawn(send);
+                            //actix_rt::Arbiter::spawn(send);
+                            rt.spawn(send);
 
                             ctx.text(format!("200 Sent payload with {} bytes", bin.len()));
                         } else {
@@ -248,7 +249,8 @@ impl StreamHandler<Result<ws::Message, ws::ProtocolError>> for WsAASession {
                             let mut rt = actix_rt::Runtime::new().unwrap();
                             let send = crate::core::processing::send_through_task_async(bndl);
                             //rt.block_on(send);
-                            actix_rt::Arbiter::spawn(send);
+                            //actix_rt::Arbiter::spawn(send);
+                            rt.spawn(send);
 
                             //crate::core::processing::send_through_task(bndl);
                             ctx.text(format!("200 Sent payload with {} bytes", b_len));

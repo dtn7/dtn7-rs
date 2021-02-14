@@ -29,7 +29,11 @@ pub struct DtnConfig {
 }
 
 pub fn rnd_node_name() -> String {
-    thread_rng().sample_iter(&Alphanumeric).take(10).collect()
+    thread_rng()
+        .sample_iter(&Alphanumeric)
+        .take(10)
+        .map(char::from)
+        .collect()
 }
 
 impl From<PathBuf> for DtnConfig {
