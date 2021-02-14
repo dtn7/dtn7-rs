@@ -53,16 +53,25 @@ impl Connection {
 
 impl Handler for Connection {
     fn on_open(&mut self, _: Handshake) -> Result<()> {
-        self.out.send(format!("/subscribe {}", self.endpoint))?;
+        self.out.send(format!("/bundle"))?;
         Ok(())
     }
 
     fn on_message(&mut self, msg: Message) -> Result<()> {
         match msg {
             Message::Text(txt) => {
-                if txt == "subscribed" {
-                    self.subscribed = true;
-                } else if txt.starts_with("200") {
+                if txt.starts_with("200") {
+                    if txt == "200 subscribed" {
+                        if self.verbose {
+                            eprintln!("successfully subscribed to {}!", self.endpoint);
+                        }
+                        self.subscribed = true;
+                    } else if txt == "200 tx mode: bundle" {
+                        if self.verbose {
+                            eprintln!("successfully set mode: bundle!");
+                        }
+                        self.out.send(format!("/subscribe {}", self.endpoint))?;
+                    }
                 } else {
                     eprintln!("Unexpected response: {}", txt);
                     self.out.close(CloseCode::Error)?;
