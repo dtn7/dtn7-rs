@@ -1,8 +1,6 @@
-use bp7::*;
 use clap::{crate_authors, crate_version, App, Arg};
 use dtn7_plus::client::DtnClient;
-use dtn7_plus::client::WsSendData;
-use std::convert::TryFrom;
+use dtn7_plus::client::{WsRecvData, WsSendData};
 use std::io::Write;
 use std::str::from_utf8;
 use ws::{Builder, CloseCode, Handler, Handshake, Message, Result, Sender};
@@ -16,66 +14,61 @@ struct Connection {
 
 impl Handler for Connection {
     fn on_open(&mut self, _: Handshake) -> Result<()> {
-        self.out.send(format!("/subscribe {}", self.endpoint))?;
+        self.out.send(format!("/data"))?;
         Ok(())
     }
 
     fn on_message(&mut self, msg: Message) -> Result<()> {
         match msg {
             Message::Text(txt) => {
-                if txt == "subscribed" {
-                    self.subscribed = true;
-                    if self.verbose {
-                        println!("Subscribed to endpoint {}", self.endpoint);
+                if txt.starts_with("200") {
+                    if txt == "200 subscribed" {
+                        if self.verbose {
+                            eprintln!("successfully subscribed to {}!", self.endpoint);
+                        }
+                        self.subscribed = true;
+                    } else if txt == "200 tx mode: data" {
+                        if self.verbose {
+                            eprintln!("successfully set mode: data!");
+                        }
+                        self.out.send(format!("/subscribe {}", self.endpoint))?;
                     }
-                } else if txt.starts_with("200") {
                 } else {
                     eprintln!("Unexpected response: {}", txt);
                     self.out.close(CloseCode::Error)?;
                 }
             }
             Message::Binary(bin) => {
-                let bndl: Bundle =
-                    Bundle::try_from(bin).expect("Error decoding bundle from server");
-                if bndl.is_administrative_record() {
-                    eprintln!("Handling of administrative records not yet implemented!");
-                } else {
-                    if let Some(data) = bndl.payload() {
-                        if self.verbose {
-                            eprintln!(
-                                "Bundle-Id: {} // From: {} / To: {}",
-                                bndl.id(),
-                                bndl.primary.source,
-                                bndl.primary.destination
-                            );
+                let recv_data: WsRecvData =
+                    serde_cbor::from_slice(&bin).expect("Error decoding WsRecvData from server");
 
-                            if let Ok(data_str) = from_utf8(&data) {
-                                eprintln!("Data: {}", data_str);
-                            }
-                        } else {
-                            print!(".");
-                            std::io::stdout().flush().unwrap();
-                        }
-                        // flip src and destionation
-                        let src = bndl.primary.destination.clone();
-                        let dst = bndl.primary.source.clone();
-                        // construct response with copied payload
-                        let echo_response = WsSendData {
-                            src,
-                            dst,
-                            delivery_notification: false,
-                            lifetime: bndl.primary.lifetime,
-                            data: data.clone(),
-                        };
-                        self.out
-                            .send(serde_cbor::to_vec(&echo_response).unwrap())
-                            .expect("error sending echo response");
-                    } else {
-                        if self.verbose {
-                            eprintln!("Unexpected payload!");
-                        }
+                if self.verbose {
+                    eprintln!(
+                        "Bundle-Id: {} // From: {} / To: {}",
+                        recv_data.bid, recv_data.src, recv_data.dst
+                    );
+
+                    if let Ok(data_str) = from_utf8(&recv_data.data) {
+                        eprintln!("Data: {}", data_str);
                     }
+                } else {
+                    print!(".");
+                    std::io::stdout().flush().unwrap();
                 }
+                // flip src and destionation
+                let src = &recv_data.dst.to_owned();
+                let dst = &recv_data.src.to_owned();
+                // construct response with copied payload
+                let echo_response = WsSendData {
+                    src,
+                    dst,
+                    delivery_notification: false,
+                    lifetime: 3600 * 24 * 1000,
+                    data: recv_data.data.into(),
+                };
+                self.out
+                    .send(serde_cbor::to_vec(&echo_response).unwrap())
+                    .expect("error sending echo response");
             }
         }
         Ok(())
