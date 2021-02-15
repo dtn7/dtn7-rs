@@ -15,7 +15,7 @@ use actix_web::{
     get, http::StatusCode, post, web, App, Error, HttpRequest, HttpServer, Responder, Result,
 };
 use actix_web_actors::ws;
-use dtn7_plus::client::WsSendData;
+use dtn7_plus::client::{WsRecvData, WsSendData};
 use std::collections::HashSet;
 
 use anyhow::anyhow;
@@ -23,7 +23,7 @@ use bp7::dtntime::CreationTimestamp;
 use bp7::helpers::rnd_bundle;
 use bp7::EndpointID;
 use futures::StreamExt;
-use log::{debug, info};
+use log::{debug, info, warn};
 use serde::{Deserialize, Serialize};
 use std::{
     convert::{TryFrom, TryInto},
@@ -206,13 +206,23 @@ impl StreamHandler<Result<ws::Message, ws::ProtocolError>> for WsAASession {
                             } else {
                                 bp7::bundle::BUNDLE_MUST_NOT_FRAGMENTED
                             };
+                            let dst = EndpointID::try_from(send_req.dst);
+                            let src = EndpointID::try_from(send_req.src);
+                            if dst.is_err() || src.is_err() {
+                                warn!(
+                                    "Received data with invalid src ({}) or destination ({})",
+                                    send_req.src, send_req.dst
+                                );
+                                return;
+                            }
+                            let src2 = src.unwrap();
                             let pblock = bp7::primary::PrimaryBlockBuilder::default()
                                 .bundle_control_flags(bcf)
-                                .destination(send_req.dst)
-                                .source(send_req.src.clone())
-                                .report_to(send_req.src)
+                                .destination(dst.unwrap())
+                                .source(src2.clone())
+                                .report_to(src2)
                                 .creation_timestamp(CreationTimestamp::now())
-                                .lifetime(send_req.lifetime)
+                                .lifetime(Duration::from_millis(send_req.lifetime))
                                 .build()
                                 .unwrap();
 
@@ -221,7 +231,7 @@ impl StreamHandler<Result<ws::Message, ws::ProtocolError>> for WsAASession {
                             let mut bndl = bp7::bundle::BundleBuilder::default()
                                 .primary(pblock)
                                 .canonicals(vec![
-                                    bp7::canonical::new_payload_block(0, send_req.data),
+                                    bp7::canonical::new_payload_block(0, send_req.data.to_owned()),
                                     bp7::canonical::new_hop_count_block(2, 0, 32),
                                 ])
                                 .build()
@@ -285,8 +295,25 @@ impl WsAASession {
                 for eid in endpoints {
                     if let Some(aa) = (*DTNCORE.lock()).get_endpoint_mut(&eid) {
                         if let Some(mut bundle) = aa.pop() {
-                            let cbor_bundle = bundle.to_cbor();
-                            ctx.binary(cbor_bundle);
+                            let recv_data = match act.mode {
+                                WsReceiveMode::Bundle => bundle.to_cbor(),
+                                WsReceiveMode::Data => {
+                                    if bundle.payload().is_none() {
+                                        // No payload -> nothing to deliver to client
+                                        // In bundle mode delivery happens because custom canoncial bocks could be present
+                                        continue;
+                                    }
+                                    let recv = WsRecvData {
+                                        bid: &bundle.id(),
+                                        src: &bundle.primary.source.to_string(),
+                                        dst: &bundle.primary.destination.to_string(),
+                                        data: &bundle.payload().unwrap(),
+                                    };
+                                    serde_cbor::to_vec(&recv)
+                                        .expect("Fatal error encoding WsRecvData")
+                                }
+                            };
+                            ctx.binary(recv_data);
                         }
                     }
                 }
