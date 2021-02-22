@@ -6,7 +6,7 @@ use dtn7::ipnd::{beacon::*, services::ServiceBlock};
 use dtn7::CONFIG;
 use rand::thread_rng;
 use rand::Rng;
-use std::time::SystemTime;
+use std::{convert::TryFrom, time::SystemTime};
 use std::{thread, time::Duration};
 
 /// Prints to stdout the content of a beacon without ServiceBlock & BeaconPeriod
@@ -53,7 +53,7 @@ pub fn bsn_overflow() {
 /// and prints the Beacon created by Deserialization to stdout
 #[test]
 pub fn plain_serialization() {
-    let eid = EndpointID::Dtn(1, String::from("n1"));
+    let eid = EndpointID::try_from("dtn://n1/").unwrap();
     let beacon = Beacon::new(eid);
     let serialized = serde_cbor::to_vec(&beacon);
     let unwrapped = serialized.expect("Error");
@@ -85,7 +85,7 @@ pub fn plain_serialization() {
 /// and prints the Beacon created by Deserialization to stdout
 #[test]
 pub fn serialization_with_service_block() {
-    let eid = EndpointID::Dtn(1, String::from("n1"));
+    let eid = EndpointID::try_from("dtn://n1/").unwrap();
     let mut service_block = ServiceBlock::new();
     let first = (String::from("mtcp"), Some(3003));
     service_block.add_cla(&first.0, &first.1);
@@ -126,7 +126,7 @@ pub fn serialization_with_service_block() {
 /// and prints the Beacon created by Deserialization to stdout
 #[test]
 pub fn serialization_with_beacon_period() {
-    let eid = EndpointID::Dtn(1, String::from("Hello World"));
+    let eid = EndpointID::try_from("dtn://n1/").unwrap();
     let beacon = Beacon::with_config(eid, ServiceBlock::new(), Some(Duration::from_secs(5)));
 
     let serialized = serde_cbor::to_vec(&beacon);
@@ -159,7 +159,7 @@ pub fn serialization_with_beacon_period() {
 /// and prints the Beacon created by Deserialization to stdout
 #[test]
 pub fn serialization_with_full_config() {
-    let eid = EndpointID::Dtn(1, String::from("n1"));
+    let eid = EndpointID::try_from("dtn://n1/").unwrap();
     let mut service_block = ServiceBlock::new();
     let first = (String::from("mtcp"), Some(4556));
     service_block.add_cla(&first.0, &first.1);
@@ -376,7 +376,7 @@ pub fn rnd_beacon() -> Beacon {
 
     let rnd_dtn: u8 = rng.gen_range(0, 3);
     let endpoint = match rnd_dtn {
-        0 => EndpointID::Dtn(1, String::from("dtn://node1")),
+        0 => EndpointID::try_from("dtn://n1/").unwrap(),
         1 => {
             let rnd_node: u64 = rng.gen();
             let rnd_service: u64 = rng.gen();

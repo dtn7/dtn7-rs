@@ -217,7 +217,7 @@ Tag 255 takes 5 arguments and is interpreted as address. Usage: -S 255:'Samplest
     if let Some(nodeid) = matches.value_of("nodeid") {
         if nodeid.chars().all(char::is_alphanumeric) {
             cfg.host_eid = if let Ok(number) = nodeid.parse::<u64>() {
-                format!("ipn://{}.0", number).try_into().unwrap()
+                format!("ipn:{}.0", number).try_into().unwrap()
             } else {
                 format!("dtn://{}", nodeid).try_into().unwrap()
             };
