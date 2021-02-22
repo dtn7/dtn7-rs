@@ -43,8 +43,8 @@ sleep 1
 
 echo
 
-echo "Sending 'test' to ipn://3.42"
-echo test | $DIR/../target/debug/dtnsend -r ipn://3.42 -p $PORT_NODE1
+echo "Sending 'test' to ipn:3.42"
+echo test | $DIR/../target/debug/dtnsend -r ipn:3.42 -p $PORT_NODE1
 
 sleep 1
 

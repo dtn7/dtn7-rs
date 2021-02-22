@@ -63,7 +63,7 @@ impl From<PathBuf> for DtnConfig {
         let nodeid = s.get_str("nodeid").unwrap_or(rnd_node_name());
         if nodeid.chars().all(char::is_alphanumeric) {
             dtncfg.host_eid = if let Ok(number) = nodeid.parse::<u64>() {
-                format!("ipn://{}.0", number).try_into().unwrap()
+                format!("ipn:{}.0", number).try_into().unwrap()
             } else {
                 format!("dtn://{}", nodeid).try_into().unwrap()
             };
@@ -235,7 +235,7 @@ impl DtnConfig {
     }
 
     /// Helper function that adds discovery destinations to a config struct
-    /// 
+    ///
     /// When provided with an IP address without port the default port 3003 is appended
     pub fn add_destination(&mut self, destination: String) -> std::io::Result<()> {
         let addr: SocketAddr = if destination.parse::<SocketAddr>().is_err() {
@@ -249,18 +249,15 @@ impl DtnConfig {
                 .expect("Error: Unable to parse given IP address into SocketAddr")
         };
 
-
         match addr {
             SocketAddr::V4(addr) => {
                 if self.v4 {
-                    self.discovery_destinations
-                        .insert(format!("{}", addr), 0);
+                    self.discovery_destinations.insert(format!("{}", addr), 0);
                 }
             }
             SocketAddr::V6(addr) => {
                 if self.v6 {
-                    self.discovery_destinations
-                        .insert(format!("{}", addr), 0);
+                    self.discovery_destinations.insert(format!("{}", addr), 0);
                 }
             }
         }
