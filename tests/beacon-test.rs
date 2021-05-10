@@ -342,9 +342,9 @@ pub fn peer_validity_with_custom() {
 /// Generates a random beacon
 pub fn rnd_beacon() -> Beacon {
     let mut rng = thread_rng();
-    let rnd_duration: u8 = rng.gen_range(0, 101);
-    let rnd_serviceblock: u8 = rng.gen_range(0, 101);
-    let amount_of_services: u8 = rng.gen_range(0, 11);
+    let rnd_duration: u8 = rng.gen_range(0..101);
+    let rnd_serviceblock: u8 = rng.gen_range(0..101);
+    let amount_of_services: u8 = rng.gen_range(0..11);
 
     let clas = ["mtcp", "http", "dummy"];
     let ports = [
@@ -354,8 +354,8 @@ pub fn rnd_beacon() -> Beacon {
     let services = if rnd_serviceblock < 50 {
         let mut buf = Vec::new();
         for _x in 0..amount_of_services {
-            let rnd_scheme: usize = rng.gen_range(0, 3);
-            let rnd_port: usize = rng.gen_range(0, 13);
+            let rnd_scheme: usize = rng.gen_range(0..3);
+            let rnd_port: usize = rng.gen_range(0..13);
             let cla = String::from(clas[rnd_scheme]);
             let port = ports[rnd_port];
             let service = (cla, Some(port));
@@ -369,12 +369,12 @@ pub fn rnd_beacon() -> Beacon {
     serviceblock.set_clas(services);
 
     let beacon_period = if rnd_duration < 50 {
-        Some(Duration::from_secs(rng.gen_range(0, 12001)))
+        Some(Duration::from_secs(rng.gen_range(0..12001)))
     } else {
         None
     };
 
-    let rnd_dtn: u8 = rng.gen_range(0, 3);
+    let rnd_dtn: u8 = rng.gen_range(0..3);
     let endpoint = match rnd_dtn {
         0 => EndpointID::try_from("dtn://n1/").unwrap(),
         1 => {
