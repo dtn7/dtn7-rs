@@ -2,6 +2,7 @@ use super::BundleStore;
 use crate::core::bundlepack::{BundlePack, Constraint};
 use crate::CONFIG;
 use anyhow::{bail, Result};
+use log::error;
 use std::fmt::Debug;
 
 #[derive(Debug, Clone)]
@@ -35,7 +36,10 @@ impl BundleStore for SledBundleStore {
             .remove(bid)
             .map(|b| b.unwrap().as_ref().into())
             .ok();
-        self.bundles.flush();
+        if let Err(err) = self.bundles.flush() {
+            error!("Could not flush database: {}", err);
+        }
+
         res
     }
     fn get(&self, bpid: &str) -> Option<BundlePack> {
@@ -60,7 +64,7 @@ impl BundleStore for SledBundleStore {
         if let Ok(contains) = res {
             contains
         } else {
-            log::error!("could not query sled database: {:?}", res.err());
+            error!("could not query sled database: {:?}", res.err());
             false
         }
     }
