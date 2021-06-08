@@ -81,6 +81,13 @@ fn main() -> Result<()> {
                 .help("Payload size")
                 .takes_value(true),
         )
+        .arg(
+            Arg::with_name("count")
+                .short("c")
+                .long("count")
+                .help("Number of pings to send")
+                .takes_value(true),
+        )
         .get_matches();
 
     let verbose: bool = matches.is_present("verbose");
@@ -92,6 +99,8 @@ fn main() -> Result<()> {
         "127.0.0.1"
     };
     let payload_size: usize = matches.value_of("payloadsize").unwrap_or("64").parse()?;
+    let count: i32 = matches.value_of("count").unwrap_or("-1").parse()?;
+
     let dst = matches.value_of("target").unwrap();
 
     let _dst_eid: bp7::EndpointID = dst.try_into()?;
@@ -137,6 +146,9 @@ fn main() -> Result<()> {
     println!("PING: {} -> {}", src, dst);
     loop {
         if state == PingState::ReadyToSend {
+            if count > 0 && seq_num == count as u64 {
+                return Ok(());
+            }
             send_ping(&mut wscon, payload_size, &src, dst)?;
             seq_num += 1;
             sent_time = time::Instant::now();
