@@ -1,10 +1,11 @@
 use crate::CONFIG;
 use crate::DTNCORE;
-use actix::*;
+use actix::prelude::*;
 use actix_web_actors::ws;
 
 use anyhow::anyhow;
 use bp7::dtntime::CreationTimestamp;
+use bp7::Bundle;
 use bp7::EndpointID;
 use dtn7_plus::client::WsRecvData;
 use dtn7_plus::client::WsSendData;
@@ -19,15 +20,16 @@ use std::{
 
 // Begin application agent WebSocket specific stuff
 
-/// How often new bundles are checked
-const CHECK_INTERVAL: Duration = Duration::from_millis(20);
+/// How often new bundles are checked when no direct delivery happens (DEPRECATED)
+const CHECK_INTERVAL: Duration = Duration::from_millis(100);
 /// How often heartbeat pings are sent
 const HEARTBEAT_INTERVAL: Duration = Duration::from_secs(5);
 /// How long before lack of client response causes a timeout
 const CLIENT_TIMEOUT: Duration = Duration::from_secs(10);
 
 /// WebSocket Applicatin Agent Session
-pub(crate) struct WsAASession {
+#[derive(Debug, Clone, PartialEq)]
+pub struct WsAASession {
     /// unique session id
     id: usize,
     /// Client must send ping at least once per 10 seconds (CLIENT_TIMEOUT),
@@ -47,12 +49,46 @@ impl WsAASession {
             mode: WsReceiveMode::Data,
         }
     }
+    fn fetch_new_bundles(&mut self, ctx: &mut ws::WebsocketContext<Self>) {
+        if let Some(endpoints) = self.endpoints.clone() {
+            for eid in endpoints {
+                if let Some(aa) = (*DTNCORE.lock()).get_endpoint_mut(&eid) {
+                    if let Some(mut bundle) = aa.pop() {
+                        let recv_data = match self.mode {
+                            WsReceiveMode::Bundle => bundle.to_cbor(),
+                            WsReceiveMode::Data => {
+                                if bundle.payload().is_none() {
+                                    // No payload -> nothing to deliver to client
+                                    // In bundle mode delivery happens because custom canoncial bocks could be present
+                                    continue;
+                                }
+                                let recv = WsRecvData {
+                                    bid: &bundle.id(),
+                                    src: &bundle.primary.source.to_string(),
+                                    dst: &bundle.primary.destination.to_string(),
+                                    data: &bundle.payload().unwrap(),
+                                };
+                                serde_cbor::to_vec(&recv).expect("Fatal error encoding WsRecvData")
+                            }
+                        };
+                        ctx.binary(recv_data);
+                    }
+                }
+            }
+        }
+    }
 }
 
-pub(crate) enum WsReceiveMode {
+#[derive(Debug, Clone, PartialEq)]
+pub enum WsReceiveMode {
     Bundle,
     Data,
 }
+
+/// Application Agent sends this messages to session
+#[derive(Message)]
+#[rtype(result = "()")]
+pub struct BundleDelivery(pub Bundle);
 
 impl Actor for WsAASession {
     type Context = ws::WebsocketContext<Self>;
@@ -60,13 +96,41 @@ impl Actor for WsAASession {
     fn started(&mut self, ctx: &mut Self::Context) {
         // we'll start heartbeat process on session start.
         self.hb(ctx);
-        self.monitor(ctx);
+        self.monitor(ctx); // not really necessary anymore since we get msgs pushed but initial buffer should be pulled after subscribing
         debug!("Started new WebSocket for application agent");
     }
 
     fn stopping(&mut self, _: &mut Self::Context) -> Running {
         debug!("Stopped WebSocket for application agent");
         Running::Stop
+    }
+}
+
+/// Handler for Message message.
+impl Handler<BundleDelivery> for WsAASession {
+    type Result = ();
+
+    fn handle(&mut self, bndlmsg: BundleDelivery, ctx: &mut Self::Context) {
+        //self.send_message(&msg.room, msg.msg.as_str(), msg.id);
+        let mut bndl = bndlmsg.0;
+        let recv_data = match self.mode {
+            WsReceiveMode::Bundle => bndl.to_cbor(),
+            WsReceiveMode::Data => {
+                if bndl.payload().is_none() {
+                    // No payload -> nothing to deliver to client
+                    // In bundle mode delivery happens because custom canoncial bocks could be present
+                    return;
+                }
+                let recv = WsRecvData {
+                    bid: &bndl.id(),
+                    src: &bndl.primary.source.to_string(),
+                    dst: &bndl.primary.destination.to_string(),
+                    data: &bndl.payload().unwrap(),
+                };
+                serde_cbor::to_vec(&recv).expect("Fatal error encoding WsRecvData")
+            }
+        };
+        ctx.binary(recv_data);
     }
 }
 /// WebSocket message handler
@@ -107,6 +171,9 @@ impl StreamHandler<Result<ws::Message, ws::ProtocolError>> for WsAASession {
                                 if let Ok(eid) = EndpointID::try_from(v[1]) {
                                     if let Some(endpoints) = &mut self.endpoints {
                                         endpoints.remove(&eid);
+                                        if let Some(ep) = (*DTNCORE.lock()).get_endpoint_mut(&eid) {
+                                            ep.clear_delivery_addr();
+                                        }
                                         debug!("unsubscribed endpoint: {}", eid);
                                         ctx.text("200 unsubscribed");
                                     } else {
@@ -125,10 +192,14 @@ impl StreamHandler<Result<ws::Message, ws::ProtocolError>> for WsAASession {
                                         if self.endpoints.is_none() {
                                             self.endpoints = Some(HashSet::new());
                                         }
+                                        if let Some(ep) = (*DTNCORE.lock()).get_endpoint_mut(&eid) {
+                                            ep.set_delivery_addr(ctx.address());
+                                        }
                                         if let Some(endpoints) = &mut self.endpoints {
                                             endpoints.insert(eid);
                                         }
                                         ctx.text("200 subscribed");
+                                        self.fetch_new_bundles(ctx);
                                     } else {
                                         debug!(
                                             "Attempted to subscribe to unknown endpoint: {}",
@@ -146,6 +217,11 @@ impl StreamHandler<Result<ws::Message, ws::ProtocolError>> for WsAASession {
                                             );
                                             ctx.text("404 unknown endpoint");
                                         } else {
+                                            if let Some(ep) =
+                                                (*DTNCORE.lock()).get_endpoint_mut(&eid)
+                                            {
+                                                ep.set_delivery_addr(ctx.address());
+                                            }
                                             debug!("Subscribed to endpoint: {}", eid);
                                             if self.endpoints.is_none() {
                                                 self.endpoints = Some(HashSet::new());
@@ -284,36 +360,10 @@ impl WsAASession {
             ctx.ping(b"");
         });
     }
-    /// helper method that checks for new bundles.
+    /// helper method that checks for new bundles (DEPRICATED).
     fn monitor(&self, ctx: &mut ws::WebsocketContext<Self>) {
         ctx.run_interval(CHECK_INTERVAL, |act, ctx| {
-            if let Some(endpoints) = act.endpoints.clone() {
-                for eid in endpoints {
-                    if let Some(aa) = (*DTNCORE.lock()).get_endpoint_mut(&eid) {
-                        if let Some(mut bundle) = aa.pop() {
-                            let recv_data = match act.mode {
-                                WsReceiveMode::Bundle => bundle.to_cbor(),
-                                WsReceiveMode::Data => {
-                                    if bundle.payload().is_none() {
-                                        // No payload -> nothing to deliver to client
-                                        // In bundle mode delivery happens because custom canoncial bocks could be present
-                                        continue;
-                                    }
-                                    let recv = WsRecvData {
-                                        bid: &bundle.id(),
-                                        src: &bundle.primary.source.to_string(),
-                                        dst: &bundle.primary.destination.to_string(),
-                                        data: &bundle.payload().unwrap(),
-                                    };
-                                    serde_cbor::to_vec(&recv)
-                                        .expect("Fatal error encoding WsRecvData")
-                                }
-                            };
-                            ctx.binary(recv_data);
-                        }
-                    }
-                }
-            }
+            act.fetch_new_bundles(ctx);
         });
     }
 }

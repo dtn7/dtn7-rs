@@ -5,7 +5,7 @@ use dtn7_plus::client::{Message, WsRecvData, WsSendData};
 use std::env;
 use std::io::Write;
 use std::str::from_utf8;
-use std::time::{Duration, Instant};
+use std::time::Instant;
 
 fn main() -> Result<()> {
     let matches = App::new("dtnecho")
