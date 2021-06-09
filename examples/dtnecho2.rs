@@ -5,6 +5,7 @@ use dtn7_plus::client::{Message, WsRecvData, WsSendData};
 use std::env;
 use std::io::Write;
 use std::str::from_utf8;
+use std::time::{Duration, Instant};
 
 fn main() -> Result<()> {
     let matches = App::new("dtnecho")
@@ -92,6 +93,7 @@ fn main() -> Result<()> {
                 }
             }
             Message::Binary(bin) => {
+                let now = Instant::now();
                 let recv_data: WsRecvData =
                     serde_cbor::from_slice(&bin).expect("Error decoding WsRecvData from server");
 
@@ -122,6 +124,9 @@ fn main() -> Result<()> {
                 wscon
                     .write_binary(&serde_cbor::to_vec(&echo_response)?)
                     .expect("error sending echo response");
+                if verbose {
+                    println!("Processing bundle took {:?}", now.elapsed());
+                }
             }
             _ => {
                 if verbose {
