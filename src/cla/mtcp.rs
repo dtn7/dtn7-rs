@@ -189,7 +189,9 @@ pub struct MtcpConvergenceLayer {
 impl MtcpConvergenceLayer {
     async fn run(self) -> Result<(), io::Error> {
         let addr: SocketAddrV4 = format!("0.0.0.0:{}", self.port()).parse().unwrap();
-        let mut listener = TcpListener::bind(&addr).await?;
+        let mut listener = TcpListener::bind(&addr)
+            .await
+            .expect("failed to bind tcp port");
         debug!("spawning MTCP listener on port {}", self.local_port);
         loop {
             let (socket, _) = listener.accept().await?;
@@ -228,7 +230,8 @@ impl MtcpConvergenceLayer {
         }
     }
     pub async fn spawn_listener(&self) -> std::io::Result<()> {
-        tokio::spawn(self.run());
+        // TODO: bubble up errors from run
+        tokio::spawn(self.run()); /*.await.unwrap()*/
         Ok(())
     }
     pub fn send_bundles(&self, addr: SocketAddr, bundles: Vec<ByteBuffer>) -> bool {
