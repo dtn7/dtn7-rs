@@ -1,5 +1,6 @@
 use actix::Addr;
 use bp7::{Bundle, EndpointID};
+use enum_dispatch::enum_dispatch;
 use log::{debug, info};
 use std::collections::VecDeque;
 use std::fmt::Debug;
@@ -7,6 +8,13 @@ use std::fmt::Debug;
 use crate::dtnd::ws::BundleDelivery;
 use crate::dtnd::ws::WsAASession;
 
+#[enum_dispatch]
+#[derive(Debug)]
+pub enum ApplicationAgentEnum {
+    SimpleApplicationAgent,
+}
+
+#[enum_dispatch(ApplicationAgentEnum)]
 pub trait ApplicationAgent: Debug {
     fn eid(&self) -> &EndpointID;
     fn push(&mut self, bundle: &Bundle);

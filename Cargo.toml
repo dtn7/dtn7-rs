@@ -1,6 +1,6 @@
 [package]
 name = "dtn7"
-version = "0.14.0"
+version = "0.14.1"
 authors = ["Lars Baumgaertner <baumgaertner@cs.tu-darmstadt.de>"]
 description = "Rust delay-tolerant-networking daemon and CLI tools based upon bp7 (dtn version 7 draft)"
 edition = "2018"
@@ -49,6 +49,8 @@ dtn7-plus = "0.4.2"
 sled = "0.34.4"
 bitflags = "1.2.1"
 tungstenite = "0.13.0"
+enum_dispatch = "0.3.7"
+derive_more = "0.99.14"
 #rweb = { version = "0.4.0", default-features = false }
 
 [lib]

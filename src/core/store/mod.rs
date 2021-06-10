@@ -1,5 +1,6 @@
 use crate::core::bundlepack::BundlePack;
 use anyhow::Result;
+use enum_dispatch::enum_dispatch;
 use std::fmt::Debug;
 
 mod mem;
@@ -8,7 +9,15 @@ mod sled;
 pub use self::sled::SledBundleStore;
 pub use mem::InMemoryBundleStore;
 
-pub trait BundleStore: Debug + Send {
+#[enum_dispatch]
+#[derive(Debug)]
+pub enum BundleStoresEnum {
+    SledBundleStore,
+    InMemoryBundleStore,
+}
+
+#[enum_dispatch(BundleStoresEnum)]
+pub trait BundleStore: Debug {
     fn push(&mut self, bp: &BundlePack) -> Result<()>;
     fn update(&mut self, bp: &BundlePack) -> Result<()>;
     fn remove(&mut self, bid: &str) -> Option<BundlePack>;
@@ -29,10 +38,10 @@ pub fn bundle_stores() -> Vec<&'static str> {
     vec!["mem", "sled"]
 }
 
-pub fn new(bundlestore: &str) -> Box<dyn BundleStore + Send> {
+pub fn new(bundlestore: &str) -> BundleStoresEnum {
     match bundlestore {
-        "mem" => Box::new(mem::InMemoryBundleStore::new()),
-        "sled" => Box::new(sled::SledBundleStore::new()),
+        "mem" => mem::InMemoryBundleStore::new().into(),
+        "sled" => sled::SledBundleStore::new().into(),
         _ => panic!("Unknown bundle store {}", bundlestore),
     }
 }

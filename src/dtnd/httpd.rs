@@ -1,5 +1,7 @@
+use crate::core::application_agent::ApplicationAgent;
 use crate::core::application_agent::SimpleApplicationAgent;
 use crate::core::helpers::rnd_peer;
+use crate::core::store::BundleStore;
 use crate::core::{bundlepack::BundlePack, peer::PeerType};
 use crate::dtnd::ws::WsAASession;
 use crate::peers_count;
@@ -394,11 +396,13 @@ async fn register(req: HttpRequest) -> Result<String> {
         let eid = host_eid
             .new_endpoint(path)
             .expect("Error constructing new endpoint");
-        (*DTNCORE.lock()).register_application_agent(SimpleApplicationAgent::with(eid.clone()));
+        (*DTNCORE.lock())
+            .register_application_agent(SimpleApplicationAgent::with(eid.clone()).into());
         Ok(format!("Registered {}", eid))
     } else {
         if let Ok(eid) = EndpointID::try_from(path) {
-            (*DTNCORE.lock()).register_application_agent(SimpleApplicationAgent::with(eid.clone()));
+            (*DTNCORE.lock())
+                .register_application_agent(SimpleApplicationAgent::with(eid.clone()).into());
             Ok(format!("Registered URI: {}", eid))
         } else {
             Err(actix_web::error::ErrorBadRequest(anyhow!(
@@ -417,12 +421,13 @@ async fn unregister(req: HttpRequest) -> Result<String> {
             .new_endpoint(path)
             .expect("Error constructing new endpoint");
 
-        (*DTNCORE.lock()).unregister_application_agent(SimpleApplicationAgent::with(eid.clone()));
+        (*DTNCORE.lock())
+            .unregister_application_agent(SimpleApplicationAgent::with(eid.clone()).into());
         Ok(format!("Unregistered {}", eid))
     } else {
         if let Ok(eid) = EndpointID::try_from(path) {
             (*DTNCORE.lock())
-                .unregister_application_agent(SimpleApplicationAgent::with(eid.clone()));
+                .unregister_application_agent(SimpleApplicationAgent::with(eid.clone()).into());
             Ok(format!("Unregistered URI: {}", eid))
         } else {
             Err(actix_web::error::ErrorBadRequest(anyhow!(

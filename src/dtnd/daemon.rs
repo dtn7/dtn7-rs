@@ -1,4 +1,5 @@
 use super::{httpd, janitor};
+use crate::cla::ConvergenceLayerAgent;
 use crate::cla_add;
 use crate::core::application_agent::SimpleApplicationAgent;
 use crate::dtnconfig::DtnConfig;
@@ -117,12 +118,12 @@ pub async fn start_dtnd(cfg: DtnConfig) -> std::io::Result<()> {
 
     let local_host_id = (*CONFIG.lock()).host_eid.clone();
     (*DTNCORE.lock())
-        .register_application_agent(SimpleApplicationAgent::with(local_host_id.clone()));
+        .register_application_agent(SimpleApplicationAgent::with(local_host_id.clone()).into());
     for e in &(*CONFIG.lock()).endpoints {
         let eid = local_host_id
             .new_endpoint(e)
             .expect("Error constructing new endpoint");
-        (*DTNCORE.lock()).register_application_agent(SimpleApplicationAgent::with(eid));
+        (*DTNCORE.lock()).register_application_agent(SimpleApplicationAgent::with(eid).into());
     }
     start_convergencylayers().await;
     if CONFIG.lock().janitor_interval.as_micros() != 0 {
