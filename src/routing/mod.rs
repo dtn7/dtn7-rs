@@ -6,6 +6,11 @@ use crate::cla::ClaSender;
 use crate::core::bundlepack::BundlePack;
 use bp7::Bundle;
 use bp7::EndpointID;
+use derive_more::*;
+use enum_dispatch::enum_dispatch;
+use epidemic::EpidemicRoutingAgent;
+use flooding::FloodingRoutingAgent;
+use sink::SinkRoutingAgent;
 use std::fmt::Debug;
 use std::fmt::Display;
 
@@ -16,7 +21,24 @@ pub enum RoutingNotifcation<'a> {
     EncounteredPeer(&'a EndpointID),
 }
 
-pub trait RoutingAgent: Debug + Send + Display {
+#[enum_dispatch]
+#[derive(Debug, Display)]
+pub enum RoutingAgentsEnum {
+    EpidemicRoutingAgent,
+    FloodingRoutingAgent,
+    SinkRoutingAgent,
+}
+
+/*
+impl std::fmt::Display for RoutingAgentsEnum {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(f, "{:?}", self)
+    }
+}
+*/
+
+#[enum_dispatch(RoutingAgentsEnum)]
+pub trait RoutingAgent: Debug + Display {
     fn notify(&mut self, _notification: RoutingNotifcation) {}
     fn sender_for_bundle(&mut self, _bp: &BundlePack) -> (Vec<ClaSender>, bool) {
         unimplemented!();
@@ -27,11 +49,11 @@ pub fn routing_algorithms() -> Vec<&'static str> {
     vec!["epidemic", "flooding", "sink"]
 }
 
-pub fn new(routingagent: &str) -> Box<dyn RoutingAgent> {
+pub fn new(routingagent: &str) -> RoutingAgentsEnum {
     match routingagent {
-        "flooding" => Box::new(flooding::FloodingRoutingAgent::new()),
-        "epidemic" => Box::new(epidemic::EpidemicRoutingAgent::new()),
-        "sink" => Box::new(sink::SinkRoutingAgent::new()),
+        "flooding" => FloodingRoutingAgent::new().into(),
+        "epidemic" => EpidemicRoutingAgent::new().into(),
+        "sink" => sink::SinkRoutingAgent::new().into(),
         _ => panic!("Unknown routing agent {}", routingagent),
     }
 }

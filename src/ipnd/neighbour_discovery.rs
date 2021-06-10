@@ -1,3 +1,4 @@
+use crate::cla::ConvergenceLayerAgent;
 use crate::core::{DtnPeer, PeerType};
 use crate::ipnd::{beacon::Beacon, services::*};
 use crate::routing::RoutingNotifcation;

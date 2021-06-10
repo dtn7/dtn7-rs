@@ -5,10 +5,12 @@ pub mod peer;
 pub mod processing;
 pub mod store;
 
+use crate::cla::CLAEnum;
 use crate::cla::ConvergenceLayerAgent;
 pub use crate::core::peer::{DtnPeer, PeerType};
 use crate::core::store::BundleStore;
 use crate::routing::RoutingAgent;
+use crate::routing::RoutingAgentsEnum;
 use crate::store_get;
 pub use crate::{store_has_item, store_push};
 use crate::{PEERS, STORE};
@@ -18,6 +20,8 @@ use bp7::EndpointID;
 use log::{error, info};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+
+use crate::core::application_agent::ApplicationAgentEnum;
 
 #[derive(Debug, Serialize, Deserialize, Default, Clone)]
 pub struct DtnStatistics {
@@ -41,10 +45,10 @@ impl DtnStatistics {
 }
 #[derive(Debug)]
 pub struct DtnCore {
-    pub endpoints: Vec<Box<dyn ApplicationAgent + Send>>,
-    pub cl_list: Vec<Box<dyn ConvergenceLayerAgent>>,
+    pub endpoints: Vec<ApplicationAgentEnum>,
+    pub cl_list: Vec<CLAEnum>,
     pub service_list: HashMap<u8, String>,
-    pub routing_agent: Box<dyn RoutingAgent>,
+    pub routing_agent: RoutingAgentsEnum,
 }
 
 impl Default for DtnCore {
@@ -59,20 +63,20 @@ impl DtnCore {
             endpoints: Vec::new(),
             cl_list: Vec::new(),
             service_list: HashMap::new(),
-            //routing_agent: Box::new(crate::routing::flooding::FloodingRoutingAgent::new()),
-            routing_agent: Box::new(crate::routing::epidemic::EpidemicRoutingAgent::new()),
+            //routing_agent: crate::routing::flooding::FloodingRoutingAgent::new().into(),
+            routing_agent: crate::routing::epidemic::EpidemicRoutingAgent::new().into(),
         }
     }
 
-    pub fn register_application_agent<T: 'static + ApplicationAgent + Send>(&mut self, aa: T) {
+    pub fn register_application_agent(&mut self, aa: ApplicationAgentEnum) {
         if self.is_in_endpoints(&aa.eid()) {
             info!("Application agent already registered for EID: {}", aa.eid());
         } else {
             info!("Registered new application agent for EID: {}", aa.eid());
-            self.endpoints.push(Box::new(aa));
+            self.endpoints.push(aa);
         }
     }
-    pub fn unregister_application_agent<T: 'static + ApplicationAgent>(&mut self, aa: T) {
+    pub fn unregister_application_agent(&mut self, aa: ApplicationAgentEnum) {
         info!("Unregistered application agent for EID: {}", aa.eid());
         self.endpoints
             .iter()
@@ -104,10 +108,7 @@ impl DtnCore {
         }
         false
     }
-    pub fn get_endpoint_mut(
-        &mut self,
-        eid: &EndpointID,
-    ) -> Option<&mut Box<dyn ApplicationAgent + Send>> {
+    pub fn get_endpoint_mut(&mut self, eid: &EndpointID) -> Option<&mut ApplicationAgentEnum> {
         for aa in self.endpoints.iter_mut() {
             if eid == aa.eid() {
                 return Some(aa);
@@ -115,7 +116,7 @@ impl DtnCore {
         }
         None
     }
-    pub fn get_endpoint(&self, eid: &EndpointID) -> Option<&Box<dyn ApplicationAgent + Send>> {
+    pub fn get_endpoint(&self, eid: &EndpointID) -> Option<&ApplicationAgentEnum> {
         for aa in self.endpoints.iter() {
             if eid == aa.eid() {
                 return Some(aa);

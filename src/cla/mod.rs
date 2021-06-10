@@ -4,6 +4,11 @@ pub mod mtcp;
 
 use async_trait::async_trait;
 use bp7::ByteBuffer;
+use derive_more::*;
+use dummy::DummyConvergenceLayer;
+use enum_dispatch::enum_dispatch;
+use http::HttpConvergenceLayer;
+use mtcp::MtcpConvergenceLayer;
 use std::fmt::{Debug, Display};
 use std::net::IpAddr;
 
@@ -25,8 +30,25 @@ impl ClaSender {
     }
 }
 
+#[enum_dispatch]
+#[derive(Debug, Display)]
+pub enum CLAEnum {
+    DummyConvergenceLayer,
+    MtcpConvergenceLayer,
+    HttpConvergenceLayer,
+}
+
+/*
+impl std::fmt::Display for CLAEnum {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(f, "{:?}", self)
+    }
+}
+*/
+
 #[async_trait]
-pub trait ConvergenceLayerAgent: Debug + Send + Sync + Display {
+#[enum_dispatch(CLAEnum)]
+pub trait ConvergenceLayerAgent: Debug + Display {
     async fn setup(&mut self);
     fn port(&self) -> u16;
     fn name(&self) -> &'static str;
@@ -39,13 +61,13 @@ pub fn convergence_layer_agents() -> Vec<&'static str> {
 
 // returns a new CLA for the corresponding string ("<CLA name>[:local_port]").
 // Example usage: 'dummy', 'mtcp', 'mtcp:16161'
-pub fn new(cla_str: &str) -> Box<dyn ConvergenceLayerAgent> {
+pub fn new(cla_str: &str) -> CLAEnum {
     let cla: Vec<&str> = cla_str.split(':').collect();
     let port: Option<u16> = cla.get(1).unwrap_or(&"-1").parse::<u16>().ok();
     match cla[0] {
-        "dummy" => Box::new(dummy::DummyConvergenceLayer::new()),
-        "mtcp" => Box::new(mtcp::MtcpConvergenceLayer::new(port)),
-        "http" => Box::new(http::HttpConvergenceLayer::new(port)),
+        "dummy" => dummy::DummyConvergenceLayer::new().into(),
+        "mtcp" => mtcp::MtcpConvergenceLayer::new(port).into(),
+        "http" => http::HttpConvergenceLayer::new(port).into(),
         _ => panic!("Unknown convergence layer agent agent {}", cla[0]),
     }
 }

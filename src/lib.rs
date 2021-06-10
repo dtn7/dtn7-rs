@@ -9,12 +9,15 @@ use crate::cla::ConvergenceLayerAgent;
 use crate::core::bundlepack::BundlePack;
 use crate::core::store::{BundleStore, InMemoryBundleStore};
 use crate::core::DtnStatistics;
+use crate::routing::RoutingAgent;
 use bp7::{Bundle, EndpointID};
+use cla::CLAEnum;
 pub use dtnconfig::DtnConfig;
 
 pub use crate::core::{DtnCore, DtnPeer};
 pub use crate::routing::RoutingNotifcation;
 
+use crate::core::store::BundleStoresEnum;
 use anyhow::Result;
 use lazy_static::*;
 use parking_lot::Mutex;
@@ -28,11 +31,10 @@ lazy_static! {
     pub static ref PEERS: Mutex<HashMap<String, DtnPeer>> = Mutex::new(HashMap::new());
     pub static ref STATS: Mutex<DtnStatistics> = Mutex::new(DtnStatistics::new());
     pub static ref SENDERTASK: Mutex<Option<Sender<Bundle>>> = Mutex::new(None);
-    pub static ref STORE: Mutex<Box<dyn BundleStore + Send>> =
-        Mutex::new(Box::new(InMemoryBundleStore::new()));
+    pub static ref STORE: Mutex<BundleStoresEnum> = Mutex::new(InMemoryBundleStore::new().into());
 }
 
-pub fn cla_add(cla: Box<dyn ConvergenceLayerAgent>) {
+pub fn cla_add(cla: CLAEnum) {
     (*DTNCORE.lock()).cl_list.push(cla);
 }
 pub fn service_add(tag: u8, service: String) {
