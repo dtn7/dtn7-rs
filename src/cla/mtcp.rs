@@ -101,7 +101,7 @@ impl MPDU {
 }
 
 impl TryFrom<MPDU> for bp7::Bundle {
-    type Error = String;
+    type Error = bp7::Bp7Error;
     fn try_from(item: MPDU) -> Result<Self, Self::Error> {
         Bundle::try_from(item.0)
     }

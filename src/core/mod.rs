@@ -6,7 +6,6 @@ pub mod processing;
 pub mod store;
 
 use crate::cla::CLAEnum;
-use crate::cla::ConvergenceLayerAgent;
 pub use crate::core::peer::{DtnPeer, PeerType};
 use crate::core::store::BundleStore;
 use crate::routing::RoutingAgent;
@@ -14,7 +13,6 @@ use crate::routing::RoutingAgentsEnum;
 use crate::store_get;
 pub use crate::{store_has_item, store_push};
 use crate::{PEERS, STORE};
-use anyhow::Result;
 use application_agent::ApplicationAgent;
 use bp7::EndpointID;
 use log::{error, info};
