@@ -60,7 +60,7 @@ docker run --rm \
     -v /tmp/.X11-unix:/tmp/.X11-unix:rw \
     --privileged \
     -d \
-    gh0st42/coreemu6
+    gh0st42/coreemu7
 ```
 
 
@@ -77,7 +77,7 @@ docker run -it --rm \
     -e DISPLAY=host.docker.internal:0 \
     --privileged \
     -d \
-    gh0st42/coreemu6
+    gh0st42/coreemu7
 ```
 
 ### Connecting to docker instance
@@ -140,7 +140,7 @@ cea 'dtnquery peers | egrep "n[0-9].:" | cut -d \" -f 2 | sort'
 Double click on the node you want to send a message from. This should open a terminal directly on this node.
 To send a text message from node *n1* to node *n3* enter the following:
 ```bash
-echo "hello wrold" | dtnsend -r dtn://n3/incoming
+echo "hello world" | dtnsend -r dtn://n3/incoming
 ```
 
 
