@@ -5,7 +5,6 @@ pub mod dtnd;
 pub mod ipnd;
 pub mod routing;
 
-use crate::cla::ConvergenceLayerAgent;
 use crate::core::bundlepack::BundlePack;
 use crate::core::store::{BundleStore, InMemoryBundleStore};
 use crate::core::DtnStatistics;

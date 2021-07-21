@@ -1,8 +1,8 @@
 use crate::core::application_agent::ApplicationAgent;
 use crate::core::application_agent::SimpleApplicationAgent;
 use crate::core::helpers::rnd_peer;
+use crate::core::peer::PeerType;
 use crate::core::store::BundleStore;
-use crate::core::{bundlepack::BundlePack, peer::PeerType};
 use crate::dtnd::ws::WsAASession;
 use crate::peers_count;
 use crate::DtnConfig;
@@ -11,7 +11,6 @@ use crate::DTNCORE;
 use crate::PEERS;
 use crate::STATS;
 use crate::STORE;
-use actix::*;
 use actix_web::dev::RequestHead;
 use actix_web::HttpResponse;
 use actix_web::{
@@ -378,8 +377,15 @@ async fn push_post(mut body: web::Payload) -> Result<String> {
     debug!("Received: {:?}", b_len);
     if let Ok(bndl) = bp7::Bundle::try_from(bytes.to_vec()) {
         info!("Received bundle {}", bndl.id());
-        crate::core::processing::receive(bndl.into()).await;
-        Ok(format!("Received {} bytes", b_len))
+        if let Err(err) = crate::core::processing::receive(bndl.into()).await {
+            warn!("Error processing bundle: {}", err);
+            Err(actix_web::error::ErrorBadRequest(anyhow!(format!(
+                "Error processing bundle: {}",
+                err
+            ))))
+        } else {
+            Ok(format!("Received {} bytes", b_len))
+        }
     } else {
         Err(actix_web::error::ErrorBadRequest(anyhow!(
             "Error decoding bundle!"

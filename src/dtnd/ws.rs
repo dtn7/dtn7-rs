@@ -4,18 +4,15 @@ use crate::DTNCORE;
 use actix::prelude::*;
 use actix_web_actors::ws;
 
-use anyhow::anyhow;
 use bp7::dtntime::CreationTimestamp;
 use bp7::Bundle;
 use bp7::EndpointID;
 use dtn7_plus::client::WsRecvData;
 use dtn7_plus::client::WsSendData;
-use futures::StreamExt;
 use log::{debug, info, warn};
-use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
 use std::{
-    convert::{TryFrom, TryInto},
+    convert::TryFrom,
     time::{Duration, Instant},
 };
 

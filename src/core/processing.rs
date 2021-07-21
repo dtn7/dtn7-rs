@@ -18,7 +18,7 @@ use anyhow::{bail, Result};
 use log::{debug, info, warn};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
-use tokio::sync::mpsc::{channel, Receiver, Sender};
+use tokio::sync::mpsc::channel;
 
 // transmit an outbound bundle.
 pub async fn send_bundle(bndl: Bundle) {
@@ -36,7 +36,7 @@ pub fn send_through_task(bndl: Bundle) {
         tokio::spawn(sender_task(rx));
         *stask = Some(tx.clone());
     }
-    let mut tx = stask.as_ref().unwrap().clone();
+    let tx = stask.as_ref().unwrap().clone();
     //let mut rt = tokio::runtime::Runtime::new().unwrap();
     let rt = tokio::runtime::Handle::current();
     rt.spawn(async move { tx.send(bndl).await });
@@ -49,9 +49,11 @@ pub async fn send_through_task_async(bndl: Bundle) {
         tokio::spawn(sender_task(rx));
         *stask = Some(tx.clone());
     }
-    let mut tx = stask.as_ref().unwrap().clone();
+    let tx = stask.as_ref().unwrap().clone();
 
-    tx.send(bndl).await;
+    if let Err(err) = tx.send(bndl).await {
+        warn!("Transmission failed: {}", err);
+    }
 }
 pub async fn sender_task(mut rx: tokio::sync::mpsc::Receiver<Bundle>) {
     while let Some(bndl) = rx.recv().await {
@@ -77,7 +79,7 @@ pub async fn transmit(mut bp: BundlePack) -> Result<()> {
 
         delete(bp, NO_INFORMATION).await?;
     } else {
-        dispatch(bp).await;
+        dispatch(bp).await?;
     }
     Ok(())
 }
@@ -568,13 +570,13 @@ async fn send_status_report(
         reason
     );
 
-    let out_bndl = new_status_report_bundle(
+    /*let out_bndl = new_status_report_bundle(
         &bp.bundle,
         (*CONFIG.lock()).host_eid.clone(),
         bp.bundle.primary.crc.to_code(),
         status,
         reason,
-    );
+    );*/
 
     // TODO: impl without cycle
     //send_bundle(out_bndl).await;
