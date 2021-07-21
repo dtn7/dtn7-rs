@@ -109,7 +109,7 @@ pub fn serialization_with_service_block() {
 
     let deserialized: Beacon = match serde_cbor::from_slice(&unwrapped) {
         Ok(pkt) => pkt,
-        Err(e) => panic!(e),
+        Err(e) => panic!("deserialization error: {}", e),
     };
 
     println!("{}", &deserialized);
