@@ -1,9 +1,10 @@
 use crate::store_has_item;
-use crate::store_push;
+use crate::store_push_bundle;
 use crate::store_remove;
-use crate::store_update;
+use crate::store_update_metadata;
 use anyhow::Result;
 use bp7::{Bundle, CanonicalData, EndpointID, BUNDLE_AGE_BLOCK};
+use log::warn;
 use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
 use std::fmt;
@@ -44,17 +45,18 @@ impl fmt::Display for Constraint {
 /// a set of constraints used in the process of delivering this bundle.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct BundlePack {
-    pub bundle: Bundle,
-    pub receiver: EndpointID,
+    pub source: EndpointID,
+    pub destination: EndpointID,
     pub timestamp: u64,
     pub id: String,
+    pub administrative: bool,
     pub size: usize,
-    constraints: HashSet<Constraint>,
+    pub constraints: HashSet<Constraint>,
 }
 
 impl fmt::Display for BundlePack {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{} {:?}", self.bundle.id(), self.constraints)
+        write!(f, "{} {:?}", self.id(), self.constraints)
     }
 }
 
@@ -63,14 +65,38 @@ impl From<Bundle> for BundlePack {
     fn from(mut bundle: Bundle) -> Self {
         let bid = bundle.id();
         let size = bundle.to_cbor().len();
+        let source = bundle.primary.source.clone();
+        let destination = bundle.primary.destination.clone();
         BundlePack {
-            receiver: bundle.primary.destination.clone(),
-            bundle,
+            source,
+            destination,
             timestamp: SystemTime::now()
                 .duration_since(UNIX_EPOCH)
                 .expect("Time went backwards")
                 .as_millis() as u64,
             id: bid,
+            administrative: bundle.is_administrative_record(),
+            size,
+            constraints: HashSet::new(),
+        }
+    }
+}
+/// Create from a given bundle.
+impl From<&Bundle> for BundlePack {
+    fn from(mut bundle: &Bundle) -> Self {
+        let bid = bundle.id();
+        let size = bundle.clone().to_cbor().len();
+        let source = bundle.primary.source.clone();
+        let destination = bundle.primary.destination.clone();
+        BundlePack {
+            source,
+            destination,
+            timestamp: SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .expect("Time went backwards")
+                .as_millis() as u64,
+            id: bid,
+            administrative: bundle.is_administrative_record(),
             size,
             constraints: HashSet::new(),
         }
@@ -82,18 +108,17 @@ impl BundlePack {
         &self.id
     }
     pub fn sync(&self) -> Result<()> {
-        if !store_has_item(self.id()) {
-            store_push(self)?;
-        } else if !self.has_constraints() {
+        if !self.has_constraints() {
+            warn!("not constraints, removing bundle from store {}", self.id());
             store_remove(self.id());
         } else {
             // TODO: add update logic
-            store_update(self)?;
+            store_update_metadata(self)?;
         }
         Ok(())
     }
     pub fn has_receiver(&self) -> bool {
-        self.receiver != EndpointID::none()
+        self.destination != EndpointID::none()
     }
     pub fn has_constraint(&self, constraint: Constraint) -> bool {
         self.constraints.contains(&constraint)
@@ -116,26 +141,8 @@ impl BundlePack {
             self.add_constraint(Constraint::LocalEndpoint);
         }
     }
-    /// UpdateBundleAge updates the bundle's Bundle Age block based on its reception
-    /// timestamp, if such a block exists.
-    pub fn update_bundle_age(&mut self) -> Option<u64> {
-        if let Some(block) = self.bundle.extension_block_by_type_mut(BUNDLE_AGE_BLOCK) {
-            let mut new_age = 0 as u64; // TODO: lost fight with borrowchecker
-
-            if let CanonicalData::BundleAge(age) = block.data() {
-                let offset = SystemTime::now()
-                    .duration_since(UNIX_EPOCH)
-                    .expect("Time went backwards")
-                    .as_millis() as u64
-                    - self.timestamp;
-                new_age = age + offset;
-            }
-            if new_age != 0 {
-                block.set_data(CanonicalData::BundleAge(new_age));
-                return Some(new_age);
-            }
-        }
-        None
+    pub fn set_constraints(&mut self, constraints: HashSet<Constraint>) {
+        self.constraints = constraints;
     }
     pub fn to_cbor(&self) -> bp7::ByteBuffer {
         serde_cbor::to_vec(self).expect("unexpected error converting BundlePack to cbor buffer")

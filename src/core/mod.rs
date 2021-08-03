@@ -10,8 +10,8 @@ pub use crate::core::peer::{DtnPeer, PeerType};
 use crate::core::store::BundleStore;
 use crate::routing::RoutingAgent;
 use crate::routing::RoutingAgentsEnum;
-use crate::store_get;
-pub use crate::{store_has_item, store_push};
+use crate::{store_get_bundle, store_get_metadata};
+pub use crate::{store_has_item, store_push_bundle};
 use crate::{PEERS, STORE};
 use application_agent::ApplicationAgent;
 use bp7::EndpointID;
@@ -84,19 +84,20 @@ impl DtnCore {
     pub fn eids(&self) -> Vec<String> {
         self.endpoints.iter().map(|e| e.eid().to_string()).collect()
     }
-    pub fn bundles(&self) -> Vec<String> {
-        (*STORE.lock())
-            .bundles()
-            .iter()
-            .map(|e| e.id().to_string())
-            .collect()
+    pub fn bundle_ids(&self) -> Vec<String> {
+        (*STORE.lock()).all_ids()
+    }
+    pub fn bundle_count(&self) -> usize {
+        (*STORE.lock()).count() as usize
     }
     pub fn bundle_names(&self) -> Vec<String> {
-        (*STORE.lock())
-            .bundles()
-            .iter()
-            .map(|e| e.bundle.to_string())
-            .collect()
+        (*STORE.lock()).all_ids()
+        // TODO: maybe restore old functionality
+        /*(*STORE.lock())
+        .bundles()
+        .iter()
+        .map(|e| e.bundle.to_string())
+        .collect()*/
     }
     pub fn is_in_endpoints(&self, eid: &EndpointID) -> bool {
         for aa in self.endpoints.iter() {
@@ -134,7 +135,8 @@ pub async fn process_bundles() {
     // TODO: check for possible race condition and double send when janitor is triggered while first forwarding attempt is in progress
     let forwarding_bundle_ids: Vec<String> = (*STORE.lock()).forwarding();
     for bpid in forwarding_bundle_ids {
-        if let Err(err) = crate::core::processing::forward(store_get(&bpid).unwrap()).await {
+        if let Err(err) = crate::core::processing::forward(store_get_metadata(&bpid).unwrap()).await
+        {
             error!("Error forwarding bundle: {}", err);
         }
     }

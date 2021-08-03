@@ -92,22 +92,25 @@ pub fn peer_find_by_remote(addr: &IpAddr) -> Option<String> {
     None
 }
 
-pub fn store_push(bp: &BundlePack) -> Result<()> {
-    (*STORE.lock()).push(&bp)
+pub fn store_push_bundle(bndl: &Bundle) -> Result<()> {
+    (*STORE.lock()).push(&bndl)
 }
 
 pub fn store_remove(bid: &str) {
     (*STORE.lock()).remove(bid);
 }
 
-pub fn store_update(bp: &BundlePack) -> Result<()> {
-    (*STORE.lock()).update(bp)
+pub fn store_update_metadata(bp: &BundlePack) -> Result<()> {
+    (*STORE.lock()).update_metadata(bp)
 }
 pub fn store_has_item(bid: &str) -> bool {
     (*STORE.lock()).has_item(bid)
 }
-pub fn store_get(bpid: &str) -> Option<BundlePack> {
-    Some((*STORE.lock()).get(bpid)?.clone())
+pub fn store_get_bundle(bpid: &str) -> Option<Bundle> {
+    Some((*STORE.lock()).get_bundle(bpid)?.clone())
+}
+pub fn store_get_metadata(bpid: &str) -> Option<BundlePack> {
+    Some((*STORE.lock()).get_metadata(bpid)?.clone())
 }
 
 pub fn store_delete_expired() {
@@ -115,11 +118,11 @@ pub fn store_delete_expired() {
 
     let expired: Vec<String> = pending_bids
         .iter()
-        .map(|b| (*STORE.lock()).get(b))
+        .map(|b| (*STORE.lock()).get_bundle(b))
         //.filter(|b| b.is_some())
         //.map(|b| b.unwrap())
         .filter_map(|b| b)
-        .filter(|e| e.bundle.primary.is_lifetime_exceeded())
+        .filter(|e| e.primary.is_lifetime_exceeded())
         .map(|e| e.id().into())
         .collect();
     for bid in expired {
