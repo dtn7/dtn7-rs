@@ -23,7 +23,7 @@ const CHECK_INTERVAL: Duration = Duration::from_millis(100);
 /// How often heartbeat pings are sent
 const HEARTBEAT_INTERVAL: Duration = Duration::from_secs(5);
 /// How long before lack of client response causes a timeout
-const CLIENT_TIMEOUT: Duration = Duration::from_secs(10);
+const CLIENT_TIMEOUT: Duration = Duration::from_secs(30);
 
 /// WebSocket Applicatin Agent Session
 #[derive(Debug, Clone, PartialEq)]
@@ -145,10 +145,12 @@ impl StreamHandler<Result<ws::Message, ws::ProtocolError>> for WsAASession {
         debug!("WEBSOCKET MESSAGE: {:?}", msg);
         match msg {
             ws::Message::Ping(msg) => {
+                debug!("WS PING");
                 self.hb = Instant::now();
                 ctx.pong(&msg);
             }
             ws::Message::Pong(_) => {
+                debug!("WS PONG");
                 self.hb = Instant::now();
             }
             ws::Message::Text(text) => {
@@ -262,6 +264,8 @@ impl StreamHandler<Result<ws::Message, ws::ProtocolError>> for WsAASession {
                             rt.spawn(
                                 async move { crate::core::processing::send_bundle(bndl).await },
                             );
+                            debug!("sent bundle");
+
                             ctx.text(format!("200 Sent payload with {} bytes", bin.len()));
                         } else {
                             ctx.text("400 Invalid binary bundle");
@@ -309,7 +313,7 @@ impl StreamHandler<Result<ws::Message, ws::ProtocolError>> for WsAASession {
                             bndl.set_crc(bp7::crc::CRC_NO);
 
                             debug!(
-                                "Sending bundle {} to {} from WS",
+                                "Sending bundle {} from data frame to {} from WS",
                                 bndl.id(),
                                 bndl.primary.destination
                             );
@@ -319,6 +323,7 @@ impl StreamHandler<Result<ws::Message, ws::ProtocolError>> for WsAASession {
                             rt.spawn(
                                 async move { crate::core::processing::send_bundle(bndl).await },
                             );
+                            debug!("sent bundle");
                             //crate::core::processing::send_through_task(bndl);
                             ctx.text(format!("200 Sent payload with {} bytes", b_len));
                         } else {
@@ -327,10 +332,12 @@ impl StreamHandler<Result<ws::Message, ws::ProtocolError>> for WsAASession {
                     }
                 }
             }
-            ws::Message::Close(_) => {
+            ws::Message::Close(reason) => {
+                debug!("Closing connection: {:?}", reason);
                 ctx.stop();
             }
-            ws::Message::Continuation(_) => {
+            ws::Message::Continuation(cont) => {
+                debug!("Continuation: {:?}", cont);
                 ctx.stop();
             }
             ws::Message::Nop => (),
@@ -355,7 +362,8 @@ impl WsAASession {
                 return;
             }
 
-            ctx.ping(b"");
+            debug!("sending ping");
+            ctx.ping(b"dtn7");
         });
     }
     /// helper method that checks for new bundles (DEPRICATED).

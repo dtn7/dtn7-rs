@@ -115,7 +115,7 @@ async fn index() -> impl Responder {
         janitor,
         timeout,
         num_peers: peers_count(),
-        num_bundles: (*DTNCORE.lock()).bundles().len(),
+        num_bundles: (*DTNCORE.lock()).bundle_count(),
     };
 
     let rendered = tt
@@ -207,7 +207,7 @@ async fn status_eids() -> String {
 }
 #[get("/status/bundles")]
 async fn status_bundles() -> String {
-    serde_json::to_string_pretty(&(*DTNCORE.lock()).bundles()).unwrap()
+    serde_json::to_string_pretty(&(*DTNCORE.lock()).bundle_ids()).unwrap()
 }
 #[get("/status/bundles_dest")]
 async fn status_bundles_dest() -> String {
@@ -377,7 +377,7 @@ async fn push_post(mut body: web::Payload) -> Result<String> {
     debug!("Received: {:?}", b_len);
     if let Ok(bndl) = bp7::Bundle::try_from(bytes.to_vec()) {
         info!("Received bundle {}", bndl.id());
-        if let Err(err) = crate::core::processing::receive(bndl.into()).await {
+        if let Err(err) = crate::core::processing::receive(bndl).await {
             warn!("Error processing bundle: {}", err);
             Err(actix_web::error::ErrorBadRequest(anyhow!(format!(
                 "Error processing bundle: {}",
@@ -540,8 +540,8 @@ async fn endpoint_hex(req: HttpRequest) -> Result<String> {
 #[get("/download")]
 async fn download(req: HttpRequest) -> Result<HttpResponse> {
     let bid = req.query_string();
-    if let Some(bundlepack) = (*STORE.lock()).get(&bid) {
-        let cbor_bundle = bundlepack.bundle.clone().to_cbor();
+    if let Some(bundle) = (*STORE.lock()).get_bundle(&bid) {
+        let cbor_bundle = bundle.clone().to_cbor();
         Ok(HttpResponse::Ok()
             .content_type("application/octet-stream")
             .body(cbor_bundle))
@@ -555,8 +555,8 @@ async fn download(req: HttpRequest) -> Result<HttpResponse> {
 #[get("/download.hex")]
 async fn download_hex(req: HttpRequest) -> Result<String> {
     let bid = req.query_string();
-    if let Some(bundlepack) = (*STORE.lock()).get(&bid) {
-        Ok(bp7::helpers::hexify(&bundlepack.bundle.clone().to_cbor()))
+    if let Some(bundle) = (*STORE.lock()).get_bundle(&bid) {
+        Ok(bp7::helpers::hexify(&bundle.clone().to_cbor()))
     } else {
         Err(actix_web::error::ErrorBadRequest(anyhow!(
             "Bundle not found"
