@@ -1,6 +1,6 @@
 [package]
 name = "dtn7"
-version = "0.15.0"
+version = "0.16.0"
 authors = ["Lars Baumgaertner <baumgaertner@cs.tu-darmstadt.de>"]
 description = "Rust delay-tolerant-networking daemon and CLI tools based upon bp7 (bundle protocol version 7 draft)"
 edition = "2018"
@@ -14,42 +14,42 @@ readme = "README.md"
 [dependencies]
 bp7 = "0.8.7"
 dtn7-plus = "0.4.6"
-d7sneakers = { version = "0.1.0" }
+d7sneakers = { version = "0.1.1", default-features = false }
 serde = { version = "1.0", features = ["derive"] }
 serde_cbor = "0.11"
 serde_json = "1.0"
 serde_bytes = "0.11"
 url = "2.2.2"
 rand = "0.8.3"
-tokio = { version = "0.2.22", features = ["rt-core", "rt-threaded", "tcp", "udp"] }
+#tokio = { version = "0.2.22", features = ["rt-core", "rt-threaded", "tcp", "udp"] }
 #tokio = { version = "1.8.1", features = ["full"] }
-#tokio = { version = "1.9.0", features = ["net", "time"] }
-tokio-util = { version = "0.3.1", features = ["codec"] }
+tokio = { version = "1.9.0", features = ["full"] }
+tokio-util = { version = "0.6.7", features = ["codec"] }
 futures = "0.3.5"
 futures-util = "0.3.5"
 pretty_env_logger = "0.4.0"
 log = "0.4"
 net2 = "0.2"
-bytes = "0.5.6"
+bytes = "1.0.1"
 clap = "2.33.3"
 config = "0.11.0"
 lazy_static = "1.4.0"
 anyhow = "1.0.32"
 parking_lot = "0.11"
-actix = "0.10.0"
-actix-web = "3.3.2"
-actix-rt = "1.1.1"
 async-trait = "0.1.40"
 attohttpc = { version = "0.17", default-features = false }
 tinytemplate = "1.1.0"
 humantime = "2.0.1"
-actix-web-actors = "3.0.0"
-ws = "0.9.1"
 tempfile = "3.1.0"
 humansize = "1.1.0"
 sled = "0.34.4"
 enum_dispatch = "0.3.7"
 derive_more = "0.99.14"
+axum = { version="0.1.2", features = ["ws"] }
+http = "0.2.4"
+#tower = "0.4.8"
+hyper = "0.14.11"
+ws = "0.9.1"
 #rweb = { version = "0.4.0", default-features = false }
 
 [lib]

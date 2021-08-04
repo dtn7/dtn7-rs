@@ -13,7 +13,7 @@ use std::net::SocketAddr;
 use tokio::net::UdpSocket;
 use tokio::time::interval;
 
-async fn receiver(mut socket: UdpSocket) -> Result<(), io::Error> {
+async fn receiver(socket: UdpSocket) -> Result<(), io::Error> {
     let mut buf: Vec<u8> = vec![0; 1024 * 64];
     loop {
         if let Ok((size, peer)) = socket.recv_from(&mut buf).await {
@@ -43,7 +43,7 @@ async fn receiver(mut socket: UdpSocket) -> Result<(), io::Error> {
     }
 }
 
-async fn announcer(mut socket: UdpSocket, _v6: bool) {
+async fn announcer(socket: UdpSocket, _v6: bool) {
     let mut task = interval(crate::CONFIG.lock().announcement_interval);
     loop {
         debug!("waiting announcer");
@@ -176,7 +176,6 @@ pub async fn spawn_neighbour_discovery() -> Result<()> {
         info!("Listening on {}", socket1.local_addr()?);
 
         tokio::spawn(receiver(socket1));
-
         tokio::spawn(announcer(socket2, true));
     }
 

@@ -39,7 +39,7 @@ echo echo1 out: $OUT_ECHO1
 echo
 
 echo "Sending 3 pings to node1"
-$DIR/../target/$TARGET/examples/dtnping -t 'dtn://node1/echo' -c 6
+$DIR/../target/$TARGET/examples/dtnping -t 'dtn://node1/echo' -c 6 -v
 
 echo "Press any key to stop daemons and clean up logs"
 read -n 1

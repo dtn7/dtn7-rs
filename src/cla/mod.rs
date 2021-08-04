@@ -2,12 +2,12 @@ pub mod dummy;
 pub mod http;
 pub mod mtcp;
 
+use self::http::HttpConvergenceLayer;
 use async_trait::async_trait;
 use bp7::ByteBuffer;
 use derive_more::*;
 use dummy::DummyConvergenceLayer;
 use enum_dispatch::enum_dispatch;
-use http::HttpConvergenceLayer;
 use mtcp::MtcpConvergenceLayer;
 use std::fmt::{Debug, Display};
 use std::net::IpAddr;

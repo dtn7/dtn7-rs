@@ -1,9 +1,7 @@
-use crate::store_has_item;
-use crate::store_push_bundle;
 use crate::store_remove;
 use crate::store_update_metadata;
 use anyhow::Result;
-use bp7::{Bundle, CanonicalData, EndpointID, BUNDLE_AGE_BLOCK};
+use bp7::{Bundle, EndpointID};
 use log::warn;
 use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
@@ -83,7 +81,7 @@ impl From<Bundle> for BundlePack {
 }
 /// Create from a given bundle.
 impl From<&Bundle> for BundlePack {
-    fn from(mut bundle: &Bundle) -> Self {
+    fn from(bundle: &Bundle) -> Self {
         let bid = bundle.id();
         let size = bundle.clone().to_cbor().len();
         let source = bundle.primary.source.clone();

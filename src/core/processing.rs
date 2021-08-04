@@ -46,7 +46,7 @@ pub fn send_through_task(bndl: Bundle) {
         tokio::spawn(sender_task(rx));
         *stask = Some(tx.clone());
     }
-    let mut tx = stask.as_ref().unwrap().clone();
+    let tx = stask.as_ref().unwrap().clone();
     //let mut rt = tokio::runtime::Runtime::new().unwrap();
     let rt = tokio::runtime::Handle::current();
     rt.spawn(async move { tx.send(bndl).await });
@@ -59,7 +59,7 @@ pub async fn send_through_task_async(bndl: Bundle) {
         tokio::spawn(sender_task(rx));
         *stask = Some(tx.clone());
     }
-    let mut tx = stask.as_ref().unwrap().clone();
+    let tx = stask.as_ref().unwrap().clone();
 
     if let Err(err) = tx.send(bndl).await {
         warn!("Transmission failed: {}", err);
@@ -464,7 +464,7 @@ pub async fn delete(mut bp: BundlePack, reason: StatusReportReason) -> Result<()
     if bndl.is_none() {
         bail!("bundle not found");
     }
-    let mut bndl = bndl.unwrap();
+    let bndl = bndl.unwrap();
     if bndl
         .primary
         .bundle_control_flags
@@ -590,7 +590,7 @@ async fn send_status_report(
         warn!("bundle not found when sending status report: {}", bp.id());
         return;
     }
-    let mut bndl = bndl.unwrap();
+    let bndl = bndl.unwrap();
     // Don't repond to other administrative records
     if bndl
         .primary

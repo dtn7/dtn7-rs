@@ -3,7 +3,6 @@ use crate::core::application_agent::SimpleApplicationAgent;
 use crate::core::helpers::rnd_peer;
 use crate::core::peer::PeerType;
 use crate::core::store::BundleStore;
-use crate::dtnd::ws::WsAASession;
 use crate::peers_count;
 use crate::DtnConfig;
 use crate::CONFIG;
@@ -11,22 +10,22 @@ use crate::DTNCORE;
 use crate::PEERS;
 use crate::STATS;
 use crate::STORE;
-use actix_web::dev::RequestHead;
-use actix_web::HttpResponse;
-use actix_web::{
-    get, http::StatusCode, post, web, App, Error, HttpRequest, HttpServer, Responder, Result,
-};
-use actix_web_actors::ws;
-
-use anyhow::anyhow;
+use anyhow::Result;
+use axum::prelude::*;
+use axum::response::Html;
+use axum::ws::ws;
 use bp7::dtntime::CreationTimestamp;
 use bp7::helpers::rnd_bundle;
 use bp7::EndpointID;
-use futures::StreamExt;
+use http::StatusCode;
+use humansize::{file_size_opts, FileSize};
 use log::{debug, info, warn};
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 use std::convert::{TryFrom, TryInto};
 use tinytemplate::TinyTemplate;
+
+/*
 
 #[get("/ws", guard = "fn_guard_localhost")]
 async fn ws_application_agent(
@@ -35,7 +34,7 @@ async fn ws_application_agent(
 ) -> Result<HttpResponse, Error> {
     ws::start(WsAASession::new(), &req, stream)
 }
-
+*/
 // Begin of web UI specific structs
 
 #[derive(Serialize)]
@@ -79,7 +78,7 @@ struct BundleEntry {
 }
 
 // End of web UI specific structs
-
+/*
 pub fn fn_guard_localhost(req: &RequestHead) -> bool {
     if (*CONFIG.lock()).unsafe_httpd {
         return true;
@@ -97,9 +96,9 @@ pub fn fn_guard_localhost(req: &RequestHead) -> bool {
     }
     false
 }
-
-#[get("/")]
-async fn index() -> impl Responder {
+*/
+//#[get("/")]
+async fn index() -> Html<String> {
     // "dtn7 ctrl interface"
     let template_str = include_str!("../../webroot/index.html");
     let mut tt = TinyTemplate::new();
@@ -121,13 +120,11 @@ async fn index() -> impl Responder {
     let rendered = tt
         .render("index", &context)
         .expect("error rendering template");
-    HttpResponse::build(StatusCode::OK)
-        .content_type("text/html; charset=utf-8")
-        .body(rendered)
+    Html(rendered)
 }
 
-#[get("/peers")]
-async fn web_peers() -> impl Responder {
+//#[get("/peers")]
+async fn web_peers() -> Html<String> {
     // "dtn7 ctrl interface"
     let template_str = include_str!("../../webroot/peers.html");
     let mut tt = TinyTemplate::new();
@@ -162,14 +159,11 @@ async fn web_peers() -> impl Responder {
     let rendered = tt
         .render("peers", &context)
         .expect("error rendering template");
-    HttpResponse::build(StatusCode::OK)
-        .content_type("text/html; charset=utf-8")
-        .body(rendered)
+    Html(rendered)
 }
 
-use humansize::{file_size_opts, FileSize};
-#[get("/bundles")]
-async fn web_bundles() -> impl Responder {
+//#[get("/bundles")]
+async fn web_bundles() -> Html<String> {
     // "dtn7 ctrl interface"
     let template_str = include_str!("../../webroot/bundles.html");
     let mut tt = TinyTemplate::new();
@@ -191,71 +185,72 @@ async fn web_bundles() -> impl Responder {
     let rendered = tt
         .render("bundles", &context)
         .expect("error rendering template");
-    HttpResponse::build(StatusCode::OK)
-        .content_type("text/html; charset=utf-8")
-        .body(rendered)
+    Html(rendered)
 }
 
-#[get("/status/nodeid")]
+//#[get("/status/nodeid")]
 async fn status_node_id() -> String {
     (*CONFIG.lock()).host_eid.to_string()
 }
 
-#[get("/status/eids")]
+//#[get("/status/eids")]
 async fn status_eids() -> String {
     serde_json::to_string_pretty(&(*DTNCORE.lock()).eids()).unwrap()
 }
-#[get("/status/bundles")]
+//#[get("/status/bundles")]
 async fn status_bundles() -> String {
     serde_json::to_string_pretty(&(*DTNCORE.lock()).bundle_ids()).unwrap()
 }
-#[get("/status/bundles_dest")]
+//#[get("/status/bundles_dest")]
 async fn status_bundles_dest() -> String {
     serde_json::to_string_pretty(&(*DTNCORE.lock()).bundle_names()).unwrap()
 }
-#[get("/status/store", guard = "fn_guard_localhost")]
+//#[get("/status/store", guard = "fn_guard_localhost")]
 async fn status_store() -> String {
     serde_json::to_string_pretty(&(*STORE.lock()).bundles_status()).unwrap()
 }
-#[get("/status/peers")]
+//#[get("/status/peers")]
 async fn status_peers() -> String {
     let peers = &(*PEERS.lock()).clone();
     serde_json::to_string_pretty(&peers).unwrap()
 }
-#[get("/status/info")]
+//#[get("/status/info")]
 async fn status_info() -> String {
     let stats = &(*STATS.lock()).clone();
     serde_json::to_string_pretty(&stats).unwrap()
 }
-
-#[get("/cts", guard = "fn_guard_localhost")]
-async fn creation_timestamp() -> String {
+//#[get("/cts", guard = "fn_guard_localhost")]
+async fn get_creation_timestamp() -> String {
     let cts = bp7::CreationTimestamp::now();
     serde_json::to_string(&cts).unwrap()
 }
 
-#[get("/debug/rnd_bundle", guard = "fn_guard_localhost")]
+//#[get("/debug/rnd_bundle", guard = "fn_guard_localhost")]
 async fn debug_rnd_bundle() -> String {
-    println!("generating debug bundle");
+    debug!("inserting debug bundle");
     let b = rnd_bundle(CreationTimestamp::now());
     let res = b.id();
     crate::core::processing::send_bundle(b).await;
     res
 }
 
-#[get("/debug/rnd_peer", guard = "fn_guard_localhost")]
+//#[get("/debug/rnd_peer", guard = "fn_guard_localhost")]
 async fn debug_rnd_peer() -> String {
-    println!("generating debug peer");
+    debug!("inserting debug peer");
     let p = rnd_peer();
     let res = serde_json::to_string_pretty(&p).unwrap();
     (*PEERS.lock()).insert(p.eid.node().unwrap_or_default(), p);
     res
 }
-#[get("/insert", guard = "fn_guard_localhost")]
-async fn insert_get(req: HttpRequest) -> Result<String> {
-    debug!("REQ: {:?}", req);
-    debug!("BUNDLE: {}", req.query_string());
-    let bundle = req.query_string();
+
+//#[get("/insert", guard = "fn_guard_localhost")]
+async fn insert_get(extract::RawQuery(query): extract::RawQuery) -> Result<String, StatusCode> {
+    debug!("REQ: {:?}", query);
+    if query.is_none() {
+        return Err(StatusCode::BAD_REQUEST);
+    }
+    let bundle = query.unwrap();
+    debug!("BUNDLE: {}", bundle);
 
     if bundle.chars().all(char::is_alphanumeric) {
         if let Ok(hexstr) = bp7::helpers::unhexify(&bundle) {
@@ -270,27 +265,19 @@ async fn insert_get(req: HttpRequest) -> Result<String> {
                 crate::core::processing::send_bundle(bndl).await;
                 Ok(format!("Sent {} bytes", b_len))
             } else {
-                Err(actix_web::error::ErrorBadRequest(anyhow!(
-                    "Error decoding bundle!"
-                )))
+                Err(StatusCode::BAD_REQUEST)
             }
         } else {
-            Err(actix_web::error::ErrorBadRequest(anyhow!(
-                "Error parsing bundle!"
-            )))
+            Err(StatusCode::BAD_REQUEST)
         }
     } else {
-        Err(actix_web::error::ErrorBadRequest(anyhow!(
-            "Not a valid bundle hex string!"
-        )))
+        Err(StatusCode::BAD_REQUEST)
     }
 }
-#[post("/insert", guard = "fn_guard_localhost")]
-async fn insert_post(mut body: web::Payload) -> Result<String> {
-    let mut bytes = web::BytesMut::new();
-    while let Some(item) = body.next().await {
-        bytes.extend_from_slice(&item?);
-    }
+
+//#[post("/insert", guard = "fn_guard_localhost")]
+async fn insert_post(body: bytes::Bytes) -> Result<String, (StatusCode, &'static str)> {
+    let bytes = body.to_vec();
     let b_len = bytes.len();
     debug!("Received: {:?}", b_len);
     if let Ok(bndl) = bp7::Bundle::try_from(bytes.to_vec()) {
@@ -303,20 +290,20 @@ async fn insert_post(mut body: web::Payload) -> Result<String> {
         crate::core::processing::send_bundle(bndl).await;
         Ok(format!("Sent {} bytes", b_len))
     } else {
-        Err(actix_web::error::ErrorBadRequest(anyhow!(
-            "Error decoding bundle!"
-        )))
+        Err((StatusCode::BAD_REQUEST, "Error decoding bundle!"))
     }
 }
 
-#[post("/send", guard = "fn_guard_localhost")]
-async fn send_post(req: HttpRequest, mut body: web::Payload) -> Result<String> {
-    let params = url::form_urlencoded::parse(req.query_string().as_bytes());
+//#[post("/send", guard = "fn_guard_localhost")]
+async fn send_post(
+    query_params: extract::Query<HashMap<String, String>>,
+    body: bytes::Bytes,
+) -> Result<String, (StatusCode, &'static str)> {
     let mut dst: EndpointID = EndpointID::none();
     let mut lifetime = std::time::Duration::from_secs(60 * 60);
-    for (k, v) in params {
+    for (k, v) in query_params.iter() {
         if k == "dst" {
-            dst = v.to_string().try_into().unwrap();
+            dst = v.as_str().try_into().unwrap();
         } else if k == "lifetime" {
             if let Ok(dur) = humantime::parse_duration(&v) {
                 lifetime = dur;
@@ -324,9 +311,7 @@ async fn send_post(req: HttpRequest, mut body: web::Payload) -> Result<String> {
         }
     }
     if dst == EndpointID::none() {
-        return Err(actix_web::error::ErrorBadRequest(anyhow!(
-            "Missing destination endpoint id!"
-        )));
+        return Err((StatusCode::BAD_REQUEST, "Missing destination endpoint id!"));
     }
     let src = (*CONFIG.lock()).host_eid.clone();
     let pblock = bp7::primary::PrimaryBlockBuilder::default()
@@ -341,10 +326,8 @@ async fn send_post(req: HttpRequest, mut body: web::Payload) -> Result<String> {
         .build()
         .unwrap();
 
-    let mut bytes = web::BytesMut::new();
-    while let Some(item) = body.next().await {
-        bytes.extend_from_slice(&item?);
-    }
+    let bytes = body.to_vec();
+
     let b_len = bytes.len();
     debug!("Received for sending: {:?}", b_len);
     let mut bndl = bp7::bundle::BundleBuilder::default()
@@ -367,40 +350,44 @@ async fn send_post(req: HttpRequest, mut body: web::Payload) -> Result<String> {
     Ok(format!("Sent payload with {} bytes", b_len))
 }
 
-#[post("/push")]
-async fn push_post(mut body: web::Payload) -> Result<String> {
-    let mut bytes = web::BytesMut::new();
-    while let Some(item) = body.next().await {
-        bytes.extend_from_slice(&item?);
-    }
+//#[post("/push")]
+async fn push_post(body: bytes::Bytes) -> Result<String, (StatusCode, String)> {
+    let bytes = body.to_vec();
+
     let b_len = bytes.len();
     debug!("Received: {:?}", b_len);
     if let Ok(bndl) = bp7::Bundle::try_from(bytes.to_vec()) {
         info!("Received bundle {}", bndl.id());
         if let Err(err) = crate::core::processing::receive(bndl).await {
             warn!("Error processing bundle: {}", err);
-            Err(actix_web::error::ErrorBadRequest(anyhow!(format!(
-                "Error processing bundle: {}",
-                err
-            ))))
+            Err((
+                StatusCode::BAD_REQUEST,
+                format!("Error processing bundle: {}", err),
+            ))
         } else {
             Ok(format!("Received {} bytes", b_len))
         }
     } else {
-        Err(actix_web::error::ErrorBadRequest(anyhow!(
-            "Error decoding bundle!"
-        )))
+        Err((
+            StatusCode::BAD_REQUEST,
+            "Error decoding bundle!".to_string(),
+        ))
     }
 }
 
-#[get("/register", guard = "fn_guard_localhost")]
-async fn register(req: HttpRequest) -> Result<String> {
-    let path = req.query_string();
+//#[get("/register", guard = "fn_guard_localhost")]
+async fn register(
+    extract::RawQuery(query): extract::RawQuery,
+) -> Result<String, (StatusCode, &'static str)> {
+    if query.is_none() {
+        return Err((StatusCode::BAD_REQUEST, "missing query parameter"));
+    }
+    let path = query.unwrap();
     // TODO: support non-node-specific EIDs
     if path.chars().all(char::is_alphanumeric) {
         let host_eid = (*CONFIG.lock()).host_eid.clone();
         let eid = host_eid
-            .new_endpoint(path)
+            .new_endpoint(&path)
             .expect("Error constructing new endpoint");
         (*DTNCORE.lock())
             .register_application_agent(SimpleApplicationAgent::with(eid.clone()).into());
@@ -411,20 +398,26 @@ async fn register(req: HttpRequest) -> Result<String> {
                 .register_application_agent(SimpleApplicationAgent::with(eid.clone()).into());
             Ok(format!("Registered URI: {}", eid))
         } else {
-            Err(actix_web::error::ErrorBadRequest(anyhow!(
-                "Malformed endpoint path, only alphanumeric strings or endpoint URIs are allowed!"
-            )))
+            Err((
+                StatusCode::BAD_REQUEST,
+                "Malformed endpoint path, only alphanumeric strings or endpoint URIs are allowed!",
+            ))
         }
     }
 }
 
-#[get("/unregister", guard = "fn_guard_localhost")]
-async fn unregister(req: HttpRequest) -> Result<String> {
-    let path = req.query_string();
+//#[get("/unregister", guard = "fn_guard_localhost")]
+async fn unregister(
+    extract::RawQuery(query): extract::RawQuery,
+) -> Result<String, (StatusCode, &'static str)> {
+    if query.is_none() {
+        return Err((StatusCode::BAD_REQUEST, "missing query parameter"));
+    }
+    let path = query.unwrap();
     if path.chars().all(char::is_alphanumeric) {
         let host_eid = (*CONFIG.lock()).host_eid.clone();
         let eid = host_eid
-            .new_endpoint(path)
+            .new_endpoint(&path)
             .expect("Error constructing new endpoint");
 
         (*DTNCORE.lock())
@@ -436,71 +429,70 @@ async fn unregister(req: HttpRequest) -> Result<String> {
                 .unregister_application_agent(SimpleApplicationAgent::with(eid.clone()).into());
             Ok(format!("Unregistered URI: {}", eid))
         } else {
-            Err(actix_web::error::ErrorBadRequest(anyhow!(
-                "Malformed endpoint path, only alphanumeric strings or endpoint URIs are allowed!"
-            )))
+            Err((
+                StatusCode::BAD_REQUEST,
+                "Malformed endpoint path, only alphanumeric strings or endpoint URIs are allowed!",
+            ))
         }
     }
 }
 
-#[get("/endpoint", guard = "fn_guard_localhost")]
-async fn endpoint(req: HttpRequest) -> Result<HttpResponse> {
-    let path = req.query_string();
+//#[get("/endpoint", guard = "fn_guard_localhost")]
+async fn endpoint(
+    extract::RawQuery(query): extract::RawQuery,
+) -> Result<Vec<u8>, (StatusCode, &'static str)> {
+    if query.is_none() {
+        return Err((StatusCode::BAD_REQUEST, "missing query parameter"));
+    }
+    let path = query.unwrap();
     if path.chars().all(char::is_alphanumeric) {
         let host_eid = (*CONFIG.lock()).host_eid.clone();
         let eid = host_eid
-            .new_endpoint(path)
+            .new_endpoint(&path)
             .expect("Error constructing new endpoint"); // TODO: support non-node-specific EIDs
         if let Some(aa) = (*DTNCORE.lock()).get_endpoint_mut(&eid) {
             if let Some(mut bundle) = aa.pop() {
                 let cbor_bundle = bundle.to_cbor();
-                Ok(HttpResponse::Ok()
-                    .content_type("application/octet-stream")
-                    .body(cbor_bundle))
+                Ok(cbor_bundle)
             } else {
-                Ok(HttpResponse::Ok()
-                    .content_type("plain/text")
-                    .body("Nothing to receive"))
+                Ok("Nothing to receive".as_bytes().to_vec())
             }
         } else {
-            //*response.status_mut() = StatusCode::NOT_FOUND;
-            Err(actix_web::error::ErrorBadRequest(anyhow!(
-                "No such endpoint registered!"
-            )))
+            Err((StatusCode::NOT_FOUND, "No such endpoint registered!"))
         }
     } else {
         if let Ok(eid) = EndpointID::try_from(path) {
             if let Some(aa) = (*DTNCORE.lock()).get_endpoint_mut(&eid) {
                 if let Some(mut bundle) = aa.pop() {
                     let cbor_bundle = bundle.to_cbor();
-                    Ok(HttpResponse::Ok()
-                        .content_type("application/octet-stream")
-                        .body(cbor_bundle))
+                    Ok(cbor_bundle)
                 } else {
-                    Ok(HttpResponse::Ok()
-                        .content_type("plain/text")
-                        .body("Nothing to receive"))
+                    Ok("Nothing to receive".as_bytes().to_vec())
                 }
             } else {
-                //*response.status_mut() = StatusCode::NOT_FOUND;
-                Err(actix_web::error::ErrorBadRequest(anyhow!(
-                    "No such endpoint registered!"
-                )))
+                Err((StatusCode::NOT_FOUND, "No such endpoint registered!"))
             }
         } else {
-            Err(actix_web::error::ErrorBadRequest(anyhow!(
-                "Malformed endpoint path, only alphanumeric strings allowed!"
-            )))
+            Err((
+                StatusCode::BAD_REQUEST,
+                "Malformed endpoint path, only alphanumeric strings allowed!",
+            ))
         }
     }
 }
-#[get("/endpoint.hex", guard = "fn_guard_localhost")]
-async fn endpoint_hex(req: HttpRequest) -> Result<String> {
-    let path = req.query_string();
+
+//#[get("/endpoint.hex", guard = "fn_guard_localhost")]
+async fn endpoint_hex(
+    extract::RawQuery(query): extract::RawQuery,
+) -> Result<String, (StatusCode, &'static str)> {
+    if query.is_none() {
+        return Err((StatusCode::BAD_REQUEST, "missing query parameter"));
+    }
+    let path = query.unwrap();
     if path.chars().all(char::is_alphanumeric) {
         let host_eid = (*CONFIG.lock()).host_eid.clone();
         let eid = host_eid
-            .new_endpoint(path)
+            .new_endpoint(&path)
             .expect("Error constructing new endpoint");
         // TODO: support non-node-specific EIDs
         if let Some(aa) = (*DTNCORE.lock()).get_endpoint_mut(&eid) {
@@ -510,10 +502,7 @@ async fn endpoint_hex(req: HttpRequest) -> Result<String> {
                 Ok("Nothing to receive".to_string())
             }
         } else {
-            //*response.status_mut() = StatusCode::NOT_FOUND;
-            Err(actix_web::error::ErrorBadRequest(anyhow!(
-                "No such endpoint registered!"
-            )))
+            Err((StatusCode::NOT_FOUND, "No such endpoint registered!"))
         }
     } else {
         if let Ok(eid) = EndpointID::try_from(path) {
@@ -524,83 +513,86 @@ async fn endpoint_hex(req: HttpRequest) -> Result<String> {
                     Ok("Nothing to receive".to_string())
                 }
             } else {
-                //*response.status_mut() = StatusCode::NOT_FOUND;
-                Err(actix_web::error::ErrorBadRequest(anyhow!(
-                    "No such endpoint registered!"
-                )))
+                Err((StatusCode::NOT_FOUND, "No such endpoint registered!"))
             }
         } else {
-            Err(actix_web::error::ErrorBadRequest(anyhow!(
-                "Malformed endpoint path, only alphanumeric strings allowed!"
-            )))
+            Err((
+                StatusCode::BAD_REQUEST,
+                "Malformed endpoint path, only alphanumeric strings allowed!",
+            ))
         }
     }
 }
 
-#[get("/download")]
-async fn download(req: HttpRequest) -> Result<HttpResponse> {
-    let bid = req.query_string();
-    if let Some(bundle) = (*STORE.lock()).get_bundle(&bid) {
-        let cbor_bundle = bundle.clone().to_cbor();
-        Ok(HttpResponse::Ok()
-            .content_type("application/octet-stream")
-            .body(cbor_bundle))
+//#[get("/download")]
+async fn download(
+    extract::RawQuery(query): extract::RawQuery,
+) -> Result<Vec<u8>, (StatusCode, &'static str)> {
+    if let Some(bid) = query {
+        if let Some(bundle) = (*STORE.lock()).get_bundle(&bid) {
+            let cbor_bundle = bundle.clone().to_cbor();
+            Ok(cbor_bundle)
+        } else {
+            Err((StatusCode::NOT_FOUND, "Bundle not found"))
+        }
     } else {
-        Err(actix_web::error::ErrorBadRequest(anyhow!(
-            "Bundle not found"
-        )))
+        Err((StatusCode::BAD_REQUEST, "Bundle ID not specified"))
     }
 }
 
-#[get("/download.hex")]
-async fn download_hex(req: HttpRequest) -> Result<String> {
-    let bid = req.query_string();
-    if let Some(bundle) = (*STORE.lock()).get_bundle(&bid) {
-        Ok(bp7::helpers::hexify(&bundle.clone().to_cbor()))
+async fn download_hex(
+    extract::RawQuery(query): extract::RawQuery,
+) -> Result<String, (StatusCode, &'static str)> {
+    if let Some(bid) = query {
+        if let Some(bundle) = (*STORE.lock()).get_bundle(&bid) {
+            Ok(bp7::helpers::hexify(&bundle.clone().to_cbor()))
+        } else {
+            Err((StatusCode::BAD_REQUEST, "Bundle not found"))
+        }
     } else {
-        Err(actix_web::error::ErrorBadRequest(anyhow!(
-            "Bundle not found"
-        )))
+        Err((http::StatusCode::BAD_REQUEST, "Bundle ID not specified"))
     }
 }
 
-pub async fn spawn_httpd() -> std::io::Result<()> {
+pub async fn spawn_httpd() -> Result<()> {
+    let app = route("/", get(index))
+        .route("/peers", get(web_peers))
+        .route("/bundles", get(web_bundles))
+        .route("/insert", get(insert_get))
+        .route("/download.hex", get(download_hex))
+        .route("/download", get(download))
+        .route("/insert", post(insert_post))
+        .route("/send", post(send_post))
+        .route("/push", post(push_post))
+        .route("/register", get(register))
+        .route("/unregister", get(unregister))
+        .route("/endpoint", get(endpoint))
+        .route("/endpoint.hex", get(endpoint_hex))
+        .route("/status/nodeid", get(status_node_id))
+        .route("/status/eids", get(status_eids))
+        .route("/status/bundles", get(status_bundles))
+        .route("/status/bundles_dest", get(status_bundles_dest))
+        .route("/status/store", get(status_store))
+        .route("/status/peers", get(status_peers))
+        .route("/status/info", get(status_info))
+        .route("/cts", get(get_creation_timestamp))
+        .route("/debug/rnd_bundle", get(debug_rnd_bundle))
+        .route("/debug/rnd_peer", get(debug_rnd_peer))
+        .route("/ws", ws(super::ws::handle_socket));
+
     let port = (*CONFIG.lock()).webport;
-    let server = HttpServer::new(|| {
-        App::new()
-            .service(index)
-            .service(web_peers)
-            .service(web_bundles)
-            .service(status_node_id)
-            .service(status_eids)
-            .service(status_bundles)
-            .service(status_bundles_dest)
-            .service(status_store)
-            .service(status_peers)
-            .service(status_info)
-            .service(creation_timestamp)
-            .service(debug_rnd_bundle)
-            .service(debug_rnd_peer)
-            .service(insert_get)
-            .service(insert_post)
-            .service(send_post)
-            .service(push_post)
-            .service(register)
-            .service(unregister)
-            .service(endpoint)
-            .service(endpoint_hex)
-            .service(download)
-            .service(download_hex)
-            .service(ws_application_agent)
-    });
+
     let v4 = (*CONFIG.lock()).v4;
     let v6 = (*CONFIG.lock()).v6;
+    //debug!("starting webserver");
     let server = if v4 && !v6 {
-        server.bind(&format!("0.0.0.0:{}", port))?
+        hyper::Server::bind(&format!("0.0.0.0:{}", port).parse()?)
     } else if !v4 && v6 {
-        server.bind(&format!("[::1]:{}", port))?
+        hyper::Server::bind(&format!("[::1]:{}", port).parse()?)
     } else {
-        server.bind(&format!("[::]:{}", port))?
-    };
-    server.run().await
+        hyper::Server::bind(&format!("[::]:{}", port).parse()?)
+    }
+    .serve(app.into_make_service());
+    server.await?;
+    Ok(())
 }

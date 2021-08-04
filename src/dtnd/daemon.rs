@@ -57,7 +57,7 @@ async fn start_convergencylayers() {
     }
 }
 
-pub async fn start_dtnd(cfg: DtnConfig) -> std::io::Result<()> {
+pub async fn start_dtnd(cfg: DtnConfig) -> anyhow::Result<()> {
     {
         (*CONFIG.lock()).set(cfg);
     }
@@ -134,5 +134,6 @@ pub async fn start_dtnd(cfg: DtnConfig) -> std::io::Result<()> {
             error!("Error spawning service discovery: {:?}", errmsg);
         }
     }
-    httpd::spawn_httpd().await
+    httpd::spawn_httpd().await?;
+    Ok(())
 }

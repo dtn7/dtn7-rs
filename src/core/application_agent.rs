@@ -1,12 +1,12 @@
-use actix::Addr;
 use bp7::{Bundle, EndpointID};
 use enum_dispatch::enum_dispatch;
 use log::{debug, info};
 use std::collections::VecDeque;
 use std::fmt::Debug;
+use tokio::sync::mpsc::Sender;
 
 use crate::dtnd::ws::BundleDelivery;
-use crate::dtnd::ws::WsAASession;
+//use crate::dtnd::ws::WsAASession;
 
 #[enum_dispatch]
 #[derive(Debug)]
@@ -19,16 +19,16 @@ pub trait ApplicationAgent: Debug {
     fn eid(&self) -> &EndpointID;
     fn push(&mut self, bundle: &Bundle);
     fn pop(&mut self) -> Option<Bundle>;
-    fn set_delivery_addr(&mut self, addr: Addr<WsAASession>);
+    fn set_delivery_addr(&mut self, addr: Sender<BundleDelivery>);
     fn clear_delivery_addr(&mut self);
-    fn delivery_addr(&self) -> Option<Addr<WsAASession>>;
+    fn delivery_addr(&self) -> Option<Sender<BundleDelivery>>;
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone)]
 pub struct SimpleApplicationAgent {
     eid: EndpointID,
     bundles: VecDeque<Bundle>,
-    delivery: Option<Addr<WsAASession>>,
+    delivery: Option<Sender<BundleDelivery>>,
 }
 
 impl ApplicationAgent for SimpleApplicationAgent {
@@ -42,7 +42,10 @@ impl ApplicationAgent for SimpleApplicationAgent {
         // attempt direct delivery to websocket
         if let Some(addr) = self.delivery_addr() {
             // TODO: remove clone and work with reference
-            addr.do_send(BundleDelivery { 0: bundle.clone() });
+
+            if addr.try_send(BundleDelivery { 0: bundle.clone() }).is_err() {
+                self.bundles.push_back(bundle.clone());
+            }
         } else {
             // save in temp buffer for delivery
             self.bundles.push_back(bundle.clone());
@@ -52,7 +55,7 @@ impl ApplicationAgent for SimpleApplicationAgent {
         self.bundles.pop_front()
     }
 
-    fn set_delivery_addr(&mut self, addr: Addr<WsAASession>) {
+    fn set_delivery_addr(&mut self, addr: Sender<BundleDelivery>) {
         self.delivery = Some(addr);
     }
 
@@ -60,7 +63,7 @@ impl ApplicationAgent for SimpleApplicationAgent {
         self.delivery = None;
     }
 
-    fn delivery_addr(&self) -> Option<Addr<WsAASession>> {
+    fn delivery_addr(&self) -> Option<Sender<BundleDelivery>> {
         self.delivery.clone()
     }
 }

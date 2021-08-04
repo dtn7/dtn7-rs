@@ -44,7 +44,7 @@ impl BundleStore for SledBundleStore {
         Ok(())
     }
     fn remove(&mut self, bid: &str) -> Result<()> {
-        let res = self.bundles.remove(bid)?;
+        let _res = self.bundles.remove(bid)?;
         if let Err(err) = self.bundles.flush() {
             error!("Could not flush database: {}", err);
         }
