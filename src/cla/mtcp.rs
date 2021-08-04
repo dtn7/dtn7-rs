@@ -189,7 +189,7 @@ pub struct MtcpConvergenceLayer {
 impl MtcpConvergenceLayer {
     async fn run(self) -> Result<(), io::Error> {
         let addr: SocketAddrV4 = format!("0.0.0.0:{}", self.port()).parse().unwrap();
-        let mut listener = TcpListener::bind(&addr)
+        let listener = TcpListener::bind(&addr)
             .await
             .expect("failed to bind tcp port");
         debug!("spawning MTCP listener on port {}", self.local_port);

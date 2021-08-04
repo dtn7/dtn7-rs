@@ -1,3 +1,5 @@
+#![recursion_limit = "256"]
+
 use clap::{crate_authors, crate_version, App, Arg};
 use dtn7::dtnd::daemon::*;
 use dtn7::DtnConfig;
@@ -6,8 +8,8 @@ use pretty_env_logger;
 use std::panic;
 use std::{convert::TryInto, process};
 
-#[actix_rt::main]
-async fn main() -> std::io::Result<()> {
+#[tokio::main]
+async fn main() -> Result<(), std::io::Error> {
     let mut cfg = DtnConfig::new();
     if cfg!(debug_assertions) {
         // Whenever a threads has a panic, quit the whole program!
@@ -325,5 +327,6 @@ Tag 255 takes 5 arguments and is interpreted as address. Usage: -S 255:'Samplest
     //DtnConfig::from(std::path::PathBuf::from(cfgfile));
     //}
     info!("starting dtnd");
-    start_dtnd(cfg).await
+    start_dtnd(cfg).await.unwrap();
+    Ok(())
 }
