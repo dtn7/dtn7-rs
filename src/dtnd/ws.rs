@@ -45,7 +45,7 @@ pub struct WsAASession {
     tx: mpsc::Sender<BundleDelivery>,
 }
 
-pub async fn handle_socket(mut socket: WebSocket) {
+pub async fn handle_socket(socket: WebSocket) {
     let (session, mut rx_bd) = WsAASession::new();
     let (mut sender, mut receiver) = socket.split();
 

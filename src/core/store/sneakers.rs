@@ -7,7 +7,6 @@ use d7sneakers::{Constraints, SneakerWorld};
 use log::{debug, error};
 use std::collections::HashSet;
 use std::fmt::Debug;
-use std::time::Instant;
 
 #[derive(Debug, Clone)]
 pub struct SneakersBundleStore {
