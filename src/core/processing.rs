@@ -121,6 +121,7 @@ pub async fn receive(mut bndl: Bundle) -> Result<()> {
         .primary
         .bundle_control_flags
         .has(BUNDLE_STATUS_REQUEST_RECEPTION)
+        && !bndl.is_administrative_record()
     {
         send_status_report(&bp, RECEIVED_BUNDLE, NO_INFORMATION).await;
     }
@@ -393,6 +394,7 @@ pub async fn forward(mut bp: BundlePack) -> Result<()> {
                 .primary
                 .bundle_control_flags
                 .has(bp7::bundle::BUNDLE_STATUS_REQUEST_FORWARD)
+                && !bndl.is_administrative_record()
             {
                 send_status_report(&bp, FORWARDED_BUNDLE, NO_INFORMATION).await;
             }
@@ -437,6 +439,7 @@ pub async fn local_delivery(mut bp: BundlePack) -> Result<()> {
             .primary
             .bundle_control_flags
             .has(bp7::bundle::BUNDLE_STATUS_REQUEST_DELIVERY)
+            && !bndl.is_administrative_record()
         {
             send_status_report(&bp, DELIVERED_BUNDLE, NO_INFORMATION).await;
         }
@@ -469,6 +472,7 @@ pub async fn delete(mut bp: BundlePack, reason: StatusReportReason) -> Result<()
         .primary
         .bundle_control_flags
         .has(bp7::bundle::BUNDLE_STATUS_REQUEST_DELETION)
+        && !bndl.is_administrative_record()
     {
         send_status_report(&bp, DELETED_BUNDLE, reason).await;
     }
@@ -613,9 +617,9 @@ async fn send_status_report(
     );
 
     /*let out_bndl = new_status_report_bundle(
-        &bp.bundle,
+        &bndl,
         (*CONFIG.lock()).host_eid.clone(),
-        bp.bundle.primary.crc.to_code(),
+        bndl.primary.crc.to_code(),
         status,
         reason,
     );*/

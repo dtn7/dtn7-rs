@@ -11,9 +11,13 @@ use crate::PEERS;
 use crate::STATS;
 use crate::STORE;
 use anyhow::Result;
-use axum::prelude::*;
+use async_trait::async_trait;
 use axum::response::Html;
 use axum::ws::ws;
+use axum::{
+    extract::{connect_info::ConnectInfo, extractor_middleware, RequestParts},
+    prelude::*,
+};
 use bp7::dtntime::CreationTimestamp;
 use bp7::helpers::rnd_bundle;
 use bp7::EndpointID;
@@ -23,8 +27,8 @@ use log::{debug, info, warn};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::convert::{TryFrom, TryInto};
+use std::net::SocketAddr;
 use tinytemplate::TinyTemplate;
-
 /*
 
 #[get("/ws", guard = "fn_guard_localhost")]
@@ -35,6 +39,41 @@ async fn ws_application_agent(
     ws::start(WsAASession::new(), &req, stream)
 }
 */
+
+struct RequireLocalhost;
+
+#[async_trait]
+impl<B> extract::FromRequest<B> for RequireLocalhost
+where
+    B: Send,
+{
+    type Rejection = StatusCode;
+
+    async fn from_request(conn: &mut RequestParts<B>) -> Result<Self, Self::Rejection> {
+        if (*CONFIG.lock()).unsafe_httpd {
+            return Ok(Self);
+        }
+        if let Some(ext) = conn.extensions() {
+            if let Some(ConnectInfo(addr)) = ext.get::<ConnectInfo<SocketAddr>>() {
+                if addr.ip().is_loopback() {
+                    return Ok(Self);
+                } else {
+                    if let std::net::IpAddr::V6(ipv6) = addr.ip() {
+                        // workaround for bug in std when handling IPv4 in IPv6 addresses
+                        if let Some(ipv4) = ipv6.to_ipv4() {
+                            if ipv4.is_loopback() {
+                                return Ok(Self);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        Err(StatusCode::FORBIDDEN)
+    }
+}
+
 // Begin of web UI specific structs
 
 #[derive(Serialize)]
@@ -78,25 +117,7 @@ struct BundleEntry {
 }
 
 // End of web UI specific structs
-/*
-pub fn fn_guard_localhost(req: &RequestHead) -> bool {
-    if (*CONFIG.lock()).unsafe_httpd {
-        return true;
-    }
-    if let Some(addr) = req.peer_addr {
-        if addr.ip().is_loopback() {
-            return true;
-        } else {
-            if let std::net::IpAddr::V6(ipv6) = addr.ip() {
-                if let Some(ipv4) = ipv6.to_ipv4() {
-                    return ipv4.is_loopback();
-                }
-            }
-        }
-    }
-    false
-}
-*/
+
 //#[get("/")]
 async fn index() -> Html<String> {
     // "dtn7 ctrl interface"
@@ -555,30 +576,31 @@ async fn download_hex(
 }
 
 pub async fn spawn_httpd() -> Result<()> {
-    let app = route("/", get(index))
-        .route("/peers", get(web_peers))
-        .route("/bundles", get(web_bundles))
-        .route("/insert", get(insert_get))
-        .route("/download.hex", get(download_hex))
-        .route("/download", get(download))
-        .route("/insert", post(insert_post))
-        .route("/send", post(send_post))
-        .route("/push", post(push_post))
+    let app_local_only = route("/send", post(send_post))
         .route("/register", get(register))
         .route("/unregister", get(unregister))
         .route("/endpoint", get(endpoint))
+        .route("/insert", get(insert_get).post(insert_post))
         .route("/endpoint.hex", get(endpoint_hex))
+        .route("/cts", get(get_creation_timestamp))
+        .route("/ws", ws(super::ws::handle_socket))
+        .route("/debug/rnd_bundle", get(debug_rnd_bundle))
+        .route("/debug/rnd_peer", get(debug_rnd_peer))
+        .layer(extractor_middleware::<RequireLocalhost>());
+    let app = app_local_only
+        .route("/", get(index))
+        .route("/peers", get(web_peers))
+        .route("/bundles", get(web_bundles))
+        .route("/download.hex", get(download_hex))
+        .route("/download", get(download))
+        .route("/push", post(push_post))
         .route("/status/nodeid", get(status_node_id))
         .route("/status/eids", get(status_eids))
         .route("/status/bundles", get(status_bundles))
         .route("/status/bundles_dest", get(status_bundles_dest))
         .route("/status/store", get(status_store))
         .route("/status/peers", get(status_peers))
-        .route("/status/info", get(status_info))
-        .route("/cts", get(get_creation_timestamp))
-        .route("/debug/rnd_bundle", get(debug_rnd_bundle))
-        .route("/debug/rnd_peer", get(debug_rnd_peer))
-        .route("/ws", ws(super::ws::handle_socket));
+        .route("/status/info", get(status_info));
 
     let port = (*CONFIG.lock()).webport;
 
@@ -592,7 +614,7 @@ pub async fn spawn_httpd() -> Result<()> {
     } else {
         hyper::Server::bind(&format!("[::]:{}", port).parse()?)
     }
-    .serve(app.into_make_service());
+    .serve(app.into_make_service_with_connect_info::<SocketAddr, _>());
     server.await?;
     Ok(())
 }
