@@ -30,7 +30,7 @@ impl Connection {
         let fname_param = format!("{}", data_file.path().display());
         let cmd_args = &mut self.command.split_whitespace();
         let mut command = Command::new(cmd_args.next().unwrap()); //empty string handled by clap
-        while let Some(arg) = cmd_args.next() {
+        for arg in cmd_args {
             command.arg(arg);
         }
         let output = command
@@ -53,7 +53,7 @@ impl Connection {
 
 impl Handler for Connection {
     fn on_open(&mut self, _: Handshake) -> Result<()> {
-        self.out.send(format!("/bundle"))?;
+        self.out.send("/bundle")?;
         Ok(())
     }
 
@@ -82,18 +82,14 @@ impl Handler for Connection {
                     Bundle::try_from(bin).expect("Error decoding bundle from server");
                 if bndl.is_administrative_record() {
                     eprintln!("Handling of administrative records not yet implemented!");
-                } else {
-                    if let Some(data) = bndl.payload() {
-                        if self.verbose {
-                            eprintln!("Bundle-Id: {}", bndl.id());
-                        }
-                        let data_file = self.write_temp_file(data)?;
-                        self.execute_cmd(data_file, &bndl)?;
-                    } else {
-                        if self.verbose {
-                            eprintln!("Unexpected payload!");
-                        }
+                } else if let Some(data) = bndl.payload() {
+                    if self.verbose {
+                        eprintln!("Bundle-Id: {}", bndl.id());
                     }
+                    let data_file = self.write_temp_file(data)?;
+                    self.execute_cmd(data_file, &bndl)?;
+                } else if self.verbose {
+                    eprintln!("Unexpected payload!");
                 }
             }
         }

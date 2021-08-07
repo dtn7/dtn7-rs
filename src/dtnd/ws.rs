@@ -7,7 +7,7 @@ use axum::ws::{Message, WebSocket};
 use bp7::{Bundle, CreationTimestamp, EndpointID};
 use dtn7_plus::client::{WsRecvData, WsSendData};
 use futures::{sink::SinkExt, stream::StreamExt};
-use log::{debug, info, warn};
+use log::{debug, warn};
 use std::collections::HashSet;
 use std::sync::Arc;
 use std::{
@@ -20,7 +20,7 @@ use tokio::time::interval;
 // Begin application agent WebSocket specific stuff
 
 /// How often new bundles are checked when no direct delivery happens (DEPRECATED)
-const CHECK_INTERVAL: Duration = Duration::from_millis(100);
+// const CHECK_INTERVAL: Duration = Duration::from_millis(100);
 /// How often heartbeat pings are sent
 const HEARTBEAT_INTERVAL: Duration = Duration::from_secs(5);
 /// How long before lack of client response causes a timeout
@@ -167,7 +167,7 @@ impl WsAASession {
                     bid: &bndl.id(),
                     src: &bndl.primary.source.to_string(),
                     dst: &bndl.primary.destination.to_string(),
-                    data: &bndl.payload().unwrap(),
+                    data: bndl.payload().unwrap(),
                 };
                 serde_cbor::to_vec(&recv).expect("Fatal error encoding WsRecvData")
             }
@@ -299,7 +299,7 @@ impl WsAASession {
             let bin = msg.as_bytes();
             match self.mode {
                 WsReceiveMode::Bundle => {
-                    if let Ok(bndl) = serde_cbor::from_slice::<bp7::Bundle>(&bin) {
+                    if let Ok(bndl) = serde_cbor::from_slice::<bp7::Bundle>(bin) {
                         debug!(
                             "Sending bundle {} to {} from WS",
                             bndl.id(),
@@ -321,7 +321,7 @@ impl WsAASession {
                     }
                 }
                 WsReceiveMode::Data => {
-                    if let Ok(send_req) = serde_cbor::from_slice::<WsSendData>(&bin) {
+                    if let Ok(send_req) = serde_cbor::from_slice::<WsSendData>(bin) {
                         //let src = (*CONFIG.lock()).host_eid.clone();
                         let bcf = if send_req.delivery_notification {
                             bp7::bundle::BUNDLE_MUST_NOT_FRAGMENTED
@@ -400,7 +400,7 @@ impl WsAASession {
                                     bid: &bundle.id(),
                                     src: &bundle.primary.source.to_string(),
                                     dst: &bundle.primary.destination.to_string(),
-                                    data: &bundle.payload().unwrap(),
+                                    data: bundle.payload().unwrap(),
                                 };
                                 serde_cbor::to_vec(&recv).expect("Fatal error encoding WsRecvData")
                             }

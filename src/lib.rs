@@ -12,6 +12,7 @@ use crate::routing::RoutingAgent;
 use bp7::{Bundle, EndpointID};
 use cla::CLAEnum;
 pub use dtnconfig::DtnConfig;
+use log::error;
 
 pub use crate::core::{DtnCore, DtnPeer};
 pub use crate::routing::RoutingNotifcation;
@@ -22,7 +23,7 @@ use lazy_static::*;
 use parking_lot::Mutex;
 use std::collections::HashMap;
 use std::net::IpAddr;
-use tokio::sync::mpsc::{channel, Receiver, Sender};
+use tokio::sync::mpsc::Sender;
 
 lazy_static! {
     pub static ref CONFIG: Mutex<DtnConfig> = Mutex::new(DtnConfig::new());
@@ -39,18 +40,18 @@ pub fn cla_add(cla: CLAEnum) {
 pub fn service_add(tag: u8, service: String) {
     (*DTNCORE.lock()).service_list.insert(tag, service);
 }
-pub fn add_discovery_destination(destination: &String) {
+pub fn add_discovery_destination(destination: &str) {
     (*CONFIG.lock())
         .discovery_destinations
-        .insert(destination.clone(), 0);
+        .insert(destination.to_string(), 0);
 }
 
-pub fn reset_sequence(destination: &String) {
+pub fn reset_sequence(destination: &str) {
     if let Some(sequence) = (*CONFIG.lock()).discovery_destinations.get_mut(destination) {
         *sequence = 0;
     }
 }
-pub fn get_sequence(destination: &String) -> u32 {
+pub fn get_sequence(destination: &str) -> u32 {
     if let Some(sequence) = (*CONFIG.lock()).discovery_destinations.get(destination) {
         *sequence
     } else {
@@ -93,11 +94,13 @@ pub fn peer_find_by_remote(addr: &IpAddr) -> Option<String> {
 }
 
 pub fn store_push_bundle(bndl: &Bundle) -> Result<()> {
-    (*STORE.lock()).push(&bndl)
+    (*STORE.lock()).push(bndl)
 }
 
 pub fn store_remove(bid: &str) {
-    (*STORE.lock()).remove(bid);
+    if let Err(err) = (*STORE.lock()).remove(bid) {
+        error!("store_remove: {}", err);
+    }
 }
 
 pub fn store_update_metadata(bp: &BundlePack) -> Result<()> {
@@ -107,10 +110,10 @@ pub fn store_has_item(bid: &str) -> bool {
     (*STORE.lock()).has_item(bid)
 }
 pub fn store_get_bundle(bpid: &str) -> Option<Bundle> {
-    Some((*STORE.lock()).get_bundle(bpid)?.clone())
+    (*STORE.lock()).get_bundle(bpid)
 }
 pub fn store_get_metadata(bpid: &str) -> Option<BundlePack> {
-    Some((*STORE.lock()).get_metadata(bpid)?.clone())
+    (*STORE.lock()).get_metadata(bpid)
 }
 
 pub fn store_delete_expired() {
@@ -121,9 +124,9 @@ pub fn store_delete_expired() {
         .map(|b| (*STORE.lock()).get_bundle(b))
         //.filter(|b| b.is_some())
         //.map(|b| b.unwrap())
-        .filter_map(|b| b)
+        .flatten()
         .filter(|e| e.primary.is_lifetime_exceeded())
-        .map(|e| e.id().into())
+        .map(|e| e.id())
         .collect();
     for bid in expired {
         store_remove(&bid);

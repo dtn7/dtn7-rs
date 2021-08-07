@@ -64,7 +64,7 @@ impl From<PathBuf> for DtnConfig {
         dtncfg.enable_period = s.get_bool("beacon-period").unwrap_or(false);
         debug!("announcing period: {:?}", dtncfg.enable_period);
         debug!("debug: {:?}", dtncfg.debug);
-        let nodeid = s.get_str("nodeid").unwrap_or(rnd_node_name());
+        let nodeid = s.get_str("nodeid").unwrap_or_else(|_| rnd_node_name());
         if nodeid.chars().all(char::is_alphanumeric) {
             dtncfg.host_eid = if let Ok(number) = nodeid.parse::<u64>() {
                 format!("ipn:{}.0", number).try_into().unwrap()
@@ -90,7 +90,7 @@ impl From<PathBuf> for DtnConfig {
         };
         debug!("workdir: {:?}", dtncfg.workdir);
 
-        dtncfg.db = s.get_str("db").unwrap_or("mem".into());
+        dtncfg.db = s.get_str("db").unwrap_or_else(|_| "mem".into());
         debug!("db: {:?}", dtncfg.db);
 
         dtncfg.webport = s
@@ -271,7 +271,7 @@ impl DtnConfig {
     // If no discovery destination is specified via CLI or config use the default discovery destinations
     // depending on whether to use ipv4 or ipv6
     pub fn check_destinations(&mut self) -> std::io::Result<()> {
-        if self.discovery_destinations.len() == 0 {
+        if self.discovery_destinations.is_empty() {
             match (self.v4, self.v6) {
                 (true, true) => {
                     self.discovery_destinations
@@ -299,7 +299,7 @@ impl DtnConfig {
     }
 
     /// Updates the beacon sequence number everytime a beacon is sent to a specific IP address
-    pub fn update_beacon_sequence_number(&mut self, destination: &String) {
+    pub fn update_beacon_sequence_number(&mut self, destination: &str) {
         if let Some(sequence) = self.discovery_destinations.get_mut(destination) {
             if *sequence == u32::MAX {
                 *sequence = 0;

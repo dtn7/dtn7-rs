@@ -44,7 +44,7 @@ pub fn send_through_task(bndl: Bundle) {
     if stask.is_none() {
         let (tx, rx) = channel(50);
         tokio::spawn(sender_task(rx));
-        *stask = Some(tx.clone());
+        *stask = Some(tx);
     }
     let tx = stask.as_ref().unwrap().clone();
     //let mut rt = tokio::runtime::Runtime::new().unwrap();
@@ -57,7 +57,7 @@ pub async fn send_through_task_async(bndl: Bundle) {
     if stask.is_none() {
         let (tx, rx) = channel(50);
         tokio::spawn(sender_task(rx));
-        *stask = Some(tx.clone());
+        *stask = Some(tx);
     }
     let tx = stask.as_ref().unwrap().clone();
 
@@ -83,7 +83,7 @@ pub async fn transmit(mut bp: BundlePack) -> Result<()> {
     debug!("SYNTIME {}", now.elapsed().as_millis());
 
     let src = &bp.source;
-    if src != &bp7::EndpointID::none() && (*DTNCORE.lock()).get_endpoint_mut(&src).is_none() {
+    if src != &bp7::EndpointID::none() && (*DTNCORE.lock()).get_endpoint_mut(src).is_none() {
         info!(
             "Bundle's source is neither dtn:none nor an endpoint of this node: {} {}",
             bp.id(),
@@ -238,7 +238,7 @@ async fn handle_primary_lifetime(bundle: &Bundle) -> Result<()> {
 pub fn update_bundle_age(bundle: &mut Bundle) -> Option<u64> {
     let bid = bundle.id();
     if let Some(block) = bundle.extension_block_by_type_mut(BUNDLE_AGE_BLOCK) {
-        let mut new_age = 0 as u64; // TODO: lost fight with borrowchecker
+        let mut new_age = 0; // TODO: lost fight with borrowchecker
         let bp = store_get_metadata(&bid)?;
 
         if let CanonicalData::BundleAge(age) = block.data() {
@@ -306,7 +306,7 @@ pub async fn forward(mut bp: BundlePack) -> Result<()> {
         bail!("bundle not found: {}", bpid);
     }
     let mut bndl = bndl.unwrap();
-    handle_primary_lifetime(&mut bndl).await?;
+    handle_primary_lifetime(&bndl).await?;
 
     let mut delete_afterwards = true;
     let bundle_sent = Arc::new(AtomicBool::new(false));
@@ -417,7 +417,7 @@ pub async fn forward(mut bp: BundlePack) -> Result<()> {
 pub async fn local_delivery(mut bp: BundlePack) -> Result<()> {
     info!("Received bundle for local delivery: {}", bp.id());
 
-    let bndl = store_get_bundle(&bp.id());
+    let bndl = store_get_bundle(bp.id());
     if bndl.is_none() {
         bail!("bundle not found");
     }
@@ -463,7 +463,7 @@ pub fn contraindicated(mut bp: BundlePack) -> Result<()> {
 }
 
 pub async fn delete(mut bp: BundlePack, reason: StatusReportReason) -> Result<()> {
-    let bndl = store_get_bundle(&bp.id());
+    let bndl = store_get_bundle(bp.id());
     if bndl.is_none() {
         bail!("bundle not found");
     }
@@ -589,7 +589,7 @@ async fn send_status_report(
     status: StatusInformationPos,
     reason: StatusReportReason,
 ) {
-    let bndl = store_get_bundle(&bp.id());
+    let bndl = store_get_bundle(bp.id());
     if bndl.is_none() {
         warn!("bundle not found when sending status report: {}", bp.id());
         return;

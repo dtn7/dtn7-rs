@@ -19,7 +19,11 @@ pub struct ServiceBlock {
     clas: Vec<(String, Option<u16>)>,
     services: HashMap<u8, Vec<u8>>,
 }
-
+impl Default for ServiceBlock {
+    fn default() -> Self {
+        Self::new()
+    }
+}
 impl ServiceBlock {
     /// Creates a new ServiceBlock without any services or clas
     pub fn new() -> ServiceBlock {
@@ -76,13 +80,13 @@ impl ServiceBlock {
     }
 
     /// This method adds a cla to the corresponding vector of a ServiceBlock
-    pub fn add_cla(&mut self, name: &String, port: &Option<u16>) {
-        self.clas.push((name.clone(), port.clone()))
+    pub fn add_cla(&mut self, name: &str, port: &Option<u16>) {
+        self.clas.push((name.to_owned(), *port))
     }
 
     /// This method adds a custom service to the HashMap of a ServiceBlock
-    pub fn add_custom_service(&mut self, tag: u8, service: &Vec<u8>) {
-        self.services.insert(tag, service.clone());
+    pub fn add_custom_service(&mut self, tag: u8, service: &[u8]) {
+        self.services.insert(tag, service.to_owned());
     }
     /// This method sets the clas vector of a ServiceBlock to the one provided
     pub fn set_clas(&mut self, clas: Vec<(String, Option<u16>)>) {
@@ -129,22 +133,23 @@ impl ServiceBlock {
             Service::BATTERY => {
                 let res = payload.parse::<i8>();
                 if let Ok(input) = res {
-                    if input > 100 || input < 0 {
+                    if !(0..=100).contains(&input) {
                         Err(String::from("Provided number can not be used to represent battery level. Please provide a number between 0 and 100"))
                     } else {
                         Ok((tag, input.to_be_bytes().to_vec()))
                     }
                 } else {
-                    Err(String::from(format!(
+                    Err(format!(
                         "Could not parse provided argument into an integer. {}",
                         res.expect_err("")
-                    )))
+                    ))
                 }
             }
+            // TODO: refactor this to geolocation
             // Address expects 5 arguments String Int Int String String to represent an address
             Service::ADDRESS => {
-                let input: Vec<&str> = payload.split_whitespace().collect();
-                if input.len() == 5 {
+                //let input: Vec<&str> = payload.split_whitespace().collect();
+                if payload.split_whitespace().count() == 5 {
                     Ok((tag, payload.as_bytes().to_vec()))
                 } else {
                     Err(String::from("Can not derive address from provided arguments. Argument order is: Street HouseNumber PostalNumber City CountryCode"))

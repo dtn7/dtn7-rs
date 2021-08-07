@@ -74,11 +74,11 @@ impl BundleStore for InMemoryBundleStore {
 
     fn get_bundle(&self, bpid: &str) -> Option<Bundle> {
         debug!("get_bundle {}", bpid);
-        self.bundles.get(bpid).map(|b| b.clone())
+        self.bundles.get(bpid).cloned()
     }
 
     fn get_metadata(&self, bpid: &str) -> Option<BundlePack> {
-        self.metadata.get(bpid).map(|b| b.clone())
+        self.metadata.get(bpid).cloned()
     }
 }
 

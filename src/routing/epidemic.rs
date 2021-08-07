@@ -75,7 +75,7 @@ impl RoutingAgent for EpidemicRoutingAgent {
                 };
             }
             RoutingNotifcation::IncomingBundleWithoutPreviousNode(bid, node_name) => {
-                self.incoming_bundle(&bid, &node_name);
+                self.incoming_bundle(bid, node_name);
             }
             _ => {}
         }
@@ -84,7 +84,7 @@ impl RoutingAgent for EpidemicRoutingAgent {
         let mut clas = Vec::new();
         for (_, p) in (*PEERS.lock()).iter() {
             if let Some(cla) = p.first_cla() {
-                if !self.contains(&bp.id(), &p.node_name()) {
+                if !self.contains(bp.id(), &p.node_name()) {
                     clas.push(cla);
                     self.add(bp.id().to_string(), p.node_name().clone());
                 }

@@ -150,6 +150,6 @@ impl BundlePack {
 /// Create from a given bundle.
 impl From<&[u8]> for BundlePack {
     fn from(buf: &[u8]) -> Self {
-        serde_cbor::from_slice(&buf).expect("unexpected error converting cbor buffer to BundlePack")
+        serde_cbor::from_slice(buf).expect("unexpected error converting cbor buffer to BundlePack")
     }
 }

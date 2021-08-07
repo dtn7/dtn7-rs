@@ -48,6 +48,7 @@ http = "0.2.4"
 #tower = "0.4.8"
 hyper = "0.14.11"
 ws = "0.9.1"
+tungstenite = "0.14.0"
 #rweb = { version = "0.4.0", default-features = false }
 
 [lib]

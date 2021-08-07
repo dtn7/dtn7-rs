@@ -67,7 +67,7 @@ impl DtnCore {
     }
 
     pub fn register_application_agent(&mut self, aa: ApplicationAgentEnum) {
-        if self.is_in_endpoints(&aa.eid()) {
+        if self.is_in_endpoints(aa.eid()) {
             info!("Application agent already registered for EID: {}", aa.eid());
         } else {
             info!("Registered new application agent for EID: {}", aa.eid());
