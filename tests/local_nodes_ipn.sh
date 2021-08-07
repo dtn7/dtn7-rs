@@ -1,6 +1,13 @@
 #!/bin/bash
 
-cargo build --bins
+TARGET=release
+#TARGET=debug
+
+if [ $TARGET = "debug" ]; then
+  cargo build --bins 
+else 
+  cargo build --release --bins
+fi
 
 if [ $? -ne 0 ]
 then
