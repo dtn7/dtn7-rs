@@ -88,10 +88,19 @@ jobs:
         uses: actions-rs/cargo@v1
         with:
           command: test
+      
+      - name: Run local ping/echo test
+        run: ./test/local_ping_echo.sh
+      
+      - name: Run local nodes dtn test
+        run: ./test/local_nodes_dtn.sh
+      
+      - name: Run local nodes ipn test
+        run: ./test/local_nodes_dtn.sh
 
     strategy:
       matrix:
-        os: [ubuntu-latest]
+        os: [ubuntu-latest, macos-latest ]
         rust: [stable]
 
   lints:
