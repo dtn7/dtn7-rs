@@ -62,7 +62,7 @@ pub fn plain_serialization() {
         print!("{:02x?} ", e);
     }
     println!("Beacon size: {}", &unwrapped.len());
-    println!("");
+    println!();
 
     let deserialized: Beacon = match serde_cbor::from_slice(&unwrapped) {
         Ok(pkt) => pkt,
@@ -103,9 +103,9 @@ pub fn serialization_with_service_block() {
         print!("{:02x?} ", e);
     }
 
-    println!("");
+    println!();
     println!("{}", &unwrapped.len());
-    println!("");
+    println!();
 
     let deserialized: Beacon = match serde_cbor::from_slice(&unwrapped) {
         Ok(pkt) => pkt,
@@ -136,7 +136,7 @@ pub fn serialization_with_beacon_period() {
         print!("{:02x?} ", e);
     }
 
-    println!("");
+    println!();
     println!("Beacon size: {}", &unwrapped.len());
 
     let deserialized: Beacon = match serde_cbor::from_slice(&unwrapped) {
@@ -173,7 +173,7 @@ pub fn serialization_with_full_config() {
         print!("{:02x?} ", e);
     }
 
-    println!("");
+    println!();
     println!("Packet size: {}", unwrapped.len());
 
     let deserialized: Beacon = match serde_cbor::from_slice(&unwrapped) {
@@ -304,11 +304,11 @@ pub fn check_time_for_deserialization_of_5000_beacons() {
 #[ignore]
 pub fn peer_validity_with_default_no_period() {
     let peer = helpers::rnd_peer();
-    assert_eq!(peer.still_valid(), true);
+    assert!(peer.still_valid());
     thread::sleep(Duration::from_secs(5));
-    assert_eq!(peer.still_valid(), true);
+    assert!(peer.still_valid());
     thread::sleep(Duration::from_secs(16));
-    assert_eq!(peer.still_valid(), false);
+    assert!(!peer.still_valid());
 }
 
 #[test]
@@ -316,11 +316,11 @@ pub fn peer_validity_with_default_no_period() {
 pub fn peer_validity_with_default_period() {
     let mut peer = helpers::rnd_peer();
     peer.period = Some(Duration::from_secs(5));
-    assert_eq!(peer.still_valid(), true);
+    assert!(peer.still_valid());
     thread::sleep(Duration::from_secs(5));
-    assert_eq!(peer.still_valid(), true);
+    assert!(peer.still_valid());
     thread::sleep(Duration::from_secs(6));
-    assert_eq!(peer.still_valid(), false);
+    assert!(!peer.still_valid());
 }
 
 #[test]
@@ -330,11 +330,11 @@ pub fn peer_validity_with_custom() {
     peer.period = Some(Duration::from_secs(5));
     (*CONFIG.lock()).custom_timeout = true;
     (*CONFIG.lock()).peer_timeout = Duration::from_secs(15);
-    assert_eq!(peer.still_valid(), true);
+    assert!(peer.still_valid());
     thread::sleep(Duration::from_secs(11));
-    assert_eq!(peer.still_valid(), true);
+    assert!(peer.still_valid());
     thread::sleep(Duration::from_secs(6));
-    assert_eq!(peer.still_valid(), false);
+    assert!(!peer.still_valid());
 }
 
 // Convenience functions for testing purposes
@@ -348,7 +348,7 @@ pub fn rnd_beacon() -> Beacon {
 
     let clas = ["mtcp", "http", "dummy"];
     let ports = [
-        20, 0, 5000, 1243, 513, 1241, 324, 9441, 2435, 6234, 23, 01, 45,
+        20, 0, 5000, 1243, 513, 1241, 324, 9441, 2435, 6234, 23, 1, 45,
     ];
 
     let services = if rnd_serviceblock < 50 {

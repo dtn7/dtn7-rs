@@ -2,9 +2,11 @@ use anyhow::{bail, Result};
 use clap::{crate_authors, crate_version, App, Arg};
 use dtn7_plus::client::{DtnClient, DtnWsConnection};
 use dtn7_plus::client::{Message, WsRecvData, WsSendData};
+use humantime::parse_duration;
 use rand::distributions::Alphanumeric;
 use rand::{thread_rng, Rng};
 use std::str::from_utf8;
+use std::time::Duration;
 use std::{convert::TryInto, io::Write};
 use std::{env, net::TcpStream};
 use std::{thread, time};
@@ -67,10 +69,10 @@ fn main() -> Result<()> {
                 .takes_value(false),
         )
         .arg(
-            Arg::with_name("target")
-                .short("t")
-                .long("target")
-                .help("Target to ping")
+            Arg::with_name("destination")
+                .short("d")
+                .long("destination")
+                .help("Destination to ping")
                 .required(true)
                 .takes_value(true),
         )
@@ -88,6 +90,13 @@ fn main() -> Result<()> {
                 .help("Number of pings to send")
                 .takes_value(true),
         )
+        .arg(
+            Arg::with_name("timeout")
+                .short("t")
+                .long("timeout")
+                .help("Time to wait for reply (10s, 30m, 2h, ...)")
+                .takes_value(true),
+        )
         .get_matches();
 
     let verbose: bool = matches.is_present("verbose");
@@ -100,10 +109,13 @@ fn main() -> Result<()> {
     };
     let payload_size: usize = matches.value_of("payloadsize").unwrap_or("64").parse()?;
     let count: i32 = matches.value_of("count").unwrap_or("-1").parse()?;
+    let timeout: Duration = parse_duration(matches.value_of("timeout").unwrap_or("2000y"))?;
 
-    let dst = matches.value_of("target").unwrap();
+    let dst = matches.value_of("destination").unwrap();
 
     let _dst_eid: bp7::EndpointID = dst.try_into()?;
+
+    let mut successful_pings = 0;
 
     let client = DtnClient::with_host_and_port(
         localhost.into(),
@@ -121,7 +133,10 @@ fn main() -> Result<()> {
     };
     client.register_application_endpoint(&endpoint)?;
 
-    let mut wscon = client.ws()?;
+    let stream = std::net::TcpStream::connect(&format!("127.0.0.1:{}", port))?;
+    stream.set_read_timeout(Some(timeout))?;
+    let mut wscon = client.ws_custom(stream)?;
+    //let mut wscon = client.ws()?;
 
     wscon.write_text("/data")?;
     let msg = wscon.read_text()?;
@@ -143,11 +158,11 @@ fn main() -> Result<()> {
     let mut seq_num: u64 = 0;
     let mut state = PingState::ReadyToSend;
     let mut sent_time = time::Instant::now();
-    println!("PING: {} -> {}", src, dst);
+    println!("\nPING: {} -> {}", src, dst);
     loop {
         if state == PingState::ReadyToSend {
             if count > 0 && seq_num == count as u64 {
-                return Ok(());
+                break;
             }
             send_ping(&mut wscon, payload_size, &src, dst)?;
             seq_num += 1;
@@ -157,7 +172,24 @@ fn main() -> Result<()> {
             state = PingState::Receiving;
         }
 
-        let msg = wscon.read_message()?;
+        let msg_result = wscon.read_message();
+
+        if let Err(err) = msg_result {
+            let tunstenite_err = err.downcast::<tungstenite::Error>()?;
+
+            if let tungstenite::error::Error::Io(io_err) = tunstenite_err {
+                if io_err.kind() == std::io::ErrorKind::WouldBlock {
+                    state = PingState::ReadyToSend;
+                    println!("[!] *** timeout ***");
+                    continue;
+                } else {
+                    anyhow::bail!(io_err);
+                }
+            } else {
+                anyhow::bail!(tunstenite_err);
+            }
+        }
+        let msg = msg_result.unwrap();
         match &msg {
             Message::Text(txt) => {
                 if txt.starts_with("200") {
@@ -170,16 +202,17 @@ fn main() -> Result<()> {
             }
             Message::Binary(bin) => {
                 let recv_data: WsRecvData =
-                    serde_cbor::from_slice(&bin).expect("Error decoding WsRecvData from server");
+                    serde_cbor::from_slice(bin).expect("Error decoding WsRecvData from server");
 
                 println!("[<] #{} : {:?}", seq_num, sent_time.elapsed());
+                successful_pings += 1;
                 if verbose {
                     eprintln!(
                         "Bundle-Id: {} // From: {} / To: {}",
                         recv_data.bid, recv_data.src, recv_data.dst
                     );
 
-                    if let Ok(data_str) = from_utf8(&recv_data.data) {
+                    if let Ok(data_str) = from_utf8(recv_data.data) {
                         eprintln!("Data: {}", data_str);
                     }
                 }
@@ -194,4 +227,11 @@ fn main() -> Result<()> {
             }
         }
     }
+
+    println!("\n[*] {} of {} pings successful", successful_pings, count);
+
+    if successful_pings < count {
+        std::process::exit(1);
+    }
+    Ok(())
 }

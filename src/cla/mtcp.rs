@@ -27,9 +27,9 @@ enum CborByteString {
 }
 
 fn cbor_parse_byte_string_len_first(input: u8) -> CborByteString {
-    let byte_string = 0b010_00000;
-    let type_mask = 0b111_00000;
-    let payload_mask = 0b000_11111;
+    let byte_string = 0b0100_0000;
+    let type_mask = 0b1110_0000;
+    let payload_mask = 0b0001_1111;
 
     if input & type_mask != byte_string {
         return CborByteString::Not;
@@ -114,6 +114,12 @@ pub struct MPDUCodec {
 impl MPDUCodec {
     pub fn new() -> MPDUCodec {
         MPDUCodec { last_pos: 0 }
+    }
+}
+
+impl Default for MPDUCodec {
+    fn default() -> Self {
+        Self::new()
     }
 }
 impl Encoder<MPDU> for MPDUCodec {

@@ -4,7 +4,7 @@ use crate::CONFIG;
 use anyhow::{bail, Result};
 use bp7::Bundle;
 use log::{debug, error};
-use std::convert::{TryFrom, TryInto};
+use std::convert::TryFrom;
 use std::fmt::Debug;
 
 #[derive(Debug, Clone)]
@@ -28,8 +28,7 @@ impl BundleStore for SledBundleStore {
             self.metadata.flush()?;
         }
         // TODO: eliminate double clone (here and in BundlePack::from)
-        self.bundles
-            .insert(bndl.id().to_string(), bndl.clone().to_cbor())?;
+        self.bundles.insert(bndl.id(), bndl.clone().to_cbor())?;
         self.bundles.flush()?;
 
         Ok(())
@@ -135,5 +134,11 @@ impl SledBundleStore {
             bundles: db.open_tree("bundles").expect("cannot open bundles tree"),
             metadata: db.open_tree("metadata").expect("cannot open bundles tree"),
         }
+    }
+}
+
+impl Default for SledBundleStore {
+    fn default() -> Self {
+        Self::new()
     }
 }

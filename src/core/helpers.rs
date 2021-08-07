@@ -72,7 +72,7 @@ pub fn rnd_peer() -> DtnPeer {
 /// parse_peer_url("mtcp://192.168.2.1");
 /// ```
 pub fn parse_peer_url(peer_url: &str) -> DtnPeer {
-    let u = Url::parse(&peer_url).expect("Static peer url parsing error");
+    let u = Url::parse(peer_url).expect("Static peer url parsing error");
     let scheme = u.scheme();
     if !crate::cla::convergence_layer_agents().contains(&scheme) {
         panic!("Unknown convergency layer selected: {}", scheme);
@@ -86,7 +86,7 @@ pub fn parse_peer_url(peer_url: &str) -> DtnPeer {
         scheme.into()
     };*/
     let nodeid = u.path();
-    if nodeid == "/" || nodeid == "" {
+    if nodeid == "/" || nodeid.is_empty() {
         panic!("Missing node id");
     }
     DtnPeer::new(

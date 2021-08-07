@@ -24,7 +24,7 @@ use bp7::EndpointID;
 use http::StatusCode;
 use humansize::{file_size_opts, FileSize};
 use log::{debug, info, warn};
-use serde::{Deserialize, Serialize};
+use serde::Serialize;
 use std::collections::HashMap;
 use std::convert::{TryFrom, TryInto};
 use std::net::SocketAddr;
@@ -57,13 +57,11 @@ where
             if let Some(ConnectInfo(addr)) = ext.get::<ConnectInfo<SocketAddr>>() {
                 if addr.ip().is_loopback() {
                     return Ok(Self);
-                } else {
-                    if let std::net::IpAddr::V6(ipv6) = addr.ip() {
-                        // workaround for bug in std when handling IPv4 in IPv6 addresses
-                        if let Some(ipv4) = ipv6.to_ipv4() {
-                            if ipv4.is_loopback() {
-                                return Ok(Self);
-                            }
+                } else if let std::net::IpAddr::V6(ipv6) = addr.ip() {
+                    // workaround for bug in std when handling IPv4 in IPv6 addresses
+                    if let Some(ipv4) = ipv6.to_ipv4() {
+                        if ipv4.is_loopback() {
+                            return Ok(Self);
                         }
                     }
                 }
@@ -166,7 +164,7 @@ async fn web_peers() -> Html<String> {
             };
             PeerEntry {
                 name: p.eid.to_string(),
-                con_type: p.con_type.clone(),
+                con_type: p.con_type,
                 last: time_since,
             }
         })
@@ -195,7 +193,7 @@ async fn web_bundles() -> Html<String> {
         .iter()
         .map(|bp| BundleInfo {
             id: bp.id.to_string(),
-            size: bp.size.file_size(file_size_opts::DECIMAL).unwrap().into(),
+            size: bp.size.file_size(file_size_opts::DECIMAL).unwrap(),
         })
         .collect();
     let context = BundlesContext {
@@ -326,7 +324,7 @@ async fn send_post(
         if k == "dst" {
             dst = v.as_str().try_into().unwrap();
         } else if k == "lifetime" {
-            if let Ok(dur) = humantime::parse_duration(&v) {
+            if let Ok(dur) = humantime::parse_duration(v) {
                 lifetime = dur;
             }
         }
@@ -413,17 +411,15 @@ async fn register(
         (*DTNCORE.lock())
             .register_application_agent(SimpleApplicationAgent::with(eid.clone()).into());
         Ok(format!("Registered {}", eid))
+    } else if let Ok(eid) = EndpointID::try_from(path) {
+        (*DTNCORE.lock())
+            .register_application_agent(SimpleApplicationAgent::with(eid.clone()).into());
+        Ok(format!("Registered URI: {}", eid))
     } else {
-        if let Ok(eid) = EndpointID::try_from(path) {
-            (*DTNCORE.lock())
-                .register_application_agent(SimpleApplicationAgent::with(eid.clone()).into());
-            Ok(format!("Registered URI: {}", eid))
-        } else {
-            Err((
-                StatusCode::BAD_REQUEST,
-                "Malformed endpoint path, only alphanumeric strings or endpoint URIs are allowed!",
-            ))
-        }
+        Err((
+            StatusCode::BAD_REQUEST,
+            "Malformed endpoint path, only alphanumeric strings or endpoint URIs are allowed!",
+        ))
     }
 }
 
@@ -444,17 +440,15 @@ async fn unregister(
         (*DTNCORE.lock())
             .unregister_application_agent(SimpleApplicationAgent::with(eid.clone()).into());
         Ok(format!("Unregistered {}", eid))
+    } else if let Ok(eid) = EndpointID::try_from(path) {
+        (*DTNCORE.lock())
+            .unregister_application_agent(SimpleApplicationAgent::with(eid.clone()).into());
+        Ok(format!("Unregistered URI: {}", eid))
     } else {
-        if let Ok(eid) = EndpointID::try_from(path) {
-            (*DTNCORE.lock())
-                .unregister_application_agent(SimpleApplicationAgent::with(eid.clone()).into());
-            Ok(format!("Unregistered URI: {}", eid))
-        } else {
-            Err((
-                StatusCode::BAD_REQUEST,
-                "Malformed endpoint path, only alphanumeric strings or endpoint URIs are allowed!",
-            ))
-        }
+        Err((
+            StatusCode::BAD_REQUEST,
+            "Malformed endpoint path, only alphanumeric strings or endpoint URIs are allowed!",
+        ))
     }
 }
 
@@ -481,24 +475,22 @@ async fn endpoint(
         } else {
             Err((StatusCode::NOT_FOUND, "No such endpoint registered!"))
         }
-    } else {
-        if let Ok(eid) = EndpointID::try_from(path) {
-            if let Some(aa) = (*DTNCORE.lock()).get_endpoint_mut(&eid) {
-                if let Some(mut bundle) = aa.pop() {
-                    let cbor_bundle = bundle.to_cbor();
-                    Ok(cbor_bundle)
-                } else {
-                    Ok("Nothing to receive".as_bytes().to_vec())
-                }
+    } else if let Ok(eid) = EndpointID::try_from(path) {
+        if let Some(aa) = (*DTNCORE.lock()).get_endpoint_mut(&eid) {
+            if let Some(mut bundle) = aa.pop() {
+                let cbor_bundle = bundle.to_cbor();
+                Ok(cbor_bundle)
             } else {
-                Err((StatusCode::NOT_FOUND, "No such endpoint registered!"))
+                Ok("Nothing to receive".as_bytes().to_vec())
             }
         } else {
-            Err((
-                StatusCode::BAD_REQUEST,
-                "Malformed endpoint path, only alphanumeric strings allowed!",
-            ))
+            Err((StatusCode::NOT_FOUND, "No such endpoint registered!"))
         }
+    } else {
+        Err((
+            StatusCode::BAD_REQUEST,
+            "Malformed endpoint path, only alphanumeric strings allowed!",
+        ))
     }
 }
 
@@ -525,23 +517,21 @@ async fn endpoint_hex(
         } else {
             Err((StatusCode::NOT_FOUND, "No such endpoint registered!"))
         }
-    } else {
-        if let Ok(eid) = EndpointID::try_from(path) {
-            if let Some(aa) = (*DTNCORE.lock()).get_endpoint_mut(&eid) {
-                if let Some(mut bundle) = aa.pop() {
-                    Ok(bp7::helpers::hexify(&bundle.to_cbor()))
-                } else {
-                    Ok("Nothing to receive".to_string())
-                }
+    } else if let Ok(eid) = EndpointID::try_from(path) {
+        if let Some(aa) = (*DTNCORE.lock()).get_endpoint_mut(&eid) {
+            if let Some(mut bundle) = aa.pop() {
+                Ok(bp7::helpers::hexify(&bundle.to_cbor()))
             } else {
-                Err((StatusCode::NOT_FOUND, "No such endpoint registered!"))
+                Ok("Nothing to receive".to_string())
             }
         } else {
-            Err((
-                StatusCode::BAD_REQUEST,
-                "Malformed endpoint path, only alphanumeric strings allowed!",
-            ))
+            Err((StatusCode::NOT_FOUND, "No such endpoint registered!"))
         }
+    } else {
+        Err((
+            StatusCode::BAD_REQUEST,
+            "Malformed endpoint path, only alphanumeric strings allowed!",
+        ))
     }
 }
 
@@ -550,8 +540,8 @@ async fn download(
     extract::RawQuery(query): extract::RawQuery,
 ) -> Result<Vec<u8>, (StatusCode, &'static str)> {
     if let Some(bid) = query {
-        if let Some(bundle) = (*STORE.lock()).get_bundle(&bid) {
-            let cbor_bundle = bundle.clone().to_cbor();
+        if let Some(mut bundle) = (*STORE.lock()).get_bundle(&bid) {
+            let cbor_bundle = bundle.to_cbor();
             Ok(cbor_bundle)
         } else {
             Err((StatusCode::NOT_FOUND, "Bundle not found"))
@@ -565,8 +555,8 @@ async fn download_hex(
     extract::RawQuery(query): extract::RawQuery,
 ) -> Result<String, (StatusCode, &'static str)> {
     if let Some(bid) = query {
-        if let Some(bundle) = (*STORE.lock()).get_bundle(&bid) {
-            Ok(bp7::helpers::hexify(&bundle.clone().to_cbor()))
+        if let Some(mut bundle) = (*STORE.lock()).get_bundle(&bid) {
+            Ok(bp7::helpers::hexify(&bundle.to_cbor()))
         } else {
             Err((StatusCode::BAD_REQUEST, "Bundle not found"))
         }

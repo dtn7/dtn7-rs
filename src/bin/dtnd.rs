@@ -4,7 +4,6 @@ use clap::{crate_authors, crate_version, App, Arg};
 use dtn7::dtnd::daemon::*;
 use dtn7::DtnConfig;
 use log::info;
-use pretty_env_logger;
 use std::panic;
 use std::{convert::TryInto, process};
 

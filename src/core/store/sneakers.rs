@@ -4,7 +4,7 @@ use crate::CONFIG;
 use anyhow::{bail, Result};
 use bp7::Bundle;
 use d7sneakers::{Constraints, SneakerWorld};
-use log::{debug, error};
+use log::debug;
 use std::collections::HashSet;
 use std::fmt::Debug;
 
@@ -75,6 +75,7 @@ impl BundleStore for SneakersBundleStore {
     }
 
     fn get_metadata(&self, bpid: &str) -> Option<BundlePack> {
+        // TODO: get real metadata from store instead of reconstructing it
         let bundle = self.store.fs.get_bundle(bpid);
         if bundle.is_err() {
             return None;
@@ -84,8 +85,7 @@ impl BundleStore for SneakersBundleStore {
             bp.set_constraints(convert_constraints_to_hashset(constraints));
         }
 
-        Some(bp);
-        todo!()
+        Some(bp)
     }
 }
 
@@ -97,6 +97,12 @@ impl SneakersBundleStore {
         debug!("syncing store fs/db");
         store.sync().expect("sync sneaker bundle store failed");
         SneakersBundleStore { store }
+    }
+}
+
+impl Default for SneakersBundleStore {
+    fn default() -> Self {
+        Self::new()
     }
 }
 fn convert_constraints_to_hashset(constraints: d7sneakers::Constraints) -> HashSet<Constraint> {

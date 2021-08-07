@@ -95,7 +95,7 @@ fn main() -> Result<()> {
             Message::Binary(bin) => {
                 let now = Instant::now();
                 let recv_data: WsRecvData =
-                    serde_cbor::from_slice(&bin).expect("Error decoding WsRecvData from server");
+                    serde_cbor::from_slice(bin).expect("Error decoding WsRecvData from server");
 
                 if verbose {
                     eprintln!(
@@ -103,7 +103,7 @@ fn main() -> Result<()> {
                         recv_data.bid, recv_data.src, recv_data.dst
                     );
 
-                    if let Ok(data_str) = from_utf8(&recv_data.data) {
+                    if let Ok(data_str) = from_utf8(recv_data.data) {
                         eprintln!("Data: {}", data_str);
                     }
                 } else {
@@ -119,7 +119,7 @@ fn main() -> Result<()> {
                     dst,
                     delivery_notification: false,
                     lifetime: 3600 * 24 * 1000,
-                    data: recv_data.data.into(),
+                    data: recv_data.data,
                 };
                 wscon
                     .write_binary(&serde_cbor::to_vec(&echo_response)?)

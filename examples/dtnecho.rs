@@ -14,7 +14,7 @@ struct Connection {
 
 impl Handler for Connection {
     fn on_open(&mut self, _: Handshake) -> Result<()> {
-        self.out.send(format!("/data"))?;
+        self.out.send("/data")?;
         Ok(())
     }
 
@@ -48,7 +48,7 @@ impl Handler for Connection {
                         recv_data.bid, recv_data.src, recv_data.dst
                     );
 
-                    if let Ok(data_str) = from_utf8(&recv_data.data) {
+                    if let Ok(data_str) = from_utf8(recv_data.data) {
                         eprintln!("Data: {}", data_str);
                     }
                 } else {
@@ -64,7 +64,7 @@ impl Handler for Connection {
                     dst,
                     delivery_notification: false,
                     lifetime: 3600 * 24 * 1000,
-                    data: recv_data.data.into(),
+                    data: recv_data.data,
                 };
                 self.out
                     .send(serde_cbor::to_vec(&echo_response).unwrap())

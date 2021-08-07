@@ -119,11 +119,7 @@ impl Beacon {
 
     /// Returns the BeaconPeriod (if present)
     pub fn beacon_period(&self) -> Option<Duration> {
-        if let Some(beacon_period) = self.beacon_period {
-            Some(beacon_period)
-        } else {
-            None
-        }
+        self.beacon_period
     }
 
     /// Adds flags with bitwise OR-Operation
@@ -134,7 +130,7 @@ impl Beacon {
     /// - Adding the ServiceBlock
     /// - Adding the BeaconPeriod
     fn add_flags(&mut self, flags: BeaconFlags) {
-        self.flags = self.flags | flags;
+        self.flags |= flags;
     }
 
     /// Sets the beacon_sequence_number
@@ -143,7 +139,7 @@ impl Beacon {
     }
 
     /// This method adds a cla to the corresponding vector of the ServiceBlock
-    pub fn add_cla(&mut self, name: &String, port: &Option<u16>) {
+    pub fn add_cla(&mut self, name: &str, port: &Option<u16>) {
         self.service_block.add_cla(name, port);
         self.add_flags(SERVICE_BLOCK_PRESENT);
     }
@@ -184,18 +180,17 @@ impl Serialize for Beacon {
             // Amount of elements inside a Beacon with a BeaconPeriod
             // and a ServiceBlock that contains at least one Service
             6
-        } else if self.beacon_period.is_none() && !self.service_block.is_empty() {
-            // Amount of elements inside a Beacon without a BeaconPeriod
-            // and a ServiceBlock that contains at least one Service
-            5
-        } else if self.beacon_period.is_some() && self.service_block.is_empty() {
-            // Amount of elements inside a Beacon with a BeaconPeriod
-            // and an empty ServiceBlock
-            5
-        } else {
+        } else if self.beacon_period.is_none() && self.service_block.is_empty() {
             // Amount of elements inside a Beacon without BeaconPeriod
             // and empty ServiceBlock
             4
+        } else {
+            // Amount of elements inside a Beacon without a BeaconPeriod
+            // and a ServiceBlock that contains at least one Service
+
+            // Amount of elements inside a Beacon with a BeaconPeriod
+            // and an empty ServiceBlock
+            5
         };
 
         let mut seq = serializer.serialize_seq(Some(num_elems))?;

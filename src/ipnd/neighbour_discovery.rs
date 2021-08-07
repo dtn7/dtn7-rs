@@ -33,12 +33,12 @@ async fn receiver(socket: UdpSocket) -> Result<(), io::Error> {
                 deserialized.eid().clone(),
                 peer.ip(),
                 PeerType::Dynamic,
-                deserialized.beacon_period().clone(),
+                deserialized.beacon_period(),
                 deserialized.service_block().clas().clone(),
                 deserialized.service_block().convert_services(),
             );
             peers_add(dtnpeer);
-            routing_notify(RoutingNotifcation::EncounteredPeer(&deserialized.eid()))
+            routing_notify(RoutingNotifcation::EncounteredPeer(deserialized.eid()))
         }
     }
 }
@@ -59,12 +59,12 @@ async fn announcer(socket: UdpSocket, _v6: bool) {
         };
         let mut pkt = Beacon::with_config(eid, ServiceBlock::new(), beacon_period);
         // Get all available clas
-        &(*DTNCORE.lock())
+        (*DTNCORE.lock())
             .cl_list
             .iter()
             .for_each(|cla| pkt.add_cla(&cla.name().to_string(), &Some(cla.port())));
         // Get all available services
-        &(*DTNCORE.lock())
+        (*DTNCORE.lock())
             .service_list
             .iter()
             .for_each(|(tag, payload)| pkt.add_custom_service(*tag, payload.clone()));
@@ -73,14 +73,14 @@ async fn announcer(socket: UdpSocket, _v6: bool) {
         //let addr = "127.0.0.1:3003".parse().unwrap();
 
         let mut destinations: HashMap<SocketAddr, u32> = HashMap::new();
-        &(*CONFIG.lock())
+        (*CONFIG.lock())
             .discovery_destinations
             .iter()
             .for_each(|(key, value)| {
                 destinations.insert(key.clone().parse().unwrap(), *value);
             });
         for (destination, bsn) in destinations {
-            &(*CONFIG.lock()).update_beacon_sequence_number(&destination.to_string());
+            (*CONFIG.lock()).update_beacon_sequence_number(&destination.to_string());
             pkt.set_beacon_sequence_number(bsn);
 
             if destination.ip().is_multicast() {
@@ -120,7 +120,7 @@ pub async fn spawn_neighbour_discovery() -> Result<()> {
         socket
             .set_multicast_loop_v4(false)
             .expect("error activating multicast loop v4");
-        for (address, _bsn) in &(*CONFIG.lock()).discovery_destinations {
+        for address in (*CONFIG.lock()).discovery_destinations.keys() {
             let addr: SocketAddr = address.parse().expect("Error parsing discovery address");
             if addr.is_ipv4() && addr.ip().is_multicast() {
                 socket
@@ -157,7 +157,7 @@ pub async fn spawn_neighbour_discovery() -> Result<()> {
             .set_multicast_loop_v6(false)
             .expect("error activating multicast loop v6");
 
-        for (address, _bsn) in &(*CONFIG.lock()).discovery_destinations {
+        for address in (*CONFIG.lock()).discovery_destinations.keys() {
             let addr: SocketAddr = address.parse().expect("Error while parsing IPv6 address");
             if addr.is_ipv6() && addr.ip().is_multicast() {
                 socket
