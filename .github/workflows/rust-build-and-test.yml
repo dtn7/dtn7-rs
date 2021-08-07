@@ -90,13 +90,13 @@ jobs:
           command: test
       
       - name: Run local ping/echo test
-        run: ./test/local_ping_echo.sh
+        run: ./tests/local_ping_echo.sh
       
       - name: Run local nodes dtn test
-        run: ./test/local_nodes_dtn.sh
+        run: ./tests/local_nodes_dtn.sh
       
       - name: Run local nodes ipn test
-        run: ./test/local_nodes_dtn.sh
+        run: ./tests/local_nodes_dtn.sh
 
     strategy:
       matrix:
