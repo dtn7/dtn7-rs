@@ -39,9 +39,21 @@ echo echo1 out: $OUT_ECHO1
 echo
 
 echo "Sending 3 pings to node1"
-$DIR/../target/$TARGET/examples/dtnping -t 'dtn://node1/echo' -c 6 -v
+$DIR/../target/$TARGET/examples/dtnping -d 'dtn://node1/echo' -c 3 -t 100ms
 
-echo "Press any key to stop daemons and clean up logs"
-read -n 1
-kill $PID_NODE1 $PID_ECHO1
+RC=$?
+echo "RET: $RC" 
+
+if [[ $1 = "-k" ]]; then
+  echo "Press any key to stop daemons and clean up logs"
+  read -n 1
+else
+  echo
+  echo "Provide -k as parameter to keep session running."
+  echo
+fi
+
+kill $PID_ECHO1 $PID_NODE1 
 rm $OUT_NODE1 $OUT_ECHO1
+
+exit $RC

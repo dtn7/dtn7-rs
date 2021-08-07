@@ -12,7 +12,9 @@ DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
 
 OUT_NODE1=$(mktemp /tmp/node1.XXXXXX)
 PORT_NODE1=3000
-$DIR/../target/debug/dtnd -d -j0 -i0 -w $PORT_NODE1 -C mtcp:2342 -e 42 -r epidemic -n 1 -s mtcp://127.0.0.1:4223/node2 2>&1 &> $OUT_NODE1 &
+#DB1="-W /tmp/node1 -D sled"
+#DB1="-W /tmp/node1 -D sneakers"
+$DIR/../target/debug/dtnd -d -j0 -i0 -w $PORT_NODE1 -C mtcp:2342 -e 42 -r epidemic -n 1 -s mtcp://127.0.0.1:4223/node2 $DB1 2>&1 &> $OUT_NODE1 &
 PID_NODE1=$!
 echo node1 pid: $PID_NODE1
 echo node1 out: $OUT_NODE1
@@ -21,11 +23,13 @@ echo node1 port: $PORT_NODE1
 
 OUT_NODE2=$(mktemp /tmp/node2.XXXXXX)
 PORT_NODE2=3001
+#DB2="-W /tmp/node2 -D sled"
+#DB2="-W /tmp/node2 -D sneakers"
 $DIR/../target/debug/dtnd -d -j0 -i0 -w $PORT_NODE2 -C mtcp:4223 -e 42 -r epidemic \
     -n 2 \
     -s mtcp://127.0.0.1:2342/node1 \
     -s mtcp://127.0.0.1:2432/node3 \
-    2>&1 &> $OUT_NODE2 &
+    $DB2 2>&1 &> $OUT_NODE2 &
 PID_NODE2=$!
 echo node2 pid: $PID_NODE2
 echo node2 out: $OUT_NODE2
@@ -33,7 +37,9 @@ echo node2 port: $PORT_NODE2
 
 OUT_NODE3=$(mktemp /tmp/node3.XXXXXX)
 PORT_NODE3=3002
-$DIR/../target/debug/dtnd -d -j0 -i0 -w $PORT_NODE3 -C mtcp:2432 -e 42 -r epidemic -n 3 -s mtcp://127.0.0.1:4223/node2 2>&1 &> $OUT_NODE3 &
+#DB3="-W /tmp/node3 -D sled"
+#DB3="-W /tmp/node3 -D sneakers"
+$DIR/../target/debug/dtnd -d -j0 -i0 -w $PORT_NODE3 -C mtcp:2432 -e 42 -r epidemic -n 3 -s mtcp://127.0.0.1:4223/node2 $DB3 2>&1 &> $OUT_NODE3 &
 PID_NODE3=$!
 echo node3 pid: $PID_NODE3
 echo node3 out: $OUT_NODE3
@@ -50,9 +56,20 @@ sleep 1
 
 echo -n "Receiving on node 3: "
 $DIR/../target/debug/dtnrecv -v -e 42 -p $PORT_NODE3
+RC=$? 
+echo "RET: $RC" 
 echo 
 
-echo "Press any key to stop daemons and clean up logs"
-read -n 1
+if [[ $1 = "-k" ]]; then
+  echo "Press any key to stop daemons and clean up logs"
+  read -n 1
+else
+  echo
+  echo "Provide -k as parameter to keep session running."
+  echo
+fi
+
 kill $PID_NODE1 $PID_NODE2 $PID_NODE3
 rm $OUT_NODE1 $OUT_NODE2 $OUT_NODE3
+
+exit $RC
