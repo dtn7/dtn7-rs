@@ -56,9 +56,20 @@ sleep 1
 
 echo -n "Receiving on node 3: "
 $DIR/../target/debug/dtnrecv -v -e incoming -p $PORT_NODE3
+RC=$? 
+echo "RET: $RC" 
 echo 
 
-echo "Press any key to stop daemons and clean up logs"
-read -n 1
+if [[ $1 = "-k" ]]; then
+  echo "Press any key to stop daemons and clean up logs"
+  read -n 1
+else
+  echo
+  echo "Provide -k as parameter to keep session running."
+  echo
+fi
+
 kill $PID_NODE1 $PID_NODE2 $PID_NODE3
 rm $OUT_NODE1 $OUT_NODE2 $OUT_NODE3
+
+exit $RC
