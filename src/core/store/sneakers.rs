@@ -2,10 +2,11 @@ use super::BundleStore;
 use crate::core::bundlepack::{BundlePack, Constraint};
 use crate::CONFIG;
 use anyhow::{bail, Result};
-use bp7::Bundle;
+use bp7::{Bundle, EndpointID};
 use d7sneakers::{Constraints, SneakerWorld};
 use log::debug;
 use std::collections::HashSet;
+use std::convert::TryFrom;
 use std::fmt::Debug;
 
 #[derive(Debug, Clone)]
@@ -13,6 +14,30 @@ pub struct SneakersBundleStore {
     store: SneakerWorld,
 }
 
+impl SneakersBundleStore {
+    fn eid_from_strings(
+        &self,
+        name: Option<String>,
+        service: Option<String>,
+    ) -> Result<EndpointID> {
+        let eid_string = if name.clone().unwrap_or_default().parse::<u64>().is_ok()
+            && (service.is_none() || service.as_ref().unwrap().parse::<u64>().is_ok())
+        {
+            format!(
+                "ipn:{}.{}",
+                name.unwrap_or_default(),
+                service.unwrap_or_default()
+            )
+        } else {
+            format!(
+                "dtn:{}.{}",
+                name.unwrap_or_default(),
+                service.unwrap_or_default()
+            )
+        };
+        Ok(EndpointID::try_from(eid_string)?)
+    }
+}
 impl BundleStore for SneakersBundleStore {
     fn push(&mut self, bndl: &Bundle) -> Result<()> {
         // TODO: check for duplicates, update, remove etc
@@ -71,21 +96,52 @@ impl BundleStore for SneakersBundleStore {
     }
 
     fn get_bundle(&self, bpid: &str) -> Option<bp7::Bundle> {
-        self.store.fs.get_bundle(bpid).ok()
+        //info_time!("get_bundle: {}", bpid);
+        //{
+        self.store.get_bundle(bpid).ok()
+        //}
     }
 
     fn get_metadata(&self, bpid: &str) -> Option<BundlePack> {
-        // TODO: get real metadata from store instead of reconstructing it
-        let bundle = self.store.fs.get_bundle(bpid);
+        let meta = self.store.db.get_bundle_entry(bpid);
+        if meta.is_err() {
+            return None;
+        }
+        let constraints = self.store.db.get_constraints(bpid);
+        if constraints.is_err() {
+            return None;
+        }
+        let meta = meta.unwrap();
+
+        let destination = self
+            .eid_from_strings(meta.dst_name, meta.dst_service)
+            .unwrap_or_default();
+
+        let source = self
+            .eid_from_strings(meta.src_name, meta.src_service)
+            .unwrap_or_default();
+        let bp = BundlePack {
+            source,
+            destination,
+            timestamp: meta.timestamp,
+            id: bpid.to_owned(),
+            administrative: false,
+            size: meta.size as usize,
+            constraints: convert_constraints_to_hashset(constraints.unwrap()),
+        };
+        //debug_time!("get_metadata");
+        // {
+        /*let bundle = self.store.fs.get_bundle(bpid);
         if bundle.is_err() {
             return None;
         }
         let mut bp: BundlePack = bundle.unwrap().into();
         if let Ok(constraints) = self.store.db.get_constraints(bpid) {
             bp.set_constraints(convert_constraints_to_hashset(constraints));
-        }
+        }*/
 
         Some(bp)
+        //}
     }
 }
 

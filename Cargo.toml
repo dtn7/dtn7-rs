@@ -1,6 +1,6 @@
 [package]
 name = "dtn7"
-version = "0.16.2"
+version = "0.16.3"
 authors = ["Lars Baumgaertner <baumgaertner@cs.tu-darmstadt.de>"]
 description = "Rust delay-tolerant-networking daemon and CLI tools based upon bp7 (bundle protocol version 7 draft)"
 edition = "2018"
@@ -12,9 +12,9 @@ exclude = [".vscode/", ".travis.yml"]
 readme = "README.md"
 
 [dependencies]
-bp7 = {version = "0.8.10", default-features = false }
+bp7 = {version = "0.8.11", default-features = false }
 dtn7-plus = "0.4.6"
-d7sneakers = { version = "0.1.1", default-features = false }
+d7sneakers = { version = "0.2.0", default-features = false }
 serde = { version = "1.0", features = ["derive"] }
 serde_cbor = "0.11"
 serde_json = "1.0"
@@ -49,6 +49,7 @@ http = "0.2.4"
 hyper = "0.14.11"
 ws = "0.9.1"
 tungstenite = "0.14.0"
+measure_time = "0.7.0"
 #rweb = { version = "0.4.0", default-features = false }
 
 [lib]
