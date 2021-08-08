@@ -39,7 +39,7 @@ echo echo1 out: $OUT_ECHO1
 echo
 
 echo "Sending 3 pings to node1"
-$DIR/../target/$TARGET/examples/dtnping -d 'dtn://node1/echo' -c 3 -t 100ms
+$DIR/../target/$TARGET/examples/dtnping -d 'dtn://node1/echo' -c 6 -t 500ms
 
 RC=$?
 echo "RET: $RC" 
