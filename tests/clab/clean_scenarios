@@ -1,0 +1,10 @@
+#!/bin/bash
+
+read -p "Are you sure you want to clear all scenario results? " -n 1 -r
+echo    # (optional) move to a new line
+if [[ $REPLY =~ ^[Yy]$ ]]
+then
+    rm -v -rf scenario_*/results*
+    rm -v -rf scenario_*/bin/*
+    rm -v scenario_*/experiment.log
+fi

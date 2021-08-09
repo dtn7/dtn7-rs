@@ -1,0 +1,16 @@
+#!/bin/bash
+
+if [[ "$OSTYPE" != "linux-gnu"* ]]; then
+    echo "Only linux is support at the moment"
+fi
+
+# check number of arguments
+if [ "$#" -ne 1 ]; then
+    echo "Usage: $0 <scenario_name>"
+    exit 1
+fi
+
+mkdir -p $1/bin
+cargo build --all --release && for i in $(find ../../target/release/ -executable -type f | grep -v -); do cp -v $i  $1/bin ; done
+
+./clab $1
