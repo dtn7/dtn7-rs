@@ -16,3 +16,5 @@ A few tools are provided in this folder:
 ## example scenarios
 
 - `scenario_basic/` - 5 nodes with a random walk mobility pattern, just doing ipnd neighborhood discovery, no further bundles are generated or exchanged.
+
+- `scenario_msgs/` - 5 nodes with a random walk mobility pattern, txt bundles are randomly generated and sent to any of the 5 nodes.
