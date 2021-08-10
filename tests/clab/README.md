@@ -18,3 +18,5 @@ A few tools are provided in this folder:
 - `scenario_basic/` - 5 nodes with a random walk mobility pattern, just doing ipnd neighborhood discovery, no further bundles are generated or exchanged.
 
 - `scenario_msgs/` - 5 nodes with a random walk mobility pattern, txt bundles are randomly generated and sent to any of the 5 nodes.
+
+- `scenario_3n_delayed/` - 3 nodes starting disconnected, n2 appears near n1, then moves out of range and appears near n3, delivering its messages. Messages sent logged on n1 in `sent.log` and received ones are in `recv.log` on n3. Scenario shows the usage of `dtnsend` and `dtntrigger`.
