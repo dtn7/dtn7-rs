@@ -2,7 +2,7 @@ use crate::cla::ConvergenceLayerAgent;
 use crate::CONFIG;
 use async_trait::async_trait;
 use bp7::ByteBuffer;
-use log::debug;
+use log::{debug, error};
 use std::net::SocketAddr;
 
 #[derive(Debug, Clone, Default, Copy)]
@@ -35,7 +35,7 @@ impl ConvergenceLayerAgent for HttpConvergenceLayer {
             let peeraddr: SocketAddr = dest.parse().unwrap();
             debug!("forwarding to {:?}", peeraddr);
             for b in ready {
-                if let Ok(_res) = attohttpc::post(&format!(
+                if let Err(err) = attohttpc::post(&format!(
                     "http://{}:{}/push",
                     peeraddr.ip(),
                     peeraddr.port()
@@ -43,7 +43,7 @@ impl ConvergenceLayerAgent for HttpConvergenceLayer {
                 .bytes(b.to_vec())
                 .send()
                 {
-                } else {
+                    error!("error pushing bundle to remote: {}", err);
                     return false;
                 }
             }
