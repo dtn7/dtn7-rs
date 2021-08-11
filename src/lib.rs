@@ -58,8 +58,13 @@ pub fn get_sequence(destination: &str) -> u32 {
         0
     }
 }
-pub fn peers_add(peer: DtnPeer) {
-    (*PEERS.lock()).insert(peer.eid.node().unwrap(), peer);
+/// adds a new peer to the DTN core
+/// return true if peer was seen first time
+/// return false if peer was already known
+pub fn peers_add(peer: DtnPeer) -> bool {
+    (*PEERS.lock())
+        .insert(peer.eid.node().unwrap(), peer)
+        .is_none()
 }
 pub fn peers_count() -> usize {
     (*PEERS.lock()).len()
