@@ -13,4 +13,14 @@ fi
 mkdir -p $1/bin
 cargo build --all --release && for i in $(find ../../target/release/ -executable -type f | grep -v -); do cp -v $i  $1/bin ; done
 
-./clab $1
+./clab $1 || exit 255
+
+RESULT=$(cat $1/experiment.log | grep "EXPERIMENT RESULT: ")
+
+if [[ $RESULT =~ "EXPERIMENT RESULT: Success" ]]; then
+   echo "$RESULT"
+   exit 0
+elif [[ $RESULT =~ "EXPERIMENT RESULT: Failed" ]]; then
+    echo "$RESULT"
+    exit 1
+fi
