@@ -127,7 +127,16 @@ impl DtnCore {
 
 /// Removes peers from global peer list that haven't been seen in a while.
 pub fn process_peers() {
-    (*PEERS.lock()).retain(|_k, v| v.con_type == PeerType::Static || v.still_valid());
+    (*PEERS.lock()).retain(|_k, v| {
+        let val = v.still_valid();
+        if !val {
+            info!(
+                "Have not seen {} @ {} in a while, removing it from list of known peers",
+                v.eid, v.addr
+            );
+        }
+        v.con_type == PeerType::Static || val
+    });
 }
 
 /// Reprocess bundles in store
