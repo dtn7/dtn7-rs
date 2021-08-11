@@ -26,8 +26,6 @@ async fn receiver(socket: UdpSocket) -> Result<(), io::Error> {
                 }
             };
 
-            info!("Beacon from {} (len={})", peer, size);
-            debug!(":\n{}", deserialized);
             // Creates a new peer from received beacon
             let dtnpeer = DtnPeer::new(
                 deserialized.eid().clone(),
@@ -37,7 +35,23 @@ async fn receiver(socket: UdpSocket) -> Result<(), io::Error> {
                 deserialized.service_block().clas().clone(),
                 deserialized.service_block().convert_services(),
             );
-            peers_add(dtnpeer);
+            if peers_add(dtnpeer) {
+                info!(
+                    "New peer discovered: {} @ {} (len={})",
+                    deserialized.eid(),
+                    peer,
+                    size
+                );
+                debug!(":\n{}", deserialized);
+            } else {
+                debug!(
+                    "Beacon from known peer: {} @ {} (len={})",
+                    deserialized.eid(),
+                    peer,
+                    size
+                );
+                debug!(":\n{}", deserialized);
+            }
             routing_notify(RoutingNotifcation::EncounteredPeer(deserialized.eid()))
         }
     }
