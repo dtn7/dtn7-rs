@@ -21,8 +21,11 @@ impl BundleStore for InMemoryBundleStore {
         } else {
             self.metadata.insert(bp.id().to_string(), bp);
         }
-        debug!("inserting bundle {} in to store", bndl.id());
-        self.bundles.insert(bndl.id(), bndl.clone());
+        let bid = bndl.id();
+        debug!("inserting bundle {} in to store", bid);
+        let b = bndl.clone();
+        let _ret = self.bundles.insert(bid, b);
+
         Ok(())
     }
     fn update_metadata(&mut self, bp: &BundlePack) -> Result<()> {
