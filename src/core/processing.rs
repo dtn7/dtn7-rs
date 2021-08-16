@@ -379,7 +379,7 @@ pub async fn forward(mut bp: BundlePack) -> Result<()> {
         //wg.wait();
 
         // Reset hop count block
-        if let Some(hc) = bndl.extension_block_by_type_mut(bp7::canonical::HOP_COUNT_BLOCK) {
+        /*if let Some(hc) = bndl.extension_block_by_type_mut(bp7::canonical::HOP_COUNT_BLOCK) {
             if let Some((hc_limit, mut hc_count)) = hc.hop_count_get() {
                 hc_count -= 1;
                 hc.set_data(bp7::canonical::CanonicalData::HopCount(hc_limit, hc_count));
@@ -388,7 +388,7 @@ pub async fn forward(mut bp: BundlePack) -> Result<()> {
                     &bpid, hc_limit, hc_count
                 );
             }
-        }
+        }*/
         if bundle_sent.load(Ordering::Relaxed) {
             if bndl
                 .primary
@@ -616,14 +616,24 @@ async fn send_status_report(
         reason
     );
 
-    /*let out_bndl = new_status_report_bundle(
+    let out_bndl = new_status_report_bundle(
         &bndl,
         (*CONFIG.lock()).host_eid.clone(),
         bndl.primary.crc.to_code(),
         status,
         reason,
-    );*/
+    );
 
+    if let Err(err) = store_push_bundle(&out_bndl) {
+        warn!("Storing new status report failed: {}", err);
+        return;
+    }
+    let mut bp: BundlePack = out_bndl.into();
+    bp.add_constraint(Constraint::ForwardPending);
+    if let Err(err) = bp.sync() {
+        warn!("Sending status report failed: {}", err);
+    }
+    debug!("Enqueued status report: {}", bp.id());
     // TODO: impl without cycle
     //send_bundle(out_bndl).await;
     //dispatch(out_bndl.into()).await;
