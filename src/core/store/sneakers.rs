@@ -57,6 +57,11 @@ impl BundleStore for SneakersBundleStore {
         Ok(())
     }
     fn remove(&mut self, bid: &str) -> Result<()> {
+        if let Some(mut meta) = self.get_metadata(bid) {
+            meta.clear_constraints();
+            meta.add_constraint(Constraint::Deleted);
+            self.update_metadata(&meta)?;
+        }
         self.store.remove(bid)
     }
 

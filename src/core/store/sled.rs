@@ -43,6 +43,11 @@ impl BundleStore for SledBundleStore {
         Ok(())
     }
     fn remove(&mut self, bid: &str) -> Result<()> {
+        if let Some(mut meta) = self.get_metadata(bid) {
+            meta.clear_constraints();
+            meta.add_constraint(Constraint::Deleted);
+            self.update_metadata(&meta)?;
+        }
         let _res = self.bundles.remove(bid)?;
         if let Err(err) = self.bundles.flush() {
             error!("Could not flush database: {}", err);
