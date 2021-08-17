@@ -275,6 +275,8 @@ impl MtcpConvergenceLayer {
         /*let s1 = connections
         .entry(addr)
         .or_insert_with(|| TcpStream::connect(&addr).unwrap());*/
+
+        #[allow(clippy::map_entry)]
         if !connections.contains_key(&addr) {
             debug!("Connecting to {}", addr);
             if let Ok(stream) = TcpStream::connect(&addr) {

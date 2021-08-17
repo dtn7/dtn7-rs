@@ -1,6 +1,6 @@
 [package]
 name = "dtn7"
-version = "0.16.6"
+version = "0.16.7"
 authors = ["Lars Baumgaertner <baumgaertner@cs.tu-darmstadt.de>"]
 description = "Rust delay-tolerant-networking daemon and CLI tools based upon bp7 (bundle protocol version 7 draft)"
 edition = "2018"
@@ -21,7 +21,7 @@ serde_json = "1.0"
 serde_bytes = "0.11"
 url = "2.2.2"
 rand = "0.8.3"
-tokio = { version = "1.9.0", features = ["full"] }
+tokio = { version = "1.10.0", features = ["full"] }
 tokio-util = { version = "0.6.7", features = ["codec"] }
 futures = "0.3.5"
 futures-util = "0.3.5"
@@ -48,9 +48,8 @@ http = "0.2.4"
 #tower = "0.4.8"
 hyper = "0.14.11"
 ws = "0.9.1"
-tungstenite = "0.14.0"
-measure_time = "0.7.0"
-#rweb = { version = "0.4.0", default-features = false }
+tungstenite = "0.15.0"
+#measure_time = "0.7.0"
 
 [lib]
 name = "dtn7"

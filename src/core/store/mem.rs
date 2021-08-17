@@ -37,6 +37,11 @@ impl BundleStore for InMemoryBundleStore {
         Ok(())
     }
     fn remove(&mut self, bid: &str) -> Result<()> {
+        if let Some(mut meta) = self.get_metadata(bid) {
+            meta.clear_constraints();
+            meta.add_constraint(Constraint::Deleted);
+            self.update_metadata(&meta)?;
+        }
         if self.bundles.remove(bid).is_none() {
             bail!("Bundle not in store!");
         }
