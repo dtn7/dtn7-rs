@@ -21,7 +21,6 @@ use anyhow::{bail, Result};
 use log::{debug, info, warn};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
-use std::time::Instant;
 use std::time::SystemTime;
 use std::time::UNIX_EPOCH;
 use tokio::sync::mpsc::channel;
@@ -78,9 +77,7 @@ pub async fn transmit(mut bp: BundlePack) -> Result<()> {
     info!("Transmission of bundle requested: {}", bp.id());
 
     bp.add_constraint(Constraint::DispatchPending);
-    let now = Instant::now();
     bp.sync()?;
-    debug!("SYNTIME {}", now.elapsed().as_millis());
 
     let src = &bp.source;
     if src != &bp7::EndpointID::none() && (*DTNCORE.lock()).get_endpoint_mut(src).is_none() {

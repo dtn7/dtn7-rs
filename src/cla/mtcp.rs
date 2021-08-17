@@ -5,8 +5,11 @@ use bytes::buf::Buf;
 use bytes::{BufMut, BytesMut};
 use core::convert::TryFrom;
 use futures_util::stream::StreamExt;
+use lazy_static::lazy_static;
 use log::{debug, error, info};
+use parking_lot::Mutex;
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 use std::io::Write;
 use std::net::SocketAddr;
 use std::net::SocketAddrV4;
@@ -15,6 +18,11 @@ use std::time::Instant;
 use tokio::io;
 use tokio::net::TcpListener;
 use tokio_util::codec::{Decoder, Encoder, Framed};
+
+lazy_static! {
+    pub static ref MTCP_CONNECTIONS: Mutex<HashMap<SocketAddr, TcpStream>> =
+        Mutex::new(HashMap::new());
+}
 
 #[derive(Debug)]
 enum CborByteString {
@@ -186,60 +194,65 @@ impl Decoder for MPDUCodec {
     }
 }
 
-#[derive(Debug, Clone, Default, Copy)]
+#[derive(Debug, Copy, Clone)]
 pub struct MtcpConvergenceLayer {
     counter: u64,
     local_port: u16,
 }
 
 impl MtcpConvergenceLayer {
-    async fn run(self) -> Result<(), io::Error> {
-        let addr: SocketAddrV4 = format!("0.0.0.0:{}", self.port()).parse().unwrap();
-        let listener = TcpListener::bind(&addr)
-            .await
-            .expect("failed to bind tcp port");
-        debug!("spawning MTCP listener on port {}", self.local_port);
-        loop {
-            let (socket, _) = listener.accept().await?;
-
-            let peer_addr = socket.peer_addr().unwrap();
-            info!("Incoming connection from {}", peer_addr);
-            let mut framed_sock = Framed::new(socket, MPDUCodec::new());
-            while let Some(frame) = framed_sock.next().await {
-                match frame {
-                    Ok(frame) => {
-                        if let Ok(bndl) = Bundle::try_from(frame) {
-                            info!("Received bundle: {} from {}", bndl.id(), peer_addr);
-                            {
-                                tokio::spawn(async move {
-                                    if let Err(err) = crate::core::processing::receive(bndl).await {
-                                        error!("Failed to process bundle: {}", err);
-                                    }
-                                });
-                            }
-                        } else {
-                            info!("Error decoding bundle from {}", peer_addr);
-                            break;
-                        }
-                    }
-                    Err(err) => {
-                        info!("Lost connection from {} ({})", peer_addr, err);
-                        break;
-                    }
-                }
-            }
-            info!("Disconnected {}", peer_addr);
-        }
-    }
     pub fn new(port: Option<u16>) -> MtcpConvergenceLayer {
         MtcpConvergenceLayer {
             counter: 0,
             local_port: port.unwrap_or(16162),
         }
     }
+    async fn handle_connection(socket: tokio::net::TcpStream) -> anyhow::Result<()> {
+        let peer_addr = socket.peer_addr().unwrap();
+        info!("Incoming connection from {}", peer_addr);
+        let mut framed_sock = Framed::new(socket, MPDUCodec::new());
+        while let Some(frame) = framed_sock.next().await {
+            match frame {
+                Ok(frame) => {
+                    if let Ok(bndl) = Bundle::try_from(frame) {
+                        info!("Received bundle: {} from {}", bndl.id(), peer_addr);
+                        {
+                            tokio::spawn(async move {
+                                if let Err(err) = crate::core::processing::receive(bndl).await {
+                                    error!("Failed to process bundle: {}", err);
+                                }
+                            });
+                        }
+                    } else {
+                        info!("Error decoding bundle from {}", peer_addr);
+                        break;
+                    }
+                }
+                Err(err) => {
+                    info!("Lost connection from {} ({})", peer_addr, err);
+                    break;
+                }
+            }
+        }
+        info!("Disconnected {}", peer_addr);
+        Ok(())
+    }
+    async fn listener(self) -> Result<(), io::Error> {
+        let port = self.port();
+        let addr: SocketAddrV4 = format!("0.0.0.0:{}", port).parse().unwrap();
+        let listener = TcpListener::bind(&addr)
+            .await
+            .expect("failed to bind tcp port");
+        debug!("spawning MTCP listener on port {}", port);
+        loop {
+            let (socket, _) = listener.accept().await.unwrap();
+
+            tokio::spawn(MtcpConvergenceLayer::handle_connection(socket));
+        }
+    }
     pub async fn spawn_listener(&self) -> std::io::Result<()> {
         // TODO: bubble up errors from run
-        tokio::spawn(self.run()); /*.await.unwrap()*/
+        tokio::spawn(self.listener()); /*.await.unwrap()*/
         Ok(())
     }
     pub fn send_bundles(&self, addr: SocketAddr, bundles: Vec<ByteBuffer>) -> bool {
@@ -258,22 +271,37 @@ impl MtcpConvergenceLayer {
                 return false;
             }
         }
-        if let Ok(mut s1) = TcpStream::connect(&addr) {
-            if s1.write_all(&buf).is_err() {
-                error!("Error writing data to {}", addr);
+        let mut connections = MTCP_CONNECTIONS.lock();
+        /*let s1 = connections
+        .entry(addr)
+        .or_insert_with(|| TcpStream::connect(&addr).unwrap());*/
+        if !connections.contains_key(&addr) {
+            debug!("Connecting to {}", addr);
+            if let Ok(stream) = TcpStream::connect(&addr) {
+                connections.insert(addr, stream);
+            } else {
+                error!("Error connecting to remote {}", addr);
                 return false;
             }
-            info!(
-                "Transmission time: {:?} for {} bundles in {} bytes to {}",
-                now.elapsed(),
-                num_bundles,
-                buf.len(),
-                addr
-            );
         } else {
-            error!("Error connecting to remote {}", addr);
+            debug!("Already connected to {}", addr);
+        };
+        let mut s1 = connections.get(&addr).unwrap();
+        //let mut s1 = TcpStream::connect(&addr).unwrap();
+
+        if s1.write_all(&buf).is_err() {
+            error!("Error writing data to {}", addr);
+            connections.remove(&addr);
             return false;
         }
+        info!(
+            "Transmission time: {:?} for {} bundles in {} bytes to {}",
+            now.elapsed(),
+            num_bundles,
+            buf.len(),
+            addr
+        );
+
         //});
         true
     }
