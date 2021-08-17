@@ -28,7 +28,7 @@ echo node1 pid: $PID_NODE1
 echo node1 out: $OUT_NODE1
 echo node1 port: $PORT_NODE1
 
-sleep 1
+sleep 2
 
 OUT_ECHO1=$(mktemp /tmp/echo1.XXXXXX)
 $DIR/../target/$TARGET/examples/dtnecho2 -v 2>&1 &> $OUT_ECHO1 &
@@ -37,6 +37,7 @@ echo echo1 pid: $PID_ECHO1
 echo echo1 out: $OUT_ECHO1
 
 echo
+sleep 1
 
 echo "Sending 3 pings to node1"
 $DIR/../target/$TARGET/examples/dtnping -d 'dtn://node1/echo' -c 6 -t 500ms
