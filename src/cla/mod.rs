@@ -56,7 +56,7 @@ pub trait ConvergenceLayerAgent: Debug + Display {
 }
 
 pub fn convergence_layer_agents() -> Vec<&'static str> {
-    vec!["dummy", "mtcp", "http", "tcp"]
+    vec!["dummy", "mtcp", "http"]
 }
 
 // returns a new CLA for the corresponding string ("<CLA name>[:local_port]").

@@ -345,7 +345,6 @@ pub async fn forward(mut bp: BundlePack) -> Result<()> {
             let bpid = bpid.clone();
             //let bp2 = bp.clone();
             let bundle_sent = std::sync::Arc::clone(&bundle_sent);
-            debug!("spawning tokio task");
             let n = n.clone();
             let task_handle = tokio::spawn(async move {
                 info!(
