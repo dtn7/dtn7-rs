@@ -3,7 +3,7 @@ use crate::CONFIG;
 use crate::DTNCORE;
 
 use anyhow::{bail, Result};
-use axum::ws::{Message, WebSocket};
+use axum::extract::ws::{Message, WebSocket};
 use bp7::{Bundle, CreationTimestamp, EndpointID};
 use dtn7_plus::client::{WsRecvData, WsSendData};
 use futures::{sink::SinkExt, stream::StreamExt};
@@ -95,7 +95,7 @@ pub async fn handle_socket(socket: WebSocket) {
             }
 
             debug!("sending ping");
-            if tx2.send(Message::ping("dtn7")).await.is_err() {
+            if tx2.send(Message::Ping(b"dtn7".to_vec())).await.is_err() {
                 break;
             }
         }
@@ -130,7 +130,7 @@ pub async fn handle_socket(socket: WebSocket) {
 
 macro_rules! ws_reply_text {
     ($sock:expr,$msg:expr) => {
-        if let Err(err) = $sock.send(Message::text($msg)).await {
+        if let Err(err) = $sock.send(Message::Text($msg.to_string())).await {
             bail!("err sendin reply: {} -> {}", $msg, err);
         }
     };
@@ -172,7 +172,7 @@ impl WsAASession {
                 serde_cbor::to_vec(&recv).expect("Fatal error encoding WsRecvData")
             }
         };
-        if socket.send(Message::binary(recv_data)).await.is_err() {
+        if socket.send(Message::Binary(recv_data)).await.is_err() {
             bail!("error sending bundle");
         }
         Ok(())
@@ -183,202 +183,221 @@ impl WsAASession {
         msg: Message,
     ) -> Result<()> {
         debug!("got message: {:?}", msg);
-        if msg.is_pong() {
-            self.hb = Instant::now();
-        }
-        if msg.is_ping() {
-            self.hb = Instant::now();
-            let ping = Message::ping(msg.as_bytes());
-            if let Err(err) = socket.send(ping).await {
-                bail!("err sending pong: {}", err);
-            }
-        }
-        if msg.is_close() {
-            bail!("received close message");
-        }
-        if msg.is_text() {
-            let m = msg.to_str().unwrap_or_default().trim();
-            if m.starts_with('/') {
-                let v: Vec<&str> = m.splitn(2, ' ').collect();
-                match v[0] {
-                    "/bundle" => {
-                        self.mode = WsReceiveMode::Bundle;
-                        ws_reply_text!(socket, "200 tx mode: bundle");
-                    }
-                    "/data" => {
-                        self.mode = WsReceiveMode::Data;
 
-                        ws_reply_text!(socket, "200 tx mode: data");
-                    }
-                    "/unsubscribe" => {
-                        if v.len() == 2 {
-                            if let Ok(eid) = EndpointID::try_from(v[1]) {
-                                if let Some(endpoints) = &mut self.endpoints {
-                                    endpoints.remove(&eid);
-                                    if let Some(ep) = (*DTNCORE.lock()).get_endpoint_mut(&eid) {
-                                        ep.clear_delivery_addr();
+        match msg {
+            Message::Text(msg) => {
+                let m = msg.trim();
+                if m.starts_with('/') {
+                    let v: Vec<&str> = m.splitn(2, ' ').collect();
+                    match v[0] {
+                        "/bundle" => {
+                            self.mode = WsReceiveMode::Bundle;
+                            ws_reply_text!(socket, "200 tx mode: bundle");
+                        }
+                        "/data" => {
+                            self.mode = WsReceiveMode::Data;
+
+                            ws_reply_text!(socket, "200 tx mode: data");
+                        }
+                        "/unsubscribe" => {
+                            if v.len() == 2 {
+                                if let Ok(eid) = EndpointID::try_from(v[1]) {
+                                    if let Some(endpoints) = &mut self.endpoints {
+                                        endpoints.remove(&eid);
+                                        if let Some(ep) = (*DTNCORE.lock()).get_endpoint_mut(&eid) {
+                                            ep.clear_delivery_addr();
+                                        }
+                                        debug!("unsubscribed endpoint: {}", eid);
+
+                                        ws_reply_text!(socket, "200 unsubscribed");
+                                    } else {
+                                        ws_reply_text!(socket, "404 endpoint not found");
                                     }
-                                    debug!("unsubscribed endpoint: {}", eid);
-
-                                    ws_reply_text!(socket, "200 unsubscribed");
                                 } else {
-                                    ws_reply_text!(socket, "404 endpoint not found");
+                                    ws_reply_text!(socket, "400 invalid endpoint");
                                 }
-                            } else {
-                                ws_reply_text!(socket, "400 invalid endpoint");
                             }
                         }
-                    }
-                    "/subscribe" => {
-                        if v.len() == 2 {
-                            if let Ok(eid) = EndpointID::try_from(v[1]) {
-                                if (*DTNCORE.lock()).is_in_endpoints(&eid) {
-                                    debug!("subscribed to endpoint: {}", eid);
-                                    if self.endpoints.is_none() {
-                                        self.endpoints = Some(HashSet::new());
-                                    }
-                                    if let Some(ep) = (*DTNCORE.lock()).get_endpoint_mut(&eid) {
-                                        ep.set_delivery_addr(self.tx.clone());
-                                    }
-                                    if let Some(endpoints) = &mut self.endpoints {
-                                        endpoints.insert(eid);
-                                    }
-
-                                    ws_reply_text!(socket, "200 subscribed");
-                                    self.fetch_new_bundles(socket.clone()).await;
-                                } else {
-                                    debug!("Attempted to subscribe to unknown endpoint: {}", eid);
-
-                                    ws_reply_text!(socket, "404 unknown endpoint");
-                                }
-                            } else {
-                                let this_host: EndpointID = (*CONFIG.lock()).host_eid.clone();
-                                if let Ok(eid) = this_host.new_endpoint(v[1]) {
-                                    if (*DTNCORE.lock()).get_endpoint(&eid).is_none() {
-                                        debug!(
-                                            "Attempted to subscribe to unknown endpoint: {}",
-                                            eid
-                                        );
-
-                                        ws_reply_text!(socket, "404 unknown endpoint");
-                                    } else {
-                                        if let Some(ep) = (*DTNCORE.lock()).get_endpoint_mut(&eid) {
-                                            ep.set_delivery_addr(self.tx.clone());
-                                        }
-                                        debug!("Subscribed to endpoint: {}", eid);
+                        "/subscribe" => {
+                            if v.len() == 2 {
+                                if let Ok(eid) = EndpointID::try_from(v[1]) {
+                                    if (*DTNCORE.lock()).is_in_endpoints(&eid) {
+                                        debug!("subscribed to endpoint: {}", eid);
                                         if self.endpoints.is_none() {
                                             self.endpoints = Some(HashSet::new());
+                                        }
+                                        if let Some(ep) = (*DTNCORE.lock()).get_endpoint_mut(&eid) {
+                                            ep.set_delivery_addr(self.tx.clone());
                                         }
                                         if let Some(endpoints) = &mut self.endpoints {
                                             endpoints.insert(eid);
                                         }
 
                                         ws_reply_text!(socket, "200 subscribed");
+                                        self.fetch_new_bundles(socket.clone()).await;
+                                    } else {
+                                        debug!(
+                                            "Attempted to subscribe to unknown endpoint: {}",
+                                            eid
+                                        );
+
+                                        ws_reply_text!(socket, "404 unknown endpoint");
                                     }
                                 } else {
-                                    debug!(
-                                        "Invalid endpoint combination: {} and {}",
-                                        this_host, v[1]
-                                    );
+                                    let this_host: EndpointID = (*CONFIG.lock()).host_eid.clone();
+                                    if let Ok(eid) = this_host.new_endpoint(v[1]) {
+                                        if (*DTNCORE.lock()).get_endpoint(&eid).is_none() {
+                                            debug!(
+                                                "Attempted to subscribe to unknown endpoint: {}",
+                                                eid
+                                            );
 
-                                    ws_reply_text!(socket, "400 invalid endpoint combination");
+                                            ws_reply_text!(socket, "404 unknown endpoint");
+                                        } else {
+                                            if let Some(ep) =
+                                                (*DTNCORE.lock()).get_endpoint_mut(&eid)
+                                            {
+                                                ep.set_delivery_addr(self.tx.clone());
+                                            }
+                                            debug!("Subscribed to endpoint: {}", eid);
+                                            if self.endpoints.is_none() {
+                                                self.endpoints = Some(HashSet::new());
+                                            }
+                                            if let Some(endpoints) = &mut self.endpoints {
+                                                endpoints.insert(eid);
+                                            }
+
+                                            ws_reply_text!(socket, "200 subscribed");
+                                        }
+                                    } else {
+                                        debug!(
+                                            "Invalid endpoint combination: {} and {}",
+                                            this_host, v[1]
+                                        );
+
+                                        ws_reply_text!(socket, "400 invalid endpoint combination");
+                                    }
                                 }
+                            } else {
+                                ws_reply_text!(socket, "400 endpoint is missing");
                             }
-                        } else {
-                            ws_reply_text!(socket, "400 endpoint is missing");
+                        }
+                        _ => {
+                            ws_reply_text!(socket, format!("501 unknown command: {:?}", m));
                         }
                     }
-                    _ => {
-                        ws_reply_text!(socket, format!("501 unknown command: {:?}", m));
-                    }
+                } else {
                 }
-            } else {
             }
-        }
-        if msg.is_binary() {
-            let bin = msg.as_bytes();
-            match self.mode {
-                WsReceiveMode::Bundle => {
-                    if let Ok(bndl) = serde_cbor::from_slice::<bp7::Bundle>(bin) {
-                        debug!(
-                            "Sending bundle {} to {} from WS",
-                            bndl.id(),
-                            bndl.primary.destination
-                        );
-                        // TODO: turn into channel
-                        //                            crate::core::processing::send_bundle(bndl);
-                        //crate::core::processing::send_through_task(bndl);
-                        let rt = tokio::runtime::Handle::current();
-                        rt.spawn(async move { crate::core::processing::send_bundle(bndl).await });
-                        debug!("sent bundle");
 
-                        ws_reply_text!(
-                            socket,
-                            format!("200 Sent payload with {} bytes", bin.len())
-                        );
-                    } else {
-                        ws_reply_text!(socket, "400 Invalid binary bundle");
-                    }
-                }
-                WsReceiveMode::Data => {
-                    if let Ok(send_req) = serde_cbor::from_slice::<WsSendData>(bin) {
-                        //let src = (*CONFIG.lock()).host_eid.clone();
-                        let bcf = if send_req.delivery_notification {
-                            bp7::bundle::BUNDLE_MUST_NOT_FRAGMENTED
-                                | bp7::bundle::BUNDLE_STATUS_REQUEST_DELIVERY
-                        } else {
-                            bp7::bundle::BUNDLE_MUST_NOT_FRAGMENTED
-                        };
-                        let dst = EndpointID::try_from(send_req.dst);
-                        let src = EndpointID::try_from(send_req.src);
-                        if dst.is_err() || src.is_err() {
-                            warn!(
-                                "Received data with invalid src ({}) or destination ({})",
-                                send_req.src, send_req.dst
+            Message::Binary(bin) => {
+                match self.mode {
+                    WsReceiveMode::Bundle => {
+                        if let Ok(bndl) = serde_cbor::from_slice::<bp7::Bundle>(&bin) {
+                            debug!(
+                                "Sending bundle {} to {} from WS",
+                                bndl.id(),
+                                bndl.primary.destination
                             );
-                            return Ok(());
+                            // TODO: turn into channel
+                            //                            crate::core::processing::send_bundle(bndl);
+                            //crate::core::processing::send_through_task(bndl);
+                            let rt = tokio::runtime::Handle::current();
+                            rt.spawn(
+                                async move { crate::core::processing::send_bundle(bndl).await },
+                            );
+                            debug!("sent bundle");
+
+                            ws_reply_text!(
+                                socket,
+                                format!("200 Sent payload with {} bytes", bin.len())
+                            );
+                        } else {
+                            ws_reply_text!(socket, "400 Invalid binary bundle");
                         }
-                        let src2 = src.unwrap();
-                        let pblock = bp7::primary::PrimaryBlockBuilder::default()
-                            .bundle_control_flags(bcf)
-                            .destination(dst.unwrap())
-                            .source(src2.clone())
-                            .report_to(src2)
-                            .creation_timestamp(CreationTimestamp::now())
-                            .lifetime(Duration::from_millis(send_req.lifetime))
-                            .build()
-                            .unwrap();
+                    }
+                    WsReceiveMode::Data => {
+                        if let Ok(send_req) = serde_cbor::from_slice::<WsSendData>(&bin) {
+                            //let src = (*CONFIG.lock()).host_eid.clone();
+                            let bcf = if send_req.delivery_notification {
+                                bp7::bundle::BUNDLE_MUST_NOT_FRAGMENTED
+                                    | bp7::bundle::BUNDLE_STATUS_REQUEST_DELIVERY
+                            } else {
+                                bp7::bundle::BUNDLE_MUST_NOT_FRAGMENTED
+                            };
+                            let dst = EndpointID::try_from(send_req.dst);
+                            let src = EndpointID::try_from(send_req.src);
+                            if dst.is_err() || src.is_err() {
+                                warn!(
+                                    "Received data with invalid src ({}) or destination ({})",
+                                    send_req.src, send_req.dst
+                                );
+                                return Ok(());
+                            }
+                            let src2 = src.unwrap();
+                            let pblock = bp7::primary::PrimaryBlockBuilder::default()
+                                .bundle_control_flags(bcf)
+                                .destination(dst.unwrap())
+                                .source(src2.clone())
+                                .report_to(src2)
+                                .creation_timestamp(CreationTimestamp::now())
+                                .lifetime(Duration::from_millis(send_req.lifetime))
+                                .build()
+                                .unwrap();
 
-                        let b_len = send_req.data.len();
-                        debug!("Received via WS for sending: {:?} bytes", b_len);
-                        let mut bndl = bp7::bundle::BundleBuilder::default()
-                            .primary(pblock)
-                            .canonicals(vec![
-                                bp7::canonical::new_payload_block(0, send_req.data.to_owned()),
-                                bp7::canonical::new_hop_count_block(2, 0, 32),
-                            ])
-                            .build()
-                            .unwrap();
-                        bndl.set_crc(bp7::crc::CRC_NO);
+                            let b_len = send_req.data.len();
+                            debug!("Received via WS for sending: {:?} bytes", b_len);
+                            let mut bndl = bp7::bundle::BundleBuilder::default()
+                                .primary(pblock)
+                                .canonicals(vec![
+                                    bp7::canonical::new_payload_block(0, send_req.data.to_owned()),
+                                    bp7::canonical::new_hop_count_block(2, 0, 32),
+                                ])
+                                .build()
+                                .unwrap();
+                            bndl.set_crc(bp7::crc::CRC_NO);
 
-                        debug!(
-                            "Sending bundle {} from data frame to {} from WS",
-                            bndl.id(),
-                            bndl.primary.destination
-                        );
-                        //let mut rt = tokio::runtime::Runtime::new().unwrap();
-                        //rt.block_on(async { crate::core::processing::send_bundle(bndl).await });
-                        let rt = tokio::runtime::Handle::current();
-                        rt.spawn(async move { crate::core::processing::send_bundle(bndl).await });
-                        debug!("sent bundle");
-                        //crate::core::processing::send_through_task(bndl);
-                        ws_reply_text!(socket, format!("200 Sent payload with {} bytes", b_len));
-                    } else {
-                        ws_reply_text!(socket, "400 Unexpected binary");
+                            debug!(
+                                "Sending bundle {} from data frame to {} from WS",
+                                bndl.id(),
+                                bndl.primary.destination
+                            );
+                            //let mut rt = tokio::runtime::Runtime::new().unwrap();
+                            //rt.block_on(async { crate::core::processing::send_bundle(bndl).await });
+                            let rt = tokio::runtime::Handle::current();
+                            rt.spawn(
+                                async move { crate::core::processing::send_bundle(bndl).await },
+                            );
+                            debug!("sent bundle");
+                            //crate::core::processing::send_through_task(bndl);
+                            ws_reply_text!(
+                                socket,
+                                format!("200 Sent payload with {} bytes", b_len)
+                            );
+                        } else {
+                            ws_reply_text!(socket, "400 Unexpected binary");
+                        }
                     }
                 }
             }
+
+            Message::Ping(msg) => {
+                self.hb = Instant::now();
+                let ping = Message::Ping(msg);
+                if let Err(err) = socket.send(ping).await {
+                    bail!("err sending pong: {}", err);
+                }
+            }
+
+            Message::Pong(_) => {
+                self.hb = Instant::now();
+            }
+
+            Message::Close(_) => {
+                bail!("received close message");
+            }
         }
+
         Ok(())
     }
     pub async fn fetch_new_bundles(&mut self, socket: mpsc::Sender<Message>) {
@@ -405,7 +424,7 @@ impl WsAASession {
                                 serde_cbor::to_vec(&recv).expect("Fatal error encoding WsRecvData")
                             }
                         };
-                        let job = socket.send(Message::binary(recv_data)); //.await;
+                        let job = socket.send(Message::Binary(recv_data)); //.await;
                         senders.push(job)
                         //ctx.binary(recv_data);
                     }

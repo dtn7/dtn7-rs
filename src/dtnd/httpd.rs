@@ -12,11 +12,12 @@ use crate::STATS;
 use crate::STORE;
 use anyhow::Result;
 use async_trait::async_trait;
+use axum::extract::ws::WebSocketUpgrade;
 use axum::response::Html;
-use axum::ws::ws;
 use axum::{
-    extract::{connect_info::ConnectInfo, extractor_middleware, RequestParts},
-    prelude::*,
+    extract::{self, connect_info::ConnectInfo, extractor_middleware, RequestParts},
+    handler::{get, post},
+    Router,
 };
 use bp7::dtntime::CreationTimestamp;
 use bp7::helpers::rnd_bundle;
@@ -566,14 +567,18 @@ async fn download_hex(
 }
 
 pub async fn spawn_httpd() -> Result<()> {
-    let app_local_only = route("/send", post(send_post))
+    let app_local_only = Router::new()
+        .route("/send", post(send_post))
         .route("/register", get(register))
         .route("/unregister", get(unregister))
         .route("/endpoint", get(endpoint))
         .route("/insert", get(insert_get).post(insert_post))
         .route("/endpoint.hex", get(endpoint_hex))
         .route("/cts", get(get_creation_timestamp))
-        .route("/ws", ws(super::ws::handle_socket))
+        .route(
+            "/ws",
+            get(|ws: WebSocketUpgrade| async move { ws.on_upgrade(super::ws::handle_socket) }),
+        )
         .route("/debug/rnd_bundle", get(debug_rnd_bundle))
         .route("/debug/rnd_peer", get(debug_rnd_peer))
         .layer(extractor_middleware::<RequireLocalhost>());
