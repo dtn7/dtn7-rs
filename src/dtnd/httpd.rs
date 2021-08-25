@@ -20,6 +20,8 @@ use axum::{
     Router,
 };
 use bp7::dtntime::CreationTimestamp;
+use bp7::flags::BlockControlFlags;
+use bp7::flags::BundleControlFlags;
 use bp7::helpers::rnd_bundle;
 use bp7::EndpointID;
 use http::StatusCode;
@@ -334,10 +336,10 @@ async fn send_post(
         return Err((StatusCode::BAD_REQUEST, "Missing destination endpoint id!"));
     }
     let src = (*CONFIG.lock()).host_eid.clone();
+    let flags = BundleControlFlags::BUNDLE_MUST_NOT_FRAGMENTED
+        | BundleControlFlags::BUNDLE_STATUS_REQUEST_DELIVERY;
     let pblock = bp7::primary::PrimaryBlockBuilder::default()
-        .bundle_control_flags(
-            bp7::bundle::BUNDLE_MUST_NOT_FRAGMENTED | bp7::bundle::BUNDLE_STATUS_REQUEST_DELIVERY,
-        )
+        .bundle_control_flags(flags.bits())
         .destination(dst)
         .source(src.clone())
         .report_to(src)
@@ -353,8 +355,8 @@ async fn send_post(
     let mut bndl = bp7::bundle::BundleBuilder::default()
         .primary(pblock)
         .canonicals(vec![
-            bp7::canonical::new_payload_block(0, bytes.to_vec()),
-            bp7::canonical::new_hop_count_block(2, 0, 32),
+            bp7::canonical::new_payload_block(BlockControlFlags::empty(), bytes.to_vec()),
+            bp7::canonical::new_hop_count_block(2, BlockControlFlags::empty(), 32),
         ])
         .build()
         .unwrap();
