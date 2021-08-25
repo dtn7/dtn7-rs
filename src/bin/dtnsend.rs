@@ -1,4 +1,5 @@
 use bp7::bundle::*;
+use bp7::flags::{BundleControlFlags, BundleValidation};
 use bp7::*;
 use clap::{crate_authors, crate_version, App, Arg};
 use dtn7_plus::client::DtnClient;
@@ -124,7 +125,9 @@ fn main() {
     }
 
     let mut bndl = new_std_payload_bundle(sender, receiver, buffer);
-    bndl.primary.bundle_control_flags = BUNDLE_MUST_NOT_FRAGMENTED | BUNDLE_STATUS_REQUEST_DELIVERY;
+    let flags = BundleControlFlags::BUNDLE_MUST_NOT_FRAGMENTED
+        | BundleControlFlags::BUNDLE_STATUS_REQUEST_DELIVERY;
+    bndl.primary.bundle_control_flags.set(flags);
     bndl.primary.creation_timestamp = cts;
     bndl.primary.lifetime = std::time::Duration::from_secs(lifetime);
     let binbundle = bndl.to_cbor();

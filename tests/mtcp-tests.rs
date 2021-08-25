@@ -1,4 +1,4 @@
-use bp7::{bundle, canonical, crc, dtntime, primary};
+use bp7::{bundle, canonical, crc, dtntime, flags::BlockControlFlags, primary};
 use dtn7::cla::mtcp;
 use std::convert::TryInto;
 
@@ -16,7 +16,10 @@ fn mpdu_encoding() {
         .unwrap();
     let mut b = bundle::BundleBuilder::default()
         .primary(pblock)
-        .canonicals(vec![canonical::new_payload_block(0, b"AAA".to_vec())])
+        .canonicals(vec![canonical::new_payload_block(
+            BlockControlFlags::empty(),
+            b"AAA".to_vec(),
+        )])
         .build()
         .unwrap();
     b.set_crc(crc::CRC_NO);

@@ -12,8 +12,8 @@ use crate::DTNCORE;
 use crate::{is_local_node_id, STATS};
 
 use bp7::administrative_record::*;
-use bp7::bundle::BundleValidation;
 use bp7::bundle::*;
+use bp7::flags::*;
 use bp7::CanonicalData;
 use bp7::BUNDLE_AGE_BLOCK;
 
@@ -117,7 +117,7 @@ pub async fn receive(mut bndl: Bundle) -> Result<()> {
     if bndl
         .primary
         .bundle_control_flags
-        .has(BUNDLE_STATUS_REQUEST_RECEPTION)
+        .contains(BundleControlFlags::BUNDLE_STATUS_REQUEST_RECEPTION)
         && !bndl.is_administrative_record()
     {
         send_status_report(&bp, RECEIVED_BUNDLE, NO_INFORMATION).await;
@@ -134,8 +134,8 @@ pub async fn receive(mut bndl: Bundle) -> Result<()> {
             bp.id(),
             cb.block_type
         );
-
-        if cb.block_control_flags.has(BLOCK_STATUS_REPORT) {
+        let flags = cb.block_control_flags.flags();
+        if flags.contains(BlockControlFlags::BLOCK_STATUS_REPORT) {
             info!(
                 "Bundle's unknown canonical block requested reporting: {} {}",
                 bp.id(),
@@ -143,7 +143,7 @@ pub async fn receive(mut bndl: Bundle) -> Result<()> {
             );
             send_status_report(&bp, RECEIVED_BUNDLE, BLOCK_UNINTELLIGIBLE).await;
         }
-        if cb.block_control_flags.has(BLOCK_DELETE_BUNDLE) {
+        if flags.contains(BlockControlFlags::BLOCK_DELETE_BUNDLE) {
             info!(
                 "Bundle's unknown canonical block requested bundle deletion: {} {}",
                 bp.id(),
@@ -152,7 +152,7 @@ pub async fn receive(mut bndl: Bundle) -> Result<()> {
             delete(bp, BLOCK_UNINTELLIGIBLE).await?;
             return Ok(());
         }
-        if cb.block_control_flags.has(BLOCK_REMOVE) {
+        if flags.contains(BlockControlFlags::BLOCK_REMOVE) {
             info!(
                 "Bundle's unknown canonical block requested to be removed: {} {} {}",
                 bp.id(),
@@ -281,7 +281,7 @@ async fn handle_previous_node_block(mut bundle: Bundle) -> Result<Bundle> {
     } else {
         // according to rfc always add a previous node block
         let local_eid = (*CONFIG.lock()).host_eid.clone();
-        let pnb = bp7::canonical::new_previous_node_block(0, 0, local_eid);
+        let pnb = bp7::canonical::new_previous_node_block(0, BlockControlFlags::empty(), local_eid);
         bundle.add_canonical_block(pnb);
     }
     Ok(bundle)
@@ -389,7 +389,7 @@ pub async fn forward(mut bp: BundlePack) -> Result<()> {
             if bndl
                 .primary
                 .bundle_control_flags
-                .has(bp7::bundle::BUNDLE_STATUS_REQUEST_FORWARD)
+                .contains(BundleControlFlags::BUNDLE_STATUS_REQUEST_FORWARD)
                 && !bndl.is_administrative_record()
             {
                 send_status_report(&bp, FORWARDED_BUNDLE, NO_INFORMATION).await;
@@ -434,7 +434,7 @@ pub async fn local_delivery(mut bp: BundlePack) -> Result<()> {
         if bndl
             .primary
             .bundle_control_flags
-            .has(bp7::bundle::BUNDLE_STATUS_REQUEST_DELIVERY)
+            .contains(BundleControlFlags::BUNDLE_STATUS_REQUEST_DELIVERY)
             && !bndl.is_administrative_record()
         {
             send_status_report(&bp, DELIVERED_BUNDLE, NO_INFORMATION).await;
@@ -467,7 +467,7 @@ pub async fn delete(mut bp: BundlePack, reason: StatusReportReason) -> Result<()
     if bndl
         .primary
         .bundle_control_flags
-        .has(bp7::bundle::BUNDLE_STATUS_REQUEST_DELETION)
+        .contains(BundleControlFlags::BUNDLE_STATUS_REQUEST_DELETION)
         && !bndl.is_administrative_record()
     {
         send_status_report(&bp, DELETED_BUNDLE, reason).await;
@@ -595,7 +595,7 @@ async fn send_status_report(
     if bndl
         .primary
         .bundle_control_flags
-        .has(BUNDLE_ADMINISTRATIVE_RECORD_PAYLOAD)
+        .contains(BundleControlFlags::BUNDLE_ADMINISTRATIVE_RECORD_PAYLOAD)
     {
         return;
     }

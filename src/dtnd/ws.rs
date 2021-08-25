@@ -4,6 +4,8 @@ use crate::DTNCORE;
 
 use anyhow::{bail, Result};
 use axum::extract::ws::{Message, WebSocket};
+use bp7::flags::BlockControlFlags;
+use bp7::flags::BundleControlFlags;
 use bp7::{Bundle, CreationTimestamp, EndpointID};
 use dtn7_plus::client::{WsRecvData, WsSendData};
 use futures::{sink::SinkExt, stream::StreamExt};
@@ -320,10 +322,10 @@ impl WsAASession {
                         if let Ok(send_req) = serde_cbor::from_slice::<WsSendData>(&bin) {
                             //let src = (*CONFIG.lock()).host_eid.clone();
                             let bcf = if send_req.delivery_notification {
-                                bp7::bundle::BUNDLE_MUST_NOT_FRAGMENTED
-                                    | bp7::bundle::BUNDLE_STATUS_REQUEST_DELIVERY
+                                BundleControlFlags::BUNDLE_MUST_NOT_FRAGMENTED
+                                    | BundleControlFlags::BUNDLE_STATUS_REQUEST_DELIVERY
                             } else {
-                                bp7::bundle::BUNDLE_MUST_NOT_FRAGMENTED
+                                BundleControlFlags::BUNDLE_MUST_NOT_FRAGMENTED
                             };
                             let dst = EndpointID::try_from(send_req.dst);
                             let src = EndpointID::try_from(send_req.src);
@@ -336,7 +338,7 @@ impl WsAASession {
                             }
                             let src2 = src.unwrap();
                             let pblock = bp7::primary::PrimaryBlockBuilder::default()
-                                .bundle_control_flags(bcf)
+                                .bundle_control_flags(bcf.bits())
                                 .destination(dst.unwrap())
                                 .source(src2.clone())
                                 .report_to(src2)
@@ -350,8 +352,15 @@ impl WsAASession {
                             let mut bndl = bp7::bundle::BundleBuilder::default()
                                 .primary(pblock)
                                 .canonicals(vec![
-                                    bp7::canonical::new_payload_block(0, send_req.data.to_owned()),
-                                    bp7::canonical::new_hop_count_block(2, 0, 32),
+                                    bp7::canonical::new_payload_block(
+                                        BlockControlFlags::empty(),
+                                        send_req.data.to_owned(),
+                                    ),
+                                    bp7::canonical::new_hop_count_block(
+                                        2,
+                                        BlockControlFlags::empty(),
+                                        32,
+                                    ),
                                 ])
                                 .build()
                                 .unwrap();
