@@ -1,6 +1,6 @@
 [package]
 name = "dtn7"
-version = "0.16.8"
+version = "0.16.9"
 authors = ["Lars Baumgaertner <baumgaertner@cs.tu-darmstadt.de>"]
 description = "Rust delay-tolerant-networking daemon and CLI tools based upon bp7 (bundle protocol version 7 draft)"
 edition = "2018"
@@ -28,7 +28,7 @@ futures-util = "0.3.5"
 pretty_env_logger = "0.4.0"
 log = "0.4"
 net2 = "0.2"
-bytes = "1.0.1"
+bytes = "1.1.0"
 clap = "2.33.3"
 config = "0.11.0"
 lazy_static = "1.4.0"
@@ -47,7 +47,6 @@ axum = { version = "0.2", features = ["ws"] }
 http = "0.2.4"
 #tower = "0.4.8"
 hyper = "0.14.11"
-ws = "0.9.1"
 tungstenite = "0.15.0"
 #measure_time = "0.7.0"
 

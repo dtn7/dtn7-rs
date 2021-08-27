@@ -1,3 +1,4 @@
+use anyhow::{bail, Result};
 use bp7::*;
 use clap::{crate_authors, crate_version, App, Arg};
 use dtn7_plus::client::DtnClient;
@@ -5,96 +6,45 @@ use std::convert::TryFrom;
 use std::io::prelude::*;
 use std::process::Command;
 use tempfile::NamedTempFile;
-use ws::{Builder, CloseCode, Handler, Handshake, Message, Result, Sender};
+use tungstenite::Message;
 
-struct Connection {
-    endpoint: String,
-    out: Sender,
-    subscribed: bool,
+fn write_temp_file(data: &[u8], verbose: bool) -> Result<NamedTempFile> {
+    let mut data_file = NamedTempFile::new()?;
+    data_file.write_all(data)?;
+    data_file.flush()?;
+    let fname_param = format!("{}", data_file.path().display());
+    if verbose {
+        eprintln!("[*] data file: {}", fname_param);
+    }
+    Ok(data_file)
+}
+fn execute_cmd(
+    command: &str,
+    data_file: NamedTempFile,
+    bndl: &Bundle,
     verbose: bool,
-    command: String,
-}
-
-impl Connection {
-    fn write_temp_file(&self, data: &[u8]) -> Result<NamedTempFile> {
-        let mut data_file = NamedTempFile::new()?;
-        data_file.write_all(data)?;
-        data_file.flush()?;
-        let fname_param = format!("{}", data_file.path().display());
-        if self.verbose {
-            eprintln!("data file: {}", fname_param);
-        }
-        Ok(data_file)
+) -> Result<()> {
+    let fname_param = format!("{}", data_file.path().display());
+    let cmd_args = &mut command.split_whitespace();
+    let mut command = Command::new(cmd_args.next().unwrap()); //empty string handled by clap
+    for arg in cmd_args {
+        command.arg(arg);
     }
-    fn execute_cmd(&self, data_file: NamedTempFile, bndl: &Bundle) -> Result<()> {
-        let fname_param = format!("{}", data_file.path().display());
-        let cmd_args = &mut self.command.split_whitespace();
-        let mut command = Command::new(cmd_args.next().unwrap()); //empty string handled by clap
-        for arg in cmd_args {
-            command.arg(arg);
-        }
-        let output = command
-            .arg(bndl.primary.source.to_string())
-            .arg(fname_param)
-            .output()
-            .unwrap_or_else(|e| {
-                eprintln!("Error executing command: {}", e);
-                std::process::exit(1);
-            });
+    let output = command
+        .arg(bndl.primary.source.to_string())
+        .arg(fname_param)
+        .output()
+        .unwrap_or_else(|e| {
+            eprintln!("[!] Error executing command: {}", e);
+            std::process::exit(1);
+        });
 
-        if !output.status.success() || self.verbose {
-            println!("status: {}", output.status);
-            std::io::stdout().write_all(&output.stdout)?;
-            std::io::stderr().write_all(&output.stderr)?;
-        }
-        Ok(())
+    if !output.status.success() || verbose {
+        println!("[*] status: {}", output.status);
+        std::io::stdout().write_all(&output.stdout)?;
+        std::io::stderr().write_all(&output.stderr)?;
     }
-}
-
-impl Handler for Connection {
-    fn on_open(&mut self, _: Handshake) -> Result<()> {
-        self.out.send("/bundle")?;
-        Ok(())
-    }
-
-    fn on_message(&mut self, msg: Message) -> Result<()> {
-        match msg {
-            Message::Text(txt) => {
-                if txt.starts_with("200") {
-                    if txt == "200 subscribed" {
-                        if self.verbose {
-                            eprintln!("successfully subscribed to {}!", self.endpoint);
-                        }
-                        self.subscribed = true;
-                    } else if txt == "200 tx mode: bundle" {
-                        if self.verbose {
-                            eprintln!("successfully set mode: bundle!");
-                        }
-                        self.out.send(format!("/subscribe {}", self.endpoint))?;
-                    }
-                } else {
-                    eprintln!("Unexpected response: {}", txt);
-                    self.out.close(CloseCode::Error)?;
-                }
-            }
-            Message::Binary(bin) => {
-                let bndl: Bundle =
-                    Bundle::try_from(bin).expect("Error decoding bundle from server");
-                if bndl.is_administrative_record() {
-                    eprintln!("Handling of administrative records not yet implemented!");
-                } else if let Some(data) = bndl.payload() {
-                    if self.verbose {
-                        eprintln!("Bundle-Id: {}", bndl.id());
-                    }
-                    let data_file = self.write_temp_file(data)?;
-                    self.execute_cmd(data_file, &bndl)?;
-                } else if self.verbose {
-                    eprintln!("Unexpected payload!");
-                }
-            }
-        }
-        Ok(())
-    }
+    Ok(())
 }
 
 fn main() -> anyhow::Result<()> {
@@ -153,7 +103,6 @@ fn main() -> anyhow::Result<()> {
     } else {
         "127.0.0.1"
     };
-    let local_url = format!("ws://{}:{}/ws", localhost, port);
 
     let client = DtnClient::with_host_and_port(
         localhost.into(),
@@ -164,16 +113,64 @@ fn main() -> anyhow::Result<()> {
     let command: String = matches.value_of("cmd").unwrap().into();
 
     client.register_application_endpoint(&endpoint)?;
-    let mut ws = Builder::new()
-        .build(|out| Connection {
-            endpoint: endpoint.clone(),
-            out,
-            subscribed: false,
-            verbose,
-            command: command.clone(),
-        })
-        .unwrap();
-    ws.connect(url::Url::parse(&local_url)?)?;
-    ws.run()?;
+    let mut wscon = client.ws()?;
+
+    wscon.write_text("/bundle")?;
+    let msg = wscon.read_text()?;
+    if msg.starts_with("200 tx mode: bundle") {
+        println!("[*] {}", msg);
+    } else {
+        bail!("[!] Failed to set mode to `bundle`");
+    }
+
+    wscon.write_text(&format!("/subscribe {}", endpoint))?;
+    let msg = wscon.read_text()?;
+    if msg.starts_with("200 subscribed") {
+        println!("[*] {}", msg);
+    } else {
+        bail!("[!] Failed to subscribe to service");
+    }
+
+    loop {
+        let msg = wscon.read_message()?;
+        match msg {
+            Message::Text(txt) => {
+                eprintln!("Unexpected response: {}", txt);
+                break;
+            }
+            Message::Binary(bin) => {
+                let bndl: Bundle =
+                    Bundle::try_from(bin).expect("Error decoding bundle from server");
+                if bndl.is_administrative_record() {
+                    eprintln!("[!] Handling of administrative records not yet implemented!");
+                } else if let Some(data) = bndl.payload() {
+                    if verbose {
+                        eprintln!("[<] Received Bundle-Id: {}", bndl.id());
+                    }
+                    let data_file = write_temp_file(data, verbose)?;
+                    execute_cmd(&command, data_file, &bndl, verbose)?;
+                } else if verbose {
+                    eprintln!("[!] Unexpected payload!");
+                    break;
+                }
+            }
+            Message::Ping(_) => {
+                if verbose {
+                    eprintln!("[<] Ping")
+                }
+            }
+            Message::Pong(_) => {
+                if verbose {
+                    eprintln!("[<] Ping")
+                }
+            }
+            Message::Close(_) => {
+                if verbose {
+                    eprintln!("[<] Close")
+                }
+                break;
+            }
+        }
+    }
     Ok(())
 }
