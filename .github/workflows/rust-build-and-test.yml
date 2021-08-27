@@ -97,6 +97,9 @@ jobs:
       
       - name: Run local nodes ipn test
         run: ./tests/local_nodes_dtn.sh
+      
+      - name: Run local dtntrigger test
+        run: ./tests/local_trigger_test.sh
 
     strategy:
       matrix:
