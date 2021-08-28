@@ -30,7 +30,7 @@ log = "0.4"
 socket2 = "0.4.1"
 bytes = "1.1.0"
 clap = "2.33.3"
-config = "0.11.0"
+config = {version = "0.11.0", default-features = false, features = ["toml"] }
 lazy_static = "1.4.0"
 anyhow = "1.0.32"
 parking_lot = "0.11"
