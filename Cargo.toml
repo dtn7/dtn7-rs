@@ -1,6 +1,6 @@
 [package]
 name = "dtn7"
-version = "0.16.9"
+version = "0.16.10"
 authors = ["Lars Baumgaertner <baumgaertner@cs.tu-darmstadt.de>"]
 description = "Rust delay-tolerant-networking daemon and CLI tools based upon bp7 (bundle protocol version 7 draft)"
 edition = "2018"
@@ -27,7 +27,7 @@ futures = "0.3.5"
 futures-util = "0.3.5"
 pretty_env_logger = "0.4.0"
 log = "0.4"
-net2 = "0.2"
+socket2 = "0.4.1"
 bytes = "1.1.0"
 clap = "2.33.3"
 config = "0.11.0"
