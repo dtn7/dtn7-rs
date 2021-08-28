@@ -6,7 +6,7 @@ use crate::DTNCORE;
 use crate::{peers_add, routing_notify, CONFIG};
 use anyhow::Result;
 use log::{debug, error, info};
-use net2::UdpBuilder;
+use socket2::{Domain, Socket, Type};
 use std::collections::HashMap;
 use std::io;
 use std::net::SocketAddr;
@@ -125,10 +125,11 @@ pub async fn spawn_neighbour_discovery() -> Result<()> {
     let v6 = (*CONFIG.lock()).v6;
     let port = 3003;
     if v4 {
-        let addr: std::net::SocketAddr = format!("0.0.0.0:{}", port).parse()?;
-        let socket = UdpBuilder::new_v4()?;
-        socket.reuse_address(true)?;
-        let socket = socket.bind(addr)?;
+        let addr: SocketAddr = format!("0.0.0.0:{}", port).parse()?;
+        let addr = addr.into();
+        let socket = Socket::new(Domain::IPV4, Type::DGRAM, None)?;
+        socket.set_reuse_address(true)?;
+        socket.bind(&addr)?;
 
         // DEBUG: setup multicast on loopback to true
         socket
@@ -151,8 +152,8 @@ pub async fn spawn_neighbour_discovery() -> Result<()> {
             .expect("error joining multicast v4 group");
         */
 
-        let socket1 = UdpSocket::from_std(socket.try_clone()?)?;
-        let socket2 = UdpSocket::from_std(socket.try_clone()?)?;
+        let socket1 = UdpSocket::from_std(socket.try_clone()?.into())?;
+        let socket2 = UdpSocket::from_std(socket.try_clone()?.into())?;
 
         info!("Listening on {}", socket1.local_addr()?);
 
@@ -161,11 +162,12 @@ pub async fn spawn_neighbour_discovery() -> Result<()> {
         tokio::spawn(announcer(socket2, false));
     }
     if v6 {
-        let addr: std::net::SocketAddr = format!("[::1]:{}", port).parse()?;
-        let socket = UdpBuilder::new_v6()?;
-        socket.reuse_address(true)?;
-        socket.only_v6(true)?;
-        let socket = socket.bind(addr)?;
+        let addr: SocketAddr = format!("[::1]:{}", port).parse()?;
+        let addr = addr.into();
+        let socket = Socket::new(Domain::IPV6, Type::DGRAM, None)?;
+        socket.set_reuse_address(true)?;
+        socket.set_only_v6(true)?;
+        socket.bind(&addr)?;
         // DEBUG: setup multicast on loopback to true
         socket
             .set_multicast_loop_v6(false)
@@ -184,8 +186,8 @@ pub async fn spawn_neighbour_discovery() -> Result<()> {
             .join_multicast_v6(&"FF02::300".parse()?, 0)
             .expect("error joining multicast v6 group");
         */
-        let socket1 = UdpSocket::from_std(socket.try_clone()?)?;
-        let socket2 = UdpSocket::from_std(socket.try_clone()?)?;
+        let socket1 = UdpSocket::from_std(socket.try_clone()?.into())?;
+        let socket2 = UdpSocket::from_std(socket.try_clone()?.into())?;
 
         info!("Listening on {}", socket1.local_addr()?);
 
