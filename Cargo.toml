@@ -49,6 +49,10 @@ http = "0.2.4"
 hyper = {version ="0.14.11", features = ["client"]}
 tungstenite = "0.15.0"
 #measure_time = "0.7.0"
+bitflags = "1.3.2"
+num-derive = "0.3.3"
+num-traits = "0.2.14"
+thiserror = "1.0.23"
 
 [lib]
 name = "dtn7"
