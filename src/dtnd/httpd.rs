@@ -405,8 +405,8 @@ async fn register(
         return Err((StatusCode::BAD_REQUEST, "missing query parameter"));
     }
     let path = query.unwrap();
-    // TODO: support non-node-specific EIDs
     if path.chars().all(char::is_alphanumeric) {
+        // without url scheme assume a local DTN service name
         let host_eid = (*CONFIG.lock()).host_eid.clone();
         let eid = host_eid
             .new_endpoint(&path)
@@ -415,6 +415,7 @@ async fn register(
             .register_application_agent(SimpleApplicationAgent::with(eid.clone()).into());
         Ok(format!("Registered {}", eid))
     } else if let Ok(eid) = EndpointID::try_from(path) {
+        // fully qualified EID, can be non-singleton endpoint
         (*DTNCORE.lock())
             .register_application_agent(SimpleApplicationAgent::with(eid.clone()).into());
         Ok(format!("Registered URI: {}", eid))

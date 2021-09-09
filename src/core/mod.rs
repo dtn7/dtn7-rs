@@ -92,12 +92,6 @@ impl DtnCore {
     }
     pub fn bundle_names(&self) -> Vec<String> {
         (*STORE.lock()).all_ids()
-        // TODO: maybe restore old functionality
-        /*(*STORE.lock())
-        .bundles()
-        .iter()
-        .map(|e| e.bundle.to_string())
-        .collect()*/
     }
     pub fn is_in_endpoints(&self, eid: &EndpointID) -> bool {
         for aa in self.endpoints.iter() {
