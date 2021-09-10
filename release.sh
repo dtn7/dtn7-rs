@@ -18,11 +18,19 @@ if [ -n "$1" ]; then
 	{% endfor %}
 	{% endfor %}"
 	changelog=$(git cliff --unreleased --strip all)
-	# create a signed tag
-	# https://keyserver.ubuntu.com/pks/lookup?search=0x4A92FA17B6619297&op=vindex
+	
 	git tag -a "$1" -m "Release $1" -m "$changelog"
-    echo "Don't forget to push tag to origin: "
-    echo git push origin "$1"
+	read -p "Directly push to GitHub? " -n 1 -r
+	echo    # (optional) move to a new line
+	if [[ $REPLY =~ ^[Yy]$ ]]
+	then
+		git push
+		git push origin "$1"
+	else
+		echo "Don't forget to push tag to origin: "
+		echo git push
+		echo git push origin "$1"
+	fi
 else
     echo Changes since last release:
     git cliff --unreleased --strip all
