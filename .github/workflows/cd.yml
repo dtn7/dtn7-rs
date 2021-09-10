@@ -74,7 +74,7 @@ jobs:
           target: ${{ matrix.TARGET }}
           override: true
       - name: Build
-        run: cargo build --release --target ${{ matrix.TARGET }}
+        run: cargo build --release --target ${{ matrix.TARGET }} --bins --examples
       - name: Prepare release assets
         shell: bash
         run: |
