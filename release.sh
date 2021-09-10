@@ -21,6 +21,8 @@ if [ -n "$1" ]; then
 	# create a signed tag
 	# https://keyserver.ubuntu.com/pks/lookup?search=0x4A92FA17B6619297&op=vindex
 	git tag -a "$1" -m "Release $1" -m "$changelog"
+    echo "Don't forget to push tag to origin: "
+    echo git push origin "$1"
 else
     echo Changes since last release:
     git cliff --unreleased --strip all
