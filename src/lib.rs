@@ -25,6 +25,8 @@ use std::collections::HashMap;
 use std::net::IpAddr;
 use tokio::sync::mpsc::Sender;
 
+pub const VERSION: &str = env!("CARGO_PKG_VERSION");
+
 lazy_static! {
     pub static ref CONFIG: Mutex<DtnConfig> = Mutex::new(DtnConfig::new());
     pub static ref DTNCORE: Mutex<DtnCore> = Mutex::new(DtnCore::new());

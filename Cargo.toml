@@ -48,6 +48,7 @@ http = "0.2.4"
 #tower = "0.4.8"
 hyper = "0.14.11"
 tungstenite = "0.15.0"
+gumdrop = "0.8.0"
 #measure_time = "0.7.0"
 
 [lib]

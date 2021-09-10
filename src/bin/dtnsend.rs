@@ -1,113 +1,85 @@
 use bp7::bundle::*;
 use bp7::flags::{BundleControlFlags, BundleValidation};
 use bp7::*;
-use clap::{crate_authors, crate_version, App, Arg};
 use dtn7_plus::client::DtnClient;
-use std::io;
+use gumdrop::Options;
 use std::{convert::TryInto, io::prelude::*};
+use std::{io, process};
+
+/// A simple Bundle Protocol 7 Send Utility for Delay Tolerant Networking
+#[derive(Debug, Options)]
+struct CmdOptions {
+    /// Print help message
+    #[options(short = "h", long = "help")]
+    help: bool,
+    /// Verbose output
+    #[options(short = "v", long = "verbose")]
+    verbose: bool,
+    /// Display version information
+    #[options(short = "V", long = "version")]
+    version: bool,
+    /// Use IPv6
+    #[options(short = "6", long = "ipv6")]
+    ipv6: bool,
+    /// Local web port
+    #[options(short = "p", long = "port", default = "3000")]
+    port: u16,
+    /// Sets sender name (e.g. 'dtn://node1')'
+    #[options(short = "s", long = "sender")]
+    sender: Option<String>,
+    /// Receiver EID (e.g. 'dtn://node2/incoming')
+    #[options(short = "r", long = "receiver", required)]
+    receiver: String,
+    /// Bundle lifetime in seconds
+    #[options(short = "l", long = "lifetime", default = "3600")]
+    lifetime: u64,
+    /// File to send, if omitted data is read from stdin till EOF
+    #[options(short = "i", long = "infile")]
+    infile: Option<String>,
+    /// Don't actually send packet, just dump the encoded one.
+    #[options(short = "d", long = "dry-run")]
+    dryrun: bool,
+}
 
 fn main() {
-    let matches = App::new("dtnsend")
-        .version(crate_version!())
-        .author(crate_authors!())
-        .about("A simple Bundle Protocol 7 Send Utility for Delay Tolerant Networking")
-        .arg(
-            Arg::with_name("sender")
-                .short("s")
-                .long("sender")
-                .value_name("SENDER")
-                .help("Sets sender name (e.g. 'dtn://node1')")
-                .required(false)
-                .takes_value(true),
-        )
-        .arg(
-            Arg::with_name("receiver")
-                .short("r")
-                .long("receiver")
-                .value_name("RECEIVER")
-                .help("Receiver EID (e.g. 'dtn://node2/incoming')")
-                .required(true)
-                .takes_value(true),
-        )
-        .arg(
-            Arg::with_name("port")
-                .short("p")
-                .long("port")
-                .value_name("PORT")
-                .help("Local web port (default = 3000)")
-                .required(false)
-                .takes_value(true),
-        )
-        .arg(
-            Arg::with_name("lifetime")
-                .short("l")
-                .long("lifetime")
-                .value_name("SECONDS")
-                .help("Bundle lifetime in seconds (default = 3600)")
-                .required(false)
-                .takes_value(true),
-        )
-        .arg(
-            Arg::with_name("verbose")
-                .short("v")
-                .long("verbose")
-                .help("verbose output")
-                .takes_value(false),
-        )
-        .arg(
-            Arg::with_name("dryrun")
-                .short("D")
-                .long("dry-run")
-                .help("Don't actually send packet, just dump the encoded one.")
-                .takes_value(false),
-        )
-        .arg(
-            Arg::with_name("ipv6")
-                .short("6")
-                .long("ipv6")
-                .help("Use IPv6")
-                .takes_value(false),
-        )
-        .arg(
-            Arg::with_name("infile")
-                .index(1)
-                .help("File to send, if omitted data is read from stdin till EOF"),
-        )
-        .get_matches();
-    let localhost = if matches.is_present("ipv6") {
-        "[::1]"
-    } else {
-        "127.0.0.1"
-    };
-    let port = std::env::var("DTN_WEB_PORT").unwrap_or_else(|_| "3000".into());
-    let port = matches.value_of("port").unwrap_or(&port); // string is fine no need to parse number
+    let opts = CmdOptions::parse_args_default_or_exit();
+
+    if opts.help {
+        println!("{}", CmdOptions::usage());
+        process::exit(0);
+    }
+    if opts.version {
+        println!("{}", dtn7::VERSION);
+        process::exit(0);
+    }
+
+    let verbose: bool = opts.verbose;
+    let port = std::env::var("DTN_WEB_PORT").unwrap_or_else(|_| opts.port.to_string());
+
+    let localhost = if opts.ipv6 { "[::1]" } else { "127.0.0.1" };
+
     let client = DtnClient::with_host_and_port(
         localhost.into(),
         port.parse::<u16>().expect("invalid port number"),
     );
-    let dryrun: bool = matches.is_present("dryrun");
-    let verbose: bool = matches.is_present("verbose");
-    let sender: EndpointID = matches
-        .value_of("sender")
-        .unwrap_or(
-            &client
+    let dryrun: bool = opts.dryrun;
+    let sender: EndpointID = opts
+        .sender
+        .unwrap_or_else(|| {
+            client
                 .local_node_id()
                 .expect("error getting node id from local dtnd")
-                .to_string(),
-        )
+                .to_string()
+        })
         .try_into()
         .unwrap();
-    let receiver: EndpointID = matches.value_of("receiver").unwrap().try_into().unwrap();
-    let lifetime: u64 = matches
-        .value_of("lifetime")
-        .unwrap_or("3600")
-        .parse::<u64>()
-        .unwrap();
+    let receiver: EndpointID = opts.receiver.try_into().unwrap();
+    let lifetime: u64 = opts.lifetime;
     let cts = client
         .creation_timestamp()
         .expect("error getting creation timestamp from local dtnd");
     let mut buffer = Vec::new();
-    if let Some(infile) = matches.value_of("infile") {
+    if let Some(infile) = opts.infile {
         if verbose {
             println!("Sending {}", infile);
         }
