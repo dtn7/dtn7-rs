@@ -12,7 +12,7 @@ exclude = [".vscode/", ".travis.yml"]
 readme = "README.md"
 
 [dependencies]
-bp7 = {version = "0.9.0", default-features = false }
+bp7 = {version = "0.9.1", default-features = false }
 dtn7-plus = {version = "0.5.1", default-features = false, features = ["client"] }
 d7sneakers = { version = "0.2.1", default-features = false }
 serde = { version = "1.0", features = ["derive"] }
