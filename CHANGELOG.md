@@ -1,6 +1,17 @@
 # Changelog
 All notable changes to this project will be documented in this file.
 
+## [0.16.12] - 2021-09-10
+
+### Miscellaneous Tasks
+
+- Cleaned up some leftover TODOs
+
+### Build
+
+- Updated bp7 to version with much less deps
+- Added Cargo.lock
+
 ## [0.16.11] - 2021-09-09
 
 ### Features
