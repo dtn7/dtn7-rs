@@ -118,4 +118,4 @@ jobs:
           command: publish
           args: |
             --allow-dirty --manifest-path Cargo.toml
-            --locked --token ${{ secrets.CARGO_TOKEN }}
+            --token ${{ secrets.CARGO_TOKEN }}
