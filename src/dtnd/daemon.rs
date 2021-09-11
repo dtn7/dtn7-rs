@@ -89,6 +89,11 @@ pub async fn start_dtnd(cfg: DtnConfig) -> anyhow::Result<()> {
     info!("IPv4: {}", (*CONFIG.lock()).v4);
     info!("IPv6: {}", (*CONFIG.lock()).v6);
 
+    info!(
+        "Generate Status Reports: {}",
+        (*CONFIG.lock()).generate_status_reports
+    );
+
     let routing = (*CONFIG.lock()).routing.clone();
     (*DTNCORE.lock()).routing_agent = crate::routing::new(&routing);
 

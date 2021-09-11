@@ -119,6 +119,7 @@ pub async fn receive(mut bndl: Bundle) -> Result<()> {
         .bundle_control_flags
         .contains(BundleControlFlags::BUNDLE_STATUS_REQUEST_RECEPTION)
         && !bndl.is_administrative_record()
+        && (*CONFIG.lock()).generate_status_reports
     {
         send_status_report(&bp, RECEIVED_BUNDLE, NO_INFORMATION).await;
     }
@@ -141,7 +142,11 @@ pub async fn receive(mut bndl: Bundle) -> Result<()> {
                 bp.id(),
                 cb.block_type
             );
-            send_status_report(&bp, RECEIVED_BUNDLE, BLOCK_UNINTELLIGIBLE).await;
+            if (*CONFIG.lock()).generate_status_reports {
+                send_status_report(&bp, RECEIVED_BUNDLE, BLOCK_UNINTELLIGIBLE).await;
+            } else {
+                info!("Generation of status reports disabled, ignoring request");
+            }
         }
         if flags.contains(BlockControlFlags::BLOCK_DELETE_BUNDLE) {
             info!(
@@ -363,7 +368,9 @@ pub async fn forward(mut bp: BundlePack) -> Result<()> {
                         .notify(RoutingNotifcation::SendingFailed(&bpid, &node_name));
                     info!("Sending bundle failed: {} {} {}", &bpid, n.remote, n.agent);
                     // TODO: send status report?
-                    //send_status_report(&bp2, FORWARDED_BUNDLE, TRANSMISSION_CANCELED);
+                    // if (*CONFIG.lock()).generate_service_reports {
+                    //    send_status_report(&bp2, FORWARDED_BUNDLE, TRANSMISSION_CANCELED);
+                    // }
                 }
                 //drop(wg);
             });
@@ -391,6 +398,7 @@ pub async fn forward(mut bp: BundlePack) -> Result<()> {
                 .bundle_control_flags
                 .contains(BundleControlFlags::BUNDLE_STATUS_REQUEST_FORWARD)
                 && !bndl.is_administrative_record()
+                && (*CONFIG.lock()).generate_status_reports
             {
                 send_status_report(&bp, FORWARDED_BUNDLE, NO_INFORMATION).await;
             }
@@ -436,6 +444,7 @@ pub async fn local_delivery(mut bp: BundlePack) -> Result<()> {
             .bundle_control_flags
             .contains(BundleControlFlags::BUNDLE_STATUS_REQUEST_DELIVERY)
             && !bndl.is_administrative_record()
+            && (*CONFIG.lock()).generate_status_reports
         {
             send_status_report(&bp, DELIVERED_BUNDLE, NO_INFORMATION).await;
         }
@@ -469,6 +478,7 @@ pub async fn delete(mut bp: BundlePack, reason: StatusReportReason) -> Result<()
         .bundle_control_flags
         .contains(BundleControlFlags::BUNDLE_STATUS_REQUEST_DELETION)
         && !bndl.is_administrative_record()
+        && (*CONFIG.lock()).generate_status_reports
     {
         send_status_report(&bp, DELETED_BUNDLE, reason).await;
     }

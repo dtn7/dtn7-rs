@@ -165,6 +165,13 @@ Tag 255 takes 5 arguments and is interpreted as address. Usage: -S 255:'Samplest
                 .takes_value(false),
         )
         .arg(
+            Arg::with_name("generate-status-reports")
+                .short("g")
+                .long("generate-status-reports")
+                .help("Generate status report bundles, can lead to a lot of traffic (default: deactivated)")
+                .takes_value(false),
+        )
+        .arg(
             Arg::with_name("unsafe_httpd")
                 .short("U")
                 .long("unsafe-httpd")
@@ -205,6 +212,9 @@ Tag 255 takes 5 arguments and is interpreted as address. Usage: -S 255:'Samplest
         cfg.v4 = false;
     }
     cfg.v4 = matches.is_present("ipv4") || cfg.v4;
+    cfg.generate_status_reports =
+        matches.is_present("generate-status-reports") || cfg.generate_status_reports;
+
     cfg.unsafe_httpd = matches.is_present("unsafe_httpd") || cfg.unsafe_httpd;
     cfg.enable_period = matches.is_present("beacon-period");
     if let Some(cfgfile) = matches.value_of("config") {
