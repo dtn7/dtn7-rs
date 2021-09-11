@@ -32,6 +32,7 @@ pub struct DtnConfig {
     pub statics: Vec<DtnPeer>,
     pub workdir: PathBuf,
     pub db: String,
+    pub generate_status_reports: bool,
 }
 
 pub fn rnd_node_name() -> String {
@@ -56,6 +57,7 @@ impl From<PathBuf> for DtnConfig {
         if dtncfg.debug {
             //std::env::set_var("RUST_LOG", "dtn7=debug,dtnd=debug");
         }
+        dtncfg.generate_status_reports = s.get_bool("generate_status_reports").unwrap_or(false);
         dtncfg.unsafe_httpd = s.get_bool("unsafe_httpd").unwrap_or(false);
         dtncfg.v4 = s.get_bool("ipv4").unwrap_or(true);
         debug!("ipv4: {:?}", dtncfg.v4);
@@ -213,6 +215,7 @@ impl DtnConfig {
             statics: Vec::new(),
             workdir: std::env::current_dir().unwrap(),
             db: String::from("mem"),
+            generate_status_reports: false,
         }
     }
     pub fn set(&mut self, cfg: DtnConfig) {
@@ -236,6 +239,7 @@ impl DtnConfig {
         self.statics = cfg.statics;
         self.workdir = cfg.workdir;
         self.db = cfg.db;
+        self.generate_status_reports = cfg.generate_status_reports;
     }
 
     /// Helper function that adds discovery destinations to a config struct

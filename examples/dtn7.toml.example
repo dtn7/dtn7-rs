@@ -4,6 +4,8 @@ nodeid = "node1"
 # Enables advertisement of the beaon period in discovery beacons
 beacon-period = true
 
+generate-status-reports = true
+
 routing = "epidemic"
 webport = 3000
 

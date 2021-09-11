@@ -85,9 +85,9 @@ checksum = "cdb031dd78e28731d87d56cc8ffef4a8f36ca26c38fe2de700543e627f8a464a"
 
 [[package]]
 name = "axum"
-version = "0.2.3"
+version = "0.2.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4e2423522684032529c51d209740c77d57cc56bfef7b9a18630f919a974d2616"
+checksum = "6eb8eeaec8dea1b26a8f6f2b7a5aff11465292023a91a3b045bf3fe2830a1944"
 dependencies = [
  "async-trait",
  "base64",
@@ -142,9 +142,9 @@ dependencies = [
 
 [[package]]
 name = "bp7"
-version = "0.9.1"
+version = "0.9.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1f1a7dbac0df870b50c4fa142816a1bb350029cca7b35c68a949aa0f12898b80"
+checksum = "8339a958f4d02d81bbf0d46cdab948ebe7e1fc4f69bc4f97d182293fdbf30230"
 dependencies = [
  "bitflags",
  "crc",
