@@ -93,8 +93,11 @@ jobs:
       - name: Run local ping/echo test
         run: ./tests/local_ping_echo.sh
       
-      - name: Run local nodes dtn test
+      - name: Run local nodes dtn test (w/o status reports)
         run: ./tests/local_nodes_dtn.sh
+      
+      - name: Run local nodes dtn test (w/ status reports)
+        run: STATUS_REPORTS="-g" ./tests/local_nodes_dtn.sh
       
       - name: Run local nodes ipn test
         run: ./tests/local_nodes_dtn.sh
