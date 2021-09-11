@@ -1,6 +1,17 @@
 # Changelog
 All notable changes to this project will be documented in this file.
 
+## [0.16.13] - 2021-09-11
+
+### Features
+
+- Added config file and CLI options to enable/disable status report generation
+- Websocket teardown now removes callback from application agents for subscribed endpoints
+
+### Ci
+
+- Added script to run all integration tests
+
 ## [0.16.12] - 2021-09-10
 
 ### Miscellaneous Tasks
