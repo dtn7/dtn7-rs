@@ -15,13 +15,15 @@ then
   exit 1
 fi
 
+#STATUS_REPORTS="-g"
+
 DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
 
 OUT_NODE1=$(mktemp /tmp/node1.XXXXXX)
 PORT_NODE1=3000
 #DB1="-W /tmp/node1 -D sled"
 #DB1="-W /tmp/node1 -D sneakers"
-$DIR/../target/$TARGET/dtnd -d -j5s -i0 -w $PORT_NODE1 -C mtcp:2342 -e incoming -r epidemic -n node1 -s mtcp://127.0.0.1:4223/node2 $DB1 2>&1 &> $OUT_NODE1 &
+$DIR/../target/$TARGET/dtnd -d -j5s -i0 -w $PORT_NODE1 -C mtcp:2342 -e incoming -r epidemic -n node1 -s mtcp://127.0.0.1:4223/node2 $DB1 $STATUS_REPORTS 2>&1 &> $OUT_NODE1 &
 PID_NODE1=$!
 echo node1 pid: $PID_NODE1
 echo node1 out: $OUT_NODE1
@@ -46,7 +48,7 @@ OUT_NODE3=$(mktemp /tmp/node3.XXXXXX)
 PORT_NODE3=3002
 #DB3="-W /tmp/node3 -D sled"
 #DB3="-W /tmp/node3 -D sneakers"
-$DIR/../target/$TARGET/dtnd -d -j5s -i0 -w $PORT_NODE3 -C mtcp:2432 -e incoming -r epidemic -n node3 -s mtcp://127.0.0.1:4223/node2 $DB3 2>&1 &> $OUT_NODE3 &
+$DIR/../target/$TARGET/dtnd -d -j5s -i0 -w $PORT_NODE3 -C mtcp:2432 -e incoming -r epidemic -n node3 -s mtcp://127.0.0.1:4223/node2 $DB3 $STATUS_REPORTS 2>&1 &> $OUT_NODE3 &
 PID_NODE3=$!
 echo node3 pid: $PID_NODE3
 echo node3 out: $OUT_NODE3
@@ -59,8 +61,26 @@ echo
 echo "Sending 'test' to node 3"
 echo test | $DIR/../target/$TARGET/dtnsend -r dtn://node3/incoming -p $PORT_NODE1
 
-sleep 1
+sleep 5
 
+echo
+echo -n "Bundles in store on node 1: "
+NUM_BUNDLES=$($DIR/../target/$TARGET/dtnquery store | grep "dtn://" | wc -l)
+echo $NUM_BUNDLES
+
+if [ -z "$STATUS_REPORTS" ]; then 
+  EXPECTED_BUNDLES=1
+else
+  EXPECTED_BUNDLES=2
+fi
+
+if [ "$NUM_BUNDLES" = "$EXPECTED_BUNDLES" ]
+then
+    echo "Correct number of bundles in store!"
+else
+    echo "Incorrect number of bundles in store!"
+fi
+echo
 echo -n "Receiving on node 3: "
 $DIR/../target/$TARGET/dtnrecv -v -e incoming -p $PORT_NODE3
 RC=$? 
@@ -79,4 +99,8 @@ fi
 kill $PID_NODE1 $PID_NODE2 $PID_NODE3
 rm $OUT_NODE1 $OUT_NODE2 $OUT_NODE3
 
-exit $RC
+if [ "$NUM_BUNDLES" = "$EXPECTED_BUNDLES" ]; then
+  exit $RC
+else
+  exit 1
+fi
