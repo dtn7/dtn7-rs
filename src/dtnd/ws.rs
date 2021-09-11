@@ -127,7 +127,14 @@ pub async fn handle_socket(socket: WebSocket) {
         _ = (&mut br_task) => {hb_task.abort(); recv_task.abort(); send_task.abort();},
     };
 
-    // TODO: clean up application agent tx
+    if let Some(endpoints) = &session.lock().await.endpoints {
+        for eid in endpoints {
+            if let Some(ep) = (*DTNCORE.lock()).get_endpoint_mut(eid) {
+                ep.clear_delivery_addr();
+            }
+            debug!("connection ended, unsubscribed endpoint: {}", eid);
+        }
+    };
 }
 
 macro_rules! ws_reply_text {
