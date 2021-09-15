@@ -1,5 +1,6 @@
 use crate::core::application_agent::ApplicationAgent;
 use crate::core::application_agent::SimpleApplicationAgent;
+use crate::core::bundlepack::Constraint;
 use crate::core::helpers::rnd_peer;
 use crate::core::peer::PeerType;
 use crate::core::store::BundleStore;
@@ -194,6 +195,7 @@ async fn web_bundles() -> Html<String> {
     let bundles_vec: Vec<BundleInfo> = (STORE.lock())
         .bundles()
         .iter()
+        .filter(|bp| !bp.has_constraint(Constraint::Deleted))
         .map(|bp| BundleInfo {
             id: bp.id.to_string(),
             size: bp.size.file_size(file_size_opts::DECIMAL).unwrap(),
@@ -221,7 +223,13 @@ async fn status_eids() -> String {
 }
 //#[get("/status/bundles")]
 async fn status_bundles() -> String {
-    serde_json::to_string_pretty(&(*DTNCORE.lock()).bundle_ids()).unwrap()
+    let bids: Vec<String> = (*STORE.lock())
+        .bundles()
+        .iter()
+        .filter(|bp| !bp.has_constraint(Constraint::Deleted))
+        .map(|bp| bp.id.to_string())
+        .collect();
+    serde_json::to_string_pretty(&bids).unwrap()
 }
 //#[get("/status/bundles_dest")]
 async fn status_bundles_dest() -> String {
