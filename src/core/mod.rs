@@ -21,6 +21,8 @@ use std::collections::HashMap;
 
 use crate::core::application_agent::ApplicationAgentEnum;
 
+use self::processing::forward;
+
 #[derive(Debug, Serialize, Deserialize, Default, Clone)]
 pub struct DtnStatistics {
     pub incoming: u64,
@@ -135,11 +137,9 @@ pub fn process_peers() {
 
 /// Reprocess bundles in store
 pub async fn process_bundles() {
-    // TODO: check for possible race condition and double send when janitor is triggered while first forwarding attempt is in progress
     let forwarding_bundle_ids: Vec<String> = (*STORE.lock()).forwarding();
     for bpid in forwarding_bundle_ids {
-        if let Err(err) = crate::core::processing::forward(store_get_metadata(&bpid).unwrap()).await
-        {
+        if let Err(err) = forward(store_get_metadata(&bpid).unwrap()).await {
             error!("Error forwarding bundle: {}", err);
         }
     }
