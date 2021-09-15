@@ -403,8 +403,7 @@ pub async fn forward(mut bp: BundlePack) -> Result<()> {
                 send_status_report(&bp, FORWARDED_BUNDLE, NO_INFORMATION).await;
             }
             if delete_afterwards {
-                bp.clear_constraints();
-                bp.sync()?;
+                store_remove(&bpid);
             } else if bndl.is_administrative_record() {
                 // TODO: always inspect all bundles, should be configurable
                 is_administrative_record_valid(&bndl);
