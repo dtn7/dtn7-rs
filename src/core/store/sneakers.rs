@@ -1,5 +1,5 @@
 use super::BundleStore;
-use crate::core::bundlepack::{BundlePack, Constraint};
+use crate::core::bundlepack::{self, BundlePack, Constraint};
 use crate::CONFIG;
 use anyhow::{bail, Result};
 use bp7::{Bundle, EndpointID};
@@ -74,15 +74,14 @@ impl BundleStore for SneakersBundleStore {
     fn has_item(&self, bid: &str) -> bool {
         self.store.db.exists(bid)
     }
+    fn filter(&self, criteria: &HashSet<bundlepack::Constraint>) -> Vec<String> {
+        let crit = convert_hashset_to_constraints(criteria);
+        self.store.db.filter_constraints(crit)
+    }
     fn pending(&self) -> Vec<String> {
         self.store
             .db
             .filter_constraints(Constraints::DISPATCH_PENDING)
-    }
-    fn forwarding(&self) -> Vec<String> {
-        self.store
-            .db
-            .filter_constraints(d7sneakers::Constraints::FORWARD_PENDING)
     }
     fn bundles(&self) -> Vec<BundlePack> {
         let all_ids = self.all_ids();

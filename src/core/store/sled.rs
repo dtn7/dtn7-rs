@@ -4,6 +4,7 @@ use crate::CONFIG;
 use anyhow::{bail, Result};
 use bp7::Bundle;
 use log::{debug, error};
+use std::collections::HashSet;
 use std::convert::TryFrom;
 use std::fmt::Debug;
 
@@ -81,6 +82,24 @@ impl BundleStore for SledBundleStore {
             false
         }
     }
+    fn filter(&self, criteria: &HashSet<Constraint>) -> Vec<String> {
+        self.metadata
+            .iter()
+            .values()
+            .filter_map(Result::ok)
+            .map(|k| BundlePack::from(k.as_ref()))
+            .filter(|e| {
+                for c in criteria {
+                    if !e.has_constraint(*c) {
+                        return false;
+                    }
+                }
+                true
+            })
+            .map(|k| k.id().into())
+            .collect()
+    }
+
     fn pending(&self) -> Vec<String> {
         self.metadata
             .iter()
@@ -96,16 +115,6 @@ impl BundleStore for SledBundleStore {
             .collect()
     }
 
-    fn forwarding(&self) -> Vec<String> {
-        self.metadata
-            .iter()
-            .values()
-            .filter_map(Result::ok)
-            .map(|k| BundlePack::from(k.as_ref()))
-            .filter(|e| e.has_constraint(Constraint::ForwardPending))
-            .map(|k| k.id().into())
-            .collect()
-    }
     fn bundles(&self) -> Vec<BundlePack> {
         self.metadata
             .iter()

@@ -3,7 +3,7 @@ use crate::core::bundlepack::{BundlePack, Constraint};
 use anyhow::{bail, Result};
 use bp7::Bundle;
 use log::debug;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::fmt::Debug;
 
 #[derive(Debug, Clone, PartialEq, Default)]
@@ -57,6 +57,20 @@ impl BundleStore for InMemoryBundleStore {
     fn has_item(&self, bid: &str) -> bool {
         self.bundles.contains_key(bid)
     }
+    fn filter(&self, criteria: &HashSet<Constraint>) -> Vec<String> {
+        self.metadata
+            .values()
+            .filter(|e| {
+                for c in criteria {
+                    if !e.has_constraint(*c) {
+                        return false;
+                    }
+                }
+                true
+            })
+            .map(|k| k.id().into())
+            .collect()
+    }
     fn pending(&self) -> Vec<String> {
         self.metadata
             .values()
@@ -65,14 +79,6 @@ impl BundleStore for InMemoryBundleStore {
                     && (e.has_constraint(Constraint::ForwardPending)
                         || e.has_constraint(Constraint::Contraindicated))
             })
-            .map(|b| b.id().into())
-            .collect()
-    }
-
-    fn forwarding(&self) -> Vec<String> {
-        self.metadata
-            .values()
-            .filter(|&e| e.has_constraint(Constraint::ForwardPending))
             .map(|b| b.id().into())
             .collect()
     }

@@ -10,7 +10,7 @@ use std::time::{SystemTime, UNIX_EPOCH};
 
 /// Constraint is a retention constraint as defined in the subsections of the
 /// fifth chapter of draft-ietf-dtn-bpbis-12.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Copy)]
 pub enum Constraint {
     /// DispatchPending is assigned to a bundle if its dispatching is pending.
     DispatchPending,

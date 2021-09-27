@@ -1,7 +1,9 @@
 use crate::core::bundlepack::BundlePack;
+use crate::core::bundlepack::Constraint;
 use anyhow::Result;
 use bp7::Bundle;
 use enum_dispatch::enum_dispatch;
+use std::collections::HashSet;
 use std::fmt::Debug;
 
 mod mem;
@@ -29,7 +31,11 @@ pub trait BundleStore: Debug {
     fn all_ids(&self) -> Vec<String>;
     fn has_item(&self, bid: &str) -> bool;
     fn pending(&self) -> Vec<String>;
-    fn forwarding(&self) -> Vec<String>;
+    fn forwarding(&self) -> Vec<String> {
+        let criteria: HashSet<Constraint> = vec![Constraint::ForwardPending].into_iter().collect();
+        self.filter(&criteria)
+    }
+    fn filter(&self, criteria: &HashSet<Constraint>) -> Vec<String>;
     fn bundles(&self) -> Vec<BundlePack>;
     fn bundles_status(&self) -> Vec<String> {
         self.bundles().iter().map(|bp| bp.to_string()).collect()
