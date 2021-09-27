@@ -1,6 +1,28 @@
 # Changelog
 All notable changes to this project will be documented in this file.
 
+## [0.16.14] - 2021-09-27
+
+### Bug Fixes
+
+- Only list bundle IDs for ones that have not been deleted
+
+### Features
+
+- Generic filter function for constraints
+
+### Miscellaneous Tasks
+
+- Removed obsolete TODO in process_bundles
+
+### Refactor
+
+- Made bundle removing explict processing::forward
+
+### Testing
+
+- Added test for status report generation to local_nodes_dtn.sh
+
 ## [0.16.13] - 2021-09-11
 
 ### Features

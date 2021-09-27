@@ -7,6 +7,8 @@ if [ -n "$1" ]; then
 	sed "s/^version = .* $msg$/version = \"${1#v}\" $msg/" -i Cargo.toml
 	# update the changelog
 	git cliff --tag "$1" > CHANGELOG.md
+	sleep 1
+	cargo check
 	git add -A && git commit -m "chore(release): prepare for $1"
 	git show
 	# generate a changelog for the tag message
@@ -25,6 +27,7 @@ if [ -n "$1" ]; then
 	if [[ $REPLY =~ ^[Yy]$ ]]
 	then
 		git push
+		sleep 1
 		git push origin "$1"
 	else
 		echo "Don't forget to push tag to origin: "
