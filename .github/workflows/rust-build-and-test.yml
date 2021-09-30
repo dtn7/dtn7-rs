@@ -3,8 +3,12 @@ name: Rust
 on:
   push:
     branches: [ master ]
+    paths:
+      - '**.rs'
   pull_request:
     branches: [ master ]
+    paths:
+      - '**.rs'
 
 env:
   CARGO_TERM_COLOR: always
@@ -101,6 +105,9 @@ jobs:
       
       - name: Run local nodes ipn test
         run: ./tests/local_nodes_dtn.sh
+      
+      - name: Run chained CLAs test
+        run: ./tests/cla_chain_test.sh
       
       - name: Run local dtntrigger test
         run: ./tests/local_trigger_test.sh
