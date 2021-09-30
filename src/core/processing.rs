@@ -96,17 +96,19 @@ pub async fn transmit(mut bp: BundlePack) -> Result<()> {
 
 // handle received/incoming bundles.
 pub async fn receive(mut bndl: Bundle) -> Result<()> {
-    info!("Received new bundle: {}", bndl.id());
-
     if store_has_item(&bndl.id()) {
-        debug!("Received bundle's ID is already known: {}", bndl.id());
+        debug!(
+            "Received an already known bundle, skip processing: {}",
+            bndl.id()
+        );
 
         // bundleDeletion is _not_ called because this would delete the already
         // stored BundlePack.
         return Ok(());
+    } else {
+        info!("Received new bundle: {}", bndl.id());
     }
 
-    info!("Processing new received bundle: {}", bndl.id());
     if let Err(err) = store_push_bundle(&bndl) {
         bail!("error adding received bundle: {} {}", bndl.id(), err);
     }
