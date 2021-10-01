@@ -2,6 +2,7 @@ use crate::cla::ConvergenceLayerAgent;
 use crate::CONFIG;
 use async_trait::async_trait;
 use bp7::ByteBuffer;
+use hyper::{Body, Method, Request, Uri};
 use log::{debug, error};
 use std::net::SocketAddr;
 
@@ -32,21 +33,24 @@ impl ConvergenceLayerAgent for HttpConvergenceLayer {
     async fn scheduled_submission(&self, dest: &str, ready: &[ByteBuffer]) -> bool {
         debug!("Scheduled HTTP submission: {:?}", dest);
         if !ready.is_empty() {
+            let client = hyper::client::Client::new();
             let peeraddr: SocketAddr = dest.parse().unwrap();
             debug!("forwarding to {:?}", peeraddr);
             for b in ready {
-                if let Err(err) = attohttpc::post(&format!(
-                    "http://{}:{}/push",
-                    peeraddr.ip(),
-                    peeraddr.port()
-                ))
-                .bytes(b.to_vec())
-                .send()
-                {
+                let req_url = format!("http://{}:{}/push", peeraddr.ip(), peeraddr.port());
+                let req = Request::builder()
+                    .method(Method::POST)
+                    .uri(req_url)
+                    .header("content-type", "application/octet-stream")
+                    .body(Body::from(b.to_vec()))
+                    .unwrap();
+                if let Err(err) = client.request(req).await {
                     error!("error pushing bundle to remote: {}", err);
                     return false;
                 }
+                debug!("successfully sent bundle to {}", peeraddr.ip());
             }
+            debug!("successfully sent {} bundles to {}", ready.len(), dest);
         } else {
             debug!("Nothing to forward.");
         }

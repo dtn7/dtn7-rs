@@ -46,7 +46,7 @@ derive_more = "0.99.14"
 axum = { version = "0.2", features = ["ws"] }
 http = "0.2.4"
 #tower = "0.4.8"
-hyper = "0.14.11"
+hyper = {version ="0.14.11", features = ["client"]}
 tungstenite = "0.15.0"
 #measure_time = "0.7.0"
 
