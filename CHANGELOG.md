@@ -1,6 +1,27 @@
 # Changelog
 All notable changes to this project will be documented in this file.
 
+## [0.16.15] - 2021-10-01
+
+### Bug Fixes
+
+- Eliminated potential deadlock in mtcp send_bundles
+
+### Features
+
+- Made http cla async
+
+### Refactor
+
+- Cleaned up logging of received bundles
+
+### Testing
+
+- Fixed typo in output of 3 node  scenario
+- Added test chaining all CLAs (`cla_chain_test.sh`) with multiple nodes
+- Added cla chain test to `run_all_tests.sh`
+- Added mixsize-fixed clab scenario with 32 nodes and large bundle generation
+
 ## [0.16.14] - 2021-09-27
 
 ### Bug Fixes
