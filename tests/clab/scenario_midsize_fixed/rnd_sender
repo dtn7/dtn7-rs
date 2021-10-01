@@ -1,0 +1,13 @@
+#!/bin/bash
+
+rnd_recipient() {
+    ls -d1 /tmp/pycore.1/n*.conf | cut -d '.' -f2 | cut -d '/' -f 2 | shuf | head -n 1
+}
+
+mkdir data
+periodic-file-generator bin 512 2048 1 1 data | while read x; do 
+DST=$(rnd_recipient)
+SENDFILE=$(echo $x | cut -d " " -f2)
+echo "sending $(hostname) to $DST > $SENDFILE"
+dtnsend -r dtn://$DST/data $SENDFILE
+done
