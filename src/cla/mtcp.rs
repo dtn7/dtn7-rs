@@ -258,7 +258,6 @@ impl MtcpConvergenceLayer {
     pub fn send_bundles(&self, addr: SocketAddr, bundles: Vec<ByteBuffer>) -> bool {
         // TODO: implement correct error handling
         // TODO: classic sending thread, tokio code would block and not complete large transmissions
-        //thread::spawn(move || {
         let now = Instant::now();
         let num_bundles = bundles.len();
         let mut buf = Vec::new();
@@ -271,16 +270,12 @@ impl MtcpConvergenceLayer {
                 return false;
             }
         }
-        let mut connections = MTCP_CONNECTIONS.lock();
-        /*let s1 = connections
-        .entry(addr)
-        .or_insert_with(|| TcpStream::connect(&addr).unwrap());*/
 
         #[allow(clippy::map_entry)]
-        if !connections.contains_key(&addr) {
+        if !MTCP_CONNECTIONS.lock().contains_key(&addr) {
             debug!("Connecting to {}", addr);
             if let Ok(stream) = TcpStream::connect(&addr) {
-                connections.insert(addr, stream);
+                MTCP_CONNECTIONS.lock().insert(addr, stream);
             } else {
                 error!("Error connecting to remote {}", addr);
                 return false;
@@ -288,12 +283,16 @@ impl MtcpConvergenceLayer {
         } else {
             debug!("Already connected to {}", addr);
         };
-        let mut s1 = connections.get(&addr).unwrap();
-        //let mut s1 = TcpStream::connect(&addr).unwrap();
+        let mut s1 = MTCP_CONNECTIONS
+            .lock()
+            .get(&addr)
+            .unwrap()
+            .try_clone()
+            .unwrap();
 
         if s1.write_all(&buf).is_err() {
             error!("Error writing data to {}", addr);
-            connections.remove(&addr);
+            MTCP_CONNECTIONS.lock().remove(&addr);
             return false;
         }
         info!(
@@ -304,7 +303,6 @@ impl MtcpConvergenceLayer {
             addr
         );
 
-        //});
         true
     }
 }
