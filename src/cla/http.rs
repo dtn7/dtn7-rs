@@ -2,7 +2,7 @@ use crate::cla::ConvergenceLayerAgent;
 use crate::CONFIG;
 use async_trait::async_trait;
 use bp7::ByteBuffer;
-use hyper::{Body, Method, Request, Uri};
+use hyper::{Body, Method, Request};
 use log::{debug, error};
 use std::net::SocketAddr;
 
