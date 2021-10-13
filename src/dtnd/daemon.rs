@@ -1,3 +1,5 @@
+use std::convert::TryFrom;
+
 use super::{httpd, janitor};
 use crate::cla::ConvergenceLayerAgent;
 use crate::cla_add;
@@ -6,6 +8,7 @@ use crate::dtnconfig::DtnConfig;
 use crate::ipnd::neighbour_discovery;
 use crate::peers_add;
 use crate::{CONFIG, DTNCORE, STORE};
+use bp7::EndpointID;
 use log::{error, info};
 
 /*
@@ -125,9 +128,15 @@ pub async fn start_dtnd(cfg: DtnConfig) -> anyhow::Result<()> {
     (*DTNCORE.lock())
         .register_application_agent(SimpleApplicationAgent::with(local_host_id.clone()).into());
     for e in &(*CONFIG.lock()).endpoints {
-        let eid = local_host_id
-            .new_endpoint(e)
-            .expect("Error constructing new endpoint");
+        let eid = if let Ok(eid) = EndpointID::try_from(e.clone()) {
+            // TODO: add check if non-local ID that service name is non-singleton ('~') for naming scheme dtn
+            eid
+        } else {
+            local_host_id
+                .new_endpoint(e)
+                .expect("Error constructing new endpoint")
+        };
+
         (*DTNCORE.lock()).register_application_agent(SimpleApplicationAgent::with(eid).into());
     }
     start_convergencylayers().await;
