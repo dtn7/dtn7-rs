@@ -106,6 +106,9 @@ jobs:
       - name: Run local nodes ipn test
         run: ./tests/local_nodes_dtn.sh
       
+      - name: Run local group dtn test
+        run: ./tests/local_group_test.sh
+      
       - name: Run chained CLAs test
         run: ./tests/cla_chain_test.sh
       
