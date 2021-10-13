@@ -79,6 +79,9 @@ impl DtnPeer {
     /// ```
 
     pub fn still_valid(&self) -> bool {
+        if self.con_type == PeerType::Static {
+            return true;
+        }
         // If a custom peer timeout was specified force remove all peers after specified amount of time
         // Or if no custom peer timeout was specified force remove all peers after default peer timeout
         // that didn't advertise a BeaconPeriod
