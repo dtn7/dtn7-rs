@@ -17,7 +17,7 @@ use axum::extract::ws::WebSocketUpgrade;
 use axum::response::Html;
 use axum::{
     extract::{self, connect_info::ConnectInfo, extractor_middleware, RequestParts},
-    handler::{get, post},
+    routing::{get, post},
     Router,
 };
 use bp7::dtntime::CreationTimestamp;
