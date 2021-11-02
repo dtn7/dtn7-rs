@@ -65,7 +65,7 @@ sleep 5
 
 echo
 echo -n "Bundles in store on node 1: "
-NUM_BUNDLES=$($DIR/../target/$TARGET/dtnquery store | grep "dtn://" | wc -l)
+NUM_BUNDLES=$($DIR/../target/$TARGET/dtnquery store | grep "dtn://" | wc -l | awk '{print $1}')
 echo $NUM_BUNDLES
 
 if [ -z "$STATUS_REPORTS" ]; then 

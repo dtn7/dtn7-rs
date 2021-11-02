@@ -65,15 +65,15 @@ sleep 5
 
 echo
 echo -n "Bundles in store on node 1: "
-NUM_BUNDLES=$($DIR/../target/$TARGET/dtnquery store | grep "dtn://" | wc -l)
-echo $NUM_BUNDLES
+NUM_BUNDLES=$($DIR/../target/$TARGET/dtnquery store | grep "dtn://" | wc -l | awk '{print $1}')
+echo -n $NUM_BUNDLES
 
 if [ -z "$STATUS_REPORTS" ]; then 
   EXPECTED_BUNDLES=1
 else
   EXPECTED_BUNDLES=2
 fi
-
+echo " / $EXPECTED_BUNDLES"
 if [ "$NUM_BUNDLES" = "$EXPECTED_BUNDLES" ]
 then
     echo "Correct number of bundles in store!"
