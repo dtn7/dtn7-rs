@@ -1,6 +1,25 @@
 # Changelog
 All notable changes to this project will be documented in this file.
 
+## [0.16.16] - 2021-11-02
+
+### Bug Fixes
+
+- Fixed registering of non-singleton endpoints during startup of dtnd
+- Removed misleading log message about "peer not seen" for static peers
+- Made all test shell scripts normalize bundle counting output
+- DtnPeer doctests would fail in some cases as static peers never timeout. Now only dynamic ones are generated for the test.
+- Changed cbor decoding to also work on 32bit machines
+- Upgraded to axum 0.3 to fix long compile times with rustc 1.56
+
+### Styling
+
+- Removed unneeded import in http cla
+
+### Testing
+
+- Added test for non-singleton group communication
+
 ## [0.16.15] - 2021-10-01
 
 ### Bug Fixes
