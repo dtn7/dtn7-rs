@@ -72,6 +72,7 @@ impl DtnPeer {
     ///
     /// (*CONFIG.lock()).peer_timeout = Duration::from_secs(1);
     /// let mut peer = helpers::rnd_peer();
+    /// peer.con_type = PeerType::Dynamic;
     /// assert_eq!(peer.still_valid(), true);
     ///
     /// thread::sleep(Duration::from_secs(2));
