@@ -71,26 +71,26 @@ fn cbor_hdr_len(input: u8) -> usize {
     }
 }
 
-fn cbor_parse_byte_string_len(input: &[u8]) -> usize {
+fn cbor_parse_byte_string_len(input: &[u8]) -> u64 {
     match cbor_parse_byte_string_len_first(input[0]) {
-        CborByteString::Len(len) => len as usize,
-        CborByteString::U8 => input[1] as usize,
-        CborByteString::U16 => ((input[1] as usize) << 8) + (input[2] as usize),
+        CborByteString::Len(len) => len as u64,
+        CborByteString::U8 => input[1] as u64,
+        CborByteString::U16 => ((input[1] as u64) << 8) + (input[2] as u64),
         CborByteString::U32 => {
-            ((input[1] as usize) << 24)
-                + ((input[2] as usize) << 16)
-                + ((input[3] as usize) << 8)
-                + (input[4] as usize)
+            ((input[1] as u64) << 24)
+                + ((input[2] as u64) << 16)
+                + ((input[3] as u64) << 8)
+                + (input[4] as u64)
         }
         CborByteString::U64 => {
-            ((input[1] as usize) << 56)
-                + ((input[2] as usize) << 48)
-                + ((input[3] as usize) << 40)
-                + ((input[4] as usize) << 32)
-                + ((input[5] as usize) << 24)
-                + ((input[6] as usize) << 16)
-                + ((input[7] as usize) << 8)
-                + (input[8] as usize)
+            ((input[1] as u64) << 56)
+                + ((input[2] as u64) << 48)
+                + ((input[3] as u64) << 40)
+                + ((input[4] as u64) << 32)
+                + ((input[5] as u64) << 24)
+                + ((input[6] as u64) << 16)
+                + ((input[7] as u64) << 8)
+                + (input[8] as u64)
         }
         _ => 0,
     }
@@ -157,7 +157,7 @@ impl Decoder for MPDUCodec {
             ));
         };
         if let Some(expected_pos) =
-            cbor_hdr_len(buf[0]).checked_add(cbor_parse_byte_string_len(&buf[0..10]))
+            cbor_hdr_len(buf[0]).checked_add(cbor_parse_byte_string_len(&buf[0..10]) as usize)
         {
             if let Some(expected_pos) = expected_pos.checked_sub(1) {
                 if expected_pos < buf.len() {
