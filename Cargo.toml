@@ -14,7 +14,7 @@ readme = "README.md"
 [dependencies]
 bp7 = {version = "0.9.2", default-features = false }
 dtn7-plus = {version = "0.5.1", default-features = false, features = ["client"] }
-d7sneakers = { version = "0.2.1", default-features = false }
+d7sneakers = { version = "0.2.3", default-features = false }
 serde = { version = "1.0", features = ["derive"] }
 serde_cbor = "0.11"
 serde_json = "1.0"
