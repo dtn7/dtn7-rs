@@ -1,4 +1,5 @@
 pub mod dummy;
+pub mod external;
 pub mod http;
 pub mod mtcp;
 
@@ -8,24 +9,59 @@ use bp7::ByteBuffer;
 use derive_more::*;
 use dummy::DummyConvergenceLayer;
 use enum_dispatch::enum_dispatch;
+use external::ExternalConvergenceLayer;
 use mtcp::MtcpConvergenceLayer;
+use serde::{Deserialize, Serialize};
 use std::fmt::{Debug, Display};
 use std::net::IpAddr;
 
+#[derive(Debug, PartialEq, Eq, Hash, Clone, Serialize, Deserialize)]
+pub enum RemoteAddr {
+    IP(IpAddr),
+    IPPort((IpAddr, u16)),
+    Str(String),
+}
+
+impl std::fmt::Display for RemoteAddr {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        let mut dest = String::new();
+        match self {
+            RemoteAddr::IP(ip) => {
+                dest.push_str(format!("{}", ip).as_str());
+            }
+            RemoteAddr::IPPort(ip_port) => {
+                dest.push_str(format!("{}:{}", ip_port.0, ip_port.1).as_str());
+            }
+            RemoteAddr::Str(val) => {
+                dest.push_str(val);
+            }
+        }
+        return write!(f, "{}", dest);
+    }
+}
+
 #[derive(Debug, PartialEq, Eq, Hash, Clone)]
 pub struct ClaSender {
-    pub remote: IpAddr,
-    pub port: Option<u16>,
+    pub remote: RemoteAddr,
     pub agent: String,
 }
 impl ClaSender {
     pub async fn transfer(&self, ready: &[ByteBuffer]) -> bool {
         let sender = new(&self.agent); // since we are not listening sender port is irrelevant
-        let dest = if self.port.is_some() {
-            format!("{}:{}", self.remote, self.port.unwrap())
-        } else {
-            self.remote.to_string()
-        };
+
+        let mut dest = String::new();
+        match &self.remote {
+            RemoteAddr::IP(ip) => {
+                dest.push_str(format!("{}", ip).as_str());
+            }
+            RemoteAddr::IPPort(ip_port) => {
+                dest.push_str(format!("{}:{}", ip_port.0, ip_port.1).as_str());
+            }
+            RemoteAddr::Str(val) => {
+                dest.push_str(val);
+            }
+        }
+
         sender.scheduled_submission(&dest, ready).await
     }
 }
@@ -36,6 +72,7 @@ pub enum CLAEnum {
     DummyConvergenceLayer,
     MtcpConvergenceLayer,
     HttpConvergenceLayer,
+    ExternalConvergenceLayer,
 }
 
 /*
@@ -56,7 +93,7 @@ pub trait ConvergenceLayerAgent: Debug + Display {
 }
 
 pub fn convergence_layer_agents() -> Vec<&'static str> {
-    vec!["dummy", "mtcp", "http"]
+    vec!["dummy", "mtcp", "http", "external"]
 }
 
 // returns a new CLA for the corresponding string ("<CLA name>[:local_port]").
@@ -68,6 +105,7 @@ pub fn new(cla_str: &str) -> CLAEnum {
         "dummy" => dummy::DummyConvergenceLayer::new().into(),
         "mtcp" => mtcp::MtcpConvergenceLayer::new(port).into(),
         "http" => http::HttpConvergenceLayer::new(port).into(),
+        "external" => external::ExternalConvergenceLayer::new(port).into(),
         _ => panic!("Unknown convergence layer agent agent {}", cla[0]),
     }
 }

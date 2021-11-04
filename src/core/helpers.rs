@@ -1,4 +1,5 @@
 use super::*;
+use crate::cla::RemoteAddr;
 use bp7::EndpointID;
 use rand::distributions::Alphanumeric;
 use rand::thread_rng;
@@ -26,7 +27,7 @@ pub fn rnd_peer() -> DtnPeer {
             let random_bytes = rand::thread_rng().gen::<[u8; 4]>();
             DtnPeer::new(
                 eid,
-                IpAddr::from(random_bytes),
+                RemoteAddr::IP(IpAddr::from(random_bytes)),
                 peertype,
                 None,
                 Vec::new(),
@@ -37,7 +38,7 @@ pub fn rnd_peer() -> DtnPeer {
             let random_bytes = rand::thread_rng().gen::<[u8; 16]>();
             DtnPeer::new(
                 eid,
-                IpAddr::from(random_bytes),
+                RemoteAddr::IP(IpAddr::from(random_bytes)),
                 peertype,
                 None,
                 Vec::new(),
@@ -93,7 +94,7 @@ pub fn parse_peer_url(peer_url: &str) -> DtnPeer {
         format!("dtn://{}", nodeid.replace('/', ""))
             .try_into()
             .unwrap(),
-        ipaddr.parse().unwrap(),
+        RemoteAddr::IP(ipaddr.parse().unwrap()),
         PeerType::Static,
         None,
         vec![(scheme.into(), port)],

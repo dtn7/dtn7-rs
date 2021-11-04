@@ -1,8 +1,8 @@
+use crate::cla::RemoteAddr;
 use crate::CONFIG;
 use bp7::EndpointID;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use std::net::IpAddr;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 #[derive(Debug, Serialize, Deserialize, Clone, Copy, PartialEq)]
@@ -14,7 +14,7 @@ pub enum PeerType {
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct DtnPeer {
     pub eid: EndpointID,
-    pub addr: IpAddr,
+    pub addr: RemoteAddr,
     pub con_type: PeerType,
     pub period: Option<Duration>,
     pub cla_list: Vec<(String, Option<u16>)>,
@@ -25,7 +25,7 @@ pub struct DtnPeer {
 impl DtnPeer {
     pub fn new(
         eid: EndpointID,
-        addr: IpAddr,
+        addr: RemoteAddr,
         con_type: PeerType,
         period: Option<Duration>,
         cla_list: Vec<(String, Option<u16>)>,
@@ -111,8 +111,7 @@ impl DtnPeer {
         for c in self.cla_list.iter() {
             if crate::cla::convergence_layer_agents().contains(&c.0.as_str()) {
                 let sender = crate::cla::ClaSender {
-                    remote: self.addr,
-                    port: c.1,
+                    remote: self.addr.clone(),
                     agent: c.0.clone(),
                 };
                 return Some(sender);
@@ -120,7 +119,18 @@ impl DtnPeer {
         }
         None
     }
-    pub fn addr(&self) -> &IpAddr {
+    pub fn addr(&self) -> &RemoteAddr {
         &self.addr
     }
+    /*pub fn ip_addr(&self) -> &IpAddr {
+        match &self.addr {
+            RemoteAddr::IP(ip) => {
+                return ip;
+            }
+            RemoteAddr::IPPort(ip_port) => {
+                return &ip_port.0;
+            }
+            _ => {}
+        }
+    }*/
 }

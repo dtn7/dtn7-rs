@@ -1,4 +1,4 @@
-use crate::cla::ConvergenceLayerAgent;
+use crate::cla::{ConvergenceLayerAgent, RemoteAddr};
 use crate::core::{DtnPeer, PeerType};
 use crate::ipnd::{beacon::Beacon, services::*};
 use crate::routing::RoutingNotifcation;
@@ -29,7 +29,7 @@ async fn receiver(socket: UdpSocket) -> Result<(), io::Error> {
             // Creates a new peer from received beacon
             let dtnpeer = DtnPeer::new(
                 deserialized.eid().clone(),
-                peer.ip(),
+                RemoteAddr::IP(peer.ip()),
                 PeerType::Dynamic,
                 deserialized.beacon_period(),
                 deserialized.service_block().clas().clone(),

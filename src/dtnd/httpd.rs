@@ -1,3 +1,4 @@
+use crate::cla::RemoteAddr;
 use crate::core::application_agent::ApplicationAgent;
 use crate::core::application_agent::SimpleApplicationAgent;
 use crate::core::bundlepack::Constraint;
@@ -31,6 +32,7 @@ use log::{debug, info, warn};
 use serde::Serialize;
 use std::collections::HashMap;
 use std::convert::{TryFrom, TryInto};
+use std::fmt::Write;
 use std::net::SocketAddr;
 use tinytemplate::TinyTemplate;
 /*
@@ -97,6 +99,7 @@ struct PeersContext<'a> {
 struct PeerEntry {
     name: String,
     con_type: PeerType,
+    addr: RemoteAddr,
     last: String,
 }
 
@@ -151,6 +154,15 @@ async fn web_peers() -> Html<String> {
     // "dtn7 ctrl interface"
     let template_str = include_str!("../../webroot/peers.html");
     let mut tt = TinyTemplate::new();
+    tt.add_formatter(
+        "dump_json",
+        |value: &serde_json::Value,
+         output: &mut String|
+         -> Result<(), tinytemplate::error::Error> {
+            write!(output, "{}", value.to_string())?;
+            Ok(())
+        },
+    );
     tt.add_template("peers", template_str)
         .expect("error adding template");
     let now = std::time::SystemTime::now()
@@ -169,6 +181,7 @@ async fn web_peers() -> Html<String> {
             PeerEntry {
                 name: p.eid.to_string(),
                 con_type: p.con_type,
+                addr: p.addr.clone(),
                 last: time_since,
             }
         })
