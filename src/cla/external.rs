@@ -9,7 +9,6 @@ use crate::{peers_add, DtnPeer};
 use async_trait::async_trait;
 use bp7::{Bundle, ByteBuffer, EndpointID};
 use futures::channel::mpsc::{unbounded, UnboundedSender};
-use futures::stream::Forward;
 use futures_util::{future, pin_mut, stream::TryStreamExt, StreamExt};
 use humantime::parse_duration;
 use log::debug;
@@ -44,27 +43,35 @@ impl std::fmt::Debug for ExternalConvergenceLayer {
     }
 }
 
+// Represents in which state the Module WebSocket connection is.
 enum ModuleState {
+    // The Module has not signaled his name
     WaitingForIdent,
+    // The Module has succesfully registered and is ready for messages
     Active,
 }
 
+// Represents the Module. A module has a connection state of the Websocket connection
+// it's name (typically name of the used transmission protocol) and the tx which is the
+// write stream to the underlying WebSocket.
 struct Module {
     state: ModuleState,
     name: String,
     tx: Tx,
 }
 
+// The variant of Packets that can be send or received. The resulting JSON will have
+// a field called type that encodes the selected variant.
 #[derive(Serialize, Deserialize)]
 #[serde(tag = "type")]
 enum Packet {
     IdentPacket(IdentPacket),
     Beacon(Beacon),
     ForwardDataPacket(ForwardDataPacket),
-    ReceivedDataPacket(ReceivedDataPacket),
-    Unknown,
 }
 
+// Beacon is a device discovery packet. It can either be from the direct connection
+// to the dtnd or received over the transmission layer of the ECLA client.
 #[derive(Serialize, Deserialize)]
 pub struct Beacon {
     eid: EndpointID,
@@ -72,11 +79,13 @@ pub struct Beacon {
     service_block: Vec<u8>,
 }
 
+// Identification Packet that registers the Module Name.
 #[derive(Serialize, Deserialize)]
 struct IdentPacket {
     name: String,
 }
 
+// Packet that forwards Bundle data
 #[derive(Serialize, Deserialize)]
 struct ForwardDataPacket {
     to: String,
@@ -84,12 +93,7 @@ struct ForwardDataPacket {
     data: Vec<u8>,
 }
 
-#[derive(Serialize, Deserialize)]
-struct ReceivedDataPacket {
-    from: String,
-    data: Vec<u8>,
-}
-
+// Generates a beacon packet for the own dtnd instance.
 fn generate_beacon() -> Beacon {
     let mut service_block = ServiceBlock::new();
     let mut beacon = Beacon {
@@ -119,6 +123,7 @@ fn generate_beacon() -> Beacon {
     return beacon;
 }
 
+// Periodically advertises it's own node to the connected WebSocket clients.
 async fn announcer() {
     let mut task = interval(parse_duration("10s").unwrap()); // TODO: settings
     loop {
@@ -130,13 +135,14 @@ async fn announcer() {
         pmap.retain(|_, value| {
             let beacon: Packet = Packet::Beacon(generate_beacon());
             let data = serde_json::to_string(&beacon);
-            value.tx.unbounded_send(Message::Text(data.unwrap()));
+            value.tx.unbounded_send(Message::Text(data.unwrap())); // TODO: Handle error gracefully
 
             return true;
         });
     }
 }
 
+// Handles the websocket connection.
 async fn handle_connection(raw_stream: TcpStream, addr: SocketAddr) {
     info!("Incoming TCP connection from: {}", addr);
 
@@ -183,6 +189,7 @@ async fn handle_connection(raw_stream: TcpStream, addr: SocketAddr) {
         }
 
         match me.state {
+            // If we are still in WaitingForIdent we only wait for IdentPackets to register the Module name.
             ModuleState::WaitingForIdent => match packet.unwrap() {
                 Packet::IdentPacket(ident) => {
                     info!("Received IdentPacket from {}: {}", addr, ident.name);
@@ -193,11 +200,13 @@ async fn handle_connection(raw_stream: TcpStream, addr: SocketAddr) {
                     // Send initial beacon of own
                     let initial_beacon: Packet = Packet::Beacon(generate_beacon());
                     let data = serde_json::to_string(&initial_beacon);
-                    me.tx.unbounded_send(Message::Text(data.unwrap()));
+                    me.tx.unbounded_send(Message::Text(data.unwrap())); // TODO: Handle error gracefully
                 }
                 _ => {}
             },
+            // If we are Active we wait for Beacon and ForwardDataPacket
             ModuleState::Active => match packet.unwrap() {
+                // We got a new Bundle Packet that needs to be parsed and processed.
                 Packet::ForwardDataPacket(fwd) => {
                     if let Ok(bndl) = Bundle::try_from(fwd.data) {
                         info!("Received bundle: {} from {}", bndl.id(), me.name);
@@ -210,6 +219,9 @@ async fn handle_connection(raw_stream: TcpStream, addr: SocketAddr) {
                         }
                     }
                 }
+                // We got a new Peer that is advertised through a Beacon Packet. The beacon packet
+                // will typically be from the other side of the transmission Protocol that the connected
+                // WebSocket client implements.
                 Packet::Beacon(pdp) => {
                     debug!("Received beacon: {} {} {}", me.name, pdp.eid, pdp.addr);
 
@@ -284,16 +296,16 @@ impl ConvergenceLayerAgent for ExternalConvergenceLayer {
         "external"
     }
     async fn scheduled_submission(&self, dest: &str, ready: &[ByteBuffer]) -> bool {
+        // The ModuleName and ModuleTarget is encoded in {MODULE_NAME}/{MODULE_TARGET}
         let splt = dest.split_once("/");
-
         if splt.is_none() {
             return false;
         }
 
         // TODO: abort if module == ""
 
-        let module = splt.unwrap().0;
-        let target = splt.unwrap().1;
+        let module = splt.unwrap().0; // The Module that the Data should be passed to
+        let target = splt.unwrap().1; // Some Identification Address so the Module knows where to relay the Packet (e.g. BLE Address, Some Node ID...)
 
         debug!(
             "Scheduled submission External Convergence Layer for Destination with Module '{}' and Target '{}'",
@@ -303,14 +315,15 @@ impl ConvergenceLayerAgent for ExternalConvergenceLayer {
         let mut pmap = PEER_MAP.lock().unwrap();
         pmap.retain(|_, value| {
             if value.name == module {
+                // Found the matching Module
                 for b in ready {
                     let packet: Packet = Packet::ForwardDataPacket(ForwardDataPacket {
                         to: target.to_string(),
-                        from: "".to_string(),
+                        from: "".to_string(), // Leave blank for now and let the Module set it to a protocol specific address on his side
                         data: b.to_vec(),
                     });
                     let data = serde_json::to_string(&packet);
-                    value.tx.unbounded_send(Message::Text(data.unwrap()));
+                    value.tx.unbounded_send(Message::Text(data.unwrap())); // TODO: Handle error gracefully
                 }
             }
 
