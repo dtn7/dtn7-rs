@@ -230,7 +230,7 @@ async fn handle_connection(raw_stream: TcpStream, addr: SocketAddr) {
 
                     peers_add(DtnPeer::new(
                         pdp.eid.clone(),
-                        RemoteAddr::Str(format!("{}/{}", me.name, pdp.addr).to_string()),
+                        RemoteAddr::Str(format!("{}/{}", me.name, pdp.addr).to_string()), // Convert address to {MODULE}/{MODULE_TARGET}
                         PeerType::Dynamic,
                         None,
                         service_block.clas().clone(),
@@ -312,6 +312,7 @@ impl ConvergenceLayerAgent for ExternalConvergenceLayer {
             module, target
         );
 
+        let mut was_sent = false;
         let mut pmap = PEER_MAP.lock().unwrap();
         pmap.retain(|_, value| {
             if value.name == module {
@@ -324,13 +325,14 @@ impl ConvergenceLayerAgent for ExternalConvergenceLayer {
                     });
                     let data = serde_json::to_string(&packet);
                     value.tx.unbounded_send(Message::Text(data.unwrap())); // TODO: Handle error gracefully
+                    was_sent = true;
                 }
             }
 
             return true;
         });
 
-        true
+        was_sent
     }
 }
 
