@@ -29,7 +29,7 @@ async fn receiver(socket: UdpSocket) -> Result<(), io::Error> {
             // Creates a new peer from received beacon
             let dtnpeer = DtnPeer::new(
                 deserialized.eid().clone(),
-                peer.ip(),
+                peer.ip().into(),
                 PeerType::Dynamic,
                 deserialized.beacon_period(),
                 deserialized.service_block().clas().clone(),

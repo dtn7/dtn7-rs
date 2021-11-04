@@ -705,10 +705,7 @@ mod tests {
             node_id: "node1".into(),
         };
         //        let data_raw: [u8; data_len] = [0; data_len];
-        let mut data_raw: Vec<u8> = Vec::with_capacity(data_len as usize);
-        for _ in 0..data_len {
-            data_raw.push(0x90);
-        }
+        let data_raw: Vec<u8> = vec![0x90; data_len as usize];
 
         let fitting = if data_len % segment_mru == 0 { 0 } else { 1 };
         let num_expected_segs = ((data_len / segment_mru) + fitting) as usize;

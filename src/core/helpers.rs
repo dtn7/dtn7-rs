@@ -1,3 +1,5 @@
+use crate::core::peer::PeerAddress;
+
 use super::*;
 use bp7::EndpointID;
 use rand::distributions::Alphanumeric;
@@ -26,7 +28,7 @@ pub fn rnd_peer() -> DtnPeer {
             let random_bytes = rand::thread_rng().gen::<[u8; 4]>();
             DtnPeer::new(
                 eid,
-                IpAddr::from(random_bytes),
+                IpAddr::from(random_bytes).into(),
                 peertype,
                 None,
                 Vec::new(),
@@ -37,7 +39,7 @@ pub fn rnd_peer() -> DtnPeer {
             let random_bytes = rand::thread_rng().gen::<[u8; 16]>();
             DtnPeer::new(
                 eid,
-                IpAddr::from(random_bytes),
+                IpAddr::from(random_bytes).into(),
                 peertype,
                 None,
                 Vec::new(),
@@ -89,11 +91,17 @@ pub fn parse_peer_url(peer_url: &str) -> DtnPeer {
     if nodeid == "/" || nodeid.is_empty() {
         panic!("Missing node id");
     }
+    let addr = if let Ok(ip) = ipaddr.parse::<IpAddr>() {
+        PeerAddress::Ip(ip)
+    } else {
+        PeerAddress::Generic(ipaddr.to_owned())
+    };
+
     DtnPeer::new(
         format!("dtn://{}", nodeid.replace('/', ""))
             .try_into()
             .unwrap(),
-        ipaddr.parse().unwrap(),
+        addr,
         PeerType::Static,
         None,
         vec![(scheme.into(), port)],
