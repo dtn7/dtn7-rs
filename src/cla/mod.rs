@@ -4,6 +4,7 @@ pub mod mtcp;
 pub mod tcp;
 
 use self::http::HttpConvergenceLayer;
+use crate::core::peer::PeerAddress;
 use async_trait::async_trait;
 use bp7::ByteBuffer;
 use derive_more::*;
@@ -11,12 +12,11 @@ use dummy::DummyConvergenceLayer;
 use enum_dispatch::enum_dispatch;
 use mtcp::MtcpConvergenceLayer;
 use std::fmt::{Debug, Display};
-use std::net::IpAddr;
 use tcp::TcpConvergenceLayer;
 
 #[derive(Debug, PartialEq, Eq, Hash, Clone)]
 pub struct ClaSender {
-    pub remote: IpAddr,
+    pub remote: PeerAddress,
     pub port: Option<u16>,
     pub agent: String,
 }

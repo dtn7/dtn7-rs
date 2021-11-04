@@ -17,12 +17,12 @@ use log::error;
 pub use crate::core::{DtnCore, DtnPeer};
 pub use crate::routing::RoutingNotifcation;
 
+use crate::core::peer::PeerAddress;
 use crate::core::store::BundleStoresEnum;
 use anyhow::Result;
 use lazy_static::*;
 use parking_lot::Mutex;
 use std::collections::HashMap;
-use std::net::IpAddr;
 use tokio::sync::mpsc::Sender;
 
 lazy_static! {
@@ -89,7 +89,7 @@ pub fn peers_cla_for_node(eid: &EndpointID) -> Option<crate::cla::ClaSender> {
     }
     None
 }
-pub fn peer_find_by_remote(addr: &IpAddr) -> Option<String> {
+pub fn peer_find_by_remote(addr: &PeerAddress) -> Option<String> {
     for (_, p) in (*PEERS.lock()).iter() {
         if p.addr() == addr {
             return Some(p.node_name());
