@@ -41,7 +41,7 @@ fn send_ping(
     wscon.write_binary(&serde_cbor::to_vec(&ping)?)
 }
 fn main() -> Result<()> {
-    let matches = App::new("dtnecho")
+    let matches = App::new("dtnping")
         .version(crate_version!())
         .author(crate_authors!())
         .about("A simple Bundle Protocol 7 Ping Tool for Delay Tolerant Networking")

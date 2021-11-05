@@ -6,24 +6,24 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE-MIT)
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE-APACHE)
 
-Rust implementation of a daemon for DTN7 Bundle Protocol draft https://tools.ietf.org/html/draft-ietf-dtn-bpbis-26
+Rust implementation of a disruption-tolernat networking (DTN) daemon for the [Bundle Protocol version 7 draft](https://tools.ietf.org/html/draft-ietf-dtn-bpbis).
 
 Plus:
-* Minimal TCP Convergence Layer Protocol https://tools.ietf.org/html/draft-ietf-dtn-mtcpcl-01
+* [TCP Convergence Layer v4](https://datatracker.ietf.org/doc/html/draft-ietf-dtn-tcpclv4)
+* [Minimal TCP Convergence Layer](https://tools.ietf.org/html/draft-ietf-dtn-mtcpcl-01) 
 * A simple HTTP Convergence Layer 
+* An IP neighorhood discovery service
 * Convenient command line tools to interact with the daemon
 * A simple web interface for status information about `dtnd` 
 * A web-socket interface for application agents
 
-The actual BP7 implementation can be found here: https://github.com/dtn7/bp7-rs
+The actual BP7 implementation (encoding/decoding) is available a separate [project](https://github.com/dtn7/bp7-rs).
 
-Additional dtn related stuff and some client code can be found here: https://github.com/dtn7/bp7-plus-rs
+Additional dtn extensions and a client library are also [available](https://github.com/dtn7/bp7-plus-rs).
 
-A similar golang implementation can be found here: https://github.com/dtn7/dtn7-go
+Currently, a service discovery based on IPND but adapted to CBOR and BPv7, TCP, MTCP & HTTP CLs, flooding/epidemic/sink-routing and rest/ws command interfaces are implemented. Both addressing schemes, *dtn* as well as *ipn* are supported. Furthermore, some CLI tools are provided to easily integrate *dtn7* into shell scripts.
 
-Currently a very basic service discovery, MTCP & HTTP CLs, flooding/epidemic/sink-routing and rest/ws command interfaces are implemented. Both addressing schemes, *dtn* as well as *ipn* are supported. Furthermore, some CLI tools are provided to easily integrate *dtn7* into shell scripts.
-
-**Beware, the API is not always idiomatic rust and lacks documentation and tests at the moment.**
+**Beware: This code as well as the RFC drafts are not yet final and thus might change frequently.**
 
 I consider this code to be work-in-progress and not finished yet. Also the rest and web-socket interface is totally undocumented and unfinished at the moment :)
 
@@ -34,13 +34,15 @@ Installation from source using cargo:
 cargo install dtn7
 ```
 
+Precompiled binaries for common platforms can be found on [GitHub](https://github.com/dtn7/dtn7-rs/releases).
+
 ## Usage
 
 ### Daemon
 
 ```
 $ dtnd -h
-dtn7-rs 0.11.0
+dtn7-rs 0.17.1
 Lars Baumgaertner <baumgaertner@cs.tu-darmstadt.de>
 A simple Bundle Protocol 7 Daemon for Delay Tolerant Networking
 
@@ -48,28 +50,39 @@ USAGE:
     dtnd [FLAGS] [OPTIONS]
 
 FLAGS:
-    -d, --debug           Set log level to debug
-    -h, --help            Prints help information
-    -4, --ipv4            Use IPv4
-    -6, --ipv6            Use IPv6
-    -U, --unsafe-httpd    Allow httpd RPC calls from anyhwere
-    -V, --version         Prints version information
+    -b, --beacon-period              Enables the advertisement of the beacon sending interval to inform neighbors about
+                                     when to expect new beacons
+    -d, --debug                      Set log level to debug
+    -g, --generate-status-reports    Generate status report bundles, can lead to a lot of traffic (default: deactivated)
+    -h, --help                       Prints help information
+    -4, --ipv4                       Use IPv4
+    -6, --ipv6                       Use IPv6
+    -U, --unsafe-httpd               Allow httpd RPC calls from anyhwere
+    -V, --version                    Prints version information
 
 OPTIONS:
-    -C, --cla <CLA[:local_port]>...    Add convergency layer agent: dummy, mtcp, http
-    -c, --config <FILE>                Sets a custom config file
-    -D, --db <STORE>                   Set bundle store: mem, sled
-    -e, --endpoint <ENDPOINT>...       Registers an application agent for a node local endpoint (e.g. 'incoming' listens
-                                       on 'dtn://node1/incoming')
-    -i, --interval <humantime>         Sets service discovery interval (0 = deactive, 2s = 2 seconds, 3m = 3 minutes,
-                                       etc.)
-    -j, --janitor <humantime>          Sets janitor interval (0 = deactive, 2s = 2 seconds, 3m = 3 minutes, etc.)
-    -n, --nodeid <NODEID>              Sets local node name (e.g. 'dtn://node1')
-    -p, --peer-timeout <humantime>     Sets timeout to remove peer (default = 20s)
-    -r, --routing <ROUTING>            Set routing algorithm: epidemic, flooding, sink
-    -s, --static-peer <PEER>...        Adds a static peer (e.g. mtcp://192.168.2.1:2342/node2)
-    -w, --web-port <PORT>              Sets web interface port (default = 3000)
-    -W, --workdir <PATH>               Sets the working directory (e.g. '/tmp/node1', default '.')
+    -C, --cla <CLA[:local_port]>...               Add convergence layer agent: dummy, mtcp, http, tcp
+    -c, --config <FILE>                           Sets a custom config file
+    -D, --db <STORE>                              Set bundle store: mem, sled, sneakers
+    -E, --discovery-destination <DD[:port]>...
+            Sets destination beacons shall be sent to for discovery purposes (default IPv4 = 224.0.0.26:3003, IPv6 =
+            [FF02::300]:3003
+    -e, --endpoint <ENDPOINT>...
+            Registers an application agent for a node local endpoint (e.g. 'incoming' listens on 'dtn://node1/incoming')
+
+    -i, --interval <humantime>
+            Sets service discovery interval (0 = deactive, 2s = 2 seconds, 3m = 3 minutes, etc.) Refers to the discovery
+            interval that is advertised when flag -b is set
+    -j, --janitor <humantime>
+            Sets janitor interval (0 = deactive, 2s = 2 seconds, 3m = 3 minutes, etc.)
+
+    -n, --nodeid <NODEID>                         Sets local node name (e.g. 'dtn://node1')
+    -p, --peer-timeout <humantime>                Sets timeout to remove peer (default = 20s)
+    -r, --routing <ROUTING>                       Set routing algorithm: epidemic, flooding, sink
+    -S, --service <TAG:payload>...                Add a self defined service.
+    -s, --static-peer <PEER>...                   Adds a static peer (e.g. mtcp://192.168.2.1:2342/node2)
+    -w, --web-port <PORT>                         Sets web interface port (default = 3000)
+    -W, --workdir <PATH>                          Sets the working directory (e.g. '/tmp/node1', default '.')
 ```
 
 Example usage for *node1* with *epidemic* routing, *mtcp* convergence layer and the default endpoint *'incoming'*:
@@ -90,7 +103,7 @@ For an example take a look at `examples/dtn7.toml.example`.
 Querying information from `dtnd`:
 ```
 $ dtnquery -h
-dtnquery 0.11.0
+dtnquery 0.17.1
 Lars Baumgaertner <baumgaertner@cs.tu-darmstadt.de>
 A simple Bundle Protocol 7 Query Utility for Delay Tolerant Networking
 
@@ -118,7 +131,7 @@ SUBCOMMANDS:
 Receiving bundles: 
 ```
 $ dtnrecv -h
-dtnrecv 0.11.0
+dtnrecv 0.17.1
 Lars Baumgaertner <baumgaertner@cs.tu-darmstadt.de>
 A simple Bundle Protocol 7 Receive Utility for Delay Tolerant Networking
 
@@ -134,7 +147,7 @@ FLAGS:
 
 OPTIONS:
     -b, --bundle-id <BID>        Download any bundle by ID
-    -e, --endpoint <ENDPOINT>    Specify local endpoint, e.g. '/incoming', or a group endpoint 'dtn://helpers/incoming'
+    -e, --endpoint <ENDPOINT>    Specify local endpoint, e.g. '/incoming', or a group endpoint 'dtn://helpers/~incoming'
     -o, --output <FILE>          Write bundle payload to file instead of stdout
     -p, --port <PORT>            Local web port (default = 3000)
 ```
@@ -142,7 +155,7 @@ OPTIONS:
 Sending bundles:
 ```
 $ dtnsend -h
-dtnsend 0.11.0
+dtnsend 0.17.0
 Lars Baumgaertner <baumgaertner@cs.tu-darmstadt.de>
 A simple Bundle Protocol 7 Send Utility for Delay Tolerant Networking
 
@@ -169,7 +182,7 @@ ARGS:
 Automatic triggering of external binaries for incoming bundles:
 ```
 $ dtntrigger -h
-dtntrigger 0.11.0
+dtntrigger 0.17.1
 Lars Baumgaertner <baumgaertner@cs.tu-darmstadt.de>
 A simple Bundle Protocol 7 Incoming Trigger Utility for Delay Tolerant Networking
 
@@ -184,16 +197,44 @@ FLAGS:
 
 OPTIONS:
     -c, --command <CMD>          Command to execute for incoming bundles, param1 = source, param2 = payload file
-    -e, --endpoint <ENDPOINT>    Specify local endpoint, e.g. '/incoming', or a group endpoint 'dtn://helpers/incoming'
+    -e, --endpoint <ENDPOINT>    Specify local endpoint, e.g. '/incoming', or a group endpoint 'dtn://helpers/~incoming'
     -p, --port <PORT>            Local web port (default = 3000)
 ```
 
-### Examples
+### Example Applications
 
-A simple DTN echo service can be found under `examples/dtnecho.rs`. 
+A simple DTN echo service can be found under `examples/dtnecho2.rs`. 
 
 This service automatically registers its endpoint and listens for any incoming bundles on the local `/echo` endpoint or for *ipn* addresses on service number `7`. 
 Each bundle is sent back to its source with the same payload and lifetime, no delivery report is requested. 
+
+This service can be used together with `examples/dtnping.rs` for connectivity tests.
+```
+dtnping 0.17.1
+Lars Baumgaertner <baumgaertner@cs.tu-darmstadt.de>
+A simple Bundle Protocol 7 Ping Tool for Delay Tolerant Networking
+
+USAGE:
+    dtnping [FLAGS] [OPTIONS] --destination <destination>
+
+FLAGS:
+    -h, --help       Prints help information
+    -6, --ipv6       Use IPv6
+    -V, --version    Prints version information
+    -v, --verbose    verbose output
+
+OPTIONS:
+    -c, --count <count>                Number of pings to send
+    -d, --destination <destination>    Destination to ping
+    -s, --size <payloadsize>           Payload size
+    -p, --port <PORT>                  Local web port (default = 3000)
+    -t, --timeout <timeout>            Time to wait for reply (10s, 30m, 2h, ...)
+```
+
+### Example Use-Cases
+
+Under `tests/` are several shell scripts for integration tests that also showcase how to use the different command line utilities. 
+Furthermore, under `tests/clab` are more complex and dynamic tests that get executed in *Docker* and [*coreemu*](https://github.com/coreemu/core).
 
 ### Acknowledging this work
 
