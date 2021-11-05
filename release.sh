@@ -4,13 +4,12 @@ shopt -s expand_aliases
 if [[ "$OSTYPE" == "darwin"* ]]; then
     # Mac OSX
 	alias sed=gsed
-	sed -v
 elif [[ "$OSTYPE" == "freebsd"* ]]; then
 	alias sed=gsed
 fi
 
 # takes the tag as an argument (e.g. v0.1.0)
-if [ -n "$1" ]; then
+if [ -n "$1" ]; then	
 	# update the version
 	msg="# managed by release.sh"
 	
