@@ -15,8 +15,9 @@ use log::debug;
 use log::error;
 use log::info;
 use serde::__private::TryFrom;
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use serde_json::Result;
+use serde_with::{hex::Hex, serde_as};
 use std::collections::HashMap;
 use std::fmt::Formatter;
 use std::net::SocketAddr;
@@ -65,31 +66,36 @@ struct Module {
 #[derive(Serialize, Deserialize)]
 #[serde(tag = "type")]
 enum Packet {
-    IdentPacket(IdentPacket),
+    RegisterPacket(RegisterPacket),
     Beacon(Beacon),
     ForwardDataPacket(ForwardDataPacket),
 }
 
 // Beacon is a device discovery packet. It can either be from the direct connection
 // to the dtnd or received over the transmission layer of the ECLA client.
+#[serde_as]
 #[derive(Serialize, Deserialize)]
 pub struct Beacon {
     eid: EndpointID,
     addr: String,
+    #[serde_as(as = "Hex")]
     service_block: Vec<u8>,
 }
 
 // Identification Packet that registers the Module Name.
 #[derive(Serialize, Deserialize)]
-struct IdentPacket {
+struct RegisterPacket {
     name: String,
+    enable_beacon: bool,
 }
 
 // Packet that forwards Bundle data
+#[serde_as]
 #[derive(Serialize, Deserialize)]
 struct ForwardDataPacket {
     to: String,
     from: String,
+    #[serde_as(as = "Hex")]
     data: Vec<u8>,
 }
 
@@ -189,10 +195,10 @@ async fn handle_connection(raw_stream: TcpStream, addr: SocketAddr) {
         }
 
         match me.state {
-            // If we are still in WaitingForIdent we only wait for IdentPackets to register the Module name.
+            // If we are still in WaitingForIdent we only wait for RegisterPackets to register the Module name.
             ModuleState::WaitingForIdent => match packet.unwrap() {
-                Packet::IdentPacket(ident) => {
-                    info!("Received IdentPacket from {}: {}", addr, ident.name);
+                Packet::RegisterPacket(ident) => {
+                    info!("Received RegisterPacket from {}: {}", addr, ident.name);
 
                     me.name = ident.name;
                     me.state = ModuleState::Active;
