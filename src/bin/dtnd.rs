@@ -88,6 +88,19 @@ async fn main() -> Result<(), std::io::Error> {
                 .takes_value(true),
         )
         .arg(
+            Arg::with_name("eclaport")
+                .long("ecla-port")
+                .value_name("PORT")
+                .help("Sets ECLA port (default = 3151)")
+                .takes_value(true),
+        )
+        .arg(
+            Arg::with_name("ecla")
+                .long("ecla")
+                .help("Enable ECLA")
+                .takes_value(false),
+        )
+        .arg(
             Arg::with_name("peertimeout")
                 .short("p")
                 .long("peer-timeout")
@@ -214,6 +227,13 @@ Tag 255 takes 5 arguments and is interpreted as address. Usage: -S 255:'Samplest
     cfg.v4 = matches.is_present("ipv4") || cfg.v4;
     cfg.generate_status_reports =
         matches.is_present("generate-status-reports") || cfg.generate_status_reports;
+
+    cfg.ecla_enable = matches.is_present("ecla");
+    if let Some(eclaport) = matches.value_of("eclaport") {
+        cfg.ecla_port = eclaport
+            .parse()
+            .expect("Could not parse ECLA port paramter!");
+    }
 
     cfg.unsafe_httpd = matches.is_present("unsafe_httpd") || cfg.unsafe_httpd;
     cfg.enable_period = matches.is_present("beacon-period");
