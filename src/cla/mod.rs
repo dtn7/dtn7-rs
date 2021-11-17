@@ -88,7 +88,7 @@ impl std::fmt::Display for CLAEnum {
 pub trait ConvergenceLayerAgent: Debug + Display {
     async fn setup(&mut self);
     fn port(&self) -> u16;
-    fn name(&self) -> &'static str;
+    fn name(&self) -> &str;
     async fn scheduled_submission(&self, dest: &str, ready: &[ByteBuffer]) -> bool;
 }
 
@@ -105,7 +105,7 @@ pub fn new(cla_str: &str) -> CLAEnum {
         "dummy" => dummy::DummyConvergenceLayer::new().into(),
         "mtcp" => mtcp::MtcpConvergenceLayer::new(port).into(),
         "http" => http::HttpConvergenceLayer::new(port).into(),
-        "external" => external::ExternalConvergenceLayer::new(port).into(),
+        //"external" => external::ExternalConvergenceLayer::new(port).into(),
         _ => panic!("Unknown convergence layer agent agent {}", cla[0]),
     }
 }

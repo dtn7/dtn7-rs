@@ -27,7 +27,7 @@ impl ConvergenceLayerAgent for HttpConvergenceLayer {
     fn port(&self) -> u16 {
         self.local_port
     }
-    fn name(&self) -> &'static str {
+    fn name(&self) -> &str {
         "http"
     }
     async fn scheduled_submission(&self, dest: &str, ready: &[ByteBuffer]) -> bool {

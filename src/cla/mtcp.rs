@@ -317,7 +317,7 @@ impl ConvergenceLayerAgent for MtcpConvergenceLayer {
     fn port(&self) -> u16 {
         self.local_port
     }
-    fn name(&self) -> &'static str {
+    fn name(&self) -> &str {
         "mtcp"
     }
     async fn scheduled_submission(&self, dest: &str, ready: &[ByteBuffer]) -> bool {
