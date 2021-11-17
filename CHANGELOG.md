@@ -1,6 +1,21 @@
 # Changelog
 All notable changes to this project will be documented in this file.
 
+## [0.17.0] - 2021-11-05
+
+### Features
+
+- Implemented TCP convergence layer draft (v28)
+
+### Miscellaneous Tasks
+
+- Upgraded d7sneakers version, it now bundles sqlite
+- Added armv7 target for binary releases
+
+### Refactor
+
+- Changed DtnPeer to carry not only IpAddresses but a an enum with IpAddr and Generic(String)
+
 ## [0.16.16] - 2021-11-02
 
 ### Bug Fixes

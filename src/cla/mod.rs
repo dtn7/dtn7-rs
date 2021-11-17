@@ -1,8 +1,10 @@
 pub mod dummy;
 pub mod http;
 pub mod mtcp;
+pub mod tcp;
 
 use self::http::HttpConvergenceLayer;
+use crate::core::peer::PeerAddress;
 use async_trait::async_trait;
 use bp7::ByteBuffer;
 use derive_more::*;
@@ -10,11 +12,11 @@ use dummy::DummyConvergenceLayer;
 use enum_dispatch::enum_dispatch;
 use mtcp::MtcpConvergenceLayer;
 use std::fmt::{Debug, Display};
-use std::net::IpAddr;
+use tcp::TcpConvergenceLayer;
 
 #[derive(Debug, PartialEq, Eq, Hash, Clone)]
 pub struct ClaSender {
-    pub remote: IpAddr,
+    pub remote: PeerAddress,
     pub port: Option<u16>,
     pub agent: String,
 }
@@ -36,6 +38,7 @@ pub enum CLAEnum {
     DummyConvergenceLayer,
     MtcpConvergenceLayer,
     HttpConvergenceLayer,
+    TcpConvergenceLayer,
 }
 
 /*
@@ -56,7 +59,7 @@ pub trait ConvergenceLayerAgent: Debug + Display {
 }
 
 pub fn convergence_layer_agents() -> Vec<&'static str> {
-    vec!["dummy", "mtcp", "http"]
+    vec!["dummy", "mtcp", "http", "tcp"]
 }
 
 // returns a new CLA for the corresponding string ("<CLA name>[:local_port]").
@@ -68,6 +71,7 @@ pub fn new(cla_str: &str) -> CLAEnum {
         "dummy" => dummy::DummyConvergenceLayer::new().into(),
         "mtcp" => mtcp::MtcpConvergenceLayer::new(port).into(),
         "http" => http::HttpConvergenceLayer::new(port).into(),
+        "tcp" => tcp::TcpConvergenceLayer::new(port).into(),
         _ => panic!("Unknown convergence layer agent agent {}", cla[0]),
     }
 }
