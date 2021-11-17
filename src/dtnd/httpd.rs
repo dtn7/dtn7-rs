@@ -5,13 +5,13 @@ use crate::core::bundlepack::Constraint;
 use crate::core::helpers::rnd_peer;
 use crate::core::peer::PeerType;
 use crate::core::store::BundleStore;
-use crate::peers_count;
 use crate::DtnConfig;
 use crate::CONFIG;
 use crate::DTNCORE;
 use crate::PEERS;
 use crate::STATS;
 use crate::STORE;
+use crate::{cla_names, peers_count};
 use anyhow::Result;
 use async_trait::async_trait;
 use axum::extract::ws::WebSocketUpgrade;
@@ -88,6 +88,7 @@ struct IndexContext<'a> {
     timeout: String,
     num_peers: usize,
     num_bundles: usize,
+    clas: Vec<String>,
 }
 
 #[derive(Serialize)]
@@ -134,6 +135,7 @@ async fn index() -> Html<String> {
         humantime::format_duration((*CONFIG.lock()).announcement_interval).to_string();
     let janitor = humantime::format_duration((*CONFIG.lock()).janitor_interval).to_string();
     let timeout = humantime::format_duration((*CONFIG.lock()).peer_timeout).to_string();
+    let clas = cla_names();
     let context = IndexContext {
         config: &(*CONFIG.lock()),
         announcement,
@@ -141,6 +143,7 @@ async fn index() -> Html<String> {
         timeout,
         num_peers: peers_count(),
         num_bundles: (*DTNCORE.lock()).bundle_count(),
+        clas,
     };
 
     let rendered = tt
