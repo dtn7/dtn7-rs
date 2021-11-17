@@ -41,32 +41,32 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        build: [linux-gnu, linux-musl, macos]
+        build: [linux64-gnu, linux64-musl, linux-armv7-musl, macos]
         include:
-          - BUILD: linux-gnu
+          - BUILD: linux64-gnu
             OS: ubuntu-18.04
             TOOLCHAIN: stable
             TARGET: x86_64-unknown-linux-gnu
-          - BUILD: linux-musl
+          - BUILD: linux64-musl
             OS: ubuntu-18.04
             TOOLCHAIN: stable
-            TARGET: x86_64-unknown-linux-musl          
+            TARGET: x86_64-unknown-linux-musl
+            CROSS: true
           - BUILD: macos
-            OS: macos-10.15
+            OS: macos-11
             TOOLCHAIN: stable
-            TARGET: x86_64-apple-darwin
+            TARGET: x86_64-apple-darwin          
+          - BUILD: linux-armv7-musl
+            OS: ubuntu-18.04
+            TOOLCHAIN: stable
+            TARGET: armv7-unknown-linux-musleabihf
+            CROSS: true
     steps:
       - name: Checkout
         uses: actions/checkout@main
       - name: Set the release version
         shell: bash
-        run: echo "RELEASE_VERSION=${GITHUB_REF:11}" >> $GITHUB_ENV
-      - name: Install musl-tools
-        if: matrix.TARGET == 'x86_64-unknown-linux-musl'
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y --no-install-recommends \
-            --allow-unauthenticated musl-tools
+        run: echo "RELEASE_VERSION=${GITHUB_REF:11}" >> $GITHUB_ENV      
       - name: Install Rust toolchain
         uses: actions-rs/toolchain@v1
         with:
@@ -74,7 +74,11 @@ jobs:
           target: ${{ matrix.TARGET }}
           override: true
       - name: Build
-        run: cargo build --release --target ${{ matrix.TARGET }} --bins --examples
+        uses: actions-rs/cargo@v1
+        with:
+          use-cross: ${{ matrix.CROSS }}
+          command: build
+          args: --release --target ${{ matrix.TARGET }} --bins --examples
       - name: Prepare release assets
         shell: bash
         run: |
@@ -83,7 +87,7 @@ jobs:
           cp {LICENSE*,COPYRIGHT,README.md,CHANGELOG.md} release/
           cp -r doc release/doc          
           cp target/${{ matrix.TARGET }}/release/{dtnd,dtntrigger,dtnsend,dtnrecv,dtnquery} release/bin
-          cp target/${{ matrix.TARGET }}/release/examples/{dtnping,dtnecho2} release/examples
+          cp target/${{ matrix.TARGET }}/release/examples/{dtnping,dtnecho2} release/examples          
           mv release/ dtn7-${{ env.RELEASE_VERSION }}/
       - name: Create release artifacts
         shell: bash

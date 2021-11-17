@@ -1,9 +1,18 @@
-#!/usr/bin/env bash
+#!/bin/bash
+shopt -s expand_aliases
+
+if [[ "$OSTYPE" == "darwin"* ]]; then
+    # Mac OSX
+	alias sed=gsed
+elif [[ "$OSTYPE" == "freebsd"* ]]; then
+	alias sed=gsed
+fi
 
 # takes the tag as an argument (e.g. v0.1.0)
-if [ -n "$1" ]; then
+if [ -n "$1" ]; then	
 	# update the version
 	msg="# managed by release.sh"
+	
 	sed "s/^version = .* $msg$/version = \"${1#v}\" $msg/" -i Cargo.toml
 	# update the changelog
 	git cliff --tag "$1" > CHANGELOG.md

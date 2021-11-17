@@ -57,7 +57,7 @@ fn main() -> anyhow::Result<()> {
                 .short("e")
                 .long("endpoint")
                 .value_name("ENDPOINT")
-                .help("Specify local endpoint, e.g. '/incoming', or a group endpoint 'dtn://helpers/incoming'")
+                .help("Specify local endpoint, e.g. '/incoming', or a group endpoint 'dtn://helpers/~incoming'")
                 .takes_value(true),
         )
         .arg(
