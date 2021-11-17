@@ -13,10 +13,12 @@ use bp7::{Bundle, EndpointID};
 use cla::CLAEnum;
 pub use dtnconfig::DtnConfig;
 use log::error;
+use std::borrow::Borrow;
 
-pub use crate::core::{DtnCore, DtnPeer};
+pub use crate::core::{DtnCLAs, DtnCore, DtnPeer};
 pub use crate::routing::RoutingNotifcation;
 
+use crate::cla::ConvergenceLayerAgent;
 use crate::cla::RemoteAddr;
 use crate::core::store::BundleStoresEnum;
 use anyhow::Result;
@@ -29,6 +31,7 @@ use tokio::sync::mpsc::Sender;
 lazy_static! {
     pub static ref CONFIG: Mutex<DtnConfig> = Mutex::new(DtnConfig::new());
     pub static ref DTNCORE: Mutex<DtnCore> = Mutex::new(DtnCore::new());
+    pub static ref DTNCLAS: Mutex<DtnCLAs> = Mutex::new(DtnCLAs::new());
     pub static ref PEERS: Mutex<HashMap<String, DtnPeer>> = Mutex::new(HashMap::new());
     pub static ref STATS: Mutex<DtnStatistics> = Mutex::new(DtnStatistics::new());
     pub static ref SENDERTASK: Mutex<Option<Sender<Bundle>>> = Mutex::new(None);
@@ -36,7 +39,22 @@ lazy_static! {
 }
 
 pub fn cla_add(cla: CLAEnum) {
-    (*DTNCORE.lock()).cl_list.push(cla);
+    (*DTNCLAS.lock()).list.push(cla);
+}
+pub fn cla_remove(name: String) {
+    (*DTNCLAS.lock()).list.retain(|value| {
+        return value.name() != name;
+    })
+}
+pub fn cla_names() -> Vec<String> {
+    let names: Vec<String> = (*DTNCLAS.lock())
+        .list
+        .iter()
+        .map(|val| {
+            return String::from(val.name());
+        })
+        .collect();
+    return names.clone();
 }
 pub fn service_add(tag: u8, service: String) {
     (*DTNCORE.lock()).service_list.insert(tag, service);

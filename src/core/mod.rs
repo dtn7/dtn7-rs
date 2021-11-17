@@ -121,6 +121,23 @@ impl DtnCore {
     }
 }
 
+#[derive(Debug)]
+pub struct DtnCLAs {
+    pub list: Vec<CLAEnum>,
+}
+
+impl Default for DtnCLAs {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl DtnCLAs {
+    pub fn new() -> DtnCLAs {
+        DtnCLAs { list: Vec::new() }
+    }
+}
+
 /// Removes peers from global peer list that haven't been seen in a while.
 pub fn process_peers() {
     (*PEERS.lock()).retain(|_k, v| {
