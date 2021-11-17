@@ -8,7 +8,7 @@ use crate::dtnconfig::DtnConfig;
 use crate::dtnd::ecla::start_ecla;
 use crate::ipnd::neighbour_discovery;
 use crate::peers_add;
-use crate::{CONFIG, DTNCORE, STORE};
+use crate::{CONFIG, DTNCLAS, DTNCORE, STORE};
 use bp7::EndpointID;
 use log::{error, info};
 
@@ -55,7 +55,7 @@ fn spawn_core_daemon(rx: Receiver<DtnCmd>) {
 async fn start_convergencylayers() {
     info!("Starting convergency layers");
 
-    for cl in &mut (*DTNCORE.lock()).cl_list {
+    for cl in &mut (*DTNCLAS.lock()).list {
         info!("Setup {}", cl);
         cl.setup().await;
     }

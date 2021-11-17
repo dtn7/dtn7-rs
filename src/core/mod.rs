@@ -46,7 +46,6 @@ impl DtnStatistics {
 #[derive(Debug)]
 pub struct DtnCore {
     pub endpoints: Vec<ApplicationAgentEnum>,
-    pub cl_list: Vec<CLAEnum>,
     pub service_list: HashMap<u8, String>,
     pub routing_agent: RoutingAgentsEnum,
 }
@@ -61,7 +60,6 @@ impl DtnCore {
     pub fn new() -> DtnCore {
         DtnCore {
             endpoints: Vec::new(),
-            cl_list: Vec::new(),
             service_list: HashMap::new(),
             //routing_agent: crate::routing::flooding::FloodingRoutingAgent::new().into(),
             routing_agent: crate::routing::epidemic::EpidemicRoutingAgent::new().into(),
