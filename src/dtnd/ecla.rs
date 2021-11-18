@@ -18,7 +18,6 @@ use log::info;
 use serde::__private::TryFrom;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use serde_json::Result;
-use serde_with::{hex::Hex, serde_as};
 use std::collections::HashMap;
 use std::fmt::Formatter;
 use std::net::SocketAddr;
@@ -32,6 +31,22 @@ type PeerMap = Arc<Mutex<HashMap<SocketAddr, Module>>>;
 
 lazy_static! {
     static ref PEER_MAP: PeerMap = PeerMap::new(Mutex::new(HashMap::new()));
+}
+
+mod base64 {
+    use base64::{decode, encode};
+    use serde::{Deserialize, Serialize};
+    use serde::{Deserializer, Serializer};
+
+    pub fn serialize<S: Serializer>(v: &Vec<u8>, s: S) -> Result<S::Ok, S::Error> {
+        let base64 = encode(v);
+        String::serialize(&base64, s)
+    }
+
+    pub fn deserialize<'de, D: Deserializer<'de>>(d: D) -> Result<Vec<u8>, D::Error> {
+        let base64 = String::deserialize(d)?;
+        decode(base64.as_bytes()).map_err(|e| serde::de::Error::custom(e))
+    }
 }
 
 // Represents in which state the Module WebSocket connection is.
@@ -64,12 +79,11 @@ enum Packet {
 
 // Beacon is a device discovery packet. It can either be from the direct connection
 // to the dtnd or received over the transmission layer of the ECLA client.
-#[serde_as]
 #[derive(Serialize, Deserialize)]
 pub struct Beacon {
     eid: EndpointID,
     addr: String,
-    #[serde_as(as = "Hex")]
+    #[serde(with = "base64")]
     service_block: Vec<u8>,
 }
 
@@ -81,12 +95,11 @@ struct RegisterPacket {
 }
 
 // Packet that forwards Bundle data
-#[serde_as]
 #[derive(Serialize, Deserialize)]
 struct ForwardDataPacket {
     src: String,
     dst: String,
-    #[serde_as(as = "Hex")]
+    #[serde(with = "base64")]
     data: Vec<u8>,
 }
 
@@ -122,7 +135,7 @@ pub fn generate_beacon() -> Beacon {
 
 // Periodically advertises it's own node to the connected WebSocket clients.
 async fn announcer() {
-    let mut task = interval(crate::CONFIG.lock().announcement_interval.unwrap());
+    let mut task = interval(crate::CONFIG.lock().announcement_interval);
     loop {
         debug!("waiting announcer");
         task.tick().await;
