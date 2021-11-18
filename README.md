@@ -15,9 +15,9 @@ Plus:
 * An IP neighorhood discovery service
 * Convenient command line tools to interact with the daemon
 * A simple web interface for status information about `dtnd` 
-* A web-socket interface for application agents
+* A [web-socket interface](doc/http-client-api.md) for application agents
 
-The actual BP7 implementation (encoding/decoding) is available a separate [project](https://github.com/dtn7/bp7-rs).
+The actual BP7 implementation (encoding/decoding) is available as a separate [project](https://github.com/dtn7/bp7-rs).
 
 Additional dtn extensions and a client library are also [available](https://github.com/dtn7/bp7-plus-rs).
 
@@ -25,7 +25,7 @@ Currently, a service discovery based on IPND but adapted to CBOR and BPv7, TCP, 
 
 **Beware: This code as well as the RFC drafts are not yet final and thus might change frequently.**
 
-I consider this code to be work-in-progress and not finished yet. Also the rest and web-socket interface is totally undocumented and unfinished at the moment :)
+I consider this code to be work-in-progress and not finished yet. 
 
 ## Installation
 
@@ -37,6 +37,9 @@ cargo install dtn7
 Precompiled binaries for common platforms can be found on [GitHub](https://github.com/dtn7/dtn7-rs/releases).
 
 ## Usage
+
+In the following some of the commands shipped with dtn7 are listed.
+There is also a more in-depth [getting started guide](doc/getting-started.md) available.
 
 ### Daemon
 
@@ -96,7 +99,7 @@ $ dtnd -n 23 -r epidemic -C mtcp -e 42
 ```
 
 Configuration can also happen via a config file. 
-For an example take a look at `examples/dtn7.toml.example`.
+For an example take a look at [examples/dtn7.toml.example](examples/dtn7.toml.example).
 
 ### Helpers
 
