@@ -122,7 +122,7 @@ pub fn generate_beacon() -> Beacon {
 
 // Periodically advertises it's own node to the connected WebSocket clients.
 async fn announcer() {
-    let mut task = interval(parse_duration("10s").unwrap()); // TODO: settings (crate::CONFIG.lock().announcement_interval)
+    let mut task = interval(crate::CONFIG.lock().announcement_interval.unwrap());
     loop {
         debug!("waiting announcer");
         task.tick().await;
