@@ -250,9 +250,11 @@ $ curl http://127.0.0.1:3000/status/info
 The websocket interface for application agents is reachable under `/ws`. 
 There are a few control commands that can be sent as text messages.
 
+- `/node` - returns the node id of the local instance
 - `/subscribe <endpoint>` - receive incoming bundles for this endpoint via the current websocket. *NOTE: the endpoint must be already registered to subscribe to it!*
 - `/unsubscribe <endpoint>` - stop receiving bundles for the given endpoint on this websocket connection. *NOTE: They are still collected on the node itself unless the endpoint is also unregistered!*
-- `/data` - put this websocket into [data mode](#data-mode). 
+- `/data` - put this websocket into [cbor data mode](#data-mode). 
+- `/json` - put this websocket into [json mode](#json-mode). 
 - `/bundle` - put this websocket into raw [bundle mode](#bundle-mode). 
 
 Sending and receiving happens as binary data directly on the websocket in the specified mode.
@@ -262,7 +264,8 @@ Various examples on how to use this interface from various programming languages
 ### Data Mode
 
 Encoding and decoding of the bundles is handled on the server side. 
-Simpler structs that are CBOR encoded are used for data exchange, these lack access to data from other canonical blocks or some less used header fields.
+Simpler structs that are CBOR encoded are used for data exchange.
+These lack access to data from other canonical blocks or some less used header fields.
 
 Here the definitions in pseudocode:
 ```
@@ -292,6 +295,14 @@ struct WsSendData {
 ```
 
 These structs must then be CBOR encoded or decoded prior to their usage.
+
+### JSON Mode
+
+Encoding and decoding of the bundles is handled on the server side. 
+Simpler structs that are JSON encoded are used for data exchange. 
+These lack access to data from other canonical blocks or some less used header fields.
+
+The structs are identical to the ones of the [cbor data mode](#data-mode).
 
 ### Bundle Mode
 
