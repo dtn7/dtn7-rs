@@ -1,5 +1,5 @@
 use crate::cla::RemoteAddr;
-use crate::CONFIG;
+use crate::{cla_names, CONFIG};
 use bp7::EndpointID;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -109,7 +109,7 @@ impl DtnPeer {
     }
     pub fn first_cla(&self) -> Option<crate::cla::ClaSender> {
         for c in self.cla_list.iter() {
-            if crate::cla::convergence_layer_agents().contains(&c.0.as_str()) {
+            if cla_names().contains(&c.0) {
                 let sender = crate::cla::ClaSender {
                     remote: self.addr.clone(),
                     agent: c.0.clone(),
