@@ -1,7 +1,24 @@
 # Changelog
 All notable changes to this project will be documented in this file.
 
-## [0.17.0] - 2021-11-05
+## [0.17.1] - 2021-11-18
+
+### Documentation
+
+- Updated README and CLI help to reflect latest protocol and code changes
+- Added `doc/http-client-api.md, documenting the http client api and websocket interface.
+- Added section about JSON mode in http client API documentation
+- Updated README to point to the different guides and include the new features
+
+### Features
+
+- Added `/json` mode for clients without CBOR and the `/node` command now returns the node id via ws
+
+### Example
+
+- Added `dtnecho_json.go` illustrating how to write clients using only JSON and websockets
+
+## [0.17.0] - 2021-11-04
 
 ### Features
 
