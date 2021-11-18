@@ -28,10 +28,16 @@ const HEARTBEAT_INTERVAL: Duration = Duration::from_secs(5);
 /// How long before lack of client response causes a timeout
 const CLIENT_TIMEOUT: Duration = Duration::from_secs(30);
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub enum WsReceiveMode {
     Bundle,
-    Data,
+    Data(DataReceiveFormat),
+}
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum DataReceiveFormat {
+    CBOR,
+    JSON,
 }
 
 /// WebSocket Applicatin Agent Session
@@ -152,7 +158,7 @@ impl WsAASession {
             WsAASession {
                 hb: Instant::now(),
                 endpoints: None,
-                mode: WsReceiveMode::Data,
+                mode: WsReceiveMode::Data(DataReceiveFormat::JSON),
                 tx,
             },
             rx,
@@ -166,7 +172,7 @@ impl WsAASession {
         let mut bndl = bndl_delivery.0;
         let recv_data = match self.mode {
             WsReceiveMode::Bundle => bndl.to_cbor(),
-            WsReceiveMode::Data => {
+            WsReceiveMode::Data(format) => {
                 if bndl.payload().is_none() {
                     // No payload -> nothing to deliver to client
                     // In bundle mode delivery happens because custom canoncial bocks could be present
@@ -178,7 +184,14 @@ impl WsAASession {
                     dst: &bndl.primary.destination.to_string(),
                     data: bndl.payload().unwrap(),
                 };
-                serde_cbor::to_vec(&recv).expect("Fatal error encoding WsRecvData")
+                match format {
+                    DataReceiveFormat::CBOR => {
+                        serde_cbor::to_vec(&recv).expect("Fatal error encoding WsRecvData")
+                    }
+                    DataReceiveFormat::JSON => {
+                        serde_json::to_vec(&recv).expect("Fatal error encoding WsRecvData")
+                    }
+                }
             }
         };
         if socket.send(Message::Binary(recv_data)).await.is_err() {
@@ -199,14 +212,25 @@ impl WsAASession {
                 if m.starts_with('/') {
                     let v: Vec<&str> = m.splitn(2, ' ').collect();
                     match v[0] {
+                        "/node" => {
+                            ws_reply_text!(
+                                socket,
+                                &format!("200 node: {}", (*CONFIG.lock()).host_eid.to_string())
+                            );
+                        }
                         "/bundle" => {
                             self.mode = WsReceiveMode::Bundle;
                             ws_reply_text!(socket, "200 tx mode: bundle");
                         }
                         "/data" => {
-                            self.mode = WsReceiveMode::Data;
+                            self.mode = WsReceiveMode::Data(DataReceiveFormat::CBOR);
 
                             ws_reply_text!(socket, "200 tx mode: data");
+                        }
+                        "/json" => {
+                            self.mode = WsReceiveMode::Data(DataReceiveFormat::JSON);
+
+                            ws_reply_text!(socket, "200 tx mode: JSON");
                         }
                         "/unsubscribe" => {
                             if v.len() == 2 {
@@ -325,8 +349,14 @@ impl WsAASession {
                             ws_reply_text!(socket, "400 Invalid binary bundle");
                         }
                     }
-                    WsReceiveMode::Data => {
-                        if let Ok(send_req) = serde_cbor::from_slice::<WsSendData>(&bin) {
+                    WsReceiveMode::Data(format) => {
+                        let send_data = match format {
+                            DataReceiveFormat::CBOR => serde_cbor::from_slice::<WsSendData>(&bin)
+                                .map_err(|_| "error parsing cbor"),
+                            DataReceiveFormat::JSON => serde_json::from_slice::<WsSendData>(&bin)
+                                .map_err(|_| "error parsing json"),
+                        };
+                        if let Ok(send_req) = send_data {
                             //let src = (*CONFIG.lock()).host_eid.clone();
                             let bcf = if send_req.delivery_notification {
                                 BundleControlFlags::BUNDLE_MUST_NOT_FRAGMENTED
@@ -425,7 +455,7 @@ impl WsAASession {
                     if let Some(mut bundle) = aa.pop() {
                         let recv_data = match self.mode {
                             WsReceiveMode::Bundle => bundle.to_cbor(),
-                            WsReceiveMode::Data => {
+                            WsReceiveMode::Data(format) => {
                                 if bundle.payload().is_none() {
                                     // No payload -> nothing to deliver to client
                                     // In bundle mode delivery happens because custom canoncial bocks could be present
@@ -437,7 +467,12 @@ impl WsAASession {
                                     dst: &bundle.primary.destination.to_string(),
                                     data: bundle.payload().unwrap(),
                                 };
-                                serde_cbor::to_vec(&recv).expect("Fatal error encoding WsRecvData")
+                                match format {
+                                    DataReceiveFormat::CBOR => serde_cbor::to_vec(&recv)
+                                        .expect("Fatal error encoding WsRecvData"),
+                                    DataReceiveFormat::JSON => serde_json::to_vec(&recv)
+                                        .expect("Fatal error encoding WsRecvData"),
+                                }
                             }
                         };
                         let job = socket.send(Message::Binary(recv_data)); //.await;
