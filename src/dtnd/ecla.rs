@@ -4,7 +4,7 @@ use crate::cla::RemoteAddr;
 use crate::core::PeerType;
 use crate::ipnd::services::ServiceBlock;
 use crate::{cla_add, cla_remove, CONFIG};
-use crate::{cla_names, DTNCORE};
+use crate::{cla_names, DTNCLAS, DTNCORE};
 use crate::{lazy_static, routing_notify, RoutingNotifcation};
 use crate::{peers_add, DtnPeer};
 use async_trait::async_trait;
@@ -100,8 +100,8 @@ pub fn generate_beacon() -> Beacon {
     };
 
     // Get all available clas
-    (*DTNCORE.lock())
-        .cl_list
+    (*DTNCLAS.lock())
+        .list
         .iter()
         .for_each(|cla| service_block.add_cla(&cla.name().to_string(), &Some(cla.port())));
 
@@ -281,8 +281,8 @@ pub fn scheduled_submission(name: &str, dest: &str, ready: &[ByteBuffer]) -> boo
             // Found the matching Module
             for b in ready {
                 let packet: Packet = Packet::ForwardDataPacket(ForwardDataPacket {
-                    src: dest.to_string(),
-                    dst: "".to_string(), // Leave blank for now and let the Module set it to a protocol specific address on his side
+                    dst: dest.to_string(),
+                    src: "".to_string(), // Leave blank for now and let the Module set it to a protocol specific address on his side
                     data: b.to_vec(),
                 });
                 let data = serde_json::to_string(&packet);
