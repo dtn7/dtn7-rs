@@ -4,6 +4,7 @@ pub mod http;
 pub mod mtcp;
 
 use self::http::HttpConvergenceLayer;
+use crate::cla_names;
 use async_trait::async_trait;
 use bp7::ByteBuffer;
 use derive_more::*;
@@ -106,6 +107,12 @@ pub fn new(cla_str: &str) -> CLAEnum {
         "mtcp" => mtcp::MtcpConvergenceLayer::new(port).into(),
         "http" => http::HttpConvergenceLayer::new(port).into(),
         //"external" => external::ExternalConvergenceLayer::new(port).into(),
-        _ => panic!("Unknown convergence layer agent agent {}", cla[0]),
+        _ => {
+            if cla_names().contains(&cla[0].to_string()) {
+                return external::ExternalConvergenceLayer::new(cla[0].to_string()).into();
+            } else {
+                panic!("Unknown convergence layer agent agent {}", cla[0])
+            }
+        }
     }
 }
