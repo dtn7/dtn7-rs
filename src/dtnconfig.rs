@@ -22,6 +22,7 @@ pub struct DtnConfig {
     pub host_eid: EndpointID,
     pub webport: u16,
     pub announcement_interval: Duration,
+    pub disable_neighbour_discovery: bool,
     pub discovery_destinations: HashMap<String, u32>,
     pub janitor_interval: Duration,
     pub endpoints: Vec<String>,
@@ -206,6 +207,7 @@ impl DtnConfig {
             nodeid: local_node_id.to_string(),
             host_eid: local_node_id,
             announcement_interval: "2s".parse::<humantime::Duration>().unwrap().into(),
+            disable_neighbour_discovery: false,
             discovery_destinations: HashMap::new(),
             webport: 3000,
             janitor_interval: "10s".parse::<humantime::Duration>().unwrap().into(),
@@ -233,6 +235,7 @@ impl DtnConfig {
         self.host_eid = cfg.host_eid;
         self.webport = cfg.webport;
         self.announcement_interval = cfg.announcement_interval;
+        self.disable_neighbour_discovery = cfg.disable_neighbour_discovery;
         self.discovery_destinations = cfg.discovery_destinations;
         self.janitor_interval = cfg.janitor_interval;
         self.endpoints = cfg.endpoints;

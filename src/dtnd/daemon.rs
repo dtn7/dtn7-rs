@@ -144,7 +144,9 @@ pub async fn start_dtnd(cfg: DtnConfig) -> anyhow::Result<()> {
     if CONFIG.lock().janitor_interval.as_micros() != 0 {
         janitor::spawn_janitor();
     }
-    if CONFIG.lock().announcement_interval.as_micros() != 0 {
+    if !CONFIG.lock().disable_neighbour_discovery
+        && CONFIG.lock().announcement_interval.as_micros() != 0
+    {
         if let Err(errmsg) = neighbour_discovery::spawn_neighbour_discovery().await {
             error!("Error spawning service discovery: {:?}", errmsg);
         }

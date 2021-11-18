@@ -63,6 +63,12 @@ async fn main() -> Result<(), std::io::Error> {
                 .takes_value(true),
         )
         .arg(
+            Arg::with_name("disable_nd")
+                .long("disable_nd")
+                .help("Explicitly disables the neighbour discovery")
+                .takes_value(false),
+        )
+        .arg(
             Arg::with_name("janitor")
                 .short("j")
                 .long("janitor")
@@ -260,6 +266,7 @@ Tag 255 takes 5 arguments and is interpreted as address. Usage: -S 255:'Samplest
         }
     }
 
+    cfg.disable_neighbour_discovery = matches.is_present("disable_nd");
     if let Some(i) = matches.value_of("interval") {
         if i == "0" {
             cfg.announcement_interval = std::time::Duration::new(0, 0);
