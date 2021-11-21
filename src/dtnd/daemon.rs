@@ -5,7 +5,7 @@ use crate::cla::ConvergenceLayerAgent;
 use crate::cla_add;
 use crate::core::application_agent::SimpleApplicationAgent;
 use crate::dtnconfig::DtnConfig;
-use crate::dtnd::ecla::core::start_ecla;
+use crate::dtnd::ecla::processing::start_ecla;
 use crate::ipnd::neighbour_discovery;
 use crate::peers_add;
 use crate::{CONFIG, DTNCLAS, DTNCORE, STORE};
@@ -153,7 +153,7 @@ pub async fn start_dtnd(cfg: DtnConfig) -> anyhow::Result<()> {
     }
 
     if (*CONFIG.lock()).ecla_enable {
-        start_ecla((*CONFIG.lock()).ecla_port);
+        start_ecla((*CONFIG.lock()).ecla_port).await;
     }
 
     httpd::spawn_httpd().await?;
