@@ -5,7 +5,7 @@ use crate::cla::ConvergenceLayerAgent;
 use crate::cla_add;
 use crate::core::application_agent::SimpleApplicationAgent;
 use crate::dtnconfig::DtnConfig;
-use crate::dtnd::ecla::start_ecla;
+use crate::dtnd::ecla::core::start_ecla;
 use crate::ipnd::neighbour_discovery;
 use crate::peers_add;
 use crate::{CONFIG, DTNCLAS, DTNCORE, STORE};

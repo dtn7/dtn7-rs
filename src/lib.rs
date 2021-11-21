@@ -13,7 +13,6 @@ use bp7::{Bundle, EndpointID};
 use cla::CLAEnum;
 pub use dtnconfig::DtnConfig;
 use log::error;
-use std::borrow::Borrow;
 
 pub use crate::core::{DtnCLAs, DtnCore, DtnPeer};
 pub use crate::routing::RoutingNotifcation;
@@ -25,7 +24,6 @@ use anyhow::Result;
 use lazy_static::*;
 use parking_lot::Mutex;
 use std::collections::HashMap;
-use std::net::IpAddr;
 use tokio::sync::mpsc::Sender;
 
 lazy_static! {

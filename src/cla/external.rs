@@ -1,6 +1,5 @@
 use super::ConvergenceLayerAgent;
-use crate::dtnd::ecla;
-use crate::dtnd::ecla::scheduled_submission;
+use crate::dtnd::ecla::core::scheduled_submission;
 use async_trait::async_trait;
 use bp7::ByteBuffer;
 use std::fmt::Formatter;
