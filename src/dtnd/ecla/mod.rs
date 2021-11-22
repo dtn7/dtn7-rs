@@ -3,6 +3,7 @@ use bp7::EndpointID;
 use enum_dispatch::enum_dispatch;
 use serde::{Deserialize, Serialize};
 
+use tcp::TCPTransportLayer;
 use ws::WebsocketTransportLayer;
 
 pub mod processing;
@@ -64,7 +65,7 @@ pub struct ForwardDataPacket {
 #[enum_dispatch]
 pub enum TransportLayerEnum {
     WebsocketTransportLayer,
-    //TCPTransportLayer,
+    TCPTransportLayer,
 }
 
 #[async_trait]

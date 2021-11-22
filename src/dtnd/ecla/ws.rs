@@ -1,5 +1,4 @@
 use super::TransportLayer;
-use crate::cla::ConvergenceLayerAgent;
 use crate::dtnd::ecla::processing::{handle_connect, handle_disconnect, handle_packet};
 use crate::dtnd::ecla::Packet;
 use crate::lazy_static;
@@ -11,7 +10,6 @@ use log::info;
 use serde_json::Result;
 use std::collections::HashMap;
 use std::net::SocketAddr;
-use std::ptr::null;
 use std::sync::{Arc, Mutex};
 use tokio::net::{TcpListener, TcpStream};
 use tokio_tungstenite::tungstenite::Message;
@@ -63,8 +61,6 @@ async fn handle_connection(raw_stream: TcpStream, addr: SocketAddr) {
             if me_opt.is_none() {
                 return future::ok(());
             }
-
-            let me = me_opt.unwrap();
 
             // Deserialize Packet
             packet = serde_json::from_str(msg.to_text().unwrap());
@@ -130,7 +126,7 @@ impl TransportLayer for WebsocketTransportLayer {
     fn send_packet(&self, dest: &str, packet: &Packet) -> bool {
         debug!("Sending Packet to {} ({})", dest, self.name());
 
-        let mut pmap = PEER_MAP.lock().unwrap(); // DEADLOCK
+        let pmap = PEER_MAP.lock().unwrap();
         let target = pmap.get(dest);
         if target.is_some() {
             let data = serde_json::to_string(&packet);

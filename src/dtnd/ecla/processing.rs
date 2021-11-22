@@ -3,6 +3,7 @@ use crate::cla::external::ExternalConvergenceLayer;
 use crate::cla::ConvergenceLayerAgent;
 use crate::cla::RemoteAddr;
 use crate::core::PeerType;
+use crate::dtnd::ecla::tcp::TCPTransportLayer;
 use crate::dtnd::ecla::ws::WebsocketTransportLayer;
 use crate::dtnd::ecla::TransportLayerEnum;
 use crate::ipnd::services::ServiceBlock;
@@ -18,7 +19,6 @@ use serde::__private::TryFrom;
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 use tokio::time::interval;
-use tokio_tungstenite::tungstenite::Message;
 
 type ModuleMap = Arc<Mutex<HashMap<String, Module>>>;
 type LayerMap = Arc<Mutex<HashMap<String, TransportLayerEnum>>>;
@@ -249,6 +249,11 @@ pub async fn start_ecla(port: u16) {
     let mut ws_layer = WebsocketTransportLayer::new(port);
     ws_layer.setup().await;
     add_layer(ws_layer.into());
+
+    // Create the TCP server here for now
+    let mut tcp_layer = TCPTransportLayer::new(port + 10);
+    tcp_layer.setup().await;
+    add_layer(tcp_layer.into());
 
     tokio::spawn(announcer());
 }
