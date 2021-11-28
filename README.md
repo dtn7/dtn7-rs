@@ -6,7 +6,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE-MIT)
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE-APACHE)
 
-Rust implementation of a disruption-tolernat networking (DTN) daemon for the [Bundle Protocol version 7 draft](https://tools.ietf.org/html/draft-ietf-dtn-bpbis).
+Rust implementation of a disruption-tolerant networking (DTN) daemon for the [Bundle Protocol version 7 draft](https://tools.ietf.org/html/draft-ietf-dtn-bpbis).
 
 Plus:
 * [TCP Convergence Layer v4](https://datatracker.ietf.org/doc/html/draft-ietf-dtn-tcpclv4)
