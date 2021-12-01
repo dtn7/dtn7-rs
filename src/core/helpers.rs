@@ -90,11 +90,19 @@ pub fn parse_peer_url(peer_url: &str) -> DtnPeer {
     if nodeid == "/" || nodeid.is_empty() {
         panic!("Missing node id");
     }
+
+    let addr: RemoteAddr;
+    if let Some(port) = port {
+        addr = RemoteAddr::IPPort((ipaddr.parse().unwrap(), port));
+    } else {
+        addr = RemoteAddr::IP(ipaddr.parse().unwrap());
+    }
+
     DtnPeer::new(
         format!("dtn://{}", nodeid.replace('/', ""))
             .try_into()
             .unwrap(),
-        RemoteAddr::IP(ipaddr.parse().unwrap()),
+        addr,
         PeerType::Static,
         None,
         vec![(scheme.into(), port)],
