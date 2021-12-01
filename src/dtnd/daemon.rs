@@ -110,16 +110,10 @@ pub async fn start_dtnd(cfg: DtnConfig) -> anyhow::Result<()> {
     }
 
     for s in &(*CONFIG.lock()).statics {
-        let port_str = if s.cla_list[0].1.is_some() {
-            format!(":{}", s.cla_list[0].1.unwrap())
-        } else {
-            "".into()
-        };
         info!(
-            "Adding static peer: {}://{}{}/{}",
+            "Adding static peer: {}://{}/{}",
             s.cla_list[0].0,
             s.addr,
-            port_str,
             s.eid.node().unwrap()
         );
         peers_add(s.clone());
