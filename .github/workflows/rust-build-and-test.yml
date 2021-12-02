@@ -111,6 +111,9 @@ jobs:
       
       - name: Run chained CLAs test
         run: ./tests/cla_chain_test.sh
+
+      - name: Run CLA extension test
+        run: ./tests/cla_ext_test.sh
       
       - name: Run local dtntrigger test
         run: ./tests/local_trigger_test.sh
