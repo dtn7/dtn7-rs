@@ -25,7 +25,7 @@ pub struct DtnConfig {
     pub discovery_destinations: HashMap<String, u32>,
     pub janitor_interval: Duration,
     pub endpoints: Vec<String>,
-    pub clas: Vec<String>,
+    pub clas: Vec<ClaConfig>,
     pub services: HashMap<u8, String>,
     pub routing: String,
     pub peer_timeout: Duration,
@@ -33,6 +33,13 @@ pub struct DtnConfig {
     pub workdir: PathBuf,
     pub db: String,
     pub generate_status_reports: bool,
+}
+
+#[derive(Debug, Default, Clone, Serialize)]
+pub struct ClaConfig {
+    pub id: String,
+    pub port: Option<u16>,
+    pub refuse_existing_bundles: bool,
 }
 
 pub fn rnd_node_name() -> String {
@@ -141,13 +148,25 @@ impl From<PathBuf> for DtnConfig {
                 let tab = v.clone().into_table().unwrap();
                 let cla_id = tab["id"].clone().into_str().unwrap();
                 let cla_port = if tab.contains_key("port") {
-                    tab["port"].clone().into_int().unwrap_or(0) as u16
+                    tab["port"].clone().into_int().ok().map(|v| v as u16)
                 } else {
-                    0
+                    None
+                };
+                let cla_refuse_existing_bundles = if tab.contains_key("refuse-existing-bundles") {
+                    tab["refuse-existing-bundles"]
+                        .clone()
+                        .into_bool()
+                        .unwrap_or(false)
+                } else {
+                    false
                 };
                 if crate::cla::convergence_layer_agents().contains(&cla_id.as_str()) {
                     debug!("CLA: {:?}", cla_id);
-                    dtncfg.clas.push(format!("{}:{}", cla_id, cla_port));
+                    dtncfg.clas.push(ClaConfig {
+                        id: cla_id,
+                        port: cla_port,
+                        refuse_existing_bundles: cla_refuse_existing_bundles,
+                    });
                 }
             }
         }

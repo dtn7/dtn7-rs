@@ -92,6 +92,20 @@ bitflags! {
     }
 }
 
+#[derive(Debug, PartialEq, Eq)]
+pub(crate) struct TransferExtensionItem {
+    pub flags: TransferExtensionItemFlags,
+    pub item_type: TransferExtensionItemType,
+    pub data: Bytes,
+}
+
+#[derive(Debug, PartialEq, Eq, FromPrimitive, Clone, Copy)]
+#[repr(u16)]
+pub(crate) enum TransferExtensionItemType {
+    /// Sends the bundle id as extension, can be used to prevent retransmission of already existing bundles
+    BundleID = 0x01,
+}
+
 bitflags! {
     /// SESS_TERM flags
     pub(crate) struct SessTermFlags : u8 {
@@ -131,6 +145,7 @@ pub(crate) struct XferSegData {
     pub tid: u64,
     pub len: u64,
     pub buf: Bytes,
+    pub extensions: Vec<TransferExtensionItem>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

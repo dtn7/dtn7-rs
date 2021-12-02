@@ -4,7 +4,7 @@ pub mod mtcp;
 pub mod tcp;
 
 use self::http::HttpConvergenceLayer;
-use crate::core::peer::PeerAddress;
+use crate::{core::peer::PeerAddress, dtnconfig::ClaConfig};
 use async_trait::async_trait;
 use bp7::ByteBuffer;
 use derive_more::*;
@@ -22,7 +22,11 @@ pub struct ClaSender {
 }
 impl ClaSender {
     pub async fn transfer(&self, ready: &[ByteBuffer]) -> bool {
-        let sender = new(&self.agent); // since we are not listening sender port is irrelevant
+        let sender = new(&ClaConfig {
+            id: self.agent.clone(),
+            port: None,
+            refuse_existing_bundles: false,
+        }); // since we are not listening sender port is irrelevant
         let dest = if self.port.is_some() {
             format!("{}:{}", self.remote, self.port.unwrap())
         } else {
@@ -64,14 +68,17 @@ pub fn convergence_layer_agents() -> Vec<&'static str> {
 
 // returns a new CLA for the corresponding string ("<CLA name>[:local_port]").
 // Example usage: 'dummy', 'mtcp', 'mtcp:16161'
-pub fn new(cla_str: &str) -> CLAEnum {
-    let cla: Vec<&str> = cla_str.split(':').collect();
-    let port: Option<u16> = cla.get(1).unwrap_or(&"-1").parse::<u16>().ok();
-    match cla[0] {
+pub fn new(cla: &ClaConfig) -> CLAEnum {
+    let ClaConfig {
+        id,
+        port,
+        refuse_existing_bundles,
+    } = cla;
+    match id.as_str() {
         "dummy" => dummy::DummyConvergenceLayer::new().into(),
-        "mtcp" => mtcp::MtcpConvergenceLayer::new(port).into(),
-        "http" => http::HttpConvergenceLayer::new(port).into(),
-        "tcp" => tcp::TcpConvergenceLayer::new(port).into(),
-        _ => panic!("Unknown convergence layer agent agent {}", cla[0]),
+        "mtcp" => mtcp::MtcpConvergenceLayer::new(*port).into(),
+        "http" => http::HttpConvergenceLayer::new(*port).into(),
+        "tcp" => tcp::TcpConvergenceLayer::new(*port, *refuse_existing_bundles).into(),
+        _ => panic!("Unknown convergence layer agent agent {}", id),
     }
 }
