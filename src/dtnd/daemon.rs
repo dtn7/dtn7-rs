@@ -104,7 +104,7 @@ pub async fn start_dtnd(cfg: DtnConfig) -> anyhow::Result<()> {
 
     let clas = (*CONFIG.lock()).clas.clone();
     for cla in &clas {
-        info!("Adding CLA: {}", cla);
+        info!("Adding CLA: {:?}", cla);
         cla_add(crate::cla::new(cla));
     }
 

@@ -1,6 +1,7 @@
 #![recursion_limit = "256"]
 
 use clap::{crate_authors, crate_version, App, Arg};
+use dtn7::dtnconfig::ClaConfig;
 use dtn7::dtnd::daemon::*;
 use dtn7::DtnConfig;
 use log::info;
@@ -120,7 +121,7 @@ async fn main() -> Result<(), std::io::Error> {
             Arg::with_name("cla")
                 .short("C")
                 .long("cla")
-                .value_name("CLA[:local_port]")
+                .value_name("CLA[:local_port][:refuse_existing_bundles]")
                 .help(&format!(
                     "Add convergence layer agent: {}",
                     dtn7::cla::convergence_layer_agents().join(", ")
@@ -287,7 +288,15 @@ Tag 255 takes 5 arguments and is interpreted as address. Usage: -S 255:'Samplest
         for cla in clas {
             let cla_split: Vec<&str> = cla.split(':').collect();
             if dtn7::cla::convergence_layer_agents().contains(&cla_split[0]) {
-                cfg.clas.push(cla.to_string());
+                let cla_config = ClaConfig {
+                    id: cla_split[0].into(),
+                    port: cla_split.get(1).and_then(|v| v.parse::<u16>().ok()),
+                    refuse_existing_bundles: cla_split
+                        .get(2)
+                        .and_then(|v| v.parse::<bool>().ok())
+                        .unwrap_or(true),
+                };
+                cfg.clas.push(cla_config);
             }
         }
     }
