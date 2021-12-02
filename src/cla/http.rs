@@ -8,14 +8,12 @@ use std::net::SocketAddr;
 
 #[derive(Debug, Clone, Default, Copy)]
 pub struct HttpConvergenceLayer {
-    counter: u64,
     local_port: u16,
 }
 
 impl HttpConvergenceLayer {
     pub fn new(port: Option<u16>) -> HttpConvergenceLayer {
         HttpConvergenceLayer {
-            counter: 0,
             local_port: port.unwrap_or((*CONFIG.lock()).webport),
         }
     }

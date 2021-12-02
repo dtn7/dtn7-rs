@@ -4,13 +4,11 @@ use bp7::ByteBuffer;
 use log::debug;
 
 #[derive(Debug, Clone, Default, Copy)]
-pub struct DummyConvergenceLayer {
-    counter: u64,
-}
+pub struct DummyConvergenceLayer {}
 
 impl DummyConvergenceLayer {
     pub fn new() -> DummyConvergenceLayer {
-        DummyConvergenceLayer { counter: 0 }
+        DummyConvergenceLayer {}
     }
 }
 #[async_trait]

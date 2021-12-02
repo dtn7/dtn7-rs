@@ -196,14 +196,12 @@ impl Decoder for MPDUCodec {
 
 #[derive(Debug, Copy, Clone)]
 pub struct MtcpConvergenceLayer {
-    counter: u64,
     local_port: u16,
 }
 
 impl MtcpConvergenceLayer {
     pub fn new(port: Option<u16>) -> MtcpConvergenceLayer {
         MtcpConvergenceLayer {
-            counter: 0,
             local_port: port.unwrap_or(16162),
         }
     }
