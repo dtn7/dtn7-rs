@@ -32,11 +32,11 @@ fn send_ping(
 ) -> Result<()> {
     let payload = get_random_payload(length);
     let ping = WsSendData {
-        src,
-        dst,
+        src: src.to_owned(),
+        dst: dst.to_owned(),
         delivery_notification: false,
         lifetime: 3600 * 24 * 1000,
-        data: payload.as_bytes(),
+        data: payload.as_bytes().to_vec(),
     };
     wscon.write_binary(&serde_cbor::to_vec(&ping)?)
 }
@@ -212,7 +212,7 @@ fn main() -> Result<()> {
                         recv_data.bid, recv_data.src, recv_data.dst
                     );
 
-                    if let Ok(data_str) = from_utf8(recv_data.data) {
+                    if let Ok(data_str) = from_utf8(&recv_data.data) {
                         eprintln!("Data: {}", data_str);
                     }
                 }

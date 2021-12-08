@@ -303,6 +303,7 @@ Simpler structs that are JSON encoded are used for data exchange.
 These lack access to data from other canonical blocks or some less used header fields.
 
 The structs are identical to the ones of the [cbor data mode](#data-mode).
+Starting at version 0.18 of *dtnd*, `ByteBuffer` are all base64 encoded to preserve bandwidth compared to transferring raw byte arrays in JSON.
 
 ### Bundle Mode
 
