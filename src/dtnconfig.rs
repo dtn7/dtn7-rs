@@ -1,13 +1,15 @@
+use crate::cla::ConvergenceLayerAgents;
 use crate::core::DtnPeer;
 use bp7::EndpointID;
 use config::{Config, File};
-use log::debug;
+use log::{debug, error};
 use rand::distributions::Alphanumeric;
 use rand::{thread_rng, Rng};
 use serde::Serialize;
 use std::collections::HashMap;
 use std::net::SocketAddr;
 use std::path::PathBuf;
+use std::str::FromStr;
 use std::{convert::TryInto, time::Duration};
 
 #[derive(Debug, Default, Clone, Serialize)]
@@ -25,7 +27,8 @@ pub struct DtnConfig {
     pub discovery_destinations: HashMap<String, u32>,
     pub janitor_interval: Duration,
     pub endpoints: Vec<String>,
-    pub clas: Vec<ClaConfig>,
+    pub clas: Vec<(ConvergenceLayerAgents, HashMap<String, String>)>,
+    pub cla_global_settings: HashMap<ConvergenceLayerAgents, HashMap<String, String>>,
     pub services: HashMap<u8, String>,
     pub routing: String,
     pub peer_timeout: Duration,
@@ -33,13 +36,6 @@ pub struct DtnConfig {
     pub workdir: PathBuf,
     pub db: String,
     pub generate_status_reports: bool,
-}
-
-#[derive(Debug, Default, Clone, Serialize)]
-pub struct ClaConfig {
-    pub id: String,
-    pub port: Option<u16>,
-    pub refuse_existing_bundles: bool,
 }
 
 pub fn rnd_node_name() -> String {
@@ -145,28 +141,37 @@ impl From<PathBuf> for DtnConfig {
         }
         if let Ok(clas) = s.get_table("convergencylayers.cla") {
             for (_k, v) in clas.iter() {
-                let tab = v.clone().into_table().unwrap();
-                let cla_id = tab["id"].clone().into_str().unwrap();
-                let cla_port = if tab.contains_key("port") {
-                    tab["port"].clone().into_int().ok().map(|v| v as u16)
-                } else {
-                    None
-                };
-                let cla_refuse_existing_bundles = if tab.contains_key("refuse-existing-bundles") {
-                    tab["refuse-existing-bundles"]
-                        .clone()
-                        .into_bool()
-                        .unwrap_or(false)
-                } else {
-                    false
-                };
-                if crate::cla::convergence_layer_agents().contains(&cla_id.as_str()) {
-                    debug!("CLA: {:?}", cla_id);
-                    dtncfg.clas.push(ClaConfig {
-                        id: cla_id,
-                        port: cla_port,
-                        refuse_existing_bundles: cla_refuse_existing_bundles,
-                    });
+                let mut tab = v.clone().into_table().unwrap();
+                let cla_id = tab.remove("id").unwrap().into_str().unwrap();
+                match ConvergenceLayerAgents::from_str(cla_id.as_str()) {
+                    Ok(agent) => {
+                        debug!("CLA: {:?}", cla_id);
+                        let mut local_settings = HashMap::new();
+                        for (k, v) in tab {
+                            local_settings.insert(k, v.into_str().unwrap());
+                        }
+                        dtncfg.clas.push((agent, local_settings));
+                    }
+                    Err(message) => {
+                        error!("Error parsing cla config: {}", message)
+                    }
+                }
+            }
+        }
+        if let Ok(cla_global_settings) = s.get_table("convergencylayers.global") {
+            for (k, v) in cla_global_settings.iter() {
+                match ConvergenceLayerAgents::from_str(k) {
+                    Ok(agent) => {
+                        let tab = v.clone().into_table().unwrap();
+                        let mut global_settings = HashMap::new();
+                        for (k, v) in tab {
+                            global_settings.insert(k, v.into_str().unwrap());
+                        }
+                        dtncfg.cla_global_settings.insert(agent, global_settings);
+                    }
+                    Err(message) => {
+                        error!("Error parsing cla config: {}", message)
+                    }
                 }
             }
         }
@@ -228,6 +233,7 @@ impl DtnConfig {
             janitor_interval: "10s".parse::<humantime::Duration>().unwrap().into(),
             endpoints: Vec::new(),
             clas: Vec::new(),
+            cla_global_settings: HashMap::new(),
             services: HashMap::new(),
             routing: "epidemic".into(),
             peer_timeout: "20s".parse::<humantime::Duration>().unwrap().into(),
@@ -252,6 +258,7 @@ impl DtnConfig {
         self.janitor_interval = cfg.janitor_interval;
         self.endpoints = cfg.endpoints;
         self.clas = cfg.clas;
+        self.cla_global_settings = cfg.cla_global_settings;
         self.services = cfg.services;
         self.routing = cfg.routing;
         self.peer_timeout = cfg.peer_timeout;

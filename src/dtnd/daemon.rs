@@ -103,9 +103,9 @@ pub async fn start_dtnd(cfg: DtnConfig) -> anyhow::Result<()> {
     info!("RoutingAgent: {}", (*DTNCORE.lock()).routing_agent);
 
     let clas = (*CONFIG.lock()).clas.clone();
-    for cla in &clas {
+    for (cla, local_settings) in &clas {
         info!("Adding CLA: {:?}", cla);
-        cla_add(crate::cla::new(cla));
+        cla_add(crate::cla::new(cla, Some(local_settings)));
     }
 
     for s in &(*CONFIG.lock()).statics {

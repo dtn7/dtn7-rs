@@ -1,3 +1,4 @@
+use crate::cla::ConvergenceLayerAgents;
 use crate::CONFIG;
 use bp7::EndpointID;
 use serde::{Deserialize, Serialize};
@@ -44,7 +45,7 @@ pub struct DtnPeer {
     pub addr: PeerAddress,
     pub con_type: PeerType,
     pub period: Option<Duration>,
-    pub cla_list: Vec<(String, Option<u16>)>,
+    pub cla_list: Vec<(ConvergenceLayerAgents, Option<u16>)>,
     pub services: HashMap<u8, String>,
     pub last_contact: u64,
 }
@@ -55,7 +56,7 @@ impl DtnPeer {
         addr: PeerAddress,
         con_type: PeerType,
         period: Option<Duration>,
-        cla_list: Vec<(String, Option<u16>)>,
+        cla_list: Vec<(ConvergenceLayerAgents, Option<u16>)>,
         services: HashMap<u8, String>,
     ) -> DtnPeer {
         DtnPeer {
@@ -135,15 +136,13 @@ impl DtnPeer {
         self.eid.node().unwrap_or_default()
     }
     pub fn first_cla(&self) -> Option<crate::cla::ClaSender> {
-        for c in self.cla_list.iter() {
-            if crate::cla::convergence_layer_agents().contains(&c.0.as_str()) {
-                let sender = crate::cla::ClaSender {
-                    remote: self.addr.clone(),
-                    port: c.1,
-                    agent: c.0.clone(),
-                };
-                return Some(sender);
-            }
+        if let Some((c, port)) = self.cla_list.first() {
+            let sender = crate::cla::ClaSender {
+                remote: self.addr.clone(),
+                port: *port,
+                agent: *c,
+            };
+            return Some(sender);
         }
         None
     }

@@ -8,7 +8,7 @@ use tokio::io::{self, AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt};
 
 const MINIMUM_EXTENSION_ITEM_SIZE: u32 = 5;
 
-#[derive(Debug, Eq, PartialEq)]
+#[derive(Debug, Eq, PartialEq, Clone)]
 pub(crate) enum TcpClPacket {
     SessInit(SessInitData),
     SessTerm(SessTermData),
