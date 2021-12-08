@@ -32,7 +32,7 @@ type WsRecvData struct {
 	Bid  string `json:"bid"`
 	Src  string `json:"src"`
 	Dst  string `json:"dst"`
-	Data []byte `json:"data"`
+	Data string `json:"data"`
 }
 
 // WsSendData dtn7-rs websocket sending data structure
@@ -41,7 +41,7 @@ type WsSendData struct {
 	Dst                  string `json:"dst"`
 	DeliveryNotification bool   `json:"delivery_notification"`
 	Lifetime             uint64 `json:"lifetime"`
-	Data                 []byte `json:"data"`
+	Data                 string `json:"data"`
 }
 
 func main() {
@@ -61,7 +61,7 @@ func main() {
 	_, message, err := c.ReadMessage()
 	checkErr(err)
 	log.Printf("[*] %s", message)
-	
+
 	reply_text := string(message)
 	if !strings.HasPrefix(reply_text, "200 node: ") {
 		panic("[*] unable to get node id via websocket")
@@ -105,6 +105,8 @@ func main() {
 			err = json.Unmarshal(message, &data)
 			checkErr(err)
 			log.Printf("[<] %s", data.Bid)
+			//payload, _ := base64.StdEncoding.DecodeString(data.Data)
+			//log.Printf("[<] data: %v", payload)
 
 			response := WsSendData{
 				Src:                  data.Dst,

@@ -179,10 +179,10 @@ impl WsAASession {
                     return Ok(());
                 }
                 let recv = WsRecvData {
-                    bid: &bndl.id(),
-                    src: &bndl.primary.source.to_string(),
-                    dst: &bndl.primary.destination.to_string(),
-                    data: bndl.payload().unwrap(),
+                    bid: bndl.id(),
+                    src: bndl.primary.source.to_string(),
+                    dst: bndl.primary.destination.to_string(),
+                    data: bndl.payload().unwrap().to_vec(),
                 };
                 match format {
                     DataReceiveFormat::CBOR => {
@@ -364,8 +364,8 @@ impl WsAASession {
                             } else {
                                 BundleControlFlags::BUNDLE_MUST_NOT_FRAGMENTED
                             };
-                            let dst = EndpointID::try_from(send_req.dst);
-                            let src = EndpointID::try_from(send_req.src);
+                            let dst = EndpointID::try_from(send_req.dst.clone());
+                            let src = EndpointID::try_from(send_req.src.clone());
                             if dst.is_err() || src.is_err() {
                                 warn!(
                                     "Received data with invalid src ({}) or destination ({})",
@@ -462,10 +462,10 @@ impl WsAASession {
                                     continue;
                                 }
                                 let recv = WsRecvData {
-                                    bid: &bundle.id(),
-                                    src: &bundle.primary.source.to_string(),
-                                    dst: &bundle.primary.destination.to_string(),
-                                    data: bundle.payload().unwrap(),
+                                    bid: bundle.id(),
+                                    src: bundle.primary.source.to_string(),
+                                    dst: bundle.primary.destination.to_string(),
+                                    data: bundle.payload().unwrap().to_vec(),
                                 };
                                 match format {
                                     DataReceiveFormat::CBOR => serde_cbor::to_vec(&recv)

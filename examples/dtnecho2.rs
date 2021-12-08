@@ -103,7 +103,7 @@ fn main() -> Result<()> {
                         recv_data.bid, recv_data.src, recv_data.dst
                     );
 
-                    if let Ok(data_str) = from_utf8(recv_data.data) {
+                    if let Ok(data_str) = from_utf8(&recv_data.data) {
                         eprintln!("Data: {}", data_str);
                     }
                 } else {
@@ -111,8 +111,8 @@ fn main() -> Result<()> {
                     std::io::stdout().flush().unwrap();
                 }
                 // flip src and destionation
-                let src = &recv_data.dst.to_owned();
-                let dst = &recv_data.src.to_owned();
+                let src = recv_data.dst.to_owned();
+                let dst = recv_data.src.to_owned();
                 // construct response with copied payload
                 let echo_response = WsSendData {
                     src,
