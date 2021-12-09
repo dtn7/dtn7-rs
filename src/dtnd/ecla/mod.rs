@@ -9,6 +9,7 @@ use ws::WebsocketTransportLayer;
 pub mod processing;
 pub mod tcp;
 pub mod ws;
+pub mod ws_client;
 
 mod base64 {
     use base64::{decode, encode};
@@ -28,7 +29,7 @@ mod base64 {
 
 // The variant of Packets that can be send or received. The resulting JSON will have
 // a field called type that encodes the selected variant.
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Clone)]
 #[serde(tag = "type")]
 pub enum Packet {
     RegisterPacket(RegisterPacket),
@@ -38,28 +39,28 @@ pub enum Packet {
 
 // Beacon is a device discovery packet. It can either be from the direct connection
 // to the dtnd or received over the transmission layer of the ECLA client.
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Clone)]
 pub struct Beacon {
-    eid: EndpointID,
-    addr: String,
+    pub eid: EndpointID,
+    pub addr: String,
     #[serde(with = "base64")]
-    service_block: Vec<u8>,
+    pub service_block: Vec<u8>,
 }
 
 // Identification Packet that registers the Module Name.
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Clone)]
 pub struct RegisterPacket {
-    name: String,
-    enable_beacon: bool,
+    pub name: String,
+    pub enable_beacon: bool,
 }
 
 // Packet that forwards Bundle data
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Clone)]
 pub struct ForwardDataPacket {
-    src: String,
-    dst: String,
+    pub src: String,
+    pub dst: String,
     #[serde(with = "base64")]
-    data: Vec<u8>,
+    pub data: Vec<u8>,
 }
 
 #[enum_dispatch]
