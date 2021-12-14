@@ -1,6 +1,7 @@
-use anyhow::{bail, Result};
+use anyhow::Result;
 use clap::{crate_authors, crate_version, App, Arg};
-use dtn7::dtnd::ecla::ws_client::{new, Client};
+use dtn7::dtnd::ecla::ws_client::new;
+use dtn7::dtnd::ecla::ws_client::Command::SendPacket;
 use dtn7::dtnd::ecla::Packet;
 use dtn7::dtnd::ecla::Packet::{Beacon, ForwardDataPacket};
 use futures::channel::mpsc::{unbounded, UnboundedSender};
@@ -16,20 +17,29 @@ async fn main() -> Result<()> {
         .about("A simple ecla example that connects N dtnd instances")
         .arg(
             Arg::with_name("addr")
-                .short("A")
+                .short("a")
                 .long("addr")
                 .value_name("ip:ecla_port")
                 .help("specify ecla address and port")
                 .multiple(true)
                 .takes_value(true),
         )
+        .arg(
+            Arg::with_name("debug")
+                .short("d")
+                .long("debug")
+                .help("Set log level to debug")
+                .takes_value(false),
+        )
         .get_matches();
 
-    std::env::set_var(
-        "RUST_LOG",
-        "dtn7=debug,dtnd=debug,actix_server=debug,actix_web=debug,debug,dtnecla_connect_n=debug",
-    );
-    pretty_env_logger::init_timed();
+    if matches.is_present("debug") {
+        std::env::set_var(
+            "RUST_LOG",
+            "dtn7=debug,dtnd=debug,actix_server=debug,actix_web=debug,debug,dtnecla_connect_n=debug",
+        );
+        pretty_env_logger::init_timed();
+    }
 
     let (tx, rx) = unbounded::<Packet>();
 
@@ -37,11 +47,12 @@ async fn main() -> Result<()> {
     let mut conns: Vec<UnboundedSender<Packet>> = vec![];
     if let Some(addrs) = matches.values_of("addr") {
         for (i, addr) in addrs.enumerate() {
-            println!("{}", addr);
+            info!("Connecting to {}", addr);
 
             let (ctx, crx) = unbounded::<Packet>();
             conns.push(ctx);
 
+            let i = i;
             let addr = addr.to_string();
             let tx = tx.clone();
             tokio::spawn(async move {
@@ -49,20 +60,14 @@ async fn main() -> Result<()> {
                 let mut c = new("ConnectN", addr.as_str(), i.to_string().as_str(), tx)
                     .expect("couldn't create client");
 
-                let connecting = c.connect();
+                let cmd_chan = c.command_channel();
                 let read = crx.for_each(|packet| {
-                    match packet {
-                        Packet::ForwardDataPacket(mut fwd) => {
-                            c.insert_forward_data(fwd);
-                        }
-                        Packet::Beacon(mut pdp) => {
-                            c.insert_beacon(pdp);
-                        }
-                        _ => {}
-                    }
-
+                    cmd_chan
+                        .unbounded_send(SendPacket(packet))
+                        .expect("couldn't pass packet to client command channel");
                     future::ready(())
                 });
+                let connecting = c.connect();
 
                 pin_mut!(connecting, read);
                 future::select(connecting, read).await;
@@ -73,21 +78,27 @@ async fn main() -> Result<()> {
     // Read from Packet Stream
     let read = rx.for_each(|packet| {
         match packet {
-            Packet::ForwardDataPacket(mut fwd) => {
+            Packet::ForwardDataPacket(fwd) => {
                 info!("Got ForwardDataPacket {} -> {}", fwd.src, fwd.dst);
 
                 let id = usize::from_str(fwd.dst.as_str()).unwrap_or(conns.len());
                 if id < conns.len() {
-                    conns[id].unbounded_send(ForwardDataPacket(fwd.clone()));
+                    conns[id]
+                        .unbounded_send(ForwardDataPacket(fwd.clone()))
+                        .expect("couldn't pass packet to client packet channel");
                 }
             }
-            Packet::Beacon(mut pdp) => {
+            Packet::Beacon(pdp) => {
                 info!("Got Beacon {}", pdp.addr);
 
                 let id = usize::from_str(pdp.addr.as_str()).unwrap_or(conns.len());
-                if id < conns.len() {
-                    conns[id].unbounded_send(Beacon(pdp.clone()));
-                }
+                conns.iter().enumerate().for_each(|(i, conn)| {
+                    if i == id {
+                        return;
+                    }
+                    conn.unbounded_send(Beacon(pdp.clone()))
+                        .expect("couldn't pass packet to client packet channel");
+                });
             }
             _ => {}
         }

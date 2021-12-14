@@ -130,11 +130,11 @@ impl TransportLayer for WebsocketTransportLayer {
         let target = pmap.get(dest);
         if target.is_some() {
             let data = serde_json::to_string(&packet);
-            target
+            return target
                 .unwrap()
                 .tx
-                .unbounded_send(Message::Text(data.unwrap()));
-            return true;
+                .unbounded_send(Message::Text(data.unwrap()))
+                .is_ok();
         }
 
         return false;
