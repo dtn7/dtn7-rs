@@ -102,17 +102,19 @@ pub fn convergence_layer_agents() -> Vec<&'static str> {
 pub fn new(cla_str: &str) -> CLAEnum {
     let cla: Vec<&str> = cla_str.split(':').collect();
     let port: Option<u16> = cla.get(1).unwrap_or(&"-1").parse::<u16>().ok();
+
+    // External CLA's have priority even with the same name.
+    if cla_names().contains(&cla[0].to_string()) {
+        return external::ExternalConvergenceLayer::new(cla[0].to_string()).into();
+    }
+
     match cla[0] {
         "dummy" => dummy::DummyConvergenceLayer::new().into(),
         "mtcp" => mtcp::MtcpConvergenceLayer::new(port).into(),
         "http" => http::HttpConvergenceLayer::new(port).into(),
         //"external" => external::ExternalConvergenceLayer::new(port).into(),
         _ => {
-            if cla_names().contains(&cla[0].to_string()) {
-                return external::ExternalConvergenceLayer::new(cla[0].to_string()).into();
-            } else {
-                panic!("Unknown convergence layer agent agent {}", cla[0])
-            }
+            panic!("Unknown convergence layer agent agent {}", cla[0])
         }
     }
 }
