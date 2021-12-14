@@ -120,24 +120,22 @@ impl TransportLayer for WebsocketTransportLayer {
     }
 
     fn name(&self) -> &str {
-        return "Websocket";
+        "Websocket"
     }
 
     fn send_packet(&self, dest: &str, packet: &Packet) -> bool {
         debug!("Sending Packet to {} ({})", dest, self.name());
 
         let pmap = PEER_MAP.lock().unwrap();
-        let target = pmap.get(dest);
-        if target.is_some() {
+        if let Some(target) = pmap.get(dest) {
             let data = serde_json::to_string(&packet);
             return target
-                .unwrap()
                 .tx
                 .unbounded_send(Message::Text(data.unwrap()))
                 .is_ok();
         }
 
-        return false;
+        false
     }
 
     fn close(&self, dest: &str) {

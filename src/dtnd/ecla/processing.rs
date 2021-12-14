@@ -73,7 +73,7 @@ pub fn generate_beacon() -> Beacon {
 
     beacon.service_block = serde_cbor::to_vec(&service_block).unwrap();
 
-    return beacon;
+    beacon
 }
 
 // Periodically advertises it's own node to the connected WebSocket clients.
@@ -91,15 +91,12 @@ async fn announcer() {
                 return true;
             }
 
-            let layer = lmap.get_mut(value.layer.as_str());
-            if layer.is_some() {
+            if let Some(layer) = lmap.get_mut(value.layer.as_str()) {
                 debug!("Sending Beacon to {} ({})", addr, value.layer);
-                layer
-                    .unwrap()
-                    .send_packet(addr, &Packet::Beacon(generate_beacon()));
+                layer.send_packet(addr, &Packet::Beacon(generate_beacon()));
             }
 
-            return true;
+            true
         });
     }
 }
@@ -119,8 +116,8 @@ pub fn handle_packet(layer_name: String, addr: String, packet: Packet) {
     let me = mod_opt.unwrap();
     match me.state {
         // If we are still in WaitingForIdent we only wait for RegisterPackets to register the Module name.
-        ModuleState::WaitingForIdent => match packet {
-            Packet::RegisterPacket(ident) => {
+        ModuleState::WaitingForIdent => {
+            if let Packet::RegisterPacket(ident) = packet {
                 info!(
                     "Received RegisterPacket from {} ({}): {}",
                     addr, layer_name, ident.name
@@ -142,8 +139,7 @@ pub fn handle_packet(layer_name: String, addr: String, packet: Packet) {
                     // TODO: close connection
                 }
             }
-            _ => {}
-        },
+        }
         // If we are Active we wait for Beacon and ForwardDataPacket
         ModuleState::Active => match packet {
             // We got a new Bundle Packet that needs to be parsed and processed.
@@ -221,15 +217,14 @@ pub fn scheduled_submission(name: &str, dest: &str, ready: &[ByteBuffer]) -> boo
                     data: b.to_vec(),
                 });
 
-                let layer = lmap.get_mut(value.layer.as_str());
-                if layer.is_some() {
-                    layer.unwrap().send_packet(addr, &packet);
+                if let Some(layer) = lmap.get_mut(value.layer.as_str()) {
+                    layer.send_packet(addr, &packet);
                     was_sent = true;
                 }
             }
         }
 
-        return true;
+        true
     });
 
     was_sent

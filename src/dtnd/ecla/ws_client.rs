@@ -34,13 +34,12 @@ pub fn new(
         return Err(std::io::Error::new(
             std::io::ErrorKind::InvalidInput,
             "addr is not in format ip:port",
-        )
-        .into());
+        ));
     }
 
     let (cmd_sender, cmd_receiver) = unbounded::<Command>();
 
-    return Ok(Client {
+    Ok(Client {
         module_name: module_name.to_string(),
         ip: parts[0].to_string(),
         id: current_id.to_string(),
@@ -48,7 +47,7 @@ pub fn new(
         cmd_receiver,
         cmd_sender,
         packet_out,
-    });
+    })
 }
 
 impl Client {
@@ -80,7 +79,7 @@ impl Client {
                     }
                     Command::Close => {}
                 }
-                return None;
+                None
             })
             .map(Ok)
             .forward(write);
@@ -119,6 +118,6 @@ impl Client {
     }
 
     pub fn command_channel(&self) -> UnboundedSender<Command> {
-        return self.cmd_sender.clone();
+        self.cmd_sender.clone()
     }
 }
