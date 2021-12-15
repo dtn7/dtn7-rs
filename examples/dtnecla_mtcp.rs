@@ -166,7 +166,7 @@ async fn main() -> Result<()> {
         let tx = tx.clone();
         tokio::spawn(async move {
             let crx = crx;
-            let mut c = new("mtcp", addr.as_str(), "", tx).expect("couldn't create client");
+            let mut c = new("mtcp", addr.as_str(), "", tx, false).expect("couldn't create client");
 
             let cmd_chan = c.command_channel();
             let read = crx.for_each(|packet| {
@@ -197,7 +197,7 @@ async fn main() -> Result<()> {
                     send_bundles(fwd.dst, data);
                 }
             }
-            Packet::Beacon(pdp) => {
+            Packet::Beacon(_) => {
                 // Beacon is not needed with MTCP
             }
             _ => {}

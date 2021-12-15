@@ -57,7 +57,7 @@ async fn main() -> Result<()> {
             let tx = tx.clone();
             tokio::spawn(async move {
                 let crx = crx;
-                let mut c = new("ConnectN", addr.as_str(), i.to_string().as_str(), tx)
+                let mut c = new("ConnectN", addr.as_str(), i.to_string().as_str(), tx, true)
                     .expect("couldn't create client");
 
                 let cmd_chan = c.command_channel();

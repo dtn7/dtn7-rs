@@ -14,6 +14,7 @@ pub enum Command {
 
 pub struct Client {
     module_name: String,
+    enable_beacon: bool,
     ip: String,
     id: String,
     port: i16,
@@ -27,6 +28,7 @@ pub fn new(
     addr: &str,
     current_id: &str,
     packet_out: UnboundedSender<Packet>,
+    enable_beacon: bool,
 ) -> std::io::Result<Client> {
     let parts: Vec<&str> = addr.split(":").collect();
 
@@ -44,6 +46,7 @@ pub fn new(
         ip: parts[0].to_string(),
         id: current_id.to_string(),
         port: i16::from_str(parts[1]).expect("could not parse port"),
+        enable_beacon,
         cmd_receiver,
         cmd_sender,
         packet_out,
@@ -64,7 +67,7 @@ impl Client {
         self.cmd_sender
             .unbounded_send(SendPacket(Packet::RegisterPacket(RegisterPacket {
                 name: self.module_name.to_string(),
-                enable_beacon: true,
+                enable_beacon: self.enable_beacon,
             })))
             .expect("couldn't send RegisterPacket");
 
