@@ -4,9 +4,9 @@ use crate::dtnd::ecla::Packet;
 use crate::lazy_static;
 use async_trait::async_trait;
 use futures::channel::mpsc::{unbounded, UnboundedSender};
-use futures_util::{stream::TryStreamExt, StreamExt};
-use log::debug;
+use futures_util::{future, pin_mut, stream::TryStreamExt, SinkExt, StreamExt};
 use log::info;
+use log::{debug, error};
 use std::collections::HashMap;
 use std::net::SocketAddr;
 use std::sync::{Arc, Mutex};
@@ -38,48 +38,36 @@ async fn handle_connection(mut raw_stream: TcpStream, addr: SocketAddr) {
         .insert(addr.to_string(), Connection { tx });
     handle_connect("TCP".to_string(), addr.to_string());
 
-    // Receiver task
-    tokio::spawn(async move {
-        let (incoming, _) = raw_stream.split();
+    let (incoming, mut outgoing) = raw_stream.split();
 
-        // Delimit frames using a length header
-        let length_delimited = FramedRead::new(incoming, LengthDelimitedCodec::new());
+    // Delimit frames using a length header
+    let length_delimited = FramedRead::new(incoming, LengthDelimitedCodec::new());
 
-        // Deserialize frames
-        let mut deserialized = tokio_serde::SymmetricallyFramed::new(
-            length_delimited,
-            SymmetricalJson::<Packet>::default(),
-        );
+    // Deserialize frames
+    let deserialized = tokio_serde::SymmetricallyFramed::new(
+        length_delimited,
+        SymmetricalJson::<Packet>::default(),
+    );
 
-        while let res = deserialized.try_next().await {
-            if res.is_err() {
-                // TODO: check error
-                break;
-            }
-
-            let packet = res.unwrap();
-            if packet.is_some() {
-                handle_packet("TCP".to_string(), addr.to_string(), packet.unwrap());
-            } else {
-                // TODO: is None => Disconnect?
-                break;
-            }
-        }
-
-        if PEER_MAP.lock().unwrap().remove(&addr.to_string()).is_some() {
-            info!("{} disconnected", &addr);
-            handle_disconnect(addr.to_string());
-        }
+    let broadcast_incoming = deserialized.try_for_each(|packet| {
+        handle_packet("TCP".to_string(), addr.to_string(), packet);
+        future::ok(())
     });
 
-    // TODO: fix sending of packets
-
-    // Sender task
-    /*tokio::spawn(async move {
-        while let Some(packet) = rx.try_next().await.unwrap() {
-            outgoing.write(packet.as_slice());
+    let broadcast_outgoing = rx.for_each(|packet| {
+        if let Err(err) = outgoing.try_write(packet.as_slice()) {
+            error!("error while sending packet ({})", err);
         }
-    });*/
+        future::ready(())
+    });
+
+    pin_mut!(broadcast_incoming, broadcast_outgoing);
+    future::select(broadcast_incoming, broadcast_outgoing).await;
+
+    if PEER_MAP.lock().unwrap().remove(&addr.to_string()).is_some() {
+        info!("{} disconnected", &addr);
+        handle_disconnect(addr.to_string());
+    }
 }
 
 #[derive(Clone, Default)]
@@ -114,27 +102,30 @@ impl TransportLayer for TCPTransportLayer {
     }
 
     fn name(&self) -> &str {
-        return "TCP";
+        "TCP"
     }
 
     fn send_packet(&self, dest: &str, packet: &Packet) -> bool {
         debug!("Sending Packet to {} ({})", dest, self.name());
 
-        let mut pmap = PEER_MAP.lock().unwrap();
+        let pmap = PEER_MAP.lock().unwrap();
         let target = pmap.get(dest);
         if target.is_some() {
             let mut data = serde_json::to_vec(&packet).unwrap();
-            let len = (data.len() as i32).to_ne_bytes();
+            let len = (data.len() as i32).to_be_bytes();
             data.splice(0..0, len.iter().cloned());
 
-            target.unwrap().tx.unbounded_send(data);
-            return true;
+            if let Some(target) = target {
+                if let Ok(()) = target.tx.unbounded_send(data) {
+                    return true;
+                }
+            }
         }
 
-        return false;
+        false
     }
 
     fn close(&self, dest: &str) {
-        todo!()
+        // Todo: closing of client
     }
 }
