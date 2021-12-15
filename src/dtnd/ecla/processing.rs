@@ -241,7 +241,7 @@ pub async fn start_ecla(port: u16) {
     debug!("Setup External Convergence Layer");
 
     // Create the WebSocket server here for now
-    let mut ws_layer = WebsocketTransportLayer::new(port);
+    let mut ws_layer = WebsocketTransportLayer::new();
     ws_layer.setup().await;
     add_layer(ws_layer.into());
 

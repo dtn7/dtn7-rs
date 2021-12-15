@@ -52,7 +52,7 @@ pub fn new(
 
 impl Client {
     pub async fn connect(&mut self) -> Result<()> {
-        let (ws_stream, _) = connect_async(format!("ws://{}:{}", self.ip, self.port))
+        let (ws_stream, _) = connect_async(format!("ws://{}:{}/ws/ecla", self.ip, self.port))
             .await
             .expect("Failed to connect");
 

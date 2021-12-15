@@ -3,16 +3,15 @@ use crate::dtnd::ecla::processing::{handle_connect, handle_disconnect, handle_pa
 use crate::dtnd::ecla::Packet;
 use crate::lazy_static;
 use async_trait::async_trait;
+use axum::extract::ws::{Message, WebSocket};
 use futures::channel::mpsc::{unbounded, UnboundedSender};
 use futures_util::{future, pin_mut, stream::TryStreamExt, StreamExt};
 use log::debug;
 use log::info;
 use serde_json::Result;
 use std::collections::HashMap;
-use std::net::SocketAddr;
+use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex};
-use tokio::net::{TcpListener, TcpStream};
-use tokio_tungstenite::tungstenite::Message;
 
 struct Connection {
     tx: Tx,
@@ -25,30 +24,27 @@ lazy_static! {
     static ref PEER_MAP: PeerMap = PeerMap::new(Mutex::new(HashMap::new()));
 }
 
+static ID_COUNTER: AtomicUsize = AtomicUsize::new(0);
+static LAYER_NAME: &str = "Websocket";
+
 // Handles the websocket connection.
-async fn handle_connection(raw_stream: TcpStream, addr: SocketAddr) {
-    info!("Incoming TCP connection from: {}", addr);
+pub async fn handle_connection(ws: WebSocket) {
+    let id = ID_COUNTER.fetch_add(1, Ordering::SeqCst);
 
-    let ws_stream = tokio_tungstenite::accept_async(raw_stream)
-        .await
-        .expect("Error during the websocket handshake occurred");
-
-    info!("WebSocket connection established: {}", addr);
-
-    // Insert the write part of this peer to the peer map.
     let (tx, rx) = unbounded();
+
     PEER_MAP
         .lock()
         .unwrap()
-        .insert(addr.to_string(), Connection { tx });
-    handle_connect("Websocket".to_string(), addr.to_string());
+        .insert(id.to_string(), Connection { tx });
+    handle_connect(LAYER_NAME.to_string(), id.to_string());
 
-    let (outgoing, incoming) = ws_stream.split();
+    let (outgoing, incoming) = ws.split();
 
     let broadcast_incoming = incoming.try_for_each(|msg| {
         info!(
             "Received a message from {}: {}",
-            addr,
+            id,
             msg.to_text().unwrap().trim()
         );
 
@@ -57,7 +53,7 @@ async fn handle_connection(raw_stream: TcpStream, addr: SocketAddr) {
             // Get own peer
             let mut pmap = PEER_MAP.lock().unwrap();
 
-            let me_opt = pmap.get_mut(&addr.to_string());
+            let me_opt = pmap.get_mut(&id.to_string());
             if me_opt.is_none() {
                 return future::ok(());
             }
@@ -69,7 +65,7 @@ async fn handle_connection(raw_stream: TcpStream, addr: SocketAddr) {
             }
         }
 
-        handle_packet("Websocket".to_string(), addr.to_string(), packet.unwrap());
+        handle_packet("Websocket".to_string(), id.to_string(), packet.unwrap());
 
         future::ok(())
     });
@@ -79,44 +75,24 @@ async fn handle_connection(raw_stream: TcpStream, addr: SocketAddr) {
     pin_mut!(broadcast_incoming, receive_from_others);
     future::select(broadcast_incoming, receive_from_others).await;
 
-    info!("{} disconnected", &addr);
-    handle_disconnect(addr.to_string());
-    PEER_MAP.lock().unwrap().remove(&addr.to_string());
+    info!("{} disconnected", id);
+    handle_disconnect(id.to_string());
+    PEER_MAP.lock().unwrap().remove(&id.to_string());
 }
 
 #[derive(Clone, Default)]
-pub struct WebsocketTransportLayer {
-    port: u16,
-}
+pub struct WebsocketTransportLayer {}
 
 impl WebsocketTransportLayer {
-    pub fn new(port: u16) -> WebsocketTransportLayer {
-        WebsocketTransportLayer { port }
+    pub fn new() -> WebsocketTransportLayer {
+        WebsocketTransportLayer {}
     }
 }
 
 #[async_trait]
 impl TransportLayer for WebsocketTransportLayer {
     async fn setup(&mut self) {
-        debug!("Setup Websocket ECLA Layer");
-
-        let port = self.port;
-        tokio::spawn(async move {
-            let addr = String::from("127.0.0.1:") + port.to_string().as_str();
-
-            // Create the event loop and TCP listener we'll accept connections on.
-            let try_socket = TcpListener::bind(&addr).await;
-            let listener = try_socket.expect("Failed to bind");
-            info!(
-                "External Convergence Layer Websocket Listening on: {}",
-                addr
-            );
-
-            // Let's spawn the handling of each connection in a separate task.
-            while let Ok((stream, addr)) = listener.accept().await {
-                tokio::spawn(handle_connection(stream, addr));
-            }
-        });
+        // Because we use the server in httpd we don't have any setup
     }
 
     fn name(&self) -> &str {
@@ -138,7 +114,5 @@ impl TransportLayer for WebsocketTransportLayer {
         false
     }
 
-    fn close(&self, dest: &str) {
-        todo!()
-    }
+    fn close(&self, _: &str) {}
 }
