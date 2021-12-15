@@ -37,7 +37,7 @@ PORT_NODE2=3001
 $DIR/../target/$TARGET/dtnd -d -j5s -w $PORT_NODE2 -e incoming -r epidemic \
     -n node2 \
     -C mtcp:4223 -s mtcp://127.0.0.1:2342/node1 \
-    --interval 1s --ecla --ecla-port 8172 --disable_nd \
+    --interval 1s --ecla --disable_nd \
     $DB2 2>&1 &> $OUT_NODE2 &
 PID_NODE2=$!
 echo node2 pid: $PID_NODE2
@@ -48,7 +48,7 @@ OUT_NODE3=$(mktemp /tmp/node3.XXXXXX)
 PORT_NODE3=3002
 #DB3="-W /tmp/node3 -D sled"
 #DB3="-W /tmp/node3 -D sneakers"
-$DIR/../target/$TARGET/dtnd -d -j5s -w $PORT_NODE3 -e incoming -r epidemic -n node3 --interval 1s --ecla --ecla-port 8173 --disable_nd $DB3 $STATUS_REPORTS 2>&1 &> $OUT_NODE3 &
+$DIR/../target/$TARGET/dtnd -d -j5s -w $PORT_NODE3 -e incoming -r epidemic -n node3 --interval 1s --ecla --disable_nd $DB3 $STATUS_REPORTS 2>&1 &> $OUT_NODE3 &
 PID_NODE3=$!
 echo node3 pid: $PID_NODE3
 echo node3 out: $OUT_NODE3
@@ -57,7 +57,7 @@ echo node3 port: $PORT_NODE3
 sleep 2
 
 # Start ECLA Connector
-$DIR/../target/$TARGET/examples/dtnecla_connect_n -a 127.0.0.1:8172 -a 127.0.0.1:8173 & PID_ECLA=$!
+$DIR/../target/$TARGET/examples/dtnecla_connect_n -a 127.0.0.1:$PORT_NODE2 -a 127.0.0.1:$PORT_NODE3 & PID_ECLA=$!
 echo ecla pid: $PID_ECLA
 sleep 1
 
