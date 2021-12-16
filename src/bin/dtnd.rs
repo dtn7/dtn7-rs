@@ -94,10 +94,10 @@ async fn main() -> Result<(), std::io::Error> {
                 .takes_value(true),
         )
         .arg(
-            Arg::with_name("eclaport")
-                .long("ecla-port")
+            Arg::with_name("eclatcpport")
+                .long("ecla-tcp")
                 .value_name("PORT")
-                .help("Sets ECLA port (default = 3151)")
+                .help("Sets ECLA tcp port (disabled by default)")
                 .takes_value(true),
         )
         .arg(
@@ -235,10 +235,10 @@ Tag 255 takes 5 arguments and is interpreted as address. Usage: -S 255:'Samplest
         matches.is_present("generate-status-reports") || cfg.generate_status_reports;
 
     cfg.ecla_enable = matches.is_present("ecla");
-    if let Some(eclaport) = matches.value_of("eclaport") {
-        cfg.ecla_port = eclaport
+    if let Some(ecla_tcp_port) = matches.value_of("eclatcpport") {
+        cfg.ecla_tcp_port = ecla_tcp_port
             .parse()
-            .expect("Could not parse ECLA port paramter!");
+            .expect("Could not parse ECLA tcp port paramter!");
     }
 
     cfg.unsafe_httpd = matches.is_present("unsafe_httpd") || cfg.unsafe_httpd;

@@ -148,7 +148,7 @@ pub async fn start_dtnd(cfg: DtnConfig) -> anyhow::Result<()> {
     }
 
     if (*CONFIG.lock()).ecla_enable {
-        start_ecla((*CONFIG.lock()).ecla_port).await;
+        start_ecla((*CONFIG.lock()).ecla_tcp_port).await;
     }
 
     httpd::spawn_httpd().await?;

@@ -34,7 +34,7 @@ pub struct DtnConfig {
     pub workdir: PathBuf,
     pub db: String,
     pub generate_status_reports: bool,
-    pub ecla_port: u16,
+    pub ecla_tcp_port: u16,
     pub ecla_enable: bool,
 }
 
@@ -221,7 +221,7 @@ impl DtnConfig {
             db: String::from("mem"),
             generate_status_reports: false,
             ecla_enable: false,
-            ecla_port: 3151,
+            ecla_tcp_port: 0,
         }
     }
     pub fn set(&mut self, cfg: DtnConfig) {
@@ -248,7 +248,7 @@ impl DtnConfig {
         self.db = cfg.db;
         self.generate_status_reports = cfg.generate_status_reports;
         self.ecla_enable = cfg.ecla_enable;
-        self.ecla_port = cfg.ecla_port;
+        self.ecla_tcp_port = cfg.ecla_tcp_port;
     }
 
     /// Helper function that adds discovery destinations to a config struct
