@@ -5,7 +5,7 @@ use crate::cla::RemoteAddr;
 use crate::core::PeerType;
 use crate::dtnd::ecla::tcp::TCPTransportLayer;
 use crate::dtnd::ecla::ws::WebsocketTransportLayer;
-use crate::dtnd::ecla::TransportLayerEnum;
+use crate::dtnd::ecla::{ErrorPacket, RegisteredPacket, TransportLayerEnum};
 use crate::ipnd::services::ServiceBlock;
 use crate::{cla_add, cla_remove, CONFIG};
 use crate::{cla_names, DTNCLAS, DTNCORE};
@@ -132,11 +132,26 @@ pub fn handle_packet(layer_name: String, addr: String, packet: Packet) {
 
                     cla_add(ExternalConvergenceLayer::new(me.name.clone()).into());
 
-                    // Send initial beacon of own
-                    layer.send_packet(addr.as_str(), &Packet::Beacon(generate_beacon()));
+                    // Send registered packet
+                    let eid = (*CONFIG.lock()).host_eid.clone();
+                    let nodeid = (*CONFIG.lock()).nodeid.clone();
+                    layer.send_packet(
+                        addr.as_str(),
+                        &Packet::RegisteredPacket(RegisteredPacket { eid, nodeid }),
+                    );
+
+                    // Send initial beacon
+                    if me.enable_beacon {
+                        layer.send_packet(addr.as_str(), &Packet::Beacon(generate_beacon()));
+                    }
                 } else {
-                    // TODO: send already registered message
-                    // TODO: close connection
+                    layer.send_packet(
+                        addr.as_str(),
+                        &Packet::ErrorPacket(ErrorPacket {
+                            reason: "already registered".to_string(),
+                        }),
+                    );
+                    layer.close(addr.as_str());
                 }
             }
         }
@@ -237,18 +252,20 @@ pub fn add_layer(layer: TransportLayerEnum) {
         .insert(layer.name().to_string(), layer);
 }
 
-pub async fn start_ecla(port: u16) {
+pub async fn start_ecla(tcpport: u16) {
     debug!("Setup External Convergence Layer");
 
-    // Create the WebSocket server here for now
+    // Create the WS Transport Layer
     let mut ws_layer = WebsocketTransportLayer::new();
     ws_layer.setup().await;
     add_layer(ws_layer.into());
 
-    // Create the TCP server here for now
-    let mut tcp_layer = TCPTransportLayer::new(port + 10);
-    tcp_layer.setup().await;
-    add_layer(tcp_layer.into());
+    // Create the TCP Transport Layer
+    if tcpport > 0 {
+        let mut tcp_layer = TCPTransportLayer::new(tcpport);
+        tcp_layer.setup().await;
+        add_layer(tcp_layer.into());
+    }
 
     tokio::spawn(announcer());
 }

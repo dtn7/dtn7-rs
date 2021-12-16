@@ -35,6 +35,8 @@ pub enum Packet {
     RegisterPacket(RegisterPacket),
     Beacon(Beacon),
     ForwardDataPacket(ForwardDataPacket),
+    RegisteredPacket(RegisteredPacket),
+    ErrorPacket(ErrorPacket),
 }
 
 // Beacon is a device discovery packet. It can either be from the direct connection
@@ -45,6 +47,19 @@ pub struct Beacon {
     pub addr: String,
     #[serde(with = "base64")]
     pub service_block: Vec<u8>,
+}
+
+// Packet that contains information about the connected node (will be send if registration was successful)
+#[derive(Serialize, Deserialize, Clone)]
+pub struct RegisteredPacket {
+    pub eid: EndpointID,
+    pub nodeid: String,
+}
+
+// Packet that contains a error message if a error happens
+#[derive(Serialize, Deserialize, Clone)]
+pub struct ErrorPacket {
+    pub reason: String,
 }
 
 // Identification Packet that registers the Module Name.
