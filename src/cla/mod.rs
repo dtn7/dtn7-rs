@@ -4,7 +4,7 @@ pub mod http;
 pub mod mtcp;
 
 use self::http::HttpConvergenceLayer;
-use crate::cla_names;
+use crate::{cla_is_external, cla_names};
 use async_trait::async_trait;
 use bp7::ByteBuffer;
 use derive_more::*;
@@ -103,16 +103,16 @@ pub fn new(cla_str: &str) -> CLAEnum {
     let cla: Vec<&str> = cla_str.split(':').collect();
     let port: Option<u16> = cla.get(1).unwrap_or(&"-1").parse::<u16>().ok();
 
+    // Check if it is a external one
+    if cla_names().contains(&cla[0].to_string()) && cla_is_external(cla[0].to_string()) {
+        return external::ExternalConvergenceLayer::new(cla[0].to_string()).into();
+    }
+
     match cla[0] {
         "dummy" => dummy::DummyConvergenceLayer::new().into(),
         "mtcp" => mtcp::MtcpConvergenceLayer::new(port).into(),
         "http" => http::HttpConvergenceLayer::new(port).into(),
-        //"external" => external::ExternalConvergenceLayer::new(port).into(),
         _ => {
-            // If CLA list contains a CLA name that is not from the static ones (dummy, mtcp, http) it MUST be a external one
-            if cla_names().contains(&cla[0].to_string()) {
-                return external::ExternalConvergenceLayer::new(cla[0].to_string()).into();
-            }
             panic!("Unknown convergence layer agent agent {}", cla[0])
         }
     }

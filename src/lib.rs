@@ -20,6 +20,7 @@ pub use crate::routing::RoutingNotifcation;
 use crate::cla::ConvergenceLayerAgent;
 use crate::cla::RemoteAddr;
 use crate::core::store::BundleStoresEnum;
+use crate::CLAEnum::{DummyConvergenceLayer, ExternalConvergenceLayer, HttpConvergenceLayer};
 use anyhow::Result;
 use lazy_static::*;
 use parking_lot::Mutex;
@@ -44,6 +45,14 @@ pub fn cla_remove(name: String) {
         return value.name() != name;
     })
 }
+pub fn cla_is_external(name: String) -> bool {
+    return (*DTNCLAS.lock()).list.iter().any(|p| match p {
+        ExternalConvergenceLayer((e)) => {
+            return e.name() == name;
+        }
+        _ => false,
+    });
+}
 pub fn cla_names() -> Vec<String> {
     let names: Vec<String> = (*DTNCLAS.lock())
         .list
@@ -52,7 +61,8 @@ pub fn cla_names() -> Vec<String> {
             return String::from(val.name());
         })
         .collect();
-    return names.clone();
+
+    names
 }
 pub fn service_add(tag: u8, service: String) {
     (*DTNCORE.lock()).service_list.insert(tag, service);
