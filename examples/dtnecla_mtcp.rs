@@ -33,7 +33,6 @@ async fn handle_connection(
 
     info!("Incoming connection from {}", addr);
 
-    // Delimit frames using a length header
     let mut framed_sock = FramedRead::new(incoming, MPDUCodec::new());
 
     while let Some(frame) = framed_sock.next().await {
@@ -89,7 +88,7 @@ async fn listener(port: u16, tx: UnboundedSender<Packet>) -> Result<(), io::Erro
     }
 }
 
-pub fn send_bundles(addr: String, data: Vec<u8>) -> bool {
+pub fn send_bundle(addr: String, data: Vec<u8>) -> bool {
     {
         let addr = addr.clone();
         #[allow(clippy::map_entry)]
@@ -205,7 +204,7 @@ async fn main() -> Result<()> {
                 if let Ok(bndl) = Bundle::try_from(fwd.data) {
                     let mpdu = MPDU::new(&bndl);
                     if let Ok(buf) = serde_cbor::to_vec(&mpdu) {
-                        send_bundles(fwd.dst, buf);
+                        send_bundle(fwd.dst, buf);
                     } else {
                         error!("MPDU encoding error!");
                     }
