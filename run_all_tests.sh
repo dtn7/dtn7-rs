@@ -9,5 +9,6 @@ cargo test --release && \
 ./tests/cla_chain_test.sh && \
 ./tests/ecla_test.sh && \
 ./tests/ecla_test_chain.sh && \
+./tests/ecla_test_mtcp.sh && \
 ./tests/ecla_test_json_mtcp.sh && \
 echo "SUCCESS"
