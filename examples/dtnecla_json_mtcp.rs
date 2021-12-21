@@ -112,7 +112,7 @@ pub fn send_bundles(addr: String, data: Vec<u8>) -> bool {
 
 #[tokio::main]
 async fn main() -> Result<()> {
-    let matches = App::new("dtnecla connect N")
+    let matches = App::new("dtnecla json mtcp layer")
         .version(crate_version!())
         .author(crate_authors!())
         .about("A simple ecla example that connects N dtnd instances")
