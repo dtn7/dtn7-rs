@@ -115,7 +115,7 @@ async fn main() -> Result<()> {
     let matches = App::new("dtnecla json mtcp layer")
         .version(crate_version!())
         .author(crate_authors!())
-        .about("A simple ecla example that connects N dtnd instances")
+        .about("A simple ecla example that transmits data via tcp json encoded")
         .arg(
             Arg::with_name("addr")
                 .short("a")
