@@ -20,7 +20,7 @@ pub use crate::routing::RoutingNotifcation;
 use crate::cla::ConvergenceLayerAgent;
 use crate::cla::RemoteAddr;
 use crate::core::store::BundleStoresEnum;
-use crate::CLAEnum::{DummyConvergenceLayer, ExternalConvergenceLayer, HttpConvergenceLayer};
+use crate::CLAEnum::ExternalConvergenceLayer;
 use anyhow::Result;
 use lazy_static::*;
 use parking_lot::Mutex;
@@ -47,7 +47,7 @@ pub fn cla_remove(name: String) {
 }
 pub fn cla_is_external(name: String) -> bool {
     return (*DTNCLAS.lock()).list.iter().any(|p| match p {
-        ExternalConvergenceLayer((e)) => {
+        ExternalConvergenceLayer(e) => {
             return e.name() == name;
         }
         _ => false,
