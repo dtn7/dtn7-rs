@@ -74,6 +74,7 @@ pub struct RegisterPacket {
 pub struct ForwardDataPacket {
     pub src: String,
     pub dst: String,
+    pub bundle_id: String,
     #[serde(with = "base64")]
     pub data: Vec<u8>,
 }

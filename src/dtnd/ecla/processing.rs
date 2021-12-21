@@ -226,15 +226,18 @@ pub fn scheduled_submission(name: &str, dest: &str, ready: &[ByteBuffer]) -> boo
         if value.name == name {
             // Found the matching Module
             for b in ready {
-                let packet: Packet = Packet::ForwardDataPacket(ForwardDataPacket {
-                    dst: dest.to_string(),
-                    src: "".to_string(), // Leave blank for now and let the Module set it to a protocol specific address on his side
-                    data: b.to_vec(),
-                });
+                if let Ok(bndl) = Bundle::try_from(b.clone()) {
+                    let packet: Packet = Packet::ForwardDataPacket(ForwardDataPacket {
+                        dst: dest.to_string(),
+                        src: "".to_string(), // Leave blank for now and let the Module set it to a protocol specific address on his side
+                        bundle_id: bndl.id(),
+                        data: b.to_vec(),
+                    });
 
-                if let Some(layer) = lmap.get_mut(value.layer.as_str()) {
-                    layer.send_packet(addr, &packet);
-                    was_sent = true;
+                    if let Some(layer) = lmap.get_mut(value.layer.as_str()) {
+                        layer.send_packet(addr, &packet);
+                        was_sent = true;
+                    }
                 }
             }
         }
