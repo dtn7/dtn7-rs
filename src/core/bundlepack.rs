@@ -45,7 +45,10 @@ impl fmt::Display for Constraint {
 pub struct BundlePack {
     pub source: EndpointID,
     pub destination: EndpointID,
-    pub timestamp: u64,
+    /// time at which bundle was received at this node in unix time as milliseconds
+    pub received_time: u64,
+    /// time at which bundle was created in dtntime
+    pub creation_time: u64,
     pub id: String,
     pub administrative: bool,
     pub size: usize,
@@ -68,10 +71,11 @@ impl From<Bundle> for BundlePack {
         BundlePack {
             source,
             destination,
-            timestamp: SystemTime::now()
+            received_time: SystemTime::now()
                 .duration_since(UNIX_EPOCH)
                 .expect("Time went backwards")
                 .as_millis() as u64,
+            creation_time: bundle.primary.creation_timestamp.dtntime(),
             id: bid,
             administrative: bundle.is_administrative_record(),
             size,
@@ -89,10 +93,11 @@ impl From<&Bundle> for BundlePack {
         BundlePack {
             source,
             destination,
-            timestamp: SystemTime::now()
+            received_time: SystemTime::now()
                 .duration_since(UNIX_EPOCH)
                 .expect("Time went backwards")
                 .as_millis() as u64,
+            creation_time: bundle.primary.creation_timestamp.dtntime(),
             id: bid,
             administrative: bundle.is_administrative_record(),
             size,

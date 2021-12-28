@@ -318,9 +318,9 @@ dependencies = [
 
 [[package]]
 name = "d7sneakers"
-version = "0.2.3"
+version = "0.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "083780537f4bd6bdffc066d0ea3a364ac35dd5abed9b8fc471b9a0f1ce1f6dc5"
+checksum = "b371a0ca4e1e55dd1804a8c2cd84dd0631b8b6d112f41bc92a618bb7562c3195"
 dependencies = [
  "anyhow",
  "bitflags",
