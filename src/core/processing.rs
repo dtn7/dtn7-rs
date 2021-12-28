@@ -250,7 +250,7 @@ pub fn update_bundle_age(bundle: &mut Bundle) -> Option<u64> {
                 .duration_since(UNIX_EPOCH)
                 .expect("Time went backwards")
                 .as_millis() as u64
-                - bp.timestamp;
+                - bp.received_time;
             new_age = age + offset;
         }
         if new_age != 0 {

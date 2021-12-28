@@ -144,7 +144,7 @@ pub async fn process_bundles() {
         .iter()
         .filter_map(|bid| store_get_metadata(bid))
         .collect();
-    forwarding_bundles.sort_by(|a, b| a.timestamp.cmp(&b.timestamp));
+    forwarding_bundles.sort_unstable_by(|a, b| a.creation_time.cmp(&b.creation_time));
 
     for bp in forwarding_bundles {
         if let Err(err) = forward(bp).await {

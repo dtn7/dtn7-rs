@@ -127,11 +127,12 @@ impl BundleStore for SneakersBundleStore {
         let bp = BundlePack {
             source,
             destination,
-            timestamp: meta.timestamp,
+            received_time: meta.time_added_to_db,
             id: bpid.to_owned(),
             administrative: false,
             size: meta.size as usize,
             constraints: convert_constraints_to_hashset(constraints.unwrap()),
+            creation_time: meta.creation_time,
         };
         //debug_time!("get_metadata");
         // {
