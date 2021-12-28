@@ -21,6 +21,7 @@ use std::collections::HashMap;
 
 use crate::core::application_agent::ApplicationAgentEnum;
 
+use self::bundlepack::BundlePack;
 use self::processing::forward;
 
 #[derive(Debug, Serialize, Deserialize, Default, Clone)]
@@ -137,9 +138,16 @@ pub fn process_peers() {
 
 /// Reprocess bundles in store
 pub async fn process_bundles() {
-    let forwarding_bundle_ids: Vec<String> = (*STORE.lock()).forwarding();
-    for bpid in forwarding_bundle_ids {
-        if let Err(err) = forward(store_get_metadata(&bpid).unwrap()).await {
+    let forwarding_bids: Vec<String> = (*STORE.lock()).forwarding();
+
+    let mut forwarding_bundles: Vec<BundlePack> = forwarding_bids
+        .iter()
+        .filter_map(|bid| store_get_metadata(bid))
+        .collect();
+    forwarding_bundles.sort_by(|a, b| a.timestamp.cmp(&b.timestamp));
+
+    for bp in forwarding_bundles {
+        if let Err(err) = forward(bp).await {
             error!("Error forwarding bundle: {}", err);
         }
     }
