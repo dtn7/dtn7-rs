@@ -10,7 +10,7 @@ pub use crate::core::peer::{DtnPeer, PeerType};
 use crate::core::store::BundleStore;
 use crate::routing::RoutingAgent;
 use crate::routing::RoutingAgentsEnum;
-use crate::{store_get_bundle, store_get_metadata};
+use crate::{routing_notify, store_get_bundle, store_get_metadata};
 pub use crate::{store_has_item, store_push_bundle};
 use crate::{PEERS, STORE};
 use application_agent::ApplicationAgent;
@@ -20,6 +20,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
 use crate::core::application_agent::ApplicationAgentEnum;
+use crate::RoutingNotifcation::DroppedPeer;
 
 use self::processing::forward;
 
@@ -145,6 +146,8 @@ pub fn process_peers() {
                 "Have not seen {} @ {} in a while, removing it from list of known peers",
                 v.eid, v.addr
             );
+
+            routing_notify(DroppedPeer(&v.eid));
         }
         v.con_type == PeerType::Static || val
     });

@@ -16,9 +16,68 @@ use serde::{Deserialize, Serialize};
 use std::fmt::{Debug, Display};
 use std::net::IpAddr;
 
+mod ip_ser {
+    use serde::de::Error;
+    use serde::{Deserialize, Serialize};
+    use serde::{Deserializer, Serializer};
+    use std::net::IpAddr;
+    use std::str::FromStr;
+
+    pub fn serialize<S: Serializer>(addr: &IpAddr, s: S) -> Result<S::Ok, S::Error> {
+        let ip = addr.to_string();
+        String::serialize(&ip, s)
+    }
+
+    pub fn deserialize<'de, D: Deserializer<'de>>(d: D) -> Result<IpAddr, D::Error> {
+        let ip = String::deserialize(d)?;
+        let addr = IpAddr::from_str(ip.as_str());
+
+        if let Ok(addr) = addr {
+            return Ok(addr);
+        }
+
+        return Err(D::Error::custom(format!("{}", addr.err().unwrap())));
+    }
+}
+
+mod ip_port_ser {
+    use serde::de::Error;
+    use serde::{Deserialize, Serialize};
+    use serde::{Deserializer, Serializer};
+    use std::net::IpAddr;
+    use std::str::FromStr;
+
+    pub fn serialize<S: Serializer>((addr, port): &(IpAddr, u16), s: S) -> Result<S::Ok, S::Error> {
+        let ip = format!("{}:{}", addr.to_string(), port);
+        String::serialize(&ip, s)
+    }
+
+    pub fn deserialize<'de, D: Deserializer<'de>>(d: D) -> Result<(IpAddr, u16), D::Error> {
+        let ser = String::deserialize(d)?;
+        let s: Vec<&str> = ser.split(":").collect();
+        if s.len() != 2 {
+            return Err(D::Error::custom("port missing"));
+        }
+
+        let addr = IpAddr::from_str(s[0]);
+        if addr.is_err() {
+            return Err(D::Error::custom(format!("{}", addr.err().unwrap())));
+        }
+
+        let port = u16::from_str(s[1]);
+        if port.is_err() {
+            return Err(D::Error::custom(format!("{}", port.err().unwrap())));
+        }
+
+        Ok((addr.unwrap(), port.unwrap()))
+    }
+}
+
 #[derive(Debug, PartialEq, Eq, Hash, Clone, Serialize, Deserialize)]
 pub enum RemoteAddr {
+    #[serde(with = "ip_ser")]
     IP(IpAddr),
+    #[serde(with = "ip_port_ser")]
     IPPort((IpAddr, u16)),
     Str(String),
 }
@@ -41,7 +100,7 @@ impl std::fmt::Display for RemoteAddr {
     }
 }
 
-#[derive(Debug, PartialEq, Eq, Hash, Clone)]
+#[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Hash, Clone)]
 pub struct ClaSender {
     pub remote: RemoteAddr,
     pub agent: String,

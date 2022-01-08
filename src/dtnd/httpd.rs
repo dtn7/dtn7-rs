@@ -613,6 +613,12 @@ pub async fn spawn_httpd() -> Result<()> {
                     ws.on_upgrade(super::ecla::ws::handle_connection)
                 }),
             )
+            .route(
+                "/ws/erouting",
+                get(|ws: WebSocketUpgrade| async move {
+                    ws.on_upgrade(super::erouting::processing::handle_connection)
+                }),
+            )
             .route("/debug/rnd_bundle", get(debug_rnd_bundle))
             .route("/debug/rnd_peer", get(debug_rnd_peer))
             .layer(extractor_middleware::<RequireLocalhost>());
