@@ -30,7 +30,7 @@ pub fn new(
     packet_out: UnboundedSender<Packet>,
     enable_beacon: bool,
 ) -> std::io::Result<Client> {
-    let parts: Vec<&str> = addr.split(":").collect();
+    let parts: Vec<&str> = addr.split(':').collect();
 
     if parts.len() != 2 {
         return Err(std::io::Error::new(
