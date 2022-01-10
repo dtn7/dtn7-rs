@@ -99,7 +99,9 @@ async fn main() -> Result<()> {
         bail!("please select a type from: {}", routing_types.join(", "));
     }
 
-    info!("selected routing: {}", selected_type.unwrap());
+    let selected_type: &str = selected_type.unwrap();
+
+    info!("selected routing: {}", selected_type);
 
     let (tx, rx) = unbounded::<Packet>();
     let (cmd_tx, cmd_rx) = unbounded::<Command>();
@@ -144,12 +146,12 @@ async fn main() -> Result<()> {
                 info!("Peer Dropped: {}", packet.eid.node().unwrap());
             }
             Packet::SendingFailedPacket(packet) => {
-                if *selected_type.unwrap() == "epidemic" {
+                if selected_type == "epidemic" {
                     epi_sending_failed(packet.bid.as_str(), packet.cla_sender.as_str());
                 }
             }
             Packet::IncomingBundlePacket(packet) => {
-                if *selected_type.unwrap() == "epidemic" {
+                if selected_type == "epidemic" {
                     if let Some(eid) = packet.bndl.previous_node() {
                         if let Some(node_name) = eid.node() {
                             epi_incoming_bundle(&packet.bndl.id(), &node_name);
@@ -158,62 +160,58 @@ async fn main() -> Result<()> {
                 }
             }
             Packet::IncomingBundleWithoutPreviousNodePacket(packet) => {
-                if *selected_type.unwrap() == "epidemic" {
+                if selected_type == "epidemic" {
                     epi_incoming_bundle(packet.bid.as_str(), packet.node_name.as_str());
                 }
             }
-            Packet::SendForBundlePacket(packet) => match *selected_type.unwrap() {
-                "flooding" => {
-                    let mut clas = Vec::new();
-                    for (_, p) in peers.iter() {
-                        for c in p.cla_list.iter() {
-                            if packet.clas.contains(&c.0) {
-                                clas.push(ClaSender {
-                                    remote: p.addr.clone(),
-                                    agent: c.0.clone(),
-                                })
+            Packet::SendForBundlePacket(packet) => {
+                let mut clas = Vec::new();
+
+                match selected_type {
+                    "flooding" => {
+                        for (_, p) in peers.iter() {
+                            for c in p.cla_list.iter() {
+                                if packet.clas.contains(&c.0) {
+                                    clas.push(ClaSender {
+                                        remote: p.addr.clone(),
+                                        agent: c.0.clone(),
+                                    });
+                                }
                             }
                         }
                     }
-
-                    let resp: Packet =
-                        Packet::SendForBundleResponsePacket(SendForBundleResponsePacket { clas });
-
-                    cmd_tx
-                        .unbounded_send(Command::SendPacket(resp))
-                        .expect("send packet failed");
-                }
-                "epidemic" => {
-                    let mut clas = Vec::new();
-                    for (_, p) in peers.iter() {
-                        for c in p.cla_list.iter() {
-                            if packet.clas.contains(&c.0)
-                                && !epi_contains(packet.bp.id(), &p.node_name())
-                            {
-                                clas.push(ClaSender {
-                                    remote: p.addr.clone(),
-                                    agent: c.0.clone(),
-                                });
-                                epi_add(packet.bp.id().to_string(), p.node_name().clone());
+                    "epidemic" => {
+                        let mut clas = Vec::new();
+                        for (_, p) in peers.iter() {
+                            for c in p.cla_list.iter() {
+                                if packet.clas.contains(&c.0)
+                                    && !epi_contains(packet.bp.id(), &p.node_name())
+                                {
+                                    clas.push(ClaSender {
+                                        remote: p.addr.clone(),
+                                        agent: c.0.clone(),
+                                    });
+                                    epi_add(packet.bp.id().to_string(), p.node_name().clone());
+                                }
                             }
                         }
                     }
-
-                    if clas.is_empty() {
-                        info!("no cla sender could be selected");
-                    } else {
-                        info!("selected {} to {}", clas[0].agent, clas[0].remote);
-                    }
-
-                    let resp: Packet =
-                        Packet::SendForBundleResponsePacket(SendForBundleResponsePacket { clas });
-
-                    cmd_tx
-                        .unbounded_send(Command::SendPacket(resp))
-                        .expect("send packet failed");
+                    _ => {}
                 }
-                _ => {}
-            },
+
+                if clas.is_empty() {
+                    info!("no cla sender could be selected");
+                } else {
+                    info!("selected {} to {}", clas[0].agent, clas[0].remote);
+                }
+
+                let resp: Packet =
+                    Packet::SendForBundleResponsePacket(SendForBundleResponsePacket { clas });
+
+                cmd_tx
+                    .unbounded_send(Command::SendPacket(resp))
+                    .expect("send packet failed");
+            }
             _ => {}
         }
 
