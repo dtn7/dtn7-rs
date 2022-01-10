@@ -35,8 +35,8 @@ pub struct SendForBundleResponsePacket {
 
 #[derive(Serialize, Deserialize, Clone)]
 pub struct SendingFailedPacket {
-    pub a: String,
-    pub b: String,
+    pub bid: String,
+    pub cla_sender: String,
 }
 
 #[derive(Serialize, Deserialize, Clone)]
@@ -46,8 +46,8 @@ pub struct IncomingBundlePacket {
 
 #[derive(Serialize, Deserialize, Clone)]
 pub struct IncomingBundleWithoutPreviousNodePacket {
-    pub a: String,
-    pub b: String,
+    pub bid: String,
+    pub node_name: String,
 }
 
 #[derive(Serialize, Deserialize, Clone)]

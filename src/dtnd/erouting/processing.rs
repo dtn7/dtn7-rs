@@ -8,8 +8,7 @@ use crate::RoutingNotifcation::{
     DroppedPeer, EncounteredPeer, IncomingBundle, IncomingBundleWithoutPreviousNode, SendingFailed,
 };
 use crate::{
-    cla_names, lazy_static, peers_get_for_node, BundlePack, RoutingNotifcation, CONFIG, DTNCORE,
-    PEERS,
+    cla_names, lazy_static, peers_get_for_node, BundlePack, RoutingNotifcation, CONFIG, PEERS,
 };
 use axum::extract::ws::{Message, WebSocket};
 use futures::channel::mpsc::{unbounded, UnboundedReceiver, UnboundedSender};
@@ -68,12 +67,15 @@ pub async fn handle_connection(ws: WebSocket) {
 
         match packet {
             Ok(packet) => match packet {
-                Packet::SendForBundleResponsePacket(clas) => {
+                Packet::SendForBundleResponsePacket(packet) => {
                     debug!(
                         "sender_for_bundle response: {}",
                         msg.to_text().unwrap().trim()
                     );
-                    sfb_tx.unbounded_send(clas.clas);
+
+                    sfb_tx
+                        .unbounded_send(packet.clas)
+                        .expect("couldn't send sender_for_bundle response");
                 }
                 _ => {}
             },
@@ -113,20 +115,20 @@ fn send_packet(p: &Packet) {
 pub fn notify(notification: RoutingNotifcation) {
     let packet: Packet;
     match notification {
-        SendingFailed(a, b) => {
+        SendingFailed(bid, cla_sender) => {
             packet = Packet::SendingFailedPacket(SendingFailedPacket {
-                a: a.to_string(),
-                b: b.to_string(),
+                bid: bid.to_string(),
+                cla_sender: cla_sender.to_string(),
             });
         }
         IncomingBundle(bndl) => {
             packet = Packet::IncomingBundlePacket(IncomingBundlePacket { bndl: bndl.clone() });
         }
-        IncomingBundleWithoutPreviousNode(a, b) => {
+        IncomingBundleWithoutPreviousNode(bid, node_name) => {
             packet = Packet::IncomingBundleWithoutPreviousNodePacket(
                 IncomingBundleWithoutPreviousNodePacket {
-                    a: a.to_string(),
-                    b: b.to_string(),
+                    bid: bid.to_string(),
+                    node_name: node_name.to_string(),
                 },
             );
         }
