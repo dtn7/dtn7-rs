@@ -93,4 +93,28 @@ If you receive a packet from the transmission layer you must pass it to the ECLA
 
 ### Beacon
 
+If the beacon is enabled dtnd will periodically send beacons to the ECL-Module acting as a basic peer discovery. The interval is specified by the ``announcement_interval`` (``-interval``, ``-i`` cli flag).
+
+#### Coming from dtnd
+
+If you receive the packet from the dtnd that means the ECL-Module can send the beacon to all reachable devices. If the transmission layer has addressable id's the ECL-Module should set the ``addr`` field to it's own id. 
+
+#### Coming from the Transmission Layer
+
+If you receive a packet from the transmission layer you can pass it to the ECLA as it is.
+
+#### Example Sequence
+
+![ECLA Model](./ecla_beacon.png)
+
+## TCP Transport Layer
+
+If the TCP Transport Layer is used the packets use a big-endian length delimited codec. More information about the codec can be found here: [tokio_util::codec::length_delimited](https://docs.rs/tokio-util/0.2.0/tokio_util/codec/length_delimited/index.html). 
+
+```
++----------+--------------------------------+
+| len: u32 |          frame payload         |
++----------+--------------------------------+
+```
+
 ## ECLA Rust WebSocket Client
