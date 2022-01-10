@@ -167,7 +167,7 @@ async fn main() -> Result<()> {
         tokio::spawn(async move {
             let crx = crx;
             let mut c =
-                new("json_mtcp", addr.as_str(), "", tx, false).expect("couldn't create client");
+                new("jsonmtcp", addr.as_str(), "", tx, false).expect("couldn't create client");
 
             let cmd_chan = c.command_channel();
             let read = crx.for_each(|packet| {
