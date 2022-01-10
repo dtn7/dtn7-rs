@@ -1,7 +1,7 @@
 use super::{Packet, RegisterPacket};
 use crate::dtnd::ecla::ws_client::Command::SendPacket;
 use futures::channel::mpsc::{unbounded, UnboundedReceiver, UnboundedSender};
-use futures_util::{future, pin_mut, StreamExt};
+use futures_util::{future, pin_mut, SinkExt, StreamExt};
 use log::info;
 use serde_json::Result;
 use std::str::FromStr;
@@ -61,7 +61,7 @@ impl Client {
 
         info!("WebSocket handshake has been successfully completed");
 
-        let (write, read) = ws_stream.split();
+        let (mut write, read) = ws_stream.split();
 
         // Queue initial RegisterPacket
         self.cmd_sender
@@ -72,20 +72,23 @@ impl Client {
             .expect("couldn't send RegisterPacket");
 
         // Pass rx to write
-        let cmd_receiver = std::mem::replace(&mut self.cmd_receiver, unbounded().1);
-        let to_ws = cmd_receiver
-            .filter_map(|command| async {
+        let mut cmd_receiver = std::mem::replace(&mut self.cmd_receiver, unbounded().1);
+        let to_ws = tokio::spawn(async move {
+            while let Some(command) = cmd_receiver.next().await {
                 match command {
                     Command::SendPacket(packet) => {
                         let data = serde_json::to_string(&packet);
-                        return Some(Message::Text(data.unwrap()));
+                        write
+                            .send(Message::Text(data.unwrap()))
+                            .await
+                            .expect("couldn't send packet");
                     }
-                    Command::Close => {}
+                    Command::Close => {
+                        break;
+                    }
                 }
-                None
-            })
-            .map(Ok)
-            .forward(write);
+            }
+        });
 
         // Read from websocket
         let from_ws = {
