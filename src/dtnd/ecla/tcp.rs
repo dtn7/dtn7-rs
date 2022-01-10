@@ -4,7 +4,7 @@ use crate::dtnd::ecla::Packet;
 use crate::lazy_static;
 use async_trait::async_trait;
 use futures::channel::mpsc::{unbounded, UnboundedSender};
-use futures_util::{future, pin_mut, stream::TryStreamExt, SinkExt, StreamExt};
+use futures_util::{future, pin_mut, stream::TryStreamExt, StreamExt};
 use log::info;
 use log::{debug, error};
 use std::collections::HashMap;
@@ -38,7 +38,7 @@ async fn handle_connection(mut raw_stream: TcpStream, addr: SocketAddr) {
         .insert(addr.to_string(), Connection { tx });
     handle_connect("TCP".to_string(), addr.to_string());
 
-    let (incoming, mut outgoing) = raw_stream.split();
+    let (incoming, outgoing) = raw_stream.split();
 
     // Delimit frames using a length header
     let length_delimited = FramedRead::new(incoming, LengthDelimitedCodec::new());
@@ -125,7 +125,7 @@ impl TransportLayer for TCPTransportLayer {
         false
     }
 
-    fn close(&self, dest: &str) {
+    fn close(&self, _dest: &str) {
         // Todo: closing of client
     }
 }
