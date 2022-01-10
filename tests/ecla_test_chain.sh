@@ -4,7 +4,7 @@ TARGET=release
 #TARGET=debug
 
 if [ $TARGET = "debug" ]; then
-  cargo build --bins
+  cargo build --bins --examples
 else
   cargo build --release --bins --examples
 fi
