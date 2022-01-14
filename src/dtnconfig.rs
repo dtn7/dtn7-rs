@@ -185,7 +185,7 @@ impl From<PathBuf> for DtnConfig {
                             service_tag
                         ),
                     );
-                    panic!("ConfigError: {:?}: {}\n", error.kind(), error.to_string());
+                    panic!("ConfigError: {:?}: {}\n", error.kind(), error);
                 }
                 let service_payload = tab["payload"].clone().into_str().unwrap();
                 debug!("Added custom service: {:?}", service_tag);

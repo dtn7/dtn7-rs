@@ -223,7 +223,7 @@ impl std::fmt::Display for ServiceBlock {
                 }
                 _ => {
                     info!("Unknown Service encountered. Compare senders IPND version with this one to check for incompatibilities.");
-                    format!("")
+                    String::new()
                 }
             };
             output.push_str(str.as_str());

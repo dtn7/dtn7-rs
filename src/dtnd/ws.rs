@@ -215,7 +215,7 @@ impl WsAASession {
                         "/node" => {
                             ws_reply_text!(
                                 socket,
-                                &format!("200 node: {}", (*CONFIG.lock()).host_eid.to_string())
+                                &format!("200 node: {}", (*CONFIG.lock()).host_eid)
                             );
                         }
                         "/bundle" => {
