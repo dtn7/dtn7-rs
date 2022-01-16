@@ -1,7 +1,7 @@
+use super::erouting::processing::{notify, sender_for_bundle};
 use super::RoutingAgent;
 use crate::cla::ClaSender;
 use crate::core::bundlepack::BundlePack;
-use crate::dtnd::erouting::processing::{notify, sender_for_bundle};
 use crate::RoutingNotifcation;
 
 #[derive(Default, Debug)]

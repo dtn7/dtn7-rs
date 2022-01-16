@@ -1,4 +1,5 @@
 pub mod epidemic;
+pub mod erouting;
 pub mod external;
 pub mod flooding;
 pub mod sink;

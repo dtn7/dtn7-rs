@@ -615,7 +615,7 @@ pub async fn spawn_httpd() -> Result<()> {
         .route(
             "/ws/erouting",
             get(|ws: WebSocketUpgrade| async move {
-                ws.on_upgrade(super::erouting::processing::handle_connection)
+                ws.on_upgrade(crate::routing::erouting::processing::handle_connection)
             }),
         )
         .route("/debug/rnd_bundle", get(debug_rnd_bundle))
