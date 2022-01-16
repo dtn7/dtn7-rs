@@ -594,34 +594,33 @@ async fn download_hex(
 }
 
 pub async fn spawn_httpd() -> Result<()> {
-    let app_local_only =
-        Router::new()
-            .route("/send", post(send_post))
-            .route("/register", get(register))
-            .route("/unregister", get(unregister))
-            .route("/endpoint", get(endpoint))
-            .route("/insert", get(insert_get).post(insert_post))
-            .route("/endpoint.hex", get(endpoint_hex))
-            .route("/cts", get(get_creation_timestamp))
-            .route(
-                "/ws",
-                get(|ws: WebSocketUpgrade| async move { ws.on_upgrade(super::ws::handle_socket) }),
-            )
-            .route(
-                "/ws/ecla",
-                get(|ws: WebSocketUpgrade| async move {
-                    ws.on_upgrade(super::ecla::ws::handle_connection)
-                }),
-            )
-            .route(
-                "/ws/erouting",
-                get(|ws: WebSocketUpgrade| async move {
-                    ws.on_upgrade(super::erouting::processing::handle_connection)
-                }),
-            )
-            .route("/debug/rnd_bundle", get(debug_rnd_bundle))
-            .route("/debug/rnd_peer", get(debug_rnd_peer))
-            .layer(extractor_middleware::<RequireLocalhost>());
+    let app_local_only = Router::new()
+        .route("/send", post(send_post))
+        .route("/register", get(register))
+        .route("/unregister", get(unregister))
+        .route("/endpoint", get(endpoint))
+        .route("/insert", get(insert_get).post(insert_post))
+        .route("/endpoint.hex", get(endpoint_hex))
+        .route("/cts", get(get_creation_timestamp))
+        .route(
+            "/ws",
+            get(|ws: WebSocketUpgrade| async move { ws.on_upgrade(super::ws::handle_socket) }),
+        )
+        .route(
+            "/ws/ecla",
+            get(|ws: WebSocketUpgrade| async move {
+                ws.on_upgrade(crate::cla::ecla::ws::handle_connection)
+            }),
+        )
+        .route(
+            "/ws/erouting",
+            get(|ws: WebSocketUpgrade| async move {
+                ws.on_upgrade(super::erouting::processing::handle_connection)
+            }),
+        )
+        .route("/debug/rnd_bundle", get(debug_rnd_bundle))
+        .route("/debug/rnd_peer", get(debug_rnd_peer))
+        .layer(extractor_middleware::<RequireLocalhost>());
 
     let app = app_local_only
         .route("/", get(index))

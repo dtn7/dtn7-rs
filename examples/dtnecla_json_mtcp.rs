@@ -1,8 +1,8 @@
 use anyhow::Result;
 use clap::{crate_authors, crate_version, App, Arg};
-use dtn7::dtnd::ecla::ws_client::new;
-use dtn7::dtnd::ecla::ws_client::Command::SendPacket;
-use dtn7::dtnd::ecla::Packet;
+use dtn7::cla::ecla::ws_client::new;
+use dtn7::cla::ecla::ws_client::Command::SendPacket;
+use dtn7::cla::ecla::Packet;
 use futures::channel::mpsc::{unbounded, UnboundedSender};
 use futures_util::{future, pin_mut, StreamExt, TryStreamExt};
 use lazy_static::lazy_static;
