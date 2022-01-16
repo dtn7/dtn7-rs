@@ -1,8 +1,8 @@
 use anyhow::{bail, Result};
 use clap::{crate_authors, crate_version, App, Arg};
 use dtn7::cla::ClaSender;
-use dtn7::dtnd::erouting::ws_client::{new, Command};
-use dtn7::dtnd::erouting::{Packet, SendForBundleResponsePacket};
+use dtn7::routing::erouting::ws_client::{new, Command};
+use dtn7::routing::erouting::{Packet, SendForBundleResponsePacket};
 use dtn7::DtnPeer;
 use futures::channel::mpsc::unbounded;
 use futures_util::{future, pin_mut, StreamExt};
