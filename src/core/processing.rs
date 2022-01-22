@@ -322,7 +322,13 @@ pub async fn forward(mut bp: BundlePack) -> Result<()> {
         debug!("Attempting direct delivery: {:?}", direct_node);
         nodes.push(direct_node);
     } else {
-        let (cla_nodes, del) = (*DTNCORE.lock()).routing_agent.sender_for_bundle(&bp);
+        let bpc = bp.clone();
+        let res = tokio::task::spawn_blocking(|| {
+            let bpc = bpc;
+            return (*DTNCORE.lock()).routing_agent.sender_for_bundle(&bpc);
+        });
+
+        let (cla_nodes, del) = res.await.unwrap();
         nodes = cla_nodes;
         delete_afterwards = del;
         if !nodes.is_empty() {

@@ -11,21 +11,23 @@ use crate::{
     cla_names, lazy_static, peers_get_for_node, BundlePack, RoutingNotifcation, CONFIG, PEERS,
 };
 use axum::extract::ws::{Message, WebSocket};
-use futures::channel::mpsc::{unbounded, UnboundedReceiver, UnboundedSender};
+use futures::channel::mpsc::{unbounded, UnboundedSender};
 use futures_util::{future, pin_mut, StreamExt, TryStreamExt};
 use log::{debug, info};
+use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 use std::{thread, time};
 
-type Tx = UnboundedSender<Message>;
-
 struct Connection {
-    tx: Tx,
-    sfb_rx: UnboundedReceiver<Vec<ClaSender>>,
+    tx: UnboundedSender<Message>,
 }
+
+type ResponseMap = Arc<Mutex<HashMap<String, UnboundedSender<Packet>>>>;
 
 lazy_static! {
     static ref CONNECTION: Arc<Mutex<Option<Connection>>> = Arc::new(Mutex::new(None));
+    static ref SENDER_LOCK: Arc<Mutex<u8>> = Arc::new(Mutex::new(0));
+    static ref RESPONSES: ResponseMap = ResponseMap::new(Mutex::new(HashMap::new()));
 }
 
 pub async fn handle_connection(ws: WebSocket) {
@@ -38,7 +40,6 @@ pub async fn handle_connection(ws: WebSocket) {
     }
 
     let (tx, rx) = unbounded();
-    let (sfb_tx, sfb_rx) = unbounded::<Vec<ClaSender>>();
 
     if CONNECTION.lock().unwrap().is_some() {
         info!("Websocket connection closed because external routing agent is already connected");
@@ -48,7 +49,7 @@ pub async fn handle_connection(ws: WebSocket) {
         return;
     }
 
-    *CONNECTION.lock().unwrap() = Some(Connection { tx, sfb_rx });
+    *CONNECTION.lock().unwrap() = Some(Connection { tx });
 
     let peer_state: Packet = Packet::PeerStatePacket(PeerStatePacket {
         peers: PEERS.lock().clone(),
@@ -74,9 +75,16 @@ pub async fn handle_connection(ws: WebSocket) {
                         msg.to_text().unwrap().trim()
                     );
 
-                    sfb_tx
-                        .unbounded_send(packet.clas)
-                        .expect("couldn't send sender_for_bundle response");
+                    if let Some(tx) = RESPONSES
+                        .lock()
+                        .unwrap()
+                        .get(packet.bp.to_string().as_str())
+                    {
+                        tx.unbounded_send(Packet::SendForBundleResponsePacket(packet))
+                            .expect("could not send response to channel");
+                    } else {
+                        info!("sender_for_bundle response could not be passed")
+                    }
                 }
                 _ => {}
             },
@@ -147,28 +155,49 @@ pub fn notify(notification: RoutingNotifcation) {
     send_packet(&packet);
 }
 
+fn remove_response_channel(id: &str) {
+    RESPONSES.lock().unwrap().remove(id);
+}
+
+fn create_response_channel(id: &str, tx: UnboundedSender<Packet>) {
+    RESPONSES.lock().unwrap().insert(id.to_string(), tx);
+}
+
 pub fn sender_for_bundle(bp: &BundlePack) -> (Vec<ClaSender>, bool) {
+    debug!("external sender_for_bundle initiated: {}", bp);
+
+    let (tx, mut rx) = unbounded();
+    create_response_channel(bp.to_string().as_str(), tx);
+
     let packet: Packet = Packet::SendForBundlePacket(SendForBundlePacket {
         clas: cla_names(),
         bp: bp.clone(),
     });
     send_packet(&packet);
 
-    for _ in 0..20 {
-        if let Some(con) = CONNECTION.lock().unwrap().as_mut() {
-            if let Ok(Some(clas)) = con.sfb_rx.try_next() {
-                return (clas, false);
+    for _ in 0..25 {
+        if CONNECTION.lock().unwrap().is_some() {
+            if let Ok(Some(Packet::SendForBundleResponsePacket(packet))) = rx.try_next() {
+                if packet.bp.to_string() != bp.to_string() {
+                    info!("got a wrong bundle pack! {} != {}", bp, packet.bp);
+                    continue;
+                }
+
+                remove_response_channel(bp.to_string().as_str());
+                return (packet.clas, false);
             }
         } else {
-            info!("No external routing! no sender_for_bundle possible");
+            info!("no external routing! no sender_for_bundle possible");
 
+            remove_response_channel(bp.to_string().as_str());
             return (vec![], false);
         }
 
-        thread::sleep(time::Duration::from_millis(200)); // TODO: Make timeout configurable or find better solution
+        thread::sleep(time::Duration::from_millis(100)); // TODO: Make timeout configurable or find better solution
     }
 
-    info!("Timeout while waiting for sender_for_bundle");
+    info!("timeout while waiting for sender_for_bundle");
 
+    remove_response_channel(bp.to_string().as_str());
     (vec![], false)
 }

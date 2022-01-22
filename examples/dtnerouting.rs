@@ -165,6 +165,8 @@ async fn main() -> Result<()> {
                 }
             }
             Packet::SendForBundlePacket(packet) => {
+                info!("got bundle pack: {}", packet.bp);
+
                 let mut clas = Vec::new();
 
                 match selected_type {
@@ -181,7 +183,6 @@ async fn main() -> Result<()> {
                         }
                     }
                     "epidemic" => {
-                        let mut clas = Vec::new();
                         for (_, p) in peers.iter() {
                             for c in p.cla_list.iter() {
                                 if packet.clas.contains(&c.0)
@@ -206,7 +207,10 @@ async fn main() -> Result<()> {
                 }
 
                 let resp: Packet =
-                    Packet::SendForBundleResponsePacket(SendForBundleResponsePacket { clas });
+                    Packet::SendForBundleResponsePacket(SendForBundleResponsePacket {
+                        bp: packet.bp,
+                        clas,
+                    });
 
                 cmd_tx
                     .unbounded_send(Command::SendPacket(resp))

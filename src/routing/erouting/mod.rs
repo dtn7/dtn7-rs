@@ -30,6 +30,7 @@ pub struct SendForBundlePacket {
 
 #[derive(Serialize, Deserialize, Clone)]
 pub struct SendForBundleResponsePacket {
+    pub bp: BundlePack,
     pub clas: Vec<ClaSender>,
 }
 
