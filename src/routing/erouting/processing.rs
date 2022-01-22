@@ -26,7 +26,6 @@ type ResponseMap = Arc<Mutex<HashMap<String, UnboundedSender<Packet>>>>;
 
 lazy_static! {
     static ref CONNECTION: Arc<Mutex<Option<Connection>>> = Arc::new(Mutex::new(None));
-    static ref SENDER_LOCK: Arc<Mutex<u8>> = Arc::new(Mutex::new(0));
     static ref RESPONSES: ResponseMap = ResponseMap::new(Mutex::new(HashMap::new()));
 }
 
