@@ -73,9 +73,18 @@ pub fn rnd_peer() -> DtnPeer {
 /// parse_peer_url("mtcp://192.168.2.1");
 /// ```
 pub fn parse_peer_url(peer_url: &str) -> DtnPeer {
-    let u = Url::parse(peer_url).expect("Static peer url parsing error");
+    let u: Url;
+    let mut ex = false;
+    if peer_url.starts_with("ecla+") {
+        u = Url::parse(peer_url.strip_prefix("ecla+").unwrap())
+            .expect("Static external peer url parsing error");
+        ex = true;
+    } else {
+        u = Url::parse(peer_url).expect("Static peer url parsing error");
+    }
+
     let scheme = u.scheme();
-    if !crate::cla::convergence_layer_agents().contains(&scheme) {
+    if !ex && !crate::cla::convergence_layer_agents().contains(&scheme) {
         panic!("Unknown convergency layer selected: {}", scheme);
     }
     let ipaddr = u.host_str().expect("Host parsing error");
