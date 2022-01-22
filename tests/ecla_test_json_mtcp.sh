@@ -23,7 +23,7 @@ OUT_NODE1=$(mktemp /tmp/node1.XXXXXX)
 PORT_NODE1=3000
 #DB1="-W /tmp/node1 -D sled"
 #DB1="-W /tmp/node1 -D sneakers"
-$DIR/../target/$TARGET/dtnd -d -j5s -i0 -w $PORT_NODE1 -e incoming -r epidemic -n node1 -s jsonmtcp://127.0.0.1:4223/node2 --ecla --disable_nd $DB1 $STATUS_REPORTS 2>&1 &> $OUT_NODE1 &
+$DIR/../target/$TARGET/dtnd -d -j5s -i0 -w $PORT_NODE1 -e incoming -r epidemic -n node1 -s ecla+jsonmtcp://127.0.0.1:4223/node2 --ecla --disable_nd $DB1 $STATUS_REPORTS 2>&1 &> $OUT_NODE1 &
 PID_NODE1=$!
 echo node1 pid: $PID_NODE1
 echo node1 out: $OUT_NODE1
@@ -37,8 +37,8 @@ PORT_NODE2=3001
 $DIR/../target/$TARGET/dtnd -d -j5s -i0 -w $PORT_NODE2 -e incoming -r epidemic \
     --ecla --disable_nd \
     -n node2 \
-    -s jsonmtcp://127.0.0.1:2342/node1 \
-    -s jsonmtcp://127.0.0.1:2432/node3 \
+    -s ecla+jsonmtcp://127.0.0.1:2342/node1 \
+    -s ecla+jsonmtcp://127.0.0.1:2432/node3 \
     $DB2 2>&1 &> $OUT_NODE2 &
 PID_NODE2=$!
 echo node2 pid: $PID_NODE2
@@ -49,7 +49,7 @@ OUT_NODE3=$(mktemp /tmp/node3.XXXXXX)
 PORT_NODE3=3002
 #DB3="-W /tmp/node3 -D sled"
 #DB3="-W /tmp/node3 -D sneakers"
-$DIR/../target/$TARGET/dtnd -d -j5s -i0 -w $PORT_NODE3 -e incoming -r epidemic -n node3 -s jsonmtcp://127.0.0.1:4223/node2 --ecla --disable_nd $DB3 $STATUS_REPORTS 2>&1 &> $OUT_NODE3 &
+$DIR/../target/$TARGET/dtnd -d -j5s -i0 -w $PORT_NODE3 -e incoming -r epidemic -n node3 -s ecla+jsonmtcp://127.0.0.1:4223/node2 --ecla --disable_nd $DB3 $STATUS_REPORTS 2>&1 &> $OUT_NODE3 &
 PID_NODE3=$!
 echo node3 pid: $PID_NODE3
 echo node3 out: $OUT_NODE3
