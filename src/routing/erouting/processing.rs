@@ -1,14 +1,15 @@
 use super::{
     DroppedPeerPacket, EncounteredPeerPacket, IncomingBundlePacket,
     IncomingBundleWithoutPreviousNodePacket, Packet, PeerStatePacket, SendForBundlePacket,
-    SendingFailedPacket,
+    SendingFailedPacket, ServiceStatePacket,
 };
 use crate::cla::ClaSender;
 use crate::RoutingNotifcation::{
     DroppedPeer, EncounteredPeer, IncomingBundle, IncomingBundleWithoutPreviousNode, SendingFailed,
 };
 use crate::{
-    cla_names, lazy_static, peers_get_for_node, BundlePack, RoutingNotifcation, CONFIG, PEERS,
+    cla_names, lazy_static, peers_get_for_node, service_add, BundlePack, RoutingNotifcation,
+    CONFIG, DTNCORE, PEERS,
 };
 use axum::extract::ws::{Message, WebSocket};
 use futures::channel::mpsc::{unbounded, UnboundedSender};
@@ -27,6 +28,20 @@ type ResponseMap = Arc<Mutex<HashMap<String, UnboundedSender<Packet>>>>;
 lazy_static! {
     static ref CONNECTION: Arc<Mutex<Option<Connection>>> = Arc::new(Mutex::new(None));
     static ref RESPONSES: ResponseMap = ResponseMap::new(Mutex::new(HashMap::new()));
+}
+
+fn send_peer_state() {
+    let peer_state: Packet = Packet::PeerStatePacket(PeerStatePacket {
+        peers: PEERS.lock().clone(),
+    });
+    send_packet(&peer_state);
+}
+
+fn send_service_state() {
+    let service_state: Packet = Packet::ServiceStatePacket(ServiceStatePacket {
+        service_list: DTNCORE.lock().service_list.clone(),
+    });
+    send_packet(&service_state);
 }
 
 pub async fn handle_connection(ws: WebSocket) {
@@ -50,15 +65,13 @@ pub async fn handle_connection(ws: WebSocket) {
 
     *CONNECTION.lock().unwrap() = Some(Connection { tx });
 
-    let peer_state: Packet = Packet::PeerStatePacket(PeerStatePacket {
-        peers: PEERS.lock().clone(),
-    });
-    send_packet(&peer_state);
+    send_peer_state();
+    send_service_state();
 
     let (outgoing, incoming) = ws.split();
 
     let broadcast_incoming = incoming.try_for_each(|msg| {
-        info!(
+        debug!(
             "Received a external routing message: {}",
             msg.to_text().unwrap().trim()
         );
@@ -84,6 +97,14 @@ pub async fn handle_connection(ws: WebSocket) {
                     } else {
                         info!("sender_for_bundle response could not be passed")
                     }
+                }
+                Packet::ServiceAddPacket(packet) => {
+                    info!(
+                        "adding service via erouting {}:{}",
+                        packet.tag, packet.service
+                    );
+
+                    service_add(packet.tag, packet.service);
                 }
                 _ => {}
             },

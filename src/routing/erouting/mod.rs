@@ -20,6 +20,8 @@ pub enum Packet {
     EncounteredPeerPacket(EncounteredPeerPacket),
     DroppedPeerPacket(DroppedPeerPacket),
     PeerStatePacket(PeerStatePacket),
+    ServiceStatePacket(ServiceStatePacket),
+    ServiceAddPacket(AddServicePacket),
 }
 
 #[derive(Serialize, Deserialize, Clone)]
@@ -65,4 +67,15 @@ pub struct DroppedPeerPacket {
 #[derive(Serialize, Deserialize, Clone)]
 pub struct PeerStatePacket {
     pub peers: HashMap<String, DtnPeer>,
+}
+
+#[derive(Serialize, Deserialize, Clone)]
+pub struct AddServicePacket {
+    pub tag: u8,
+    pub service: String,
+}
+
+#[derive(Serialize, Deserialize, Clone)]
+pub struct ServiceStatePacket {
+    pub service_list: HashMap<u8, String>,
 }
