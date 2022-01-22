@@ -70,7 +70,7 @@ echo
 echo "Sending 'test' to group: global"
 echo test | $DIR/../target/$TARGET/dtnsend -r dtn://global/~group -p $PORT_NODE1
 
-sleep 15
+sleep 5
 
 echo
 echo -n "Bundles in store on node 1: "
