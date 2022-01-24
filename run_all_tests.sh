@@ -12,4 +12,5 @@ cargo test --release && \
 ./tests/ecla_test_mtcp.sh && \
 ./tests/ecla_test_json_mtcp.sh && \
 ./tests/erouting_epidemic.sh && \
+./tests/ecla_erouting_test_mtcp.sh && \
 echo "SUCCESS"
