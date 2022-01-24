@@ -79,7 +79,6 @@ pub async fn handle_connection(ws: WebSocket) {
         let packet: serde_json::Result<Packet> = serde_json::from_str(msg.to_text().unwrap());
 
         match packet {
-            #[allow(clippy::single_match)]
             Ok(packet) => match packet {
                 Packet::SendForBundleResponsePacket(packet) => {
                     debug!(
