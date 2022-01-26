@@ -4,7 +4,9 @@ use async_trait::async_trait;
 use bp7::ByteBuffer;
 use hyper::{Body, Method, Request};
 use log::{debug, error};
-use std::net::SocketAddr;
+use std::{collections::HashMap, net::SocketAddr};
+
+use super::HelpStr;
 
 #[derive(Debug, Clone, Default, Copy)]
 pub struct HttpConvergenceLayer {
@@ -12,9 +14,9 @@ pub struct HttpConvergenceLayer {
 }
 
 impl HttpConvergenceLayer {
-    pub fn new(port: Option<u16>) -> HttpConvergenceLayer {
+    pub fn new(_local_settings: Option<&HashMap<String, String>>) -> HttpConvergenceLayer {
         HttpConvergenceLayer {
-            local_port: port.unwrap_or((*CONFIG.lock()).webport),
+            local_port: (*CONFIG.lock()).webport,
         }
     }
 }
@@ -55,6 +57,8 @@ impl ConvergenceLayerAgent for HttpConvergenceLayer {
         true
     }
 }
+
+impl HelpStr for HttpConvergenceLayer {}
 
 impl std::fmt::Display for HttpConvergenceLayer {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {

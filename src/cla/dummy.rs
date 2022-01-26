@@ -1,4 +1,4 @@
-use super::ConvergenceLayerAgent;
+use super::{ConvergenceLayerAgent, HelpStr};
 use async_trait::async_trait;
 use bp7::ByteBuffer;
 use log::debug;
@@ -26,6 +26,8 @@ impl ConvergenceLayerAgent for DummyConvergenceLayer {
         true
     }
 }
+
+impl HelpStr for DummyConvergenceLayer {}
 
 impl std::fmt::Display for DummyConvergenceLayer {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
