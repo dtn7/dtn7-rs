@@ -19,6 +19,8 @@ use tokio::io;
 use tokio::net::TcpListener;
 use tokio_util::codec::{Decoder, Encoder, Framed};
 
+use super::HelpStr;
+
 lazy_static! {
     pub static ref MTCP_CONNECTIONS: Mutex<HashMap<SocketAddr, TcpStream>> =
         Mutex::new(HashMap::new());
@@ -200,10 +202,12 @@ pub struct MtcpConvergenceLayer {
 }
 
 impl MtcpConvergenceLayer {
-    pub fn new(port: Option<u16>) -> MtcpConvergenceLayer {
-        MtcpConvergenceLayer {
-            local_port: port.unwrap_or(16162),
-        }
+    pub fn new(local_settings: Option<&HashMap<String, String>>) -> MtcpConvergenceLayer {
+        let port = local_settings
+            .and_then(|settings| settings.get("port"))
+            .and_then(|port_str| port_str.parse::<u16>().ok())
+            .unwrap_or(16162);
+        MtcpConvergenceLayer { local_port: port }
     }
     async fn handle_connection(socket: tokio::net::TcpStream) -> anyhow::Result<()> {
         let peer_addr = socket.peer_addr().unwrap();
@@ -330,6 +334,8 @@ impl ConvergenceLayerAgent for MtcpConvergenceLayer {
         true
     }
 }
+
+impl HelpStr for MtcpConvergenceLayer {}
 
 impl std::fmt::Display for MtcpConvergenceLayer {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {

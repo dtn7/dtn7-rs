@@ -92,7 +92,7 @@ bitflags! {
     }
 }
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub(crate) struct TransferExtensionItem {
     pub flags: TransferExtensionItemFlags,
     pub item_type: TransferExtensionItemType,
@@ -139,7 +139,7 @@ pub(crate) struct SessInitData {
     pub node_id: String,
 }
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub(crate) struct XferSegData {
     pub flags: XferSegmentFlags,
     pub tid: u64,

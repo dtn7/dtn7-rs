@@ -4,29 +4,33 @@ pub mod mtcp;
 pub mod tcp;
 
 use self::http::HttpConvergenceLayer;
-use crate::{core::peer::PeerAddress, dtnconfig::ClaConfig};
+use crate::core::peer::PeerAddress;
 use async_trait::async_trait;
 use bp7::ByteBuffer;
 use derive_more::*;
 use dummy::DummyConvergenceLayer;
 use enum_dispatch::enum_dispatch;
 use mtcp::MtcpConvergenceLayer;
-use std::fmt::{Debug, Display};
+use serde::{Deserialize, Serialize};
+use std::str::FromStr;
+use std::{
+    collections::HashMap,
+    fmt::{Debug, Display},
+};
+use strum::EnumIter;
+use strum::IntoEnumIterator;
 use tcp::TcpConvergenceLayer;
 
 #[derive(Debug, PartialEq, Eq, Hash, Clone)]
 pub struct ClaSender {
     pub remote: PeerAddress,
     pub port: Option<u16>,
-    pub agent: String,
+    pub agent: ConvergenceLayerAgents,
 }
 impl ClaSender {
+    /// Create new convergence layer agent just for sending bundles
     pub async fn transfer(&self, ready: &[ByteBuffer]) -> bool {
-        let sender = new(&ClaConfig {
-            id: self.agent.clone(),
-            port: None,
-            refuse_existing_bundles: false,
-        }); // since we are not listening sender port is irrelevant
+        let sender = new(&self.agent, None);
         let dest = if self.port.is_some() {
             format!("{}:{}", self.remote, self.port.unwrap())
         } else {
@@ -62,23 +66,127 @@ pub trait ConvergenceLayerAgent: Debug + Display {
     async fn scheduled_submission(&self, dest: &str, ready: &[ByteBuffer]) -> bool;
 }
 
-pub fn convergence_layer_agents() -> Vec<&'static str> {
-    vec!["dummy", "mtcp", "http", "tcp"]
+pub trait HelpStr {
+    fn local_help_str() -> &'static str {
+        "<>"
+    }
+    fn global_help_str() -> &'static str {
+        "<>"
+    }
+}
+
+#[derive(Debug, Display, PartialEq, Eq, Hash, Clone, Copy, Serialize, Deserialize, EnumIter)]
+pub enum ConvergenceLayerAgents {
+    DummyConvergenceLayer,
+    MtcpConvergenceLayer,
+    HttpConvergenceLayer,
+    TcpConvergenceLayer,
+}
+
+impl ConvergenceLayerAgents {
+    pub fn enumerate_help_str() -> String {
+        let mut string = String::new();
+        for variant in Self::iter() {
+            string.push_str(variant.into());
+            string.push_str(", ");
+        }
+        string
+    }
+    pub fn local_help_str() -> String {
+        let mut string = String::new();
+        for variant in Self::iter() {
+            string.push('\n');
+            string.push_str(variant.into());
+            string.push(':');
+            match variant {
+                ConvergenceLayerAgents::DummyConvergenceLayer => {
+                    string.push_str(dummy::DummyConvergenceLayer::local_help_str())
+                }
+                ConvergenceLayerAgents::MtcpConvergenceLayer => {
+                    string.push_str(mtcp::MtcpConvergenceLayer::local_help_str())
+                }
+                ConvergenceLayerAgents::HttpConvergenceLayer => {
+                    string.push_str(http::HttpConvergenceLayer::local_help_str())
+                }
+                ConvergenceLayerAgents::TcpConvergenceLayer => {
+                    string.push_str(tcp::TcpConvergenceLayer::local_help_str())
+                }
+            }
+        }
+        string
+    }
+    pub fn global_help_str() -> String {
+        let mut string = String::new();
+        for variant in Self::iter() {
+            string.push('\n');
+            string.push_str(variant.into());
+            string.push(':');
+            match variant {
+                ConvergenceLayerAgents::DummyConvergenceLayer => {
+                    string.push_str(dummy::DummyConvergenceLayer::global_help_str())
+                }
+                ConvergenceLayerAgents::MtcpConvergenceLayer => {
+                    string.push_str(mtcp::MtcpConvergenceLayer::global_help_str())
+                }
+                ConvergenceLayerAgents::HttpConvergenceLayer => {
+                    string.push_str(http::HttpConvergenceLayer::global_help_str())
+                }
+                ConvergenceLayerAgents::TcpConvergenceLayer => {
+                    string.push_str(tcp::TcpConvergenceLayer::global_help_str())
+                }
+            }
+        }
+        string
+    }
+}
+
+impl From<ConvergenceLayerAgents> for &'static str {
+    fn from(v: ConvergenceLayerAgents) -> Self {
+        match v {
+            ConvergenceLayerAgents::DummyConvergenceLayer => "dummy",
+            ConvergenceLayerAgents::MtcpConvergenceLayer => "mtcp",
+            ConvergenceLayerAgents::HttpConvergenceLayer => "http",
+            ConvergenceLayerAgents::TcpConvergenceLayer => "tcp",
+        }
+    }
+}
+
+impl FromStr for ConvergenceLayerAgents {
+    type Err = String;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "dummy" => Ok(Self::DummyConvergenceLayer),
+            "mtcp" => Ok(Self::MtcpConvergenceLayer),
+            "http" => Ok(Self::HttpConvergenceLayer),
+            "tcp" => Ok(Self::TcpConvergenceLayer),
+            _ => Err(format!("Unknown convergence layer agent agent {}", s)),
+        }
+    }
+}
+
+impl From<&str> for ConvergenceLayerAgents {
+    fn from(s: &str) -> Self {
+        Self::from_str(s).unwrap()
+    }
 }
 
 // returns a new CLA for the corresponding string ("<CLA name>[:local_port]").
 // Example usage: 'dummy', 'mtcp', 'mtcp:16161'
-pub fn new(cla: &ClaConfig) -> CLAEnum {
-    let ClaConfig {
-        id,
-        port,
-        refuse_existing_bundles,
-    } = cla;
-    match id.as_str() {
-        "dummy" => dummy::DummyConvergenceLayer::new().into(),
-        "mtcp" => mtcp::MtcpConvergenceLayer::new(*port).into(),
-        "http" => http::HttpConvergenceLayer::new(*port).into(),
-        "tcp" => tcp::TcpConvergenceLayer::new(*port, *refuse_existing_bundles).into(),
-        _ => panic!("Unknown convergence layer agent agent {}", id),
+pub fn new(
+    cla: &ConvergenceLayerAgents,
+    local_settings: Option<&HashMap<String, String>>,
+) -> CLAEnum {
+    match cla {
+        ConvergenceLayerAgents::DummyConvergenceLayer => dummy::DummyConvergenceLayer::new().into(),
+        ConvergenceLayerAgents::MtcpConvergenceLayer => {
+            mtcp::MtcpConvergenceLayer::new(local_settings).into()
+        }
+        ConvergenceLayerAgents::HttpConvergenceLayer => {
+            http::HttpConvergenceLayer::new(local_settings).into()
+        }
+        ConvergenceLayerAgents::TcpConvergenceLayer => {
+            tcp::TcpConvergenceLayer::new(local_settings).into()
+        }
     }
 }
