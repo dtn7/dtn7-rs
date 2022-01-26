@@ -14,7 +14,11 @@ pub enum PeerType {
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq, Hash)]
 pub enum PeerAddress {
+    /// Unicast IP node, e.g., reachable via mtcp, tcp or http
     Ip(IpAddr),
+    /// Generic peer reachable via a broadcast medium, e.g., LoRa "868_1" "node_id_1"
+    BroadcastGeneric(String, String),
+    /// Generic peer reachable via a unicast transmission, e.g., MAC address "AA:BB:CC:DD:EE:FF"
     Generic(String),
 }
 
@@ -33,6 +37,7 @@ impl Display for PeerAddress {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             PeerAddress::Ip(addr) => write!(f, "{}", addr),
+            PeerAddress::BroadcastGeneric(domain, addr) => write!(f, "{}/{}", domain, addr),
             PeerAddress::Generic(addr) => write!(f, "{}", addr),
         }
     }
