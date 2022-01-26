@@ -1,10 +1,11 @@
 #![recursion_limit = "256"]
 
 use clap::{crate_authors, crate_version, App, Arg};
-use dtn7::dtnconfig::ClaConfig;
+use dtn7::cla::ConvergenceLayerAgents;
 use dtn7::dtnd::daemon::*;
 use dtn7::DtnConfig;
 use log::info;
+use std::collections::HashMap;
 use std::panic;
 use std::{convert::TryInto, process};
 
@@ -121,13 +122,26 @@ async fn main() -> Result<(), std::io::Error> {
             Arg::with_name("cla")
                 .short("C")
                 .long("cla")
-                .value_name("CLA[:local_port][:refuse_existing_bundles]")
+                .value_name("CLA[:<key>=<value>]")
                 .help(&format!(
                     "Add convergence layer agent: {}",
-                    dtn7::cla::convergence_layer_agents().join(", ")
+                    dtn7::cla::ConvergenceLayerAgents::enumerate_help_str()
                 ))
+                .long_help(&format!("Available options: {}", dtn7::cla::ConvergenceLayerAgents::local_help_str()))
                 .multiple(true)
                 .takes_value(true),
+        )
+        .arg(
+            Arg::with_name("global")
+            .short("O")
+            .long("global")
+            .value_name("CLA:<key>=<value>")
+            .help("Add convergence layer global options, overrides local options").long_help(&format!(
+               "Available options: {}",
+                dtn7::cla::ConvergenceLayerAgents::global_help_str()
+            ))
+            .multiple(true)
+            .takes_value(true),
         )
         .arg(
             Arg::with_name("service")
@@ -286,20 +300,39 @@ Tag 255 takes 5 arguments and is interpreted as address. Usage: -S 255:'Samplest
 
     if let Some(clas) = matches.values_of("cla") {
         for cla in clas {
-            let cla_split: Vec<&str> = cla.split(':').collect();
-            if dtn7::cla::convergence_layer_agents().contains(&cla_split[0]) {
-                let cla_config = ClaConfig {
-                    id: cla_split[0].into(),
-                    port: cla_split.get(1).and_then(|v| v.parse::<u16>().ok()),
-                    refuse_existing_bundles: cla_split
-                        .get(2)
-                        .and_then(|v| v.parse::<bool>().ok())
-                        .unwrap_or(true),
-                };
-                cfg.clas.push(cla_config);
+            let mut cla_split: Vec<&str> = cla.split(':').collect();
+            let id_str = cla_split.remove(0);
+            if let Ok(cla_agent) = id_str.parse::<ConvergenceLayerAgents>() {
+                let mut local_config = HashMap::new();
+                for config in cla_split {
+                    let config_split: Vec<&str> = config.split('=').collect();
+                    local_config.insert(config_split[0].into(), config_split[1].into());
+                }
+                cfg.clas.push((cla_agent, local_config));
             }
         }
     }
+
+    if let Some(extensions) = matches.values_of("global") {
+        for ext in extensions {
+            let mut ext_split: Vec<&str> = ext.split(':').collect();
+            let id_str = ext_split.remove(0);
+            if let Ok(cla_agent) = id_str.parse::<ConvergenceLayerAgents>() {
+                let config_split: Vec<&str> = ext_split[0].split('=').collect();
+                let cla_settings = {
+                    match cfg.cla_global_settings.get_mut(&cla_agent) {
+                        Some(settings) => settings,
+                        None => {
+                            cfg.cla_global_settings.insert(cla_agent, HashMap::new());
+                            cfg.cla_global_settings.get_mut(&cla_agent).unwrap()
+                        }
+                    }
+                };
+                cla_settings.insert(config_split[0].into(), config_split[1].into());
+            }
+        }
+    }
+
     if let Some(services) = matches.values_of("service") {
         for service in services {
             let service_split: Vec<&str> = service.split(':').collect();
