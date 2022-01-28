@@ -13,3 +13,6 @@
 .vscode/
 
 .DS_Store
+
+tests/clab/*/results-*
+experiment.log
