@@ -1,6 +1,6 @@
 use bp7::eid::IpnAddress;
 use bp7::EndpointID;
-use dtn7::cla::ConvergenceLayerAgents;
+use dtn7::cla::CLAsAvailable;
 use dtn7::core::*;
 use dtn7::get_sequence;
 use dtn7::ipnd::{beacon::*, services::ServiceBlock};
@@ -348,10 +348,10 @@ pub fn rnd_beacon() -> Beacon {
     let amount_of_services: u8 = rng.gen_range(0..11);
 
     let clas = [
-        ConvergenceLayerAgents::MtcpConvergenceLayer,
-        ConvergenceLayerAgents::HttpConvergenceLayer,
-        ConvergenceLayerAgents::TcpConvergenceLayer,
-        ConvergenceLayerAgents::DummyConvergenceLayer,
+        CLAsAvailable::MtcpConvergenceLayer,
+        CLAsAvailable::HttpConvergenceLayer,
+        CLAsAvailable::TcpConvergenceLayer,
+        CLAsAvailable::DummyConvergenceLayer,
     ];
     let ports = [
         20, 0, 5000, 1243, 513, 1241, 324, 9441, 2435, 6234, 23, 1, 45,

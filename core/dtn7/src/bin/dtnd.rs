@@ -1,7 +1,7 @@
 #![recursion_limit = "256"]
 
 use clap::{crate_authors, crate_version, App, Arg};
-use dtn7::cla::ConvergenceLayerAgents;
+use dtn7::cla::CLAsAvailable;
 use dtn7::dtnd::daemon::*;
 use dtn7::DtnConfig;
 use log::info;
@@ -125,9 +125,9 @@ async fn main() -> Result<(), std::io::Error> {
                 .value_name("CLA[:<key>=<value>]")
                 .help(&format!(
                     "Add convergence layer agent: {}",
-                    dtn7::cla::ConvergenceLayerAgents::enumerate_help_str()
+                    dtn7::cla::convergence_layer_agents().join(", ")
                 ))
-                .long_help(&format!("Available options: {}", dtn7::cla::ConvergenceLayerAgents::local_help_str()))
+                .long_help(&format!("Available options: \n{}", dtn7::cla::local_help().join("\n")))
                 .multiple(true)
                 .takes_value(true),
         )
@@ -137,8 +137,8 @@ async fn main() -> Result<(), std::io::Error> {
             .long("global")
             .value_name("CLA:<key>=<value>")
             .help("Add convergence layer global options, overrides local options").long_help(&format!(
-               "Available options: {}",
-                dtn7::cla::ConvergenceLayerAgents::global_help_str()
+               "Available options: \n{}",
+                dtn7::cla::global_help().join("\n")
             ))
             .multiple(true)
             .takes_value(true),
@@ -302,7 +302,7 @@ Tag 255 takes 5 arguments and is interpreted as address. Usage: -S 255:'Samplest
         for cla in clas {
             let mut cla_split: Vec<&str> = cla.split(':').collect();
             let id_str = cla_split.remove(0);
-            if let Ok(cla_agent) = id_str.parse::<ConvergenceLayerAgents>() {
+            if let Ok(cla_agent) = id_str.parse::<CLAsAvailable>() {
                 let mut local_config = HashMap::new();
                 for config in cla_split {
                     let config_split: Vec<&str> = config.split('=').collect();
@@ -317,7 +317,7 @@ Tag 255 takes 5 arguments and is interpreted as address. Usage: -S 255:'Samplest
         for ext in extensions {
             let mut ext_split: Vec<&str> = ext.split(':').collect();
             let id_str = ext_split.remove(0);
-            if let Ok(cla_agent) = id_str.parse::<ConvergenceLayerAgents>() {
+            if let Ok(cla_agent) = id_str.parse::<CLAsAvailable>() {
                 let config_split: Vec<&str> = ext_split[0].split('=').collect();
                 let cla_settings = {
                     match cfg.cla_global_settings.get_mut(&cla_agent) {

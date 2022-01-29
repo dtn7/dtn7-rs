@@ -2,12 +2,14 @@ use crate::cla::ConvergenceLayerAgent;
 use crate::CONFIG;
 use async_trait::async_trait;
 use bp7::ByteBuffer;
+use dtn7_codegen::cla;
 use hyper::{Body, Method, Request};
 use log::{debug, error};
 use std::{collections::HashMap, net::SocketAddr};
 
 use super::HelpStr;
 
+#[cla(http)]
 #[derive(Debug, Clone, Default, Copy)]
 pub struct HttpConvergenceLayer {
     local_port: u16,
