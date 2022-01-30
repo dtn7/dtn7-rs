@@ -1,4 +1,4 @@
-use clap::{crate_authors, crate_version, App, Arg, SubCommand};
+use clap::{crate_authors, crate_version, App, Arg};
 
 fn main() {
     let matches = App::new("dtnquery")
@@ -6,8 +6,8 @@ fn main() {
         .author(crate_authors!())
         .about("A simple Bundle Protocol 7 Query Utility for Delay Tolerant Networking")
         .arg(
-            Arg::with_name("port")
-                .short("p")
+            Arg::new("port")
+                .short('p')
                 .long("port")
                 .value_name("PORT")
                 .help("Local web port (default = 3000)")
@@ -15,27 +15,25 @@ fn main() {
                 .takes_value(true),
         )
         .arg(
-            Arg::with_name("ipv6")
-                .short("6")
+            Arg::new("ipv6")
+                .short('6')
                 .long("ipv6")
                 .help("Use IPv6")
                 .takes_value(false),
         )
-        .subcommand(SubCommand::with_name("eids").about("list registered endpoint IDs"))
-        .subcommand(SubCommand::with_name("peers").about("list known peers"))
+        .subcommand(App::new("eids").about("list registered endpoint IDs"))
+        .subcommand(App::new("peers").about("list known peers"))
         .subcommand(
-            SubCommand::with_name("bundles")
-                .about("list bundles in node")
-                .arg(
-                    Arg::with_name("v")
-                        .short("v")
-                        .multiple(false)
-                        .help("Verbose output includes bundle destination"),
-                ),
+            App::new("bundles").about("list bundles in node").arg(
+                Arg::new("v")
+                    .short('v')
+                    .multiple_occurrences(false)
+                    .help("Verbose output includes bundle destination"),
+            ),
         )
-        .subcommand(SubCommand::with_name("store").about("list bundles status in store"))
-        .subcommand(SubCommand::with_name("info").about("General dtnd info"))
-        .subcommand(SubCommand::with_name("nodeid").about("Local node id"))
+        .subcommand(App::new("store").about("list bundles status in store"))
+        .subcommand(App::new("info").about("General dtnd info"))
+        .subcommand(App::new("nodeid").about("Local node id"))
         .get_matches();
     let port = std::env::var("DTN_WEB_PORT").unwrap_or_else(|_| "3000".into());
     let port = matches.value_of("port").unwrap_or(&port); // string is fine no need to parse number
