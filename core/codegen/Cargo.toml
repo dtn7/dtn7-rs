@@ -9,6 +9,7 @@ categories = ["command-line-utilities", "network-programming"]
 repository    = "https://github.com/dtn7/dtn7-rs"
 keywords = ["peer2peer", "dtn"]
 exclude = [".vscode/", ".travis.yml"]
+readme = "README.md"
 
 [lib]
 proc-macro = true
