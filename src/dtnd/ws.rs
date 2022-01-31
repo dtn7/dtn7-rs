@@ -10,6 +10,7 @@ use bp7::{Bundle, CreationTimestamp, EndpointID};
 use dtn7_plus::client::{WsRecvData, WsSendData};
 use futures::{sink::SinkExt, stream::StreamExt};
 use log::{debug, warn};
+use parking_lot::Mutex;
 use std::collections::HashSet;
 use std::sync::Arc;
 use std::{
@@ -17,7 +18,6 @@ use std::{
     time::{Duration, Instant},
 };
 use tokio::sync::mpsc;
-use tokio::sync::Mutex;
 use tokio::time::interval;
 // Begin application agent WebSocket specific stuff
 
@@ -74,7 +74,6 @@ pub async fn handle_socket(socket: WebSocket) {
         while let Some(Ok(msg)) = receiver.next().await {
             if session2
                 .lock()
-                .await
                 .handle_message(tx2.clone(), msg)
                 .await
                 .is_err()
@@ -94,7 +93,7 @@ pub async fn handle_socket(socket: WebSocket) {
 
         loop {
             task.tick().await;
-            if Instant::now().duration_since(session2.lock().await.hb) > CLIENT_TIMEOUT {
+            if Instant::now().duration_since(session2.lock().hb) > CLIENT_TIMEOUT {
                 // heartbeat timed out
                 debug!("Websocket Client heartbeat failed, disconnecting!");
 
@@ -116,7 +115,6 @@ pub async fn handle_socket(socket: WebSocket) {
             debug!("Received bundle delivery for {}", bndl_delivery.0.id());
             if session2
                 .lock()
-                .await
                 .handle_bundle_delivery(tx2.clone(), bndl_delivery)
                 .await
                 .is_err()
@@ -133,7 +131,7 @@ pub async fn handle_socket(socket: WebSocket) {
         _ = (&mut br_task) => {hb_task.abort(); recv_task.abort(); send_task.abort();},
     };
 
-    if let Some(endpoints) = &session.lock().await.endpoints {
+    if let Some(endpoints) = &session.lock().endpoints {
         for eid in endpoints {
             if let Some(ep) = (*DTNCORE.lock()).get_endpoint_mut(eid) {
                 ep.clear_delivery_addr();
