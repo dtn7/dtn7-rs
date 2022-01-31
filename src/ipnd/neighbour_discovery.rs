@@ -60,7 +60,6 @@ async fn receiver(socket: UdpSocket) -> Result<(), io::Error> {
 async fn announcer(socket: UdpSocket, _v6: bool) {
     let mut task = interval(crate::CONFIG.lock().announcement_interval);
     loop {
-        debug!("waiting announcer");
         task.tick().await;
         debug!("running announcer");
 
@@ -131,6 +130,9 @@ pub async fn spawn_neighbour_discovery() -> Result<()> {
         socket.set_reuse_address(true)?;
         socket.bind(&addr)?;
 
+        //required for tokio
+        socket.set_nonblocking(true)?;
+
         // DEBUG: setup multicast on loopback to true
         socket
             .set_multicast_loop_v4(false)
@@ -168,6 +170,10 @@ pub async fn spawn_neighbour_discovery() -> Result<()> {
         socket.set_reuse_address(true)?;
         socket.set_only_v6(true)?;
         socket.bind(&addr)?;
+
+        //required for tokio
+        socket.set_nonblocking(true)?;
+
         // DEBUG: setup multicast on loopback to true
         socket
             .set_multicast_loop_v6(false)
