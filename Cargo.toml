@@ -21,7 +21,7 @@ serde_json = "1.0"
 serde_bytes = "0.11"
 url = "2.2.2"
 rand = "0.8.3"
-tokio = { version = "=1.15.0", features = ["net", "rt-multi-thread", "macros", "time"] }
+tokio = { version = "1.16.1", features = ["net", "rt-multi-thread", "macros", "time", "sync"] }
 tokio-util = { version = "0.6.7", features = ["codec"] }
 futures = "0.3.5"
 futures-util = "0.3.5"
@@ -33,7 +33,7 @@ clap = "2.33.3"
 config = {version = "0.11.0", default-features = false, features = ["toml"] }
 lazy_static = "1.4.0"
 anyhow = "1.0.32"
-parking_lot = "0.11"
+parking_lot = {version="0.12.0", features = ["send_guard"]}
 async-trait = "0.1.40"
 attohttpc = { version = "0.18", default-features = false }
 tinytemplate = "1.1.0"
