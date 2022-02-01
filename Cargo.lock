@@ -451,6 +451,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "examples"
+version = "0.0.0"
+dependencies = [
+ "anyhow",
+ "bp7",
+ "clap",
+ "dtn7-plus",
+ "humantime 2.1.0",
+ "rand",
+ "serde_cbor",
+ "tungstenite",
+]
+
+[[package]]
 name = "fallible-iterator"
 version = "0.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"

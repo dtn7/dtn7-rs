@@ -2,5 +2,8 @@
 
 members = [
     "core/codegen",
-    "core/dtn7"
+    "core/dtn7",
+
+    # internal
+    "examples"
 ]

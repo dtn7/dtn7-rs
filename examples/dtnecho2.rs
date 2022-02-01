@@ -13,8 +13,8 @@ fn main() -> Result<()> {
         .author(crate_authors!())
         .about("A simple Bundle Protocol 7 Echo Service for Delay Tolerant Networking")
         .arg(
-            Arg::with_name("port")
-                .short("p")
+            Arg::new("port")
+                .short('p')
                 .long("port")
                 .value_name("PORT")
                 .help("Local web port (default = 3000)")
@@ -22,15 +22,15 @@ fn main() -> Result<()> {
                 .takes_value(true),
         )
         .arg(
-            Arg::with_name("verbose")
-                .short("v")
+            Arg::new("verbose")
+                .short('v')
                 .long("verbose")
                 .help("verbose output")
                 .takes_value(false),
         )
         .arg(
-            Arg::with_name("ipv6")
-                .short("6")
+            Arg::new("ipv6")
+                .short('6')
                 .long("ipv6")
                 .help("Use IPv6")
                 .takes_value(false),
