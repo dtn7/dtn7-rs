@@ -1,4 +1,4 @@
-use crate::cla::ConvergenceLayerAgents;
+use crate::cla::CLAsAvailable;
 use crate::core::peer::PeerAddress;
 
 use super::*;
@@ -77,7 +77,7 @@ pub fn rnd_peer() -> DtnPeer {
 pub fn parse_peer_url(peer_url: &str) -> DtnPeer {
     let u = Url::parse(peer_url).expect("Static peer url parsing error");
     let scheme = u.scheme();
-    if scheme.parse::<ConvergenceLayerAgents>().is_err() {
+    if scheme.parse::<CLAsAvailable>().is_err() {
         panic!("Unknown convergency layer selected: {}", scheme);
     }
     let ipaddr = u.host_str().expect("Host parsing error");

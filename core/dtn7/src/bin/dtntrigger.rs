@@ -53,16 +53,16 @@ fn main() -> anyhow::Result<()> {
         .author(crate_authors!())
         .about("A simple Bundle Protocol 7 Incoming Trigger Utility for Delay Tolerant Networking")
         .arg(
-            Arg::with_name("endpoint")
-                .short("e")
+            Arg::new("endpoint")
+                .short('e')
                 .long("endpoint")
                 .value_name("ENDPOINT")
                 .help("Specify local endpoint, e.g. '/incoming', or a group endpoint 'dtn://helpers/~incoming'")
                 .takes_value(true),
         )
         .arg(
-            Arg::with_name("port")
-                .short("p")
+            Arg::new("port")
+                .short('p')
                 .long("port")
                 .value_name("PORT")
                 .help("Local web port (default = 3000)")
@@ -70,25 +70,25 @@ fn main() -> anyhow::Result<()> {
                 .takes_value(true),
         )
         .arg(
-            Arg::with_name("cmd")
-                .short("c")
+            Arg::new("cmd")
+                .short('c')
                 .long("command")
                 .value_name("CMD")
                 .help("Command to execute for incoming bundles, param1 = source, param2 = payload file")
                 .required(true)
                 .takes_value(true)
-                .empty_values(false),
+                .forbid_empty_values(true),
         )
         .arg(
-            Arg::with_name("verbose")
-                .short("v")
+            Arg::new("verbose")
+                .short('v')
                 .long("verbose")
                 .help("verbose output")
                 .takes_value(false),
         )
         .arg(
-            Arg::with_name("ipv6")
-                .short("6")
+            Arg::new("ipv6")
+                .short('6')
                 .long("ipv6")
                 .help("Use IPv6")
                 .takes_value(false),

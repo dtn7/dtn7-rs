@@ -46,8 +46,8 @@ fn main() -> Result<()> {
         .author(crate_authors!())
         .about("A simple Bundle Protocol 7 Ping Tool for Delay Tolerant Networking")
         .arg(
-            Arg::with_name("port")
-                .short("p")
+            Arg::new("port")
+                .short('p')
                 .long("port")
                 .value_name("PORT")
                 .help("Local web port (default = 3000)")
@@ -55,44 +55,44 @@ fn main() -> Result<()> {
                 .takes_value(true),
         )
         .arg(
-            Arg::with_name("verbose")
-                .short("v")
+            Arg::new("verbose")
+                .short('v')
                 .long("verbose")
                 .help("verbose output")
                 .takes_value(false),
         )
         .arg(
-            Arg::with_name("ipv6")
-                .short("6")
+            Arg::new("ipv6")
+                .short('6')
                 .long("ipv6")
                 .help("Use IPv6")
                 .takes_value(false),
         )
         .arg(
-            Arg::with_name("destination")
-                .short("d")
+            Arg::new("destination")
+                .short('d')
                 .long("destination")
                 .help("Destination to ping")
                 .required(true)
                 .takes_value(true),
         )
         .arg(
-            Arg::with_name("payloadsize")
-                .short("s")
+            Arg::new("payloadsize")
+                .short('s')
                 .long("size")
                 .help("Payload size")
                 .takes_value(true),
         )
         .arg(
-            Arg::with_name("count")
-                .short("c")
+            Arg::new("count")
+                .short('c')
                 .long("count")
                 .help("Number of pings to send")
                 .takes_value(true),
         )
         .arg(
-            Arg::with_name("timeout")
-                .short("t")
+            Arg::new("timeout")
+                .short('t')
                 .long("timeout")
                 .help("Time to wait for reply (10s, 30m, 2h, ...)")
                 .takes_value(true),

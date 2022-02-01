@@ -4,6 +4,7 @@ use bp7::{Bundle, ByteBuffer};
 use bytes::buf::Buf;
 use bytes::{BufMut, BytesMut};
 use core::convert::TryFrom;
+use dtn7_codegen::cla;
 use futures_util::stream::StreamExt;
 use lazy_static::lazy_static;
 use log::{debug, error, info};
@@ -196,7 +197,8 @@ impl Decoder for MPDUCodec {
     }
 }
 
-#[derive(Debug, Copy, Clone)]
+#[cla(mtcp)]
+#[derive(Debug, Copy, Clone, Default)]
 pub struct MtcpConvergenceLayer {
     local_port: u16,
 }

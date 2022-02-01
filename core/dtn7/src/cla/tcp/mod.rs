@@ -7,6 +7,7 @@ use super::{ConvergenceLayerAgent, HelpStr};
 use async_trait::async_trait;
 use bp7::{Bundle, ByteBuffer};
 //use futures_util::stream::StreamExt;
+use dtn7_codegen::cla;
 use log::{debug, error, info, warn};
 use parking_lot::Mutex;
 use std::collections::HashMap;
@@ -626,7 +627,7 @@ impl TcpConvergenceLayer {
             .and_then(|val| val.parse::<bool>().ok());
         let global_refuse_existing_bundles = (*CONFIG.lock())
             .cla_global_settings
-            .get(&super::ConvergenceLayerAgents::TcpConvergenceLayer)
+            .get(&super::CLAsAvailable::TcpConvergenceLayer)
             .and_then(|settings| settings.get("refuse-existing-bundles"))
             .and_then(|ref_str| ref_str.parse::<bool>().ok())
             .unwrap_or(false);
@@ -644,6 +645,7 @@ impl TcpConvergenceLayer {
     }
 }
 
+#[cla(tcp)]
 #[derive(Clone, Default, Debug)]
 pub struct TcpConvergenceLayer {
     local_port: u16,

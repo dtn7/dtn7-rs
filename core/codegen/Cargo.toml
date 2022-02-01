@@ -1,0 +1,20 @@
+[package]
+name = "dtn7-codegen"
+version = "0.1.0"
+edition = "2021"
+authors = ["Lars Baumgaertner <baumgaertner@cs.tu-darmstadt.de>"]
+description = "codgen helpers for dtn7-rs"
+license = "MIT OR Apache-2.0"
+categories = ["command-line-utilities", "network-programming"]
+repository    = "https://github.com/dtn7/dtn7-rs"
+keywords = ["peer2peer", "dtn"]
+exclude = [".vscode/", ".travis.yml"]
+readme = "README.md"
+
+[lib]
+proc-macro = true
+
+[dependencies]
+syn = {version="1.0.57",features=["full","fold"]}
+quote = "1.0.8"
+lazy_static = "1.4.0"
