@@ -12,8 +12,8 @@ fn main() {
         .author(crate_authors!())
         .about("A simple Bundle Protocol 7 Send Utility for Delay Tolerant Networking")
         .arg(
-            Arg::with_name("sender")
-                .short("s")
+            Arg::new("sender")
+                .short('s')
                 .long("sender")
                 .value_name("SENDER")
                 .help("Sets sender name (e.g. 'dtn://node1')")
@@ -21,8 +21,8 @@ fn main() {
                 .takes_value(true),
         )
         .arg(
-            Arg::with_name("receiver")
-                .short("r")
+            Arg::new("receiver")
+                .short('r')
                 .long("receiver")
                 .value_name("RECEIVER")
                 .help("Receiver EID (e.g. 'dtn://node2/incoming')")
@@ -30,8 +30,8 @@ fn main() {
                 .takes_value(true),
         )
         .arg(
-            Arg::with_name("port")
-                .short("p")
+            Arg::new("port")
+                .short('p')
                 .long("port")
                 .value_name("PORT")
                 .help("Local web port (default = 3000)")
@@ -39,8 +39,8 @@ fn main() {
                 .takes_value(true),
         )
         .arg(
-            Arg::with_name("lifetime")
-                .short("l")
+            Arg::new("lifetime")
+                .short('l')
                 .long("lifetime")
                 .value_name("SECONDS")
                 .help("Bundle lifetime in seconds (default = 3600)")
@@ -48,28 +48,28 @@ fn main() {
                 .takes_value(true),
         )
         .arg(
-            Arg::with_name("verbose")
-                .short("v")
+            Arg::new("verbose")
+                .short('v')
                 .long("verbose")
                 .help("verbose output")
                 .takes_value(false),
         )
         .arg(
-            Arg::with_name("dryrun")
-                .short("D")
+            Arg::new("dryrun")
+                .short('D')
                 .long("dry-run")
                 .help("Don't actually send packet, just dump the encoded one.")
                 .takes_value(false),
         )
         .arg(
-            Arg::with_name("ipv6")
-                .short("6")
+            Arg::new("ipv6")
+                .short('6')
                 .long("ipv6")
                 .help("Use IPv6")
                 .takes_value(false),
         )
         .arg(
-            Arg::with_name("infile")
+            Arg::new("infile")
                 .index(1)
                 .help("File to send, if omitted data is read from stdin till EOF"),
         )

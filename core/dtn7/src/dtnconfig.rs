@@ -1,4 +1,4 @@
-use crate::cla::ConvergenceLayerAgents;
+use crate::cla::CLAsAvailable;
 use crate::core::DtnPeer;
 use bp7::EndpointID;
 use config::{Config, File};
@@ -27,8 +27,8 @@ pub struct DtnConfig {
     pub discovery_destinations: HashMap<String, u32>,
     pub janitor_interval: Duration,
     pub endpoints: Vec<String>,
-    pub clas: Vec<(ConvergenceLayerAgents, HashMap<String, String>)>,
-    pub cla_global_settings: HashMap<ConvergenceLayerAgents, HashMap<String, String>>,
+    pub clas: Vec<(CLAsAvailable, HashMap<String, String>)>,
+    pub cla_global_settings: HashMap<CLAsAvailable, HashMap<String, String>>,
     pub services: HashMap<u8, String>,
     pub routing: String,
     pub peer_timeout: Duration,
@@ -143,7 +143,7 @@ impl From<PathBuf> for DtnConfig {
             for (_k, v) in clas.iter() {
                 let mut tab = v.clone().into_table().unwrap();
                 let cla_id = tab.remove("id").unwrap().into_str().unwrap();
-                match ConvergenceLayerAgents::from_str(cla_id.as_str()) {
+                match CLAsAvailable::from_str(cla_id.as_str()) {
                     Ok(agent) => {
                         debug!("CLA: {:?}", cla_id);
                         let mut local_settings = HashMap::new();
@@ -160,7 +160,7 @@ impl From<PathBuf> for DtnConfig {
         }
         if let Ok(cla_global_settings) = s.get_table("convergencylayers.global") {
             for (k, v) in cla_global_settings.iter() {
-                match ConvergenceLayerAgents::from_str(k) {
+                match CLAsAvailable::from_str(k) {
                     Ok(agent) => {
                         let tab = v.clone().into_table().unwrap();
                         let mut global_settings = HashMap::new();

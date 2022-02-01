@@ -26,17 +26,17 @@ fn main() {
         .author(crate_authors!())
         .about("A simple Bundle Protocol 7 Receive Utility for Delay Tolerant Networking")
         .arg(
-            Arg::with_name("endpoint")
-                .short("e")
+            Arg::new("endpoint")
+                .short('e')
                 .long("endpoint")
                 .value_name("ENDPOINT")
                 .help("Specify local endpoint, e.g. '/incoming', or a group endpoint 'dtn://helpers/~incoming'")
-                .required_unless("bundleid")
+                .required_unless_present("bundleid")
                 .takes_value(true),
         )
         .arg(
-            Arg::with_name("bundleid")
-                .short("b")
+            Arg::new("bundleid")
+                .short('b')
                 .long("bundle-id")
                 .value_name("BID")
                 .help("Download any bundle by ID")
@@ -44,8 +44,8 @@ fn main() {
                 .takes_value(true),
         )
         .arg(
-            Arg::with_name("outfile")
-                .short("o")
+            Arg::new("outfile")
+                .short('o')
                 .long("output")
                 .value_name("FILE")
                 .help("Write bundle payload to file instead of stdout")
@@ -53,8 +53,8 @@ fn main() {
                 .takes_value(true),
         )
         .arg(
-            Arg::with_name("port")
-                .short("p")
+            Arg::new("port")
+                .short('p')
                 .long("port")
                 .value_name("PORT")
                 .help("Local web port (default = 3000)")
@@ -62,29 +62,29 @@ fn main() {
                 .takes_value(true),
         )
         .arg(
-            Arg::with_name("verbose")
-                .short("v")
+            Arg::new("verbose")
+                .short('v')
                 .long("verbose")
                 .help("verbose output")
                 .takes_value(false),
         )
         .arg(
-            Arg::with_name("hex")
-                .short("x")
+            Arg::new("hex")
+                .short('x')
                 .long("hex")
                 .help("hex output of whole bundle")
                 .takes_value(false),
         )
         .arg(
-            Arg::with_name("raw")
-                .short("r")
+            Arg::new("raw")
+                .short('r')
                 .long("raw")
                 .help("output full bundle in raw bytes, not only payload")
                 .takes_value(false),
         )
         .arg(
-            Arg::with_name("ipv6")
-                .short("6")
+            Arg::new("ipv6")
+                .short('6')
                 .long("ipv6")
                 .help("Use IPv6")
                 .takes_value(false),

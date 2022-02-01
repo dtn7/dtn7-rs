@@ -1,7 +1,7 @@
 #![recursion_limit = "256"]
 
 use clap::{crate_authors, crate_version, App, Arg};
-use dtn7::cla::ConvergenceLayerAgents;
+use dtn7::cla::CLAsAvailable;
 use dtn7::dtnd::daemon::*;
 use dtn7::DtnConfig;
 use log::info;
@@ -25,127 +25,128 @@ async fn main() -> Result<(), std::io::Error> {
         .author(crate_authors!())
         .about("A simple Bundle Protocol 7 Daemon for Delay Tolerant Networking")
         .arg(
-            Arg::with_name("config")
-                .short("c")
+            Arg::new("config")
+                .short('c')
                 .long("config")
                 .value_name("FILE")
                 .help("Sets a custom config file")
                 .takes_value(true),
         )
         .arg(
-            Arg::with_name("nodeid")
-                .short("n")
+            Arg::new("nodeid")
+                .short('n')
                 .long("nodeid")
                 .value_name("NODEID")
                 .help("Sets local node name (e.g. 'dtn://node1')")
                 .takes_value(true),
         )
         .arg(
-            Arg::with_name("workdir")
-                .short("W")
+            Arg::new("workdir")
+                .short('W')
                 .long("workdir")
                 .value_name("PATH")
                 .help("Sets the working directory (e.g. '/tmp/node1', default '.')")
                 .takes_value(true),
         ).arg(
-            Arg::with_name("endpoint")
-                .short("e")
+            Arg::new("endpoint")
+                .short('e')
                 .long("endpoint")
                 .value_name("ENDPOINT")
                 .help("Registers an application agent for a node local endpoint (e.g. 'incoming' listens on 'dtn://node1/incoming')")
-                .multiple(true)
+                .multiple_occurrences(true)
                 .takes_value(true),
         )
         .arg(
-            Arg::with_name("interval")
-                .short("i")
+            Arg::new("interval")
+                .short('i')
                 .long("interval")
                 .value_name("humantime")
                 .help("Sets service discovery interval (0 = deactive, 2s = 2 seconds, 3m = 3 minutes, etc.) Refers to the discovery interval that is advertised when flag -b is set")
                 .takes_value(true),
         )
         .arg(
-            Arg::with_name("janitor")
-                .short("j")
+            Arg::new("janitor")
+                .short('j')
                 .long("janitor")
                 .value_name("humantime")
                 .help("Sets janitor interval (0 = deactive, 2s = 2 seconds, 3m = 3 minutes, etc.)")
                 .takes_value(true),
         )
         .arg(
-            Arg::with_name("discoverydestination")
-                .short("E")
+            Arg::new("discoverydestination")
+                .short('E')
                 .long("discovery-destination")
                 .value_name("DD[:port]")
                 .help("Sets destination beacons shall be sent to for discovery purposes (default IPv4 = 224.0.0.26:3003, IPv6 = [FF02::300]:3003")
-                .multiple(true)
+                .multiple_occurrences(true)
                 .takes_value(true),
         )
         .arg(
-            Arg::with_name("webport")
-                .short("w")
+            Arg::new("webport")
+                .short('w')
                 .long("web-port")
                 .value_name("PORT")
                 .help("Sets web interface port (default = 3000)")
                 .takes_value(true),
         )
         .arg(
-            Arg::with_name("peertimeout")
-                .short("p")
+            Arg::new("peertimeout")
+                .short('p')
                 .long("peer-timeout")
                 .value_name("humantime")
                 .help("Sets timeout to remove peer (default = 20s)")
                 .takes_value(true),
         )
         .arg(
-            Arg::with_name("routing")
-                .short("r")
+            Arg::new("routing")
+                .short('r')
                 .long("routing")
                 .value_name("ROUTING")
-                .help(&format!(
+                .help(format!(
                     "Set routing algorithm: {}",
                     dtn7::routing::routing_algorithms().join(", ")
-                ))
+                ).as_str())
                 .takes_value(true),
         ).arg(
-            Arg::with_name("db")
-                .short("D")
+            Arg::new("db")
+                .short('D')
                 .long("db")
                 .value_name("STORE")
-                .help(&format!(
+                .help(format!(
                     "Set bundle store: {}",
                     dtn7::core::store::bundle_stores().join(", ")
-                ))
+                ).as_str())
                 .takes_value(true),
         )
         .arg(
-            Arg::with_name("cla")
-                .short("C")
+            Arg::new("cla")
+                .short('C')
                 .long("cla")
                 .value_name("CLA[:<key>=<value>]")
-                .help(&format!(
+                .help(format!(
                     "Add convergence layer agent: {}",
-                    dtn7::cla::ConvergenceLayerAgents::enumerate_help_str()
-                ))
-                .long_help(&format!("Available options: {}", dtn7::cla::ConvergenceLayerAgents::local_help_str()))
-                .multiple(true)
+                    dtn7::cla::convergence_layer_agents().join(", ")
+                ).as_str())
+                .long_help(format!("Available options: \n{}", dtn7::cla::local_help().join("\n")).as_str())
+                .multiple_occurrences(true)
                 .takes_value(true),
         )
         .arg(
-            Arg::with_name("global")
-            .short("O")
+            Arg::new("global")
+            .short('O')
             .long("global")
             .value_name("CLA:<key>=<value>")
-            .help("Add convergence layer global options, overrides local options").long_help(&format!(
-               "Available options: {}",
-                dtn7::cla::ConvergenceLayerAgents::global_help_str()
-            ))
-            .multiple(true)
+            .help("Add convergence layer global options, overrides local options")
+            .long_help(format!(
+               "Available options: \n{}",
+                dtn7::cla::global_help().join("\n")
+            ).as_str())
+            .multiple_occurrences(true)
             .takes_value(true),
         )
         .arg(
-            Arg::with_name("service")
-                .short("S")
+            Arg::new("service")
+                .short('S')
                 .long("service")
                 .value_name("TAG:payload")
                 .help("Add a self defined service.")
@@ -153,56 +154,56 @@ async fn main() -> Result<(), std::io::Error> {
 Tag 127 takes 2 floats and is interpreted as latitude/longitude. Usage: -S 127:'52.32 24.42'
 Tag 191 takes 1 integer and is interpreted as battery level in %. Usage: -S 191:71
 Tag 255 takes 5 arguments and is interpreted as address. Usage: -S 255:'Samplestreet 42 12345 SampleCity SC'")
-                .multiple(true)
+                .multiple_occurrences(true)
                 .takes_value(true),
         )
         .arg(
-            Arg::with_name("staticpeer")
-                .short("s")
+            Arg::new("staticpeer")
+                .short('s')
                 .long("static-peer")
                 .value_name("PEER")
                 .help("Adds a static peer (e.g. mtcp://192.168.2.1:2342/node2)")
-                .multiple(true)
+                .multiple_occurrences(true)
                 .takes_value(true),
         )
         .arg(
-            Arg::with_name("beacon-period")
-                .short("b")
+            Arg::new("beacon-period")
+                .short('b')
                 .long("beacon-period")
                 .help("Enables the advertisement of the beacon sending interval to inform neighbors about when to expect new beacons")
                 .takes_value(false),
         )
         .arg(
-            Arg::with_name("debug")
-                .short("d")
+            Arg::new("debug")
+                .short('d')
                 .long("debug")
                 .help("Set log level to debug")
                 .takes_value(false),
         )
         .arg(
-            Arg::with_name("generate-status-reports")
-                .short("g")
+            Arg::new("generate-status-reports")
+                .short('g')
                 .long("generate-status-reports")
                 .help("Generate status report bundles, can lead to a lot of traffic (default: deactivated)")
                 .takes_value(false),
         )
         .arg(
-            Arg::with_name("unsafe_httpd")
-                .short("U")
+            Arg::new("unsafe_httpd")
+                .short('U')
                 .long("unsafe-httpd")
                 .help("Allow httpd RPC calls from anyhwere")
                 .takes_value(false),
         )
         .arg(
-            Arg::with_name("ipv4")
-                .short("4")
+            Arg::new("ipv4")
+                .short('4')
                 .long("ipv4")
                 .help("Use IPv4")
                 .takes_value(false),
         )
         .arg(
-            Arg::with_name("ipv6")
-                .short("6")
+            Arg::new("ipv6")
+                .short('6')
                 .long("ipv6")
                 .help("Use IPv6")
                 .takes_value(false),
@@ -302,7 +303,7 @@ Tag 255 takes 5 arguments and is interpreted as address. Usage: -S 255:'Samplest
         for cla in clas {
             let mut cla_split: Vec<&str> = cla.split(':').collect();
             let id_str = cla_split.remove(0);
-            if let Ok(cla_agent) = id_str.parse::<ConvergenceLayerAgents>() {
+            if let Ok(cla_agent) = id_str.parse::<CLAsAvailable>() {
                 let mut local_config = HashMap::new();
                 for config in cla_split {
                     let config_split: Vec<&str> = config.split('=').collect();
@@ -317,7 +318,7 @@ Tag 255 takes 5 arguments and is interpreted as address. Usage: -S 255:'Samplest
         for ext in extensions {
             let mut ext_split: Vec<&str> = ext.split(':').collect();
             let id_str = ext_split.remove(0);
-            if let Ok(cla_agent) = id_str.parse::<ConvergenceLayerAgents>() {
+            if let Ok(cla_agent) = id_str.parse::<CLAsAvailable>() {
                 let config_split: Vec<&str> = ext_split[0].split('=').collect();
                 let cla_settings = {
                     match cfg.cla_global_settings.get_mut(&cla_agent) {

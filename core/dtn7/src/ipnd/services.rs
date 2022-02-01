@@ -7,7 +7,7 @@ use serde::{de, Deserialize, Deserializer, Serialize};
 use std::collections::HashMap;
 use std::fmt::Debug;
 
-use crate::cla::ConvergenceLayerAgents;
+use crate::cla::CLAsAvailable;
 
 /// Struct representing the ServiceBlock used in Beacons to advertise additional services
 ///
@@ -18,7 +18,7 @@ use crate::cla::ConvergenceLayerAgents;
 /// and one for user defined services
 #[derive(Debug, Clone, PartialEq)]
 pub struct ServiceBlock {
-    clas: Vec<(ConvergenceLayerAgents, Option<u16>)>,
+    clas: Vec<(CLAsAvailable, Option<u16>)>,
     services: HashMap<u8, Vec<u8>>,
 }
 impl Default for ServiceBlock {
@@ -36,7 +36,7 @@ impl ServiceBlock {
     }
 
     /// Returns the vector of ConvergencyLayerAgents
-    pub fn clas(&self) -> &Vec<(ConvergenceLayerAgents, Option<u16>)> {
+    pub fn clas(&self) -> &Vec<(CLAsAvailable, Option<u16>)> {
         &self.clas
     }
 
@@ -84,7 +84,7 @@ impl ServiceBlock {
     /// This method adds a cla to the corresponding vector of a ServiceBlock
     pub fn add_cla(&mut self, name: &str, port: &Option<u16>) {
         self.clas
-            .push((name.parse::<ConvergenceLayerAgents>().unwrap(), *port))
+            .push((name.parse::<CLAsAvailable>().unwrap(), *port))
     }
 
     /// This method adds a custom service to the HashMap of a ServiceBlock
@@ -92,7 +92,7 @@ impl ServiceBlock {
         self.services.insert(tag, service.to_owned());
     }
     /// This method sets the clas vector of a ServiceBlock to the one provided
-    pub fn set_clas(&mut self, clas: Vec<(ConvergenceLayerAgents, Option<u16>)>) {
+    pub fn set_clas(&mut self, clas: Vec<(CLAsAvailable, Option<u16>)>) {
         self.clas = clas;
     }
     /// This method sets the services hashmap of a ServiceBlock to the one provided

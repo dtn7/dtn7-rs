@@ -1,0 +1,25 @@
+[package]
+name = "examples"
+version = "0.0.0"
+publish = false
+edition = "2018"
+
+# If you copy one of the examples into a new project, you should be using
+# [dependencies] instead, and delete the **path**.
+[dev-dependencies]
+dtn7-plus = {version = "0.6.1", default-features = false, features = ["client"] }
+clap = { version = "3.0.13", features = ["cargo"] }
+anyhow = "1.0.32"
+serde_cbor = "0.11"
+humantime = "2.0.1"
+rand = "0.8.3"
+bp7 = {version = "0.9.2", default-features = false }
+tungstenite = "0.16.0"
+
+[[example]]
+name = "dtnping"
+path = "dtnping.rs"
+
+[[example]]
+name = "dtnecho2"
+path = "dtnecho2.rs"
