@@ -1,6 +1,39 @@
 # Changelog
 All notable changes to this project will be documented in this file.
 
+## [0.17.2] - 2022-02-01
+
+### Bug Fixes
+
+- Tcp refuse-existing-bundles behavior fixed, cla local/global options introduced (#10)
+- Pinned tokio version to 1.15.0 to work around bug in 1.16.1
+- Forced socket non-blocking for compability with new tokio releases
+
+### Features
+
+- Add bundle retransmission prevention extension to TCPCL (#8)
+- (re)process oldest bundles first
+- Added creation timestamp as well as received time to bundlepack meta data
+- Peer address can be a generic broadcast, e.g., for use with LoRa
+
+### Miscellaneous Tasks
+
+- Removed dead code for transmission counters
+
+### Refactor
+
+- Changed websocket json data mode to encode byte buffers as base64
+- Changed from tokio mutex to parking_lot for websockets
+- Change project to workspace and include codegen crate (#11)
+
+### Styling
+
+- Fixed string related remarks found by clippy
+
+### Testing
+
+- Changed clab tests to use TCPCL instead of MTCPCL
+
 ## [0.17.1] - 2021-11-18
 
 ### Documentation
