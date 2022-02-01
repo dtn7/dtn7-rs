@@ -6,7 +6,7 @@ fn config_test() {
 
     // Start off by merging in the "default" configuration file
     s.merge(File::new(
-        "examples/dtn7.toml.example",
+        "../../examples/dtn7.toml.example",
         config::FileFormat::Toml,
     ))
     .unwrap();
