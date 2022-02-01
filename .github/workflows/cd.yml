@@ -107,6 +107,7 @@ jobs:
           tag: ${{ github.ref }}
           release_name: "Release v${{ env.RELEASE_VERSION }}"
           body: "${{ needs.generate-changelog.outputs.release_body }}"
+
   publish-crates-io:
     name: Publish on crates.io
     needs: publish-github
@@ -121,5 +122,5 @@ jobs:
         with:
           command: publish
           args: |
-            --allow-dirty --manifest-path Cargo.toml
+            --allow-dirty --manifest-path core/dtn7/Cargo.toml
             --token ${{ secrets.CARGO_TOKEN }}
