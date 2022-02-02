@@ -1,6 +1,6 @@
 use anyhow::{bail, Result};
 use bp7::*;
-use clap::{crate_authors, crate_version, App, Arg};
+use clap::{crate_authors, crate_version, Parser};
 use dtn7_plus::client::DtnClient;
 use std::convert::TryFrom;
 use std::io::prelude::*;
@@ -47,72 +47,46 @@ fn execute_cmd(
     Ok(())
 }
 
-fn main() -> anyhow::Result<()> {
-    let matches = App::new("dtntrigger")
-        .version(crate_version!())
-        .author(crate_authors!())
-        .about("A simple Bundle Protocol 7 Incoming Trigger Utility for Delay Tolerant Networking")
-        .arg(
-            Arg::new("endpoint")
-                .short('e')
-                .long("endpoint")
-                .value_name("ENDPOINT")
-                .help("Specify local endpoint, e.g. '/incoming', or a group endpoint 'dtn://helpers/~incoming'")
-                .takes_value(true),
-        )
-        .arg(
-            Arg::new("port")
-                .short('p')
-                .long("port")
-                .value_name("PORT")
-                .help("Local web port (default = 3000)")
-                .required(false)
-                .takes_value(true),
-        )
-        .arg(
-            Arg::new("cmd")
-                .short('c')
-                .long("command")
-                .value_name("CMD")
-                .help("Command to execute for incoming bundles, param1 = source, param2 = payload file")
-                .required(true)
-                .takes_value(true)
-                .forbid_empty_values(true),
-        )
-        .arg(
-            Arg::new("verbose")
-                .short('v')
-                .long("verbose")
-                .help("verbose output")
-                .takes_value(false),
-        )
-        .arg(
-            Arg::new("ipv6")
-                .short('6')
-                .long("ipv6")
-                .help("Use IPv6")
-                .takes_value(false),
-        )
-        .get_matches();
+/// A simple Bundle Protocol 7 Incoming Trigger Utility for Delay Tolerant Networking
+#[derive(Parser, Debug)]
+#[clap(version = crate_version!(), author = crate_authors!(), about, long_about = None)]
+struct Args {
+    /// Local web port (default = 3000)
+    #[clap(short, long, default_value_t = 3000)]
+    port: u16,
 
-    let verbose: bool = matches.is_present("verbose");
-    let port = std::env::var("DTN_WEB_PORT").unwrap_or_else(|_| "3000".into());
-    let port = matches.value_of("port").unwrap_or(&port); // string is fine no need to parse number
-    let localhost = if matches.is_present("ipv6") {
-        "[::1]"
+    /// Use IPv6
+    #[clap(short = '6', long)]
+    ipv6: bool,
+
+    /// Verbose output
+    #[clap(short, long)]
+    verbose: bool,
+
+    /// Specify local endpoint, e.g. '/incoming', or a group endpoint 'dtn://helpers/~incoming'
+    #[clap(short, long)]
+    endpoint: String,
+
+    /// Command to execute for incoming bundles, param1 = source, param2 = payload file
+    #[clap(short, long, forbid_empty_values = true)]
+    command: String,
+}
+fn main() -> anyhow::Result<()> {
+    let args = Args::parse();
+
+    let port = if let Ok(env_port) = std::env::var("DTN_WEB_PORT") {
+        env_port // string is fine no need to parse number
     } else {
-        "127.0.0.1"
+        args.port.to_string()
     };
+    let localhost = if args.ipv6 { "[::1]" } else { "127.0.0.1" };
 
     let client = DtnClient::with_host_and_port(
         localhost.into(),
         port.parse::<u16>().expect("invalid port number"),
     );
 
-    let endpoint: String = matches.value_of("endpoint").unwrap().into();
-    let command: String = matches.value_of("cmd").unwrap().into();
-
-    client.register_application_endpoint(&endpoint)?;
+    client.register_application_endpoint(&args.endpoint)?;
     let mut wscon = client.ws()?;
 
     wscon.write_text("/bundle")?;
@@ -123,7 +97,7 @@ fn main() -> anyhow::Result<()> {
         bail!("[!] Failed to set mode to `bundle`");
     }
 
-    wscon.write_text(&format!("/subscribe {}", endpoint))?;
+    wscon.write_text(&format!("/subscribe {}", args.endpoint))?;
     let msg = wscon.read_text()?;
     if msg.starts_with("200 subscribed") {
         println!("[*] {}", msg);
@@ -144,28 +118,28 @@ fn main() -> anyhow::Result<()> {
                 if bndl.is_administrative_record() {
                     eprintln!("[!] Handling of administrative records not yet implemented!");
                 } else if let Some(data) = bndl.payload() {
-                    if verbose {
+                    if args.verbose {
                         eprintln!("[<] Received Bundle-Id: {}", bndl.id());
                     }
-                    let data_file = write_temp_file(data, verbose)?;
-                    execute_cmd(&command, data_file, &bndl, verbose)?;
-                } else if verbose {
+                    let data_file = write_temp_file(data, args.verbose)?;
+                    execute_cmd(&args.command, data_file, &bndl, args.verbose)?;
+                } else if args.verbose {
                     eprintln!("[!] Unexpected payload!");
                     break;
                 }
             }
             Message::Ping(_) => {
-                if verbose {
+                if args.verbose {
                     eprintln!("[<] Ping")
                 }
             }
             Message::Pong(_) => {
-                if verbose {
+                if args.verbose {
                     eprintln!("[<] Ping")
                 }
             }
             Message::Close(_) => {
-                if verbose {
+                if args.verbose {
                     eprintln!("[<] Close")
                 }
                 break;
