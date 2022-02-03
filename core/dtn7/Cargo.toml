@@ -2,7 +2,7 @@
 name = "dtn7"
 version = "0.17.2" # managed by release.sh
 authors = ["Lars Baumgaertner <baumgaertner@cs.tu-darmstadt.de>"]
-description = "Rust delay-tolerant-networking daemon and CLI tools based upon bp7 (bundle protocol version 7 draft)"
+description = "Rust delay-tolerant-networking daemon and CLI tools implementing Bundle Protocol Version 7 (RFC9171)"
 edition = "2018"
 license = "MIT OR Apache-2.0"
 categories = ["command-line-utilities", "network-programming"]
