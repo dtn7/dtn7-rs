@@ -483,16 +483,20 @@ struct TcpConnection {
 impl TcpConnection {
     /// Session parameter negotiation
     async fn negotiate_session(&mut self) -> anyhow::Result<(SessInitData, SessInitData)> {
-        let node_id = (*CONFIG.lock()).host_eid.to_string();
+        let node_id = (*CONFIG.lock()).host_eid.node_id().unwrap();
         let mut sess_init_data = SessInitData {
             keepalive: KEEPALIVE,
             segment_mru: SEGMENT_MRU,
             transfer_mru: TRANSFER_MRU,
             node_id,
         };
+
         let session_init = TcpClPacket::SessInit(sess_init_data.clone());
-        session_init.serialize(&mut self.stream).await?;
+        let mut buf = vec![];
+        session_init.serialize(&mut buf).await?;
+        self.stream.write_all(&buf).await?;
         self.stream.flush().await?;
+
         let response = TcpClPacket::deserialize(&mut self.stream).await?;
         debug!("Received session parameters");
         if let TcpClPacket::SessInit(mut data) = response {
@@ -513,9 +517,11 @@ impl TcpConnection {
     }
 
     async fn send_contact_header(&mut self, flags: ContactHeaderFlags) -> anyhow::Result<()> {
-        self.stream.write(b"dtn!").await?;
-        self.stream.write_u8(4).await?;
-        self.stream.write_u8(flags.bits()).await?;
+        let mut buf = vec![];
+        TcpClPacket::ContactHeader(flags)
+            .serialize(&mut buf)
+            .await?;
+        self.stream.write_all(&buf).await?;
         self.stream.flush().await?;
         Ok(())
     }
@@ -568,7 +574,7 @@ impl TcpConnection {
                     rx_session_incoming,
                     rx_session_queue,
                     data_local: local_parameters,
-                    data_remote: remote_parameters,
+                    data_remote: remote_parameters.clone(),
                     last_tid: 0,
                     refuse_existing_bundles: self.refuse_existing_bundles,
                     remote_addr: self.addr,
@@ -576,10 +582,12 @@ impl TcpConnection {
                 tokio::spawn(rx_task.run());
                 tokio::spawn(tx_task.run());
                 tokio::spawn(session_task.run());
-                info!("Started TCP session for {}", self.addr);
-                info!("Refuse existing bundles {}", self.refuse_existing_bundles);
+                info!(
+                    "Started TCP session for {} @ {} | refuse existing bundles: {}",
+                    remote_parameters.node_id, self.addr, self.refuse_existing_bundles
+                );
             }
-            Err(err) => error!("Failed to negotiate session: {}", err),
+            Err(err) => error!("Failed to negotiate session for {}: {}", self.addr, err),
         }
     }
 }
