@@ -5,7 +5,7 @@ use crate::routing::RoutingNotifcation;
 use crate::DTNCORE;
 use crate::{peers_add, routing_notify, CONFIG};
 use anyhow::Result;
-use log::{debug, error, info};
+use log::{debug, error, info, trace};
 use socket2::{Domain, Socket, Type};
 use std::collections::HashMap;
 use std::io;
@@ -21,7 +21,7 @@ async fn receiver(socket: UdpSocket) -> Result<(), io::Error> {
             let deserialized: Beacon = match serde_cbor::from_slice(&buf[..size]) {
                 Ok(pkt) => pkt,
                 Err(e) => {
-                    error!("Deserialization of Beacon failed!{}", e);
+                    error!("Deserialization of beacon failed!{}", e);
                     continue;
                 }
             };
@@ -97,14 +97,16 @@ async fn announcer(socket: UdpSocket, _v6: bool) {
             pkt.set_beacon_sequence_number(bsn);
 
             if destination.ip().is_multicast() {
-                debug!(
+                trace!(
                     "Sending beacon\n{}\nto multicast address {}",
-                    pkt, destination
+                    pkt,
+                    destination
                 );
             } else {
-                debug!(
+                trace!(
                     "Sending beacon\n{}\nto unicast address {}",
-                    pkt, destination
+                    pkt,
+                    destination
                 );
             }
             match socket
@@ -112,7 +114,7 @@ async fn announcer(socket: UdpSocket, _v6: bool) {
                 .await
             {
                 Ok(amt) => {
-                    debug!("sent announcement (len={})", amt)
+                    debug!("sent announcement beacon(len={}) to {}", amt, destination);
                 }
                 Err(err) => error!("Sending announcement failed: {}", err),
             }
