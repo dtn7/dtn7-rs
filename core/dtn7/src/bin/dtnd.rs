@@ -210,16 +210,12 @@ Tag 255 takes 5 arguments and is interpreted as address. Usage: -S 255:'Samplest
         )
         .get_matches();
 
-    if matches.is_present("debug") || cfg.debug {
-        std::env::set_var(
-            "RUST_LOG",
-            "dtn7=debug,dtnd=debug,actix_server=debug,actix_web=debug",
-        );
-    } else {
-        std::env::set_var(
-            "RUST_LOG",
-            "dtn7=info,dtnd=info,actix_server=info,actix_web=info",
-        );
+    if std::env::var("RUST_LOG").is_err() {
+        if matches.is_present("debug") || cfg.debug {
+            std::env::set_var("RUST_LOG", "dtn7=debug,dtnd=debug");
+        } else {
+            std::env::set_var("RUST_LOG", "dtn7=info,dtnd=info");
+        }
     }
     pretty_env_logger::init_timed();
 
@@ -246,7 +242,7 @@ Tag 255 takes 5 arguments and is interpreted as address. Usage: -S 255:'Samplest
             cfg.host_eid = if let Ok(number) = nodeid.parse::<u64>() {
                 format!("ipn:{}.0", number).try_into().unwrap()
             } else {
-                format!("dtn://{}", nodeid).try_into().unwrap()
+                format!("dtn://{}/", nodeid).try_into().unwrap()
             };
         } else {
             cfg.host_eid = nodeid.try_into().unwrap();
