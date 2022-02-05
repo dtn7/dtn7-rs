@@ -242,7 +242,7 @@ impl TcpClSession {
                 }
                 debug!("Parsing bundle from received tcp bytes");
                 // parse bundle
-                match Bundle::try_from(vec) {
+                match Bundle::try_from(vec.clone()) {
                     Ok(bundle) => {
                         tokio::spawn(async move {
                             if let Err(err) = crate::core::processing::receive(bundle).await {
@@ -252,6 +252,7 @@ impl TcpClSession {
                     }
                     Err(err) => {
                         error!("Failed to parse bundle: {}", err);
+                        error!("Failed bytes: {}", bp7::helpers::hexify(&vec));
                         self.tx_session_outgoing
                             .send(TcpClPacket::XferRefuse(XferRefuseData {
                                 reason: XferRefuseReasonCode::NotAcceptable,
