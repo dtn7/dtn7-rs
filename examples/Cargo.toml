@@ -13,7 +13,7 @@ anyhow = "1.0.32"
 serde_cbor = "0.11"
 humantime = "2.0.1"
 rand = "0.8.3"
-bp7 = {version = "0.10.2", default-features = false }
+bp7 = {version = "0.10.4", default-features = false }
 tungstenite = "0.16.0"
 
 [[example]]

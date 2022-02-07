@@ -151,9 +151,9 @@ dependencies = [
 
 [[package]]
 name = "bp7"
-version = "0.10.2"
+version = "0.10.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ec5aacd0156fb9e1e3cce2b33462bab4c318f3f65094b269a56542e4830edbc0"
+checksum = "b88dcfd6953756e781394c6b5045984cdfb4d6f5cd7423908e8794ebabfdbceb"
 dependencies = [
  "bitflags",
  "crc",
