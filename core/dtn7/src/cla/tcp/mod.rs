@@ -649,6 +649,76 @@ impl Listener {
     }
 }
 
+async fn tcp_send_bundles(dest: &str, bundle: ByteBuffer, refuse_existing_bundles: bool) -> bool {
+    let addr: SocketAddr = dest.parse().unwrap();
+
+    let sender: mpsc::Sender<(Vec<u8>, Sender<bool>)>;
+    let mut receiver = None;
+    {
+        let mut lock = TCP_CONNECTIONS.lock();
+        match lock.get(&addr) {
+            Some(value) => {
+                sender = value.clone();
+            }
+            None => {
+                let (tx_session_queue, rx_session_queue) =
+                    mpsc::channel::<(ByteBuffer, oneshot::Sender<bool>)>(INTERNAL_CHANNEL_BUFFER);
+                (*lock).insert(addr, tx_session_queue.clone());
+                sender = tx_session_queue;
+                receiver = Some(rx_session_queue);
+            }
+        }
+        // lock is dropped here
+    }
+
+    // channel is inserted first into hashmap, even if connection is not yet established
+    // connection is created here
+    if let Some(rx_session_queue) = receiver {
+        let conn_fut = TcpStream::connect(addr);
+        match tokio::time::timeout(std::time::Duration::from_secs(3), conn_fut).await {
+            Ok(Ok(stream)) => {
+                let connection = TcpConnection {
+                    stream,
+                    addr,
+                    refuse_existing_bundles,
+                };
+                connection.connect(rx_session_queue).await;
+            }
+            Ok(Err(_)) => {
+                error!("Couldn't connect to {}", addr);
+                return false;
+            }
+            Err(_) => {
+                error!("Timeout connecting to {}", addr);
+                return false;
+            }
+        }
+    }
+
+    // then push bundles to channel
+    let mut results = Vec::new();
+    debug!("Sending bundle {:?}", bundle);
+    // unfortunately not possible to avoid cloning, atomic reference counting would be needed in API
+    // backchannel that responds whether bundle send was successful
+    let (tx, rx) = oneshot::channel::<bool>();
+    if sender.send((bundle.clone(), tx)).await.is_ok() {
+        if let Ok(successful) = rx.await {
+            results.push(successful);
+        } else {
+            results.push(false);
+        }
+    } else {
+        results.push(false);
+    }
+
+    for result in results {
+        if !result {
+            return false;
+        }
+    }
+    true
+}
+
 impl TcpConvergenceLayer {
     pub fn new(local_settings: Option<&HashMap<String, String>>) -> TcpConvergenceLayer {
         let port = local_settings
@@ -670,20 +740,43 @@ impl TcpConvergenceLayer {
             "Extension settings: {:?}",
             (*CONFIG.lock()).cla_global_settings
         );
+        let (tx, mut rx) = mpsc::channel(1);
+
+        tokio::spawn(async move {
+            while let Some(cmd) = rx.recv().await {
+                match cmd {
+                    super::ClaCmd::Transfer(remote, data, reply) => {
+                        debug!(
+                            "TcpConvergenceLayer: received transfer command for {}",
+                            remote
+                        );
+                        reply
+                            .send(tcp_send_bundles(&remote, data, refuse_existing_bundles).await)
+                            .unwrap();
+                    }
+                    super::ClaCmd::Shutdown => {
+                        debug!("TcpConvergenceLayer: received shutdown command");
+                        break;
+                    }
+                }
+            }
+        });
         TcpConvergenceLayer {
             local_port: port,
             listener: None,
             refuse_existing_bundles,
+            tx,
         }
     }
 }
 
 #[cla(tcp)]
-#[derive(Default, Debug)]
+#[derive(Debug)]
 pub struct TcpConvergenceLayer {
     local_port: u16,
     listener: Option<JoinHandle<()>>,
     refuse_existing_bundles: bool,
+    tx: mpsc::Sender<super::ClaCmd>,
 }
 
 #[async_trait]
@@ -707,77 +800,8 @@ impl ConvergenceLayerAgent for TcpConvergenceLayer {
         "tcp"
     }
 
-    async fn scheduled_submission(&self, dest: &str, ready: &[ByteBuffer]) -> bool {
-        let addr: SocketAddr = dest.parse().unwrap();
-
-        let sender: mpsc::Sender<(Vec<u8>, Sender<bool>)>;
-        let mut receiver = None;
-        {
-            let mut lock = TCP_CONNECTIONS.lock();
-            match lock.get(&addr) {
-                Some(value) => {
-                    sender = value.clone();
-                }
-                None => {
-                    let (tx_session_queue, rx_session_queue) =
-                        mpsc::channel::<(ByteBuffer, oneshot::Sender<bool>)>(
-                            INTERNAL_CHANNEL_BUFFER,
-                        );
-                    (*lock).insert(addr, tx_session_queue.clone());
-                    sender = tx_session_queue;
-                    receiver = Some(rx_session_queue);
-                }
-            }
-            // lock is dropped here
-        }
-
-        // channel is inserted first into hashmap, even if connection is not yet established
-        // connection is created here
-        if let Some(rx_session_queue) = receiver {
-            let conn_fut = TcpStream::connect(addr);
-            match tokio::time::timeout(std::time::Duration::from_secs(3), conn_fut).await {
-                Ok(Ok(stream)) => {
-                    let connection = TcpConnection {
-                        stream,
-                        addr,
-                        refuse_existing_bundles: self.refuse_existing_bundles,
-                    };
-                    connection.connect(rx_session_queue).await;
-                }
-                Ok(Err(_)) => {
-                    error!("Couldn't connect to {}", addr);
-                    return false;
-                }
-                Err(_) => {
-                    error!("Timeout connecting to {}", addr);
-                    return false;
-                }
-            }
-        }
-
-        // then push bundles to channel
-        let mut results = Vec::new();
-        for bundle in ready {
-            debug!("Sending bundle {:?}", bundle);
-            // unfortunately not possible to avoid cloning, atomic reference counting would be needed in API
-            // backchannel that responds whether bundle send was successful
-            let (tx, rx) = oneshot::channel::<bool>();
-            if sender.send((bundle.clone(), tx)).await.is_ok() {
-                if let Ok(successful) = rx.await {
-                    results.push(successful);
-                } else {
-                    results.push(false);
-                }
-            } else {
-                results.push(false);
-            }
-        }
-        for result in results {
-            if !result {
-                return false;
-            }
-        }
-        return true;
+    fn channel(&self) -> tokio::sync::mpsc::Sender<super::ClaCmd> {
+        self.tx.clone()
     }
 }
 

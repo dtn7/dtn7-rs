@@ -2,8 +2,8 @@ use crate::cla::ConvergenceLayerAgent;
 use crate::core::{DtnPeer, PeerType};
 use crate::ipnd::{beacon::Beacon, services::*};
 use crate::routing::RoutingNotifcation;
-use crate::DTNCORE;
 use crate::{peers_add, routing_notify, CONFIG};
+use crate::{CLAS, DTNCORE};
 use anyhow::Result;
 use log::{debug, error, info, trace};
 use socket2::{Domain, Socket, Type};
@@ -72,8 +72,7 @@ async fn announcer(socket: UdpSocket, _v6: bool) {
         };
         let mut pkt = Beacon::with_config(eid, ServiceBlock::new(), beacon_period);
         // Get all available clas
-        (*DTNCORE.lock())
-            .cl_list
+        (*CLAS.lock())
             .iter()
             .for_each(|cla| pkt.add_cla(&cla.name().to_string(), &Some(cla.port())));
         // Get all available services

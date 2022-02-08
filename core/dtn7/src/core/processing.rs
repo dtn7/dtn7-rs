@@ -342,19 +342,22 @@ pub async fn forward(mut bp: BundlePack) -> Result<()> {
             let task_handle = tokio::spawn(async move {
                 debug!(
                     "Sending bundle to a CLA: {} {} {}",
-                    &bpid, n.remote, n.agent
+                    &bpid, n.dest, n.cla_name
                 );
-                if n.transfer(&[bd]).await {
+                if n.transfer(bd).await {
                     info!(
                         "Sending bundle succeeded: {} {} {}",
-                        &bpid, n.remote, n.agent
+                        &bpid, n.dest, n.cla_name
                     );
                     bundle_sent.store(true, Ordering::Relaxed);
                 } else {
-                    info!("Sending bundle failed: {} {} {}", &bpid, n.remote, n.agent);
+                    info!(
+                        "Sending bundle {} via {} to {} failed",
+                        &bpid, n.cla_name, n.dest
+                    );
                     let mut failed_peer = None;
                     for (key, p) in (*PEERS.lock()).iter_mut() {
-                        if p.addr == n.remote {
+                        if p.node_name() == n.next_hop.node().unwrap_or_default() {
                             (*DTNCORE.lock())
                                 .routing_agent
                                 .notify(RoutingNotifcation::SendingFailed(&bpid, &p.node_name()));
