@@ -99,6 +99,7 @@ impl RoutingAgent for EpidemicRoutingAgent {
                             cla_name: p2.0.to_string(),
                             dest,
                             tx: c.channel(),
+                            next_node: p.node_name().to_string(),
                         };
                         clas.push(cla);
                         self.add(bp.id().to_string(), p.node_name().clone());

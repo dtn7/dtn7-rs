@@ -364,16 +364,16 @@ pub async fn forward(mut bp: BundlePack) -> Result<()> {
                         &bpid, n.dest, n.cla_name
                     );
                     bundle_sent.store(true, Ordering::Relaxed);
-                } /*else if let Some(node_name) = peer_find_by_remote(&n.remote) {
-                      (*DTNCORE.lock())
-                          .routing_agent
-                          .notify(RoutingNotifcation::SendingFailed(&bpid, &node_name));
-                      info!("Sending bundle failed: {} {} {}", &bpid, n.dest, n.cla_name);
-                      // TODO: send status report?
-                      // if (*CONFIG.lock()).generate_service_reports {
-                      //    send_status_report(&bp2, FORWARDED_BUNDLE, TRANSMISSION_CANCELED);
-                      // }
-                  }*/
+                } else {
+                    (*DTNCORE.lock())
+                        .routing_agent
+                        .notify(RoutingNotifcation::SendingFailed(&bpid, &n.next_node));
+                    info!("Sending bundle failed: {} {} {}", &bpid, n.dest, n.cla_name);
+                    // TODO: send status report?
+                    // if (*CONFIG.lock()).generate_service_reports {
+                    //    send_status_report(&bp2, FORWARDED_BUNDLE, TRANSMISSION_CANCELED);
+                    // }
+                }
                 //drop(wg);
             });
             wg.push(task_handle);
