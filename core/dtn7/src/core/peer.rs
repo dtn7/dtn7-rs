@@ -153,6 +153,7 @@ impl DtnPeer {
                         tx: cla_instance.channel(),
                         dest,
                         cla_name: cla_instance.name().into(),
+                        next_node: self.eid.to_string(),
                     });
                 }
             }
