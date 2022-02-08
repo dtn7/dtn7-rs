@@ -274,7 +274,7 @@ impl MtcpConvergenceLayer {
             .and_then(|settings| settings.get("port"))
             .and_then(|port_str| port_str.parse::<u16>().ok())
             .unwrap_or(16162);
-        let (tx, mut rx) = mpsc::channel(1);
+        let (tx, mut rx) = mpsc::channel(100);
         tokio::spawn(async move {
             while let Some(cmd) = rx.recv().await {
                 match cmd {
