@@ -54,7 +54,7 @@ pub async fn http_send_bundles(remote: String, ready: ByteBuffer) -> bool {
 
 impl HttpConvergenceLayer {
     pub fn new(_local_settings: Option<&HashMap<String, String>>) -> HttpConvergenceLayer {
-        let (tx, mut rx) = mpsc::channel(1);
+        let (tx, mut rx) = mpsc::channel(100);
         tokio::spawn(async move {
             while let Some(cmd) = rx.recv().await {
                 match cmd {
