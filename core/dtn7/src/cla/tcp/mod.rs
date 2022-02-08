@@ -711,7 +711,7 @@ impl TcpConvergenceLayer {
             "Extension settings: {:?}",
             (*CONFIG.lock()).cla_global_settings
         );
-        let (tx, mut rx) = mpsc::channel(1);
+        let (tx, mut rx) = mpsc::channel(100);
 
         tokio::spawn(async move {
             while let Some(cmd) = rx.recv().await {
