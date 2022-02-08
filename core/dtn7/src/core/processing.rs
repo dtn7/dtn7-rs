@@ -352,22 +352,24 @@ pub async fn forward(mut bp: BundlePack) -> Result<()> {
                     bundle_sent.store(true, Ordering::Relaxed);
                 } else {
                     info!(
-                        "Sending bundle {} via {} to {} failed",
-                        &bpid, n.cla_name, n.dest
+                        "Sending bundle {} via {} to {} ({}) failed",
+                        &bpid, n.cla_name, n.dest, n.next_hop
                     );
                     let mut failed_peer = None;
-                    for (key, p) in (*PEERS.lock()).iter_mut() {
-                        if p.node_name() == n.next_hop.node().unwrap_or_default() {
-                            (*DTNCORE.lock())
-                                .routing_agent
-                                .notify(RoutingNotifcation::SendingFailed(&bpid, &p.node_name()));
-                            p.report_fail();
-                            if p.failed_too_much() && p.con_type == PeerType::Dynamic {
-                                failed_peer = Some(key.clone());
-                            }
-                            break;
+                    if let Some(peer_entry) = (*PEERS.lock()).get_mut(&n.next_hop.node().unwrap()) {
+                        (*DTNCORE.lock())
+                            .routing_agent
+                            .notify(RoutingNotifcation::SendingFailed(
+                                &bpid,
+                                &peer_entry.node_name(),
+                            ));
+                        peer_entry.report_fail();
+                        if peer_entry.failed_too_much() && peer_entry.con_type == PeerType::Dynamic
+                        {
+                            failed_peer = Some(peer_entry.node_name().clone());
                         }
                     }
+
                     if let Some(peer) = failed_peer {
                         let peers_before = (*PEERS.lock()).len();
                         (*PEERS.lock()).remove(&peer);

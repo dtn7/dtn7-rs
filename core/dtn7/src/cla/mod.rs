@@ -50,33 +50,6 @@ impl ClaSenderTask {
         reply_rx.await.unwrap()
     }
 }
-/*
-#[derive(Debug, PartialEq, Eq, Hash, Clone)]
-pub struct ClaSender {
-    pub remote: PeerAddress,
-    pub port: Option<u16>,
-    pub agent: CLAsAvailable,
-}
-
-#[derive(Debug, PartialEq, Eq, Hash, Clone)]
-pub struct ClaSender {
-    pub remote: PeerAddress,
-    pub port: Option<u16>,
-    pub agent: CLAsAvailable,
-}
-impl ClaSender {
-    /// Create new convergence layer agent just for sending bundles
-    pub async fn transfer(&self, ready: &[ByteBuffer]) -> bool {
-        // TODO: provide proper local settings
-        let sender = new(&self.agent, None);
-        let dest = if self.port.is_some() {
-            format!("{}:{}", self.remote, self.port.unwrap())
-        } else {
-            self.remote.to_string()
-        };
-        sender.scheduled_submission(&dest, ready).await
-    }
-}*/
 
 #[async_trait]
 #[enum_dispatch(CLAEnum)]
