@@ -1,7 +1,5 @@
-use crate::cla;
 use crate::core::bundlepack::*;
 use crate::core::*;
-use crate::peer_find_by_remote;
 use crate::peers_cla_for_node;
 use crate::routing::RoutingNotifcation;
 use crate::routing_notify;
@@ -18,6 +16,7 @@ use bp7::CanonicalData;
 use bp7::BUNDLE_AGE_BLOCK;
 
 use anyhow::{bail, Result};
+use log::trace;
 use log::{debug, info, warn};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
@@ -301,10 +300,10 @@ pub async fn forward(mut bp: BundlePack) -> Result<()> {
 
     bp.add_constraint(Constraint::ForwardPending);
     bp.remove_constraint(Constraint::DispatchPending);
-    debug!("updating bundle info in store: {}", bpid);
+    trace!("updating bundle info in store: {}", bpid);
     bp.sync()?;
 
-    debug!("Handle lifetime");
+    trace!("Handle lifetime");
     let bndl = store_get_bundle(&bpid);
     if bndl.is_none() {
         bail!("bundle not found: {}", bpid);
@@ -314,14 +313,15 @@ pub async fn forward(mut bp: BundlePack) -> Result<()> {
 
     let mut delete_afterwards = true;
     let bundle_sent = Arc::new(AtomicBool::new(false));
-    let mut nodes: Vec<cla::ClaSender> = Vec::new();
+    let mut nodes = Vec::new();
 
-    debug!("Check delivery");
+    debug!("Check for possible peers");
     // direct delivery possible?
     if let Some(direct_node) = peers_cla_for_node(&bp.destination) {
         debug!("Attempting direct delivery: {:?}", direct_node);
         nodes.push(direct_node);
     } else {
+        debug!("No direct delivery possible - asking routing agent");
         let (cla_nodes, del) = (*DTNCORE.lock()).routing_agent.sender_for_bundle(&bp);
         nodes = cla_nodes;
         delete_afterwards = del;
@@ -356,24 +356,24 @@ pub async fn forward(mut bp: BundlePack) -> Result<()> {
             let task_handle = tokio::spawn(async move {
                 info!(
                     "Sending bundle to a CLA: {} {} {}",
-                    &bpid, n.remote, n.agent
+                    &bpid, n.dest, n.cla_name
                 );
-                if n.transfer(&[bd]).await {
+                if n.transfer(bd).await {
                     info!(
                         "Sending bundle succeeded: {} {} {}",
-                        &bpid, n.remote, n.agent
+                        &bpid, n.dest, n.cla_name
                     );
                     bundle_sent.store(true, Ordering::Relaxed);
-                } else if let Some(node_name) = peer_find_by_remote(&n.remote) {
-                    (*DTNCORE.lock())
-                        .routing_agent
-                        .notify(RoutingNotifcation::SendingFailed(&bpid, &node_name));
-                    info!("Sending bundle failed: {} {} {}", &bpid, n.remote, n.agent);
-                    // TODO: send status report?
-                    // if (*CONFIG.lock()).generate_service_reports {
-                    //    send_status_report(&bp2, FORWARDED_BUNDLE, TRANSMISSION_CANCELED);
-                    // }
-                }
+                } /*else if let Some(node_name) = peer_find_by_remote(&n.remote) {
+                      (*DTNCORE.lock())
+                          .routing_agent
+                          .notify(RoutingNotifcation::SendingFailed(&bpid, &node_name));
+                      info!("Sending bundle failed: {} {} {}", &bpid, n.dest, n.cla_name);
+                      // TODO: send status report?
+                      // if (*CONFIG.lock()).generate_service_reports {
+                      //    send_status_report(&bp2, FORWARDED_BUNDLE, TRANSMISSION_CANCELED);
+                      // }
+                  }*/
                 //drop(wg);
             });
             wg.push(task_handle);

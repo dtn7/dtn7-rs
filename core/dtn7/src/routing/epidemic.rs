@@ -1,9 +1,9 @@
 use super::RoutingAgent;
-use crate::cla::ClaSender;
+use crate::cla::{ClaSenderTask, ConvergenceLayerAgent};
 use crate::core::bundlepack::BundlePack;
 use crate::routing::RoutingNotifcation;
-use crate::PEERS;
-use log::debug;
+use crate::{CLAS, PEERS};
+use log::{debug, trace};
 use std::collections::{HashMap, HashSet};
 
 /// Simple epidemic routing.
@@ -80,13 +80,30 @@ impl RoutingAgent for EpidemicRoutingAgent {
             _ => {}
         }
     }
-    fn sender_for_bundle(&mut self, bp: &BundlePack) -> (Vec<ClaSender>, bool) {
+    fn sender_for_bundle(&mut self, bp: &BundlePack) -> (Vec<ClaSenderTask>, bool) {
+        trace!("search for sender for bundle {}", bp.id());
         let mut clas = Vec::new();
         for (_, p) in (*PEERS.lock()).iter() {
-            if let Some(cla) = p.first_cla() {
-                if !self.contains(bp.id(), &p.node_name()) {
-                    clas.push(cla);
-                    self.add(bp.id().to_string(), p.node_name().clone());
+            if self.contains(bp.id(), &p.node_name()) {
+                continue;
+            }
+            for p2 in &p.cla_list {
+                for c in (*CLAS.lock()).iter() {
+                    if c.name() == p2.0 {
+                        let dest = if let Some(port) = p2.1 {
+                            format!("{}:{}", p.addr(), port)
+                        } else {
+                            p.addr().to_string()
+                        };
+                        let cla = ClaSenderTask {
+                            cla_name: p2.0.to_string(),
+                            dest,
+                            tx: c.channel(),
+                        };
+                        clas.push(cla);
+                        self.add(bp.id().to_string(), p.node_name().clone());
+                        break; // only one cla per peer
+                    }
                 }
             }
         }

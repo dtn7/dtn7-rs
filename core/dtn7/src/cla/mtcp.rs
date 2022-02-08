@@ -18,6 +18,7 @@ use std::net::TcpStream;
 use std::time::Instant;
 use tokio::io;
 use tokio::net::TcpListener;
+use tokio::sync::mpsc;
 use tokio_util::codec::{Decoder, Encoder, Framed};
 
 use super::HelpStr;
@@ -196,11 +197,75 @@ impl Decoder for MPDUCodec {
         Ok(None)
     }
 }
+async fn mtcp_listener(port: u16) -> Result<(), io::Error> {
+    let addr: SocketAddrV4 = format!("0.0.0.0:{}", port).parse().unwrap();
+    let listener = TcpListener::bind(&addr)
+        .await
+        .expect("failed to bind tcp port");
+    debug!("spawning MTCP listener on port {}", port);
+    loop {
+        let (socket, _) = listener.accept().await.unwrap();
+
+        tokio::spawn(MtcpConvergenceLayer::handle_connection(socket));
+    }
+}
+
+pub fn mtcp_send_bundles(addr: SocketAddr, bundles: Vec<ByteBuffer>) -> bool {
+    // TODO: implement correct error handling
+    // TODO: classic sending thread, tokio code would block and not complete large transmissions
+    let now = Instant::now();
+    let num_bundles = bundles.len();
+    let mut buf = Vec::new();
+    for b in bundles {
+        let mpdu = MPDU(b);
+        if let Ok(buf2) = serde_cbor::to_vec(&mpdu) {
+            buf.extend_from_slice(&buf2);
+        } else {
+            error!("MPDU encoding error!");
+            return false;
+        }
+    }
+
+    #[allow(clippy::map_entry)]
+    if !MTCP_CONNECTIONS.lock().contains_key(&addr) {
+        debug!("Connecting to {}", addr);
+        if let Ok(stream) = TcpStream::connect(&addr) {
+            MTCP_CONNECTIONS.lock().insert(addr, stream);
+        } else {
+            error!("Error connecting to remote {}", addr);
+            return false;
+        }
+    } else {
+        debug!("Already connected to {}", addr);
+    };
+    let mut s1 = MTCP_CONNECTIONS
+        .lock()
+        .get(&addr)
+        .unwrap()
+        .try_clone()
+        .unwrap();
+
+    if s1.write_all(&buf).is_err() {
+        error!("Error writing data to {}", addr);
+        MTCP_CONNECTIONS.lock().remove(&addr);
+        return false;
+    }
+    info!(
+        "Transmission time: {:?} for {} bundles in {} bytes to {}",
+        now.elapsed(),
+        num_bundles,
+        buf.len(),
+        addr
+    );
+
+    true
+}
 
 #[cla(mtcp)]
-#[derive(Debug, Copy, Clone, Default)]
+#[derive(Debug, Clone)]
 pub struct MtcpConvergenceLayer {
     local_port: u16,
+    tx: mpsc::Sender<super::ClaCmd>,
 }
 
 impl MtcpConvergenceLayer {
@@ -209,7 +274,35 @@ impl MtcpConvergenceLayer {
             .and_then(|settings| settings.get("port"))
             .and_then(|port_str| port_str.parse::<u16>().ok())
             .unwrap_or(16162);
-        MtcpConvergenceLayer { local_port: port }
+        let (tx, mut rx) = mpsc::channel(1);
+        tokio::spawn(async move {
+            while let Some(cmd) = rx.recv().await {
+                match cmd {
+                    super::ClaCmd::Transfer(remote, data, reply) => {
+                        debug!(
+                            "MtcpConvergenceLayer: received transfer command for {}",
+                            remote
+                        );
+                        if !data.is_empty() {
+                            let peeraddr: SocketAddr = remote.parse().unwrap();
+                            debug!("forwarding to {:?}", peeraddr);
+                            reply.send(mtcp_send_bundles(peeraddr, vec![data])).unwrap();
+                        } else {
+                            debug!("Nothing to forward.");
+                            reply.send(true).unwrap();
+                        }
+                    }
+                    super::ClaCmd::Shutdown => {
+                        debug!("MtcpConvergenceLayer: received shutdown command");
+                        break;
+                    }
+                }
+            }
+        });
+        MtcpConvergenceLayer {
+            local_port: port,
+            tx,
+        }
     }
     async fn handle_connection(socket: tokio::net::TcpStream) -> anyhow::Result<()> {
         let peer_addr = socket.peer_addr().unwrap();
@@ -241,22 +334,10 @@ impl MtcpConvergenceLayer {
         info!("Disconnected {}", peer_addr);
         Ok(())
     }
-    async fn listener(self) -> Result<(), io::Error> {
-        let port = self.port();
-        let addr: SocketAddrV4 = format!("0.0.0.0:{}", port).parse().unwrap();
-        let listener = TcpListener::bind(&addr)
-            .await
-            .expect("failed to bind tcp port");
-        debug!("spawning MTCP listener on port {}", port);
-        loop {
-            let (socket, _) = listener.accept().await.unwrap();
 
-            tokio::spawn(MtcpConvergenceLayer::handle_connection(socket));
-        }
-    }
     pub async fn spawn_listener(&self) -> std::io::Result<()> {
         // TODO: bubble up errors from run
-        tokio::spawn(self.listener()); /*.await.unwrap()*/
+        tokio::spawn(mtcp_listener(self.local_port)); /*.await.unwrap()*/
         Ok(())
     }
     pub fn send_bundles(&self, addr: SocketAddr, bundles: Vec<ByteBuffer>) -> bool {
@@ -324,16 +405,8 @@ impl ConvergenceLayerAgent for MtcpConvergenceLayer {
     fn name(&self) -> &'static str {
         "mtcp"
     }
-    async fn scheduled_submission(&self, dest: &str, ready: &[ByteBuffer]) -> bool {
-        debug!("Scheduled MTCP submission: {:?}", dest);
-        if !ready.is_empty() {
-            let peeraddr: SocketAddr = dest.parse().unwrap();
-            debug!("forwarding to {:?}", peeraddr);
-            return self.send_bundles(peeraddr, ready.to_vec());
-        } else {
-            debug!("Nothing to forward.");
-        }
-        true
+    fn channel(&self) -> tokio::sync::mpsc::Sender<super::ClaCmd> {
+        self.tx.clone()
     }
 }
 

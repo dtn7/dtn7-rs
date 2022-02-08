@@ -2,11 +2,11 @@ use std::convert::TryFrom;
 
 use super::{httpd, janitor};
 use crate::cla::ConvergenceLayerAgent;
-use crate::cla_add;
 use crate::core::application_agent::SimpleApplicationAgent;
 use crate::dtnconfig::DtnConfig;
 use crate::ipnd::neighbour_discovery;
 use crate::peers_add;
+use crate::{cla_add, CLAS};
 use crate::{CONFIG, DTNCORE, STORE};
 use bp7::EndpointID;
 use log::{error, info};
@@ -54,7 +54,7 @@ fn spawn_core_daemon(rx: Receiver<DtnCmd>) {
 async fn start_convergencylayers() {
     info!("Starting convergency layers");
 
-    for cl in &mut (*DTNCORE.lock()).cl_list {
+    for cl in &mut (*CLAS.lock()) {
         info!("Setup {}", cl);
         cl.setup().await;
     }
