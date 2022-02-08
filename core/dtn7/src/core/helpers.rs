@@ -99,7 +99,7 @@ pub fn parse_peer_url(peer_url: &str) -> DtnPeer {
     };
 
     DtnPeer::new(
-        format!("dtn://{}", nodeid.replace('/', ""))
+        format!("dtn://{}/", nodeid.replace('/', ""))
             .try_into()
             .unwrap(),
         addr,

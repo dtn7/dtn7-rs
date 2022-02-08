@@ -1,6 +1,5 @@
 use super::RoutingAgent;
-use crate::cla::ClaSender;
-use crate::core::bundlepack::BundlePack;
+use crate::{cla::ClaSenderTask, core::bundlepack::BundlePack};
 
 #[derive(Default, Debug)]
 pub struct SinkRoutingAgent;
@@ -11,7 +10,7 @@ impl SinkRoutingAgent {
     }
 }
 impl RoutingAgent for SinkRoutingAgent {
-    fn sender_for_bundle(&mut self, _bp: &BundlePack) -> (Vec<ClaSender>, bool) {
+    fn sender_for_bundle(&mut self, _bp: &BundlePack) -> (Vec<ClaSenderTask>, bool) {
         (vec![], false)
     }
 }

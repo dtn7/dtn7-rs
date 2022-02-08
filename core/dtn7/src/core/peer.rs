@@ -1,5 +1,5 @@
-use crate::cla::CLAsAvailable;
-use crate::CONFIG;
+use crate::cla::{ClaSenderTask, ConvergenceLayerAgent};
+use crate::{CLAS, CONFIG};
 use bp7::EndpointID;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -50,7 +50,7 @@ pub struct DtnPeer {
     pub addr: PeerAddress,
     pub con_type: PeerType,
     pub period: Option<Duration>,
-    pub cla_list: Vec<(CLAsAvailable, Option<u16>)>,
+    pub cla_list: Vec<(String, Option<u16>)>,
     pub services: HashMap<u8, String>,
     pub last_contact: u64,
 }
@@ -61,7 +61,7 @@ impl DtnPeer {
         addr: PeerAddress,
         con_type: PeerType,
         period: Option<Duration>,
-        cla_list: Vec<(CLAsAvailable, Option<u16>)>,
+        cla_list: Vec<(String, Option<u16>)>,
         services: HashMap<u8, String>,
     ) -> DtnPeer {
         DtnPeer {
@@ -140,14 +140,22 @@ impl DtnPeer {
     pub fn node_name(&self) -> String {
         self.eid.node().unwrap_or_default()
     }
-    pub fn first_cla(&self) -> Option<crate::cla::ClaSender> {
-        if let Some((c, port)) = self.cla_list.first() {
-            let sender = crate::cla::ClaSender {
-                remote: self.addr.clone(),
-                port: *port,
-                agent: *c,
-            };
-            return Some(sender);
+    pub fn first_cla(&self) -> Option<ClaSenderTask> {
+        for cla in &self.cla_list {
+            for cla_instance in &(*CLAS.lock()) {
+                if cla.0 == cla_instance.name() {
+                    let dest = format!(
+                        "{}:{}",
+                        self.addr,
+                        cla.1.unwrap_or_else(|| cla_instance.port())
+                    );
+                    return Some(ClaSenderTask {
+                        tx: cla_instance.channel(),
+                        dest,
+                        cla_name: cla_instance.name().into(),
+                    });
+                }
+            }
         }
         None
     }
