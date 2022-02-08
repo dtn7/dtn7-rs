@@ -423,7 +423,7 @@ impl TcpClReceiver {
             {
                 Ok(parsed_packet) => match parsed_packet {
                     Ok(packet) => {
-                        debug!("Received and successfully parsed packet");
+                        debug!("Received and successfully parsed packet, {:?}", packet);
                         if let TcpClPacket::KeepAlive = packet {
                             debug!("Received keepalive");
                             if peers_touch(&self.remote_node_name).is_err() {
@@ -475,6 +475,7 @@ impl TcpClSender {
             {
                 Ok(packet) => {
                     if let Some(packet) = packet {
+                        debug!("Sending regular packet, {:?}", packet);
                         self.send_packet(&packet).await;
                         if let TcpClPacket::SessTerm(_) = packet {
                             //breaks loop, tasks finished, dropped sender, connection closed
@@ -522,7 +523,6 @@ impl TcpConnection {
 
         let session_init = TcpClPacket::SessInit(sess_init_data.clone());
         session_init.serialize(&mut self.writer).await?;
-        self.writer.flush().await?;
 
         let response = TcpClPacket::deserialize(&mut self.reader).await?;
         debug!("Received session parameters");
@@ -547,7 +547,6 @@ impl TcpConnection {
         TcpClPacket::ContactHeader(flags)
             .serialize(&mut self.writer)
             .await?;
-        self.writer.flush().await?;
         Ok(())
     }
 

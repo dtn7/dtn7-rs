@@ -90,6 +90,7 @@ impl TcpClPacket {
                 writer.write_u8(flags.bits()).await?;
             }
         }
+        writer.flush().await?;
         Ok(())
     }
 
