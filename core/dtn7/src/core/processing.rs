@@ -18,6 +18,7 @@ use bp7::CanonicalData;
 use bp7::BUNDLE_AGE_BLOCK;
 
 use anyhow::{bail, Result};
+use log::trace;
 use log::{debug, info, warn};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
@@ -297,26 +298,18 @@ async fn handle_previous_node_block(mut bundle: Bundle) -> Result<Bundle> {
 pub async fn forward(mut bp: BundlePack) -> Result<()> {
     let bpid = bp.id().to_string();
 
-    info!("Forward request for bundle: {}", bpid);
+    debug!("Forward request for bundle: {}", bpid);
 
     bp.add_constraint(Constraint::ForwardPending);
     bp.remove_constraint(Constraint::DispatchPending);
-    debug!("updating bundle info in store: {}", bpid);
+    trace!("updating bundle info in store: {}", bpid);
     bp.sync()?;
-
-    debug!("Handle lifetime");
-    let bndl = store_get_bundle(&bpid);
-    if bndl.is_none() {
-        bail!("bundle not found: {}", bpid);
-    }
-    let mut bndl = bndl.unwrap();
-    handle_primary_lifetime(&bndl).await?;
 
     let mut delete_afterwards = true;
     let bundle_sent = Arc::new(AtomicBool::new(false));
     let mut nodes: Vec<cla::ClaSender> = Vec::new();
 
-    debug!("Check delivery");
+    trace!("Check delivery");
     // direct delivery possible?
     if let Some(direct_node) = peers_cla_for_node(&bp.destination) {
         debug!("Attempting direct delivery: {:?}", direct_node);
@@ -332,13 +325,21 @@ pub async fn forward(mut bp: BundlePack) -> Result<()> {
     if nodes.is_empty() {
         debug!("No new peers for forwarding of bundle {}", &bp.id());
     } else {
-        debug!("Handle hop count block");
+        debug!("Handle lifetime");
+        let bndl = store_get_bundle(&bpid);
+        if bndl.is_none() {
+            bail!("bundle not found: {}", bpid);
+        }
+        let mut bndl = bndl.unwrap();
+        handle_primary_lifetime(&bndl).await?;
+
+        trace!("Handle hop count block");
         bndl = handle_hop_count_block(bndl).await?;
 
-        debug!("Handle previous node block");
+        trace!("Handle previous node block");
         // Handle previous node block
         bndl = handle_previous_node_block(bndl).await?;
-        debug!("Handle bundle age block");
+        trace!("Handle bundle age block");
         // Handle bundle age block
         bndl = handle_bundle_age_block(bndl).await?;
 
@@ -354,7 +355,7 @@ pub async fn forward(mut bp: BundlePack) -> Result<()> {
             let bundle_sent = std::sync::Arc::clone(&bundle_sent);
             let n = n.clone();
             let task_handle = tokio::spawn(async move {
-                info!(
+                debug!(
                     "Sending bundle to a CLA: {} {} {}",
                     &bpid, n.remote, n.agent
                 );

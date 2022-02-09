@@ -15,9 +15,12 @@ pub use crate::{store_has_item, store_push_bundle};
 use crate::{PEERS, STORE};
 use application_agent::ApplicationAgent;
 use bp7::EndpointID;
+use log::debug;
+use log::trace;
 use log::{error, info};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use std::time::Instant;
 
 use crate::core::application_agent::ApplicationAgentEnum;
 
@@ -138,6 +141,7 @@ pub fn process_peers() {
 
 /// Reprocess bundles in store
 pub async fn process_bundles() {
+    let now_total = Instant::now();
     let forwarding_bids: Vec<String> = (*STORE.lock()).forwarding();
 
     let mut forwarding_bundles: Vec<BundlePack> = forwarding_bids
@@ -146,10 +150,19 @@ pub async fn process_bundles() {
         .collect();
     forwarding_bundles.sort_unstable_by(|a, b| a.creation_time.cmp(&b.creation_time));
 
+    let num_bundles = forwarding_bundles.len();
     for bp in forwarding_bundles {
+        let bpid = bp.id().to_string();
+        let now = Instant::now();
         if let Err(err) = forward(bp).await {
             error!("Error forwarding bundle: {}", err);
         }
+        trace!("Forwarding time: {:?} for {}", now.elapsed(), bpid);
     }
+    debug!(
+        "time to process {} bundles: {:?}",
+        num_bundles,
+        now_total.elapsed()
+    );
     //forwarding_bundle_ids.iter().for_each(|bpid| {});
 }
