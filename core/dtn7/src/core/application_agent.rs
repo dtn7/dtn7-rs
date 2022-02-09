@@ -1,6 +1,6 @@
 use bp7::{Bundle, EndpointID};
 use enum_dispatch::enum_dispatch;
-use log::{debug, info, trace};
+use log::{debug, trace};
 use std::collections::VecDeque;
 use std::fmt::Debug;
 use tokio::sync::mpsc::Sender;
