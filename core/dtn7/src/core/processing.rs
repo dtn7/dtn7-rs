@@ -370,6 +370,22 @@ pub async fn forward(mut bp: BundlePack) -> Result<()> {
                         .routing_agent
                         .notify(RoutingNotifcation::SendingFailed(&bpid, &node_name));
                     info!("Sending bundle failed: {} {} {}", &bpid, n.remote, n.agent);
+                    let mut failed_peer = None;
+                    for (key, p) in (*PEERS.lock()).iter_mut() {
+                        if p.node_name() == node_name {
+                            p.report_fail();
+                            if p.failed_too_much() && p.con_type == PeerType::Dynamic {
+                                failed_peer = Some(key.clone());
+                            }
+                            break;
+                        }
+                    }
+                    if let Some(peer) = failed_peer {
+                        let peers_before = (*PEERS.lock()).len();
+                        (*PEERS.lock()).remove(&peer);
+                        let peers_after = (*PEERS.lock()).len();
+                        info!("Removing peer {} from list of neighbors due to too many failed transmissions ({}/{})", peer, peers_before, peers_after);
+                    }
                     // TODO: send status report?
                     // if (*CONFIG.lock()).generate_service_reports {
                     //    send_status_report(&bp2, FORWARDED_BUNDLE, TRANSMISSION_CANCELED);
@@ -414,7 +430,9 @@ pub async fn forward(mut bp: BundlePack) -> Result<()> {
             }
         } else {
             info!("Failed to forward bundle to any CLA: {}", bp.id());
-            contraindicated(bp)?;
+            // don't contraindicate if we failed to forward to any CLA
+            // retry next janitor run
+            //contraindicated(bp)?;
         }
     }
     Ok(())
