@@ -11,7 +11,7 @@ if [ "$#" -ne 1 ]; then
 fi
 
 mkdir -p $1/bin
-cargo build --all --release && for i in $(find ../../target/release/ -executable -type f | grep -v -); do cp -v $i  $1/bin ; done
+cargo build --all --release --locked && for i in $(find ../../target/release/ -executable -type f | grep -v -); do cp -v $i  $1/bin ; done
 
 ./clab $1 || exit 255
 

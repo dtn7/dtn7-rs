@@ -23,11 +23,12 @@ DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
 PORT_NODE1=3000
 PORT_NODE2=3001
 PORT_NODE3=3002
+PORT_NODE4=3003
 
 OUT_NODE1=$(mktemp /tmp/node1.XXXXXX)
 #DB1="-W /tmp/node1 -D sled"
 #DB1="-W /tmp/node1 -D sneakers"
-$DIR/../target/$TARGET/dtnd -d -j5s -i0 -w $PORT_NODE1 -C mtcp:2342 -e incoming -r epidemic -n node1 -s mtcp://127.0.0.1:4223/node2 $DB1 $STATUS_REPORTS 2>&1 &> $OUT_NODE1 &
+$DIR/../target/$TARGET/dtnd -d -j5s -i0 -w $PORT_NODE1 -C mtcp:port=2342 -e incoming -r epidemic -n node1 -s mtcp://127.0.0.1:4223/node2 $DB1 $STATUS_REPORTS 2>&1 &> $OUT_NODE1 &
 PID_NODE1=$!
 echo node1 pid: $PID_NODE1
 echo node1 out: $OUT_NODE1
@@ -37,7 +38,7 @@ echo node1 port: $PORT_NODE1
 OUT_NODE2=$(mktemp /tmp/node2.XXXXXX)
 #DB2="-W /tmp/node2 -D sled"
 #DB2="-W /tmp/node2 -D sneakers"
-$DIR/../target/$TARGET/dtnd -d -j5s -i0 -w $PORT_NODE2 -C mtcp:4223 -C http -e incoming -r epidemic \
+$DIR/../target/$TARGET/dtnd -d -j5s -i0 -w $PORT_NODE2 -C mtcp:port=4223 -C http -e incoming -r epidemic \
     -n node2 \
     -s mtcp://127.0.0.1:2342/node1 \
     -s http://127.0.0.1:$PORT_NODE3/node3 \
@@ -50,18 +51,25 @@ echo node2 port: $PORT_NODE2
 OUT_NODE3=$(mktemp /tmp/node3.XXXXXX)
 #DB3="-W /tmp/node3 -D sled"
 #DB3="-W /tmp/node3 -D sneakers"
-$DIR/../target/$TARGET/dtnd -d -j5s -i0 -w $PORT_NODE3 -C http -e incoming -r epidemic -n node3 -s http://127.0.0.1:$PORT_NODE2/node2 $DB3 $STATUS_REPORTS 2>&1 &> $OUT_NODE3 &
+$DIR/../target/$TARGET/dtnd -d -j5s -i0 -w $PORT_NODE3 -C http -C tcp:port=4224 -e incoming -r epidemic -n node3 -s http://127.0.0.1:$PORT_NODE2/node2 -s tcp://127.0.0.1:4225/node4 $STATUS_REPORTS 2>&1 &> $OUT_NODE3 &
 PID_NODE3=$!
 echo node3 pid: $PID_NODE3
 echo node3 out: $OUT_NODE3
 echo node3 port: $PORT_NODE3
 
+OUT_NODE4=$(mktemp /tmp/node4.XXXXXX)
+$DIR/../target/$TARGET/dtnd -d -j5s -i0 -w $PORT_NODE4 -C tcp:port=4225 -e incoming -r epidemic -n node4 -s tcp://127.0.0.1:4224/node3 $DB4 $STATUS_REPORTS 2>&1 &> $OUT_NODE4 &
+PID_NODE4=$!
+echo node4 pid: $PID_NODE4
+echo node4 out: $OUT_NODE4
+echo node4 port: $PORT_NODE4
+
 sleep 1
 
 echo
 
-echo "Sending 'test' to node 3"
-echo test | $DIR/../target/$TARGET/dtnsend -r dtn://node3/incoming -p $PORT_NODE1
+echo "Sending 'test' to node 4"
+echo test | $DIR/../target/$TARGET/dtnsend -r dtn://node4/incoming -p $PORT_NODE1
 
 sleep 5
 
@@ -83,8 +91,8 @@ else
     echo "Incorrect number of bundles in store!"
 fi
 echo
-echo -n "Receiving on node 3: "
-$DIR/../target/$TARGET/dtnrecv -v -e incoming -p $PORT_NODE3
+echo -n "Receiving on node 4: "
+$DIR/../target/$TARGET/dtnrecv -v -e incoming -p $PORT_NODE4
 RC=$? 
 echo "RET: $RC" 
 echo 
@@ -98,8 +106,8 @@ else
   echo
 fi
 
-kill $PID_NODE1 $PID_NODE2 $PID_NODE3
-rm $OUT_NODE1 $OUT_NODE2 $OUT_NODE3
+kill $PID_NODE1 $PID_NODE2 $PID_NODE3 $PID_NODE4
+rm $OUT_NODE1 $OUT_NODE2 $OUT_NODE3 $OUT_NODE4
 
 if [ "$NUM_BUNDLES" = "$EXPECTED_BUNDLES" ]; then
   exit $RC

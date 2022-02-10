@@ -16,17 +16,17 @@ async fn main() -> Result<()> {
         .author(crate_authors!())
         .about("A simple ecla example that connects N dtnd instances")
         .arg(
-            Arg::with_name("addr")
-                .short("a")
+            Arg::new("addr")
+                .short('a')
                 .long("addr")
                 .value_name("ip:ecla_port")
                 .help("specify ecla address and port")
-                .multiple(true)
+                .multiple_occurrences(true)
                 .takes_value(true),
         )
         .arg(
-            Arg::with_name("debug")
-                .short("d")
+            Arg::new("debug")
+                .short('d')
                 .long("debug")
                 .help("Set log level to debug")
                 .takes_value(false),
@@ -36,7 +36,7 @@ async fn main() -> Result<()> {
     if matches.is_present("debug") {
         std::env::set_var(
             "RUST_LOG",
-            "dtn7=debug,dtnd=debug,actix_server=debug,actix_web=debug,debug,dtnecla_connect_n=debug",
+            "trace,examples=debug,dtn7=debug,dtnd=debug,actix_server=debug,actix_web=debug,debug,dtnecla_connect_n=debug",
         );
         pretty_env_logger::init_timed();
     }

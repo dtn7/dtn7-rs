@@ -23,7 +23,7 @@ OUT_NODE1=$(mktemp /tmp/node1.XXXXXX)
 PORT_NODE1=3000
 #DB1="-W /tmp/node1 -D sled"
 #DB1="-W /tmp/node1 -D sneakers"
-$DIR/../target/$TARGET/dtnd -d -j5s -w $PORT_NODE1 -e incoming -r epidemic -n node1 --disable_nd -C mtcp:2342 -s mtcp://127.0.0.1:4223/node2 $DB1 $STATUS_REPORTS 2>&1 &> $OUT_NODE1 &
+$DIR/../target/$TARGET/dtnd -d -j5s -w $PORT_NODE1 -e incoming -r epidemic -n node1 --disable_nd -C mtcp:port=2342 -s mtcp://127.0.0.1:4223/node2 $DB1 $STATUS_REPORTS 2>&1 &> $OUT_NODE1 &
 PID_NODE1=$!
 echo node1 pid: $PID_NODE1
 echo node1 out: $OUT_NODE1
@@ -36,7 +36,7 @@ PORT_NODE2=3001
 #DB2="-W /tmp/node2 -D sneakers"
 $DIR/../target/$TARGET/dtnd -d -j5s -w $PORT_NODE2 -e incoming -r epidemic \
     -n node2 \
-    -C mtcp:4223 -s mtcp://127.0.0.1:2342/node1 \
+    -C mtcp:port=4223 -s mtcp://127.0.0.1:2342/node1 \
     --interval 1s --ecla --disable_nd \
     $DB2 2>&1 &> $OUT_NODE2 &
 PID_NODE2=$!

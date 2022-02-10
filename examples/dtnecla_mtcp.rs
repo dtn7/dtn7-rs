@@ -128,24 +128,24 @@ async fn main() -> Result<()> {
         .author(crate_authors!())
         .about("A simple ecla example that transmits data via tcp cbor encoded")
         .arg(
-            Arg::with_name("addr")
-                .short("a")
+            Arg::new("addr")
+                .short('a')
                 .long("addr")
                 .value_name("ip:ecla_port")
                 .help("specify ecla address and port")
-                .multiple(false),
+                .multiple_values(false),
         )
         .arg(
-            Arg::with_name("port")
-                .short("p")
+            Arg::new("port")
+                .short('p')
                 .long("port")
                 .help("tcp listening port")
-                .multiple(false)
+                .multiple_values(false)
                 .takes_value(true),
         )
         .arg(
-            Arg::with_name("debug")
-                .short("d")
+            Arg::new("debug")
+                .short('d')
                 .long("debug")
                 .help("Set log level to debug")
                 .takes_value(false),

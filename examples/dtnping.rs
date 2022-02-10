@@ -1,14 +1,14 @@
 use anyhow::{bail, Result};
-use clap::{crate_authors, crate_version, App, Arg};
+use clap::Parser;
 use dtn7_plus::client::{DtnClient, DtnWsConnection};
 use dtn7_plus::client::{Message, WsRecvData, WsSendData};
 use humantime::parse_duration;
 use rand::distributions::Alphanumeric;
 use rand::{thread_rng, Rng};
+use std::net::TcpStream;
 use std::str::from_utf8;
 use std::time::Duration;
 use std::{convert::TryInto, io::Write};
-use std::{env, net::TcpStream};
 use std::{thread, time};
 
 fn get_random_payload(length: usize) -> String {
@@ -32,88 +32,60 @@ fn send_ping(
 ) -> Result<()> {
     let payload = get_random_payload(length);
     let ping = WsSendData {
-        src,
-        dst,
+        src: src.to_owned(),
+        dst: dst.to_owned(),
         delivery_notification: false,
         lifetime: 3600 * 24 * 1000,
-        data: payload.as_bytes(),
+        data: payload.as_bytes().to_vec(),
     };
     wscon.write_binary(&serde_cbor::to_vec(&ping)?)
 }
+
+/// A simple Bundle Protocol 7 Ping Tool for Delay Tolerant Networking
+#[derive(Parser, Debug)]
+#[clap(version, author, long_about = None)]
+struct Args {
+    /// Local web port (default = 3000)
+    #[clap(short, long, default_value_t = 3000)]
+    port: u16,
+
+    /// Use IPv6
+    #[clap(short = '6', long)]
+    ipv6: bool,
+
+    /// Verbose output
+    #[clap(short, long)]
+    verbose: bool,
+
+    /// Destination to ping
+    #[clap(short, long)]
+    dst: String,
+
+    /// Payload size in bytes (default = 64)
+    #[clap(short, long, default_value_t = 64)]
+    size: usize,
+
+    /// Number of pings to send
+    #[clap(short, long, default_value_t = -1)]
+    count: i64,
+
+    /// Timeout to wait for reply (10s, 30m, 2h, ...)
+    #[clap(short, long, default_value = "2000y")]
+    timeout: String,
+}
 fn main() -> Result<()> {
-    let matches = App::new("dtnecho")
-        .version(crate_version!())
-        .author(crate_authors!())
-        .about("A simple Bundle Protocol 7 Ping Tool for Delay Tolerant Networking")
-        .arg(
-            Arg::with_name("port")
-                .short("p")
-                .long("port")
-                .value_name("PORT")
-                .help("Local web port (default = 3000)")
-                .required(false)
-                .takes_value(true),
-        )
-        .arg(
-            Arg::with_name("verbose")
-                .short("v")
-                .long("verbose")
-                .help("verbose output")
-                .takes_value(false),
-        )
-        .arg(
-            Arg::with_name("ipv6")
-                .short("6")
-                .long("ipv6")
-                .help("Use IPv6")
-                .takes_value(false),
-        )
-        .arg(
-            Arg::with_name("destination")
-                .short("d")
-                .long("destination")
-                .help("Destination to ping")
-                .required(true)
-                .takes_value(true),
-        )
-        .arg(
-            Arg::with_name("payloadsize")
-                .short("s")
-                .long("size")
-                .help("Payload size")
-                .takes_value(true),
-        )
-        .arg(
-            Arg::with_name("count")
-                .short("c")
-                .long("count")
-                .help("Number of pings to send")
-                .takes_value(true),
-        )
-        .arg(
-            Arg::with_name("timeout")
-                .short("t")
-                .long("timeout")
-                .help("Time to wait for reply (10s, 30m, 2h, ...)")
-                .takes_value(true),
-        )
-        .get_matches();
+    let args = Args::parse();
 
-    let verbose: bool = matches.is_present("verbose");
-    let port = std::env::var("DTN_WEB_PORT").unwrap_or_else(|_| "3000".into());
-    let port = matches.value_of("port").unwrap_or(&port); // string is fine no need to parse number
-    let localhost = if matches.is_present("ipv6") {
-        "[::1]"
+    let port = if let Ok(env_port) = std::env::var("DTN_WEB_PORT") {
+        env_port // string is fine no need to parse number
     } else {
-        "127.0.0.1"
+        args.port.to_string()
     };
-    let payload_size: usize = matches.value_of("payloadsize").unwrap_or("64").parse()?;
-    let count: i32 = matches.value_of("count").unwrap_or("-1").parse()?;
-    let timeout: Duration = parse_duration(matches.value_of("timeout").unwrap_or("2000y"))?;
+    let localhost = if args.ipv6 { "[::1]" } else { "127.0.0.1" };
 
-    let dst = matches.value_of("destination").unwrap();
+    let timeout: Duration = parse_duration(&args.timeout)?;
 
-    let _dst_eid: bp7::EndpointID = dst.try_into()?;
+    let _dst_eid: bp7::EndpointID = args.dst.clone().try_into()?;
 
     let mut successful_pings = 0;
 
@@ -158,16 +130,16 @@ fn main() -> Result<()> {
     let mut seq_num: u64 = 0;
     let mut state = PingState::ReadyToSend;
     let mut sent_time = time::Instant::now();
-    println!("\nPING: {} -> {}", src, dst);
+    println!("\nPING: {} -> {}", src, args.dst);
     loop {
         if state == PingState::ReadyToSend {
-            if count > 0 && seq_num == count as u64 {
+            if args.count > 0 && seq_num == args.count as u64 {
                 break;
             }
-            send_ping(&mut wscon, payload_size, &src, dst)?;
+            send_ping(&mut wscon, args.size, &src, &args.dst)?;
             seq_num += 1;
             sent_time = time::Instant::now();
-            println!("[>] #{} size={}", seq_num, payload_size);
+            println!("[>] #{} size={}", seq_num, args.size);
             std::io::stdout().flush().unwrap();
             state = PingState::Receiving;
         }
@@ -193,7 +165,7 @@ fn main() -> Result<()> {
         match &msg {
             Message::Text(txt) => {
                 if txt.starts_with("200") {
-                    if verbose {
+                    if args.verbose {
                         eprintln!("[<] {}", txt);
                     }
                 } else {
@@ -206,13 +178,13 @@ fn main() -> Result<()> {
 
                 println!("[<] #{} : {:?}", seq_num, sent_time.elapsed());
                 successful_pings += 1;
-                if verbose {
+                if args.verbose {
                     eprintln!(
                         "Bundle-Id: {} // From: {} / To: {}",
                         recv_data.bid, recv_data.src, recv_data.dst
                     );
 
-                    if let Ok(data_str) = from_utf8(recv_data.data) {
+                    if let Ok(data_str) = from_utf8(&recv_data.data) {
                         eprintln!("Data: {}", data_str);
                     }
                 }
@@ -221,16 +193,19 @@ fn main() -> Result<()> {
                 state = PingState::ReadyToSend;
             }
             _ => {
-                if verbose {
+                if args.verbose {
                     eprintln!("[<] Other: {:?}", msg);
                 }
             }
         }
     }
 
-    println!("\n[*] {} of {} pings successful", successful_pings, count);
+    println!(
+        "\n[*] {} of {} pings successful",
+        successful_pings, args.count
+    );
 
-    if successful_pings < count {
+    if successful_pings < args.count {
         std::process::exit(1);
     }
     Ok(())

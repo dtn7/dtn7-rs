@@ -22,7 +22,7 @@ OUT_NODE1=$(mktemp /tmp/node1.XXXXXX)
 PORT_NODE1=3000
 #DB1="-W /tmp/node1 -D sled"
 #DB1="-W /tmp/node1 -D sneakers"
-$DIR/../target/$TARGET/dtnd -d -i0 -w $PORT_NODE1 -C mtcp:2342 -r epidemic -n node1 $DB1 2>&1 &> $OUT_NODE1 &
+$DIR/../target/$TARGET/dtnd -d -i0 -w $PORT_NODE1 -C mtcp:port=2342 -r epidemic -n node1 $DB1 2>&1 &> $OUT_NODE1 &
 PID_NODE1=$!
 echo node1 pid: $PID_NODE1
 echo node1 out: $OUT_NODE1

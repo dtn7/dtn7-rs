@@ -26,11 +26,15 @@ interval = "2s"
 peer-timeout = "20s"
 
 [convergencylayers]
+global.tcp.refuse-existing-bundles = true
 
 cla.0.id = "mtcp"
 cla.0.port = 16163
 
-cla.1.id = "dummy"
+cla.1.id = "tcp"
+
+cla.1.refuse-existing-bundles = true # overrides global option from above
+
 
 # Define user specified discovery targets to send announcement beacons to, if not specified the default targets "224.0.0.26:3003" for IPv4 and "[FF02::1]:3003" will be used
 # If a IPv4 address is specified the IPv4 flag has to be enabled, same goes for specifying an IPv6 address

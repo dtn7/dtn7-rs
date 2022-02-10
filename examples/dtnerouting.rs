@@ -2,7 +2,7 @@ use anyhow::{bail, Result};
 use clap::{crate_authors, crate_version, App, Arg};
 use dtn7::cla::ClaSender;
 use dtn7::routing::erouting::ws_client::{new, Command};
-use dtn7::routing::erouting::{Packet, SendForBundleResponsePacket};
+use dtn7::routing::erouting::{Packet, SendForBundleResponsePacket, Sender};
 use dtn7::DtnPeer;
 use futures::channel::mpsc::unbounded;
 use futures_util::{future, pin_mut, StreamExt};
@@ -54,23 +54,23 @@ async fn main() -> Result<()> {
         .author(crate_authors!())
         .about("A simple external routing example")
         .arg(
-            Arg::with_name("addr")
-                .short("a")
+            Arg::new("addr")
+                .short('a')
                 .long("addr")
                 .value_name("ip:erouting_port")
                 .help("specify external routing address and port")
                 .takes_value(true),
         )
         .arg(
-            Arg::with_name("type")
-                .short("t")
+            Arg::new("type")
+                .short('t')
                 .long("type")
                 .help("specify routing type")
                 .takes_value(true),
         )
         .arg(
-            Arg::with_name("debug")
-                .short("d")
+            Arg::new("debug")
+                .short('d')
                 .long("debug")
                 .help("Set log level to debug")
                 .takes_value(false),
@@ -174,8 +174,9 @@ async fn main() -> Result<()> {
                         for (_, p) in peers.iter() {
                             for c in p.cla_list.iter() {
                                 if packet.clas.contains(&c.0) {
-                                    clas.push(ClaSender {
+                                    clas.push(Sender {
                                         remote: p.addr.clone(),
+                                        port: c.1,
                                         agent: c.0.clone(),
                                     });
                                 }
@@ -188,8 +189,9 @@ async fn main() -> Result<()> {
                                 if packet.clas.contains(&c.0)
                                     && !epi_contains(packet.bp.id(), &p.node_name())
                                 {
-                                    clas.push(ClaSender {
+                                    clas.push(Sender {
                                         remote: p.addr.clone(),
+                                        port: c.1,
                                         agent: c.0.clone(),
                                     });
                                     epi_add(packet.bp.id().to_string(), p.node_name().clone());
