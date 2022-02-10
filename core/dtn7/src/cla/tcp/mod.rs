@@ -298,10 +298,10 @@ impl TcpClSession {
         let mut byte_vec = Vec::new();
         let mut acked = 0u64;
         self.last_tid += 1;
-        let (vec, tx_result) = data;
+        let (bndl_buf, tx_result) = data;
 
         if self.refuse_existing_bundles {
-            let bundle = Bundle::try_from(vec.clone()).unwrap();
+            let bundle = Bundle::try_from(bndl_buf.as_slice()).unwrap();
             let bundle_id = Bytes::copy_from_slice(bundle.id().as_bytes());
             // ask if peer already has bundle
             let extension = TransferExtensionItem {
@@ -330,7 +330,7 @@ impl TcpClSession {
         }
 
         // split bundle data into chunks the size of remote maximum segment size
-        for bytes in vec.chunks(self.data_remote.segment_mru as usize) {
+        for bytes in bndl_buf.chunks(self.data_remote.segment_mru as usize) {
             let buf = Bytes::copy_from_slice(bytes);
             let len = buf.len() as u64;
             //debug!("bytes len {}", len);
@@ -360,7 +360,7 @@ impl TcpClSession {
                 .await?;
         }
         // wait for all acks
-        while acked < vec.len() as u64 {
+        while acked < bndl_buf.len() as u64 {
             if let Some(received) = self.rx_session_incoming.recv().await {
                 match received {
                     TcpClPacket::XferAck(ack_data) => {
@@ -388,7 +388,7 @@ impl TcpClSession {
         debug!(
             "Transmission time: {:?} for {} bytes to {}",
             now.elapsed(),
-            vec.len(),
+            bndl_buf.len(),
             self.remote_addr
         );
         // indicate successful transfer
