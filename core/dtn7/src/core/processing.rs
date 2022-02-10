@@ -366,7 +366,7 @@ pub async fn forward(mut bp: BundlePack) -> Result<()> {
                         peer_entry.report_fail();
                         if peer_entry.failed_too_much() && peer_entry.con_type == PeerType::Dynamic
                         {
-                            failed_peer = Some(peer_entry.node_name().clone());
+                            failed_peer = Some(peer_entry.node_name());
                         }
                     }
 

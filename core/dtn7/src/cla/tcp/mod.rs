@@ -697,11 +697,9 @@ async fn tcp_send_bundles(dest: &str, bundle: ByteBuffer, refuse_existing_bundle
 
     // then push bundles to channel
     let mut results = Vec::new();
-    debug!("Sending bundle {:?}", bundle);
-    // unfortunately not possible to avoid cloning, atomic reference counting would be needed in API
-    // backchannel that responds whether bundle send was successful
+    trace!("Sending bundle {:?}", bundle);
     let (tx, rx) = oneshot::channel::<bool>();
-    if sender.send((bundle.clone(), tx)).await.is_ok() {
+    if sender.send((bundle, tx)).await.is_ok() {
         if let Ok(successful) = rx.await {
             results.push(successful);
         } else {
