@@ -2,6 +2,7 @@
 
 TARGET=release
 #TARGET=debug
+#export RUSTFLAGS="--cfg tokio_unstable" 
 
 if [ $TARGET = "debug" ]; then
   cargo build --bins --examples
