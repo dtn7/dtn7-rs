@@ -11,6 +11,9 @@ use std::{convert::TryInto, process};
 
 #[tokio::main]
 async fn main() -> Result<(), std::io::Error> {
+    #[cfg(feature = "tracing")]
+    console_subscriber::init();
+
     let mut cfg = DtnConfig::new();
     if cfg!(debug_assertions) {
         // Whenever a threads has a panic, quit the whole program!
