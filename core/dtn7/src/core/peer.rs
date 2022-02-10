@@ -139,6 +139,7 @@ impl DtnPeer {
         }
     }
 
+    /// Return the peers DTN node name (without URI scheme)
     pub fn node_name(&self) -> String {
         self.eid.node().unwrap_or_default()
     }

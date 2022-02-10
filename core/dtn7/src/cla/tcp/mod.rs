@@ -13,7 +13,6 @@ use parking_lot::Mutex;
 use std::collections::HashMap;
 use std::convert::TryFrom;
 use std::net::SocketAddr;
-use std::sync::Arc;
 use std::time::Instant;
 use thiserror::Error;
 use tokio::net::tcp::{OwnedReadHalf, OwnedWriteHalf};
@@ -481,7 +480,7 @@ impl TcpClSender {
                     }
                 }
                 Err(_) => {
-                    debug!("Keepalive send");
+                    trace!("sending keepalive");
                     self.send_packet(&TcpClPacket::KeepAlive).await;
                 }
             }
@@ -673,17 +672,17 @@ impl TcpConvergenceLayer {
         );
         TcpConvergenceLayer {
             local_port: port,
-            listener: Arc::new(Mutex::new(None)),
+            listener: None,
             refuse_existing_bundles,
         }
     }
 }
 
 #[cla(tcp)]
-#[derive(Clone, Default, Debug)]
+#[derive(Default, Debug)]
 pub struct TcpConvergenceLayer {
     local_port: u16,
-    listener: Arc<Mutex<Option<JoinHandle<()>>>>,
+    listener: Option<JoinHandle<()>>,
     refuse_existing_bundles: bool,
 }
 
@@ -697,7 +696,7 @@ impl ConvergenceLayerAgent for TcpConvergenceLayer {
             tcp_listener,
             refuse_existing_bundles: self.refuse_existing_bundles,
         };
-        *self.listener.lock() = Some(tokio::spawn(listener.run()));
+        self.listener = Some(tokio::spawn(listener.run()));
     }
 
     fn port(&self) -> u16 {
@@ -735,8 +734,9 @@ impl ConvergenceLayerAgent for TcpConvergenceLayer {
         // channel is inserted first into hashmap, even if connection is not yet established
         // connection is created here
         if let Some(rx_session_queue) = receiver {
-            match TcpStream::connect(addr).await {
-                Ok(stream) => {
+            let conn_fut = TcpStream::connect(addr);
+            match tokio::time::timeout(std::time::Duration::from_secs(3), conn_fut).await {
+                Ok(Ok(stream)) => {
                     let connection = TcpConnection {
                         stream,
                         addr,
@@ -744,8 +744,12 @@ impl ConvergenceLayerAgent for TcpConvergenceLayer {
                     };
                     connection.connect(rx_session_queue).await;
                 }
-                Err(err) => {
-                    warn!("Error connecting to {}, {:?}", dest, err);
+                Ok(Err(_)) => {
+                    error!("Couldn't connect to {}", addr);
+                    return false;
+                }
+                Err(_) => {
+                    error!("Timeout connecting to {}", addr);
                     return false;
                 }
             }
