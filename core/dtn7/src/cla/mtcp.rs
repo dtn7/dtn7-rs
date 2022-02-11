@@ -286,7 +286,9 @@ impl MtcpConvergenceLayer {
                         if !data.is_empty() {
                             let peeraddr: SocketAddr = remote.parse().unwrap();
                             debug!("forwarding to {:?}", peeraddr);
-                            reply.send(mtcp_send_bundles(peeraddr, vec![data])).unwrap();
+                            tokio::spawn(async move {
+                                reply.send(mtcp_send_bundles(peeraddr, vec![data])).unwrap();
+                            });
                         } else {
                             debug!("Nothing to forward.");
                             reply.send(true).unwrap();
