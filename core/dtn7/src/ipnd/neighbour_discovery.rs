@@ -17,11 +17,11 @@ async fn receiver(socket: UdpSocket) -> Result<(), io::Error> {
     let mut buf: Vec<u8> = vec![0; 1024 * 64];
     loop {
         if let Ok((size, peer)) = socket.recv_from(&mut buf).await {
-            debug!("received {} bytes", size);
+            trace!("received {} bytes", size);
             let deserialized: Beacon = match serde_cbor::from_slice(&buf[..size]) {
                 Ok(pkt) => pkt,
                 Err(e) => {
-                    error!("Deserialization of beacon failed!{}", e);
+                    error!("Deserialization of beacon failed: {}", e);
                     continue;
                 }
             };
@@ -42,7 +42,6 @@ async fn receiver(socket: UdpSocket) -> Result<(), io::Error> {
                     peer,
                     size
                 );
-                debug!(":\n{}", deserialized);
             } else {
                 debug!(
                     "Beacon from known peer: {} @ {} (len={})",
@@ -50,8 +49,8 @@ async fn receiver(socket: UdpSocket) -> Result<(), io::Error> {
                     peer,
                     size
                 );
-                debug!(":\n{}", deserialized);
             }
+            trace!("{}", deserialized);
             routing_notify(RoutingNotifcation::EncounteredPeer(deserialized.eid()))
         }
     }
@@ -61,7 +60,6 @@ async fn announcer(socket: UdpSocket, _v6: bool) {
     let mut task = interval(crate::CONFIG.lock().announcement_interval);
     loop {
         task.tick().await;
-        debug!("running announcer");
 
         // Start to build beacon announcement
         let eid = (*CONFIG.lock()).host_eid.clone();
@@ -113,7 +111,7 @@ async fn announcer(socket: UdpSocket, _v6: bool) {
                 .await
             {
                 Ok(amt) => {
-                    debug!("sent announcement beacon(len={}) to {}", amt, destination);
+                    debug!("sent announcement beacon (len={}) to {}", amt, destination);
                 }
                 Err(err) => error!("Sending announcement failed: {}", err),
             }
