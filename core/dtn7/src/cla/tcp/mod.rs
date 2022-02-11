@@ -748,9 +748,13 @@ impl TcpConvergenceLayer {
                             "TcpConvergenceLayer: received transfer command for {}",
                             remote
                         );
-                        reply
-                            .send(tcp_send_bundles(&remote, data, refuse_existing_bundles).await)
-                            .unwrap();
+                        tokio::spawn(async move {
+                            reply
+                                .send(
+                                    tcp_send_bundles(&remote, data, refuse_existing_bundles).await,
+                                )
+                                .unwrap();
+                        });
                     }
                     super::ClaCmd::Shutdown => {
                         debug!("TcpConvergenceLayer: received shutdown command");

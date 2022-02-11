@@ -70,7 +70,9 @@ impl HttpConvergenceLayer {
                             "HttpConvergenceLayer: received transfer command for {}",
                             remote
                         );
-                        reply.send(http_send_bundles(remote, ready).await).unwrap();
+                        tokio::spawn(async move {
+                            reply.send(http_send_bundles(remote, ready).await).unwrap();
+                        });
                     }
                     super::ClaCmd::Shutdown => {
                         debug!("HttpConvergenceLayer: received shutdown command");
