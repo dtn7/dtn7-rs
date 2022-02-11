@@ -307,19 +307,20 @@ pub async fn forward(mut bp: BundlePack) -> Result<()> {
     trace!("Check delivery");
 
     let (nodes, delete_afterwards) = (*DTNCORE.lock()).routing_agent.sender_for_bundle(&bp);
-    if !nodes.is_empty() {
-        debug!("Attempting forwarding of {} to nodes: {:?}", bp.id(), nodes);
-    }
 
     if nodes.is_empty() {
         trace!("No new peers for forwarding of bundle {}", &bp.id());
     } else {
-        trace!("Handle lifetime");
+        debug!("Attempting forwarding of {} to nodes: {:?}", bp.id(), nodes);
+
         let bndl = store_get_bundle(&bpid);
         if bndl.is_none() {
             bail!("bundle not found: {}", bpid);
         }
+
         let mut bndl = bndl.unwrap();
+
+        trace!("Handle lifetime");
         handle_primary_lifetime(&bndl).await?;
 
         trace!("Handle hop count block");
