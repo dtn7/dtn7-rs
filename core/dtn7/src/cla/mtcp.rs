@@ -250,7 +250,7 @@ pub fn mtcp_send_bundles(addr: SocketAddr, bundles: Vec<ByteBuffer>) -> bool {
         MTCP_CONNECTIONS.lock().remove(&addr);
         return false;
     }
-    info!(
+    debug!(
         "Transmission time: {:?} for {} bundles in {} bytes to {}",
         now.elapsed(),
         num_bundles,

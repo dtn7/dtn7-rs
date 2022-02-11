@@ -5,7 +5,7 @@ use bp7::ByteBuffer;
 use dtn7_codegen::cla;
 use hyper::{Body, Method, Request};
 use log::{debug, error};
-use std::{collections::HashMap, net::SocketAddr};
+use std::{collections::HashMap, net::SocketAddr, time::Instant};
 use tokio::sync::mpsc;
 
 use super::HelpStr;
@@ -19,8 +19,10 @@ pub struct HttpConvergenceLayer {
 
 pub async fn http_send_bundles(remote: String, ready: ByteBuffer) -> bool {
     if !ready.is_empty() {
+        let now = Instant::now();
         let client = hyper::client::Client::new();
         let peeraddr: SocketAddr = remote.parse().unwrap();
+        let buf_len = ready.len();
         debug!("forwarding to {:?}", peeraddr);
         //for b in &ready {
         let req_url = format!("http://{}:{}/push", peeraddr.ip(), peeraddr.port());
@@ -33,14 +35,19 @@ pub async fn http_send_bundles(remote: String, ready: ByteBuffer) -> bool {
         // TODO: make timout configurable
         match tokio::time::timeout(std::time::Duration::from_secs(5), client.request(req)).await {
             Ok(result) => match result {
-                Ok(_response) => debug!("successfully sent bundle to {}", peeraddr.ip()),
+                Ok(_response) => debug!(
+                    "Transmission time: {:?} for {} bytes to {}",
+                    now.elapsed(),
+                    buf_len,
+                    peeraddr
+                ),
                 Err(e) => {
                     error!("could not push bundle to remote: {}", e);
                     return false;
                 }
             },
             Err(_) => {
-                error!("Timeout: no response in 10 milliseconds while pushing bundle.");
+                error!("Timeout: no response in 5 seconds while pushing bundle.");
                 return false;
             }
         }
