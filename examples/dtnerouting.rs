@@ -1,6 +1,5 @@
 use anyhow::{bail, Result};
 use clap::{crate_authors, crate_version, App, Arg};
-use dtn7::cla::ClaSender;
 use dtn7::routing::erouting::ws_client::{new, Command};
 use dtn7::routing::erouting::{Packet, SendForBundleResponsePacket, Sender};
 use dtn7::DtnPeer;

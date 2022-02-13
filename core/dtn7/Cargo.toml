@@ -1,8 +1,8 @@
 [package]
 name = "dtn7"
-version = "0.17.2" # managed by release.sh
+version = "0.17.3" # managed by release.sh
 authors = ["Lars Baumgaertner <baumgaertner@cs.tu-darmstadt.de>"]
-description = "Rust delay-tolerant-networking daemon and CLI tools based upon bp7 (bundle protocol version 7 draft)"
+description = "Rust delay-tolerant-networking daemon and CLI tools implementing Bundle Protocol Version 7 (RFC9171)"
 edition = "2018"
 license = "MIT OR Apache-2.0"
 categories = ["command-line-utilities", "network-programming"]
@@ -11,18 +11,24 @@ keywords = ["peer2peer", "dtn"]
 exclude = [".vscode/", ".travis.yml"]
 readme = "README.md"
 
+[features]
+
+default = []
+tracing = ["console-subscriber"]
+
 [dependencies]
-bp7 = {version = "0.9.2", default-features = false }
-dtn7-plus = {version = "0.6.1", default-features = false, features = ["client"] }
+bp7 = {version = "0.10.4", default-features = false }
+dtn7-plus = {version = "0.6.2", default-features = false, features = ["client"] }
 #dtn7-plus = {git = "https://github.com/dtn7/dtn7-plus-rs", version = "0.6.0", default-features = false, features = ["client"] }
-d7sneakers = { version = "0.3.0", default-features = false }
+d7sneakers = { version = "0.3.1", default-features = false }
 serde = { version = "1.0", features = ["derive"] }
 serde_cbor = "0.11"
 serde_json = "1.0"
 serde_bytes = "0.11"
 url = "2.2.2"
 rand = "0.8.3"
-tokio = { version = "1.16.1", features = ["net", "rt-multi-thread", "macros", "time"] }
+tokio = { version = "1.16.1", features = ["net", "rt-multi-thread", "macros", "time", "tracing"]}
+console-subscriber = { version = "0.1.2", features = ["parking_lot"], optional = true }
 tokio-util = { version = "0.6.7", features = ["codec"] }
 tokio-tungstenite = "0.15.0"
 tokio-serde = { version = "0.8", features = ["json"] }
@@ -58,6 +64,7 @@ num-derive = "0.3.3"
 num-traits = "0.2.14"
 thiserror = "1.0.23"
 dtn7-codegen = { path = "../codegen", version = "0.1.0"}
+byteorder = "1.4.3"
 
 [lib]
 name = "dtn7"

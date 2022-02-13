@@ -1,6 +1,37 @@
 # Changelog
 All notable changes to this project will be documented in this file.
 
+## [0.17.3] - 2022-02-05
+
+### Bug Fixes
+
+- Status report generation is prevented for bundles with source EID of dtn:none
+- Buffering TCPCL pakets for efficiency
+- Upgraded bp7 dependencies to make behaviour RFC9171 compliant
+
+### Documentation
+
+- Updated to point to new RFC 9171 and fixed some links
+- Added comments to example configuration file
+
+### Features
+
+- Allow RUST_LOG to override debug level CLI parameteres, e.g., for enabling trace for different components
+- Added error log with bundle hex string if decoding fails for further inspection
+
+### Miscellaneous Tasks
+
+- Upgraded to newest bp7 crate
+- Made logging more fine-grained in ipnd, verbose parts now trace log level instead of debug
+
+### Refactor
+
+- Using clap derive interface for command line args, except for dtnd
+
+### Testing
+
+- Deactivated debug logging for midsize_fixed clab scenario
+
 ## [0.17.2] - 2022-02-01
 
 ### Bug Fixes
