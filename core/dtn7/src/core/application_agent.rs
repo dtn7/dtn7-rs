@@ -1,6 +1,6 @@
 use bp7::{Bundle, EndpointID};
 use enum_dispatch::enum_dispatch;
-use log::{debug, info};
+use log::{debug, trace};
 use std::collections::VecDeque;
 use std::fmt::Debug;
 use tokio::sync::mpsc::Sender;
@@ -36,8 +36,8 @@ impl ApplicationAgent for SimpleApplicationAgent {
         &self.eid
     }
     fn push(&mut self, bundle: &Bundle) {
-        info!("Received {:?} | {:?}", bundle.id(), bp7::dtn_time_now());
-        debug!("Received raw: {:?}", bundle);
+        debug!("Received {:?} | {:?}", bundle.id(), bp7::dtn_time_now());
+        trace!("Received raw: {:?}", bundle);
 
         // attempt direct delivery to websocket
         if let Some(addr) = self.delivery_addr() {

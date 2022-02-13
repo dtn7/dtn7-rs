@@ -52,6 +52,7 @@ pub struct DtnPeer {
     pub cla_list: Vec<(String, Option<u16>)>,
     pub services: HashMap<u8, String>,
     pub last_contact: u64,
+    pub fails: u16,
 }
 
 impl DtnPeer {
@@ -74,6 +75,7 @@ impl DtnPeer {
                 .duration_since(UNIX_EPOCH)
                 .unwrap()
                 .as_secs(),
+            fails: 0,
         }
     }
     /// Example
@@ -136,6 +138,7 @@ impl DtnPeer {
         }
     }
 
+    /// Return the peers DTN node name (without URI scheme)
     pub fn node_name(&self) -> String {
         self.eid.node().unwrap_or_default()
     }
@@ -151,18 +154,20 @@ impl DtnPeer {
         }
         None
     }
+
     pub fn addr(&self) -> &PeerAddress {
         &self.addr
     }
-    /*pub fn ip_addr(&self) -> &IpAddr {
-        match &self.addr {
-            RemoteAddr::IP(ip) => {
-                return ip;
-            }
-            RemoteAddr::IPPort(ip_port) => {
-                return &ip_port.0;
-            }
-            _ => {}
-        }
-    }*/
+
+    pub fn report_fail(&mut self) {
+        self.fails += 1;
+    }
+
+    pub fn reset_fails(&mut self) {
+        self.fails = 0;
+    }
+
+    pub fn failed_too_much(&self) -> bool {
+        self.fails > 3
+    }
 }

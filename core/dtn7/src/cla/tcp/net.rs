@@ -10,6 +10,7 @@ const MINIMUM_EXTENSION_ITEM_SIZE: u32 = 5;
 
 #[derive(Debug, Eq, PartialEq, Clone)]
 pub(crate) enum TcpClPacket {
+    ContactHeader(ContactHeaderFlags),
     SessInit(SessInitData),
     SessTerm(SessTermData),
     XferSeg(XferSegData),
@@ -82,6 +83,11 @@ impl TcpClPacket {
                 writer.write_u8(MessageType::MsgReject as u8).await?;
                 writer.write_u8(msg_reject_data.reason as u8).await?;
                 writer.write_u8(msg_reject_data.header).await?;
+            }
+            TcpClPacket::ContactHeader(flags) => {
+                writer.write(b"dtn!").await?;
+                writer.write_u8(4).await?;
+                writer.write_u8(flags.bits()).await?;
             }
         }
         Ok(())
@@ -204,6 +210,18 @@ impl TcpClPacket {
                     }
                 }
             }
+        } else if mtype == b'd' {
+            let mut buf: [u8; 6] = [0; 6];
+            reader.read_exact(&mut buf).await?;
+            if &buf[0..4] != b"dtn!" {
+                return Err(TcpClError::InvalidMagic);
+            }
+            if buf[4] != 4 {
+                return Err(TcpClError::UnsupportedVersion);
+            }
+            Ok(TcpClPacket::ContactHeader(
+                ContactHeaderFlags::from_bits_truncate(buf[5]),
+            ))
         } else {
             // unknown  code
             Err(TcpClError::UnknownPacketType(mtype))
@@ -223,4 +241,8 @@ pub(crate) enum TcpClError {
     SessionExtensionItemsUnsupported,
     #[error("unexpected packet received")]
     UnexpectedPacket,
+    #[error("invalid magic in contact header")]
+    InvalidMagic,
+    #[error("unsupported version in contact header")]
+    UnsupportedVersion,
 }

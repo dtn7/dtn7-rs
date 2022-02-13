@@ -8,12 +8,12 @@ use async_trait::async_trait;
 use bp7::{Bundle, ByteBuffer};
 //use futures_util::stream::StreamExt;
 use dtn7_codegen::cla;
-use log::{debug, error, info, warn};
+use log::{debug, error, info, trace, warn};
 use parking_lot::Mutex;
 use std::collections::HashMap;
 use std::convert::TryFrom;
 use std::net::SocketAddr;
-use std::sync::Arc;
+use std::time::Instant;
 use thiserror::Error;
 use tokio::net::tcp::{OwnedReadHalf, OwnedWriteHalf};
 use tokio::sync::mpsc;
@@ -66,7 +66,7 @@ struct TcpClSession {
     tx_session_outgoing: mpsc::Sender<TcpClPacket>,
     /// Receiver from tcp receiving task
     rx_session_incoming: mpsc::Receiver<TcpClPacket>,
-    /// Queue of all outgoing packages
+    /// Queue of all outgoing bundles
     rx_session_queue: mpsc::Receiver<(ByteBuffer, oneshot::Sender<bool>)>,
     /// Local session parameters
     data_local: SessInitData,
@@ -144,6 +144,7 @@ impl TcpClSession {
         match &packet {
             // session is terminated, send ack and return with true
             TcpClPacket::SessTerm(data) => {
+                trace!("Received SessTerm: {:?}", data);
                 if !data.flags.contains(SessTermFlags::REPLY) {
                     self.tx_session_outgoing
                         .send(TcpClPacket::SessTerm(SessTermData {
@@ -156,22 +157,26 @@ impl TcpClSession {
             }
             // receive a bundle
             TcpClPacket::XferSeg(data) => {
+                let now = Instant::now();
+                debug!(
+                    "Received XferSeg: TID={} LEN={} FLAGS={:?}",
+                    data.tid, data.len, data.flags
+                );
                 if (data.flags.contains(XferSegmentFlags::END)
                     && !data.flags.contains(XferSegmentFlags::START))
                     || data.flags.is_empty()
                 {
-                    return Err(TcpSessionError::ProtocolError(packet.clone()));
+                    return Err(TcpSessionError::ProtocolError(packet));
                 }
                 if data.flags.contains(XferSegmentFlags::START) && !data.extensions.is_empty() {
                     for extension in &data.extensions {
                         if extension.item_type == TransferExtensionItemType::BundleID
                             && self.refuse_existing_bundles
                         {
-                            let id = String::from_utf8(extension.data.to_vec());
-                            if let Ok(bundle_id) = id {
-                                debug!("Extension bundle id: {}", bundle_id);
+                            if let Ok(bundle_id) = String::from_utf8(extension.data.to_vec()) {
+                                debug!("transfer extension: bundle id: {}", bundle_id);
                                 if (*STORE.lock()).has_item(&bundle_id) {
-                                    debug!("Refusing packet, already in store");
+                                    debug!("refusing bundle, already in store");
                                     self.tx_session_outgoing
                                         .send(TcpClPacket::XferRefuse(XferRefuseData {
                                             reason: XferRefuseReasonCode::NotAcceptable,
@@ -185,6 +190,7 @@ impl TcpClSession {
                     }
                 }
                 let mut vec = data.buf.to_vec();
+                trace!("Sending XferAck: TID={}", data.tid);
                 self.tx_session_outgoing
                     .send(TcpClPacket::XferAck(XferAckData {
                         tid: data.tid,
@@ -215,6 +221,10 @@ impl TcpClSession {
                                     ending = true;
                                 }
                                 TcpClPacket::XferSeg(data) => {
+                                    debug!(
+                                        "Received ongoing XferSeg: TID={} LEN={} FLAGS={:?}",
+                                        data.tid, data.len, data.flags
+                                    );
                                     vec.append(&mut data.buf.to_vec());
                                     len += data.len;
                                     self.tx_session_outgoing
@@ -240,10 +250,18 @@ impl TcpClSession {
                         }
                     }
                 }
-                debug!("Parsing bundle from received tcp bytes");
+                trace!("Parsing bundle from received tcp bytes");
+                let received_bytes = vec.len();
                 // parse bundle
                 match Bundle::try_from(vec) {
                     Ok(bundle) => {
+                        debug!(
+                            "Receive time: {:?} for bundle {} with {} bytes from {}",
+                            now.elapsed(),
+                            bundle.id(),
+                            received_bytes,
+                            self.remote_addr
+                        );
                         tokio::spawn(async move {
                             if let Err(err) = crate::core::processing::receive(bundle).await {
                                 error!("Failed to process bundle: {}", err);
@@ -252,6 +270,7 @@ impl TcpClSession {
                     }
                     Err(err) => {
                         error!("Failed to parse bundle: {}", err);
+                        //error!("Failed bytes: {}", bp7::helpers::hexify(&vec));
                         self.tx_session_outgoing
                             .send(TcpClPacket::XferRefuse(XferRefuseData {
                                 reason: XferRefuseReasonCode::NotAcceptable,
@@ -275,6 +294,7 @@ impl TcpClSession {
         &mut self,
         data: (ByteBuffer, tokio::sync::oneshot::Sender<bool>),
     ) -> Result<(), TcpSessionError> {
+        let now = Instant::now();
         let mut byte_vec = Vec::new();
         let mut acked = 0u64;
         self.last_tid += 1;
@@ -313,7 +333,7 @@ impl TcpClSession {
         for bytes in vec.chunks(self.data_remote.segment_mru as usize) {
             let buf = Bytes::copy_from_slice(bytes);
             let len = buf.len() as u64;
-            debug!("bytes len {}", len);
+            //debug!("bytes len {}", len);
             let packet_data = XferSegData {
                 flags: XferSegmentFlags::empty(),
                 buf,
@@ -365,7 +385,12 @@ impl TcpClSession {
                 }
             }
         }
-        debug!("All acked");
+        debug!(
+            "Transmission time: {:?} for {} bytes to {}",
+            now.elapsed(),
+            vec.len(),
+            self.remote_addr
+        );
         // indicate successful transfer
         tx_result.send(true)?;
         Ok(())
@@ -455,7 +480,7 @@ impl TcpClSender {
                     }
                 }
                 Err(_) => {
-                    debug!("Keepalive send");
+                    trace!("sending keepalive");
                     self.send_packet(&TcpClPacket::KeepAlive).await;
                 }
             }
@@ -483,16 +508,20 @@ struct TcpConnection {
 impl TcpConnection {
     /// Session parameter negotiation
     async fn negotiate_session(&mut self) -> anyhow::Result<(SessInitData, SessInitData)> {
-        let node_id = (*CONFIG.lock()).host_eid.to_string();
+        let node_id = (*CONFIG.lock()).host_eid.node_id().unwrap();
         let mut sess_init_data = SessInitData {
             keepalive: KEEPALIVE,
             segment_mru: SEGMENT_MRU,
             transfer_mru: TRANSFER_MRU,
             node_id,
         };
+
         let session_init = TcpClPacket::SessInit(sess_init_data.clone());
-        session_init.serialize(&mut self.stream).await?;
+        let mut buf = vec![];
+        session_init.serialize(&mut buf).await?;
+        self.stream.write_all(&buf).await?;
         self.stream.flush().await?;
+
         let response = TcpClPacket::deserialize(&mut self.stream).await?;
         debug!("Received session parameters");
         if let TcpClPacket::SessInit(mut data) = response {
@@ -513,9 +542,11 @@ impl TcpConnection {
     }
 
     async fn send_contact_header(&mut self, flags: ContactHeaderFlags) -> anyhow::Result<()> {
-        self.stream.write(b"dtn!").await?;
-        self.stream.write_u8(4).await?;
-        self.stream.write_u8(flags.bits()).await?;
+        let mut buf = vec![];
+        TcpClPacket::ContactHeader(flags)
+            .serialize(&mut buf)
+            .await?;
+        self.stream.write_all(&buf).await?;
         self.stream.flush().await?;
         Ok(())
     }
@@ -568,7 +599,7 @@ impl TcpConnection {
                     rx_session_incoming,
                     rx_session_queue,
                     data_local: local_parameters,
-                    data_remote: remote_parameters,
+                    data_remote: remote_parameters.clone(),
                     last_tid: 0,
                     refuse_existing_bundles: self.refuse_existing_bundles,
                     remote_addr: self.addr,
@@ -576,10 +607,12 @@ impl TcpConnection {
                 tokio::spawn(rx_task.run());
                 tokio::spawn(tx_task.run());
                 tokio::spawn(session_task.run());
-                info!("Started TCP session for {}", self.addr);
-                info!("Refuse existing bundles {}", self.refuse_existing_bundles);
+                info!(
+                    "Started TCP session for {} @ {} | refuse existing bundles: {}",
+                    remote_parameters.node_id, self.addr, self.refuse_existing_bundles
+                );
             }
-            Err(err) => error!("Failed to negotiate session: {}", err),
+            Err(err) => error!("Failed to negotiate session for {}: {}", self.addr, err),
         }
     }
 }
@@ -639,17 +672,17 @@ impl TcpConvergenceLayer {
         );
         TcpConvergenceLayer {
             local_port: port,
-            listener: Arc::new(Mutex::new(None)),
+            listener: None,
             refuse_existing_bundles,
         }
     }
 }
 
 #[cla(tcp)]
-#[derive(Clone, Default, Debug)]
+#[derive(Default, Debug)]
 pub struct TcpConvergenceLayer {
     local_port: u16,
-    listener: Arc<Mutex<Option<JoinHandle<()>>>>,
+    listener: Option<JoinHandle<()>>,
     refuse_existing_bundles: bool,
 }
 
@@ -663,7 +696,7 @@ impl ConvergenceLayerAgent for TcpConvergenceLayer {
             tcp_listener,
             refuse_existing_bundles: self.refuse_existing_bundles,
         };
-        *self.listener.lock() = Some(tokio::spawn(listener.run()));
+        self.listener = Some(tokio::spawn(listener.run()));
     }
 
     fn port(&self) -> u16 {
@@ -701,8 +734,9 @@ impl ConvergenceLayerAgent for TcpConvergenceLayer {
         // channel is inserted first into hashmap, even if connection is not yet established
         // connection is created here
         if let Some(rx_session_queue) = receiver {
-            match TcpStream::connect(addr).await {
-                Ok(stream) => {
+            let conn_fut = TcpStream::connect(addr);
+            match tokio::time::timeout(std::time::Duration::from_secs(3), conn_fut).await {
+                Ok(Ok(stream)) => {
                     let connection = TcpConnection {
                         stream,
                         addr,
@@ -710,8 +744,12 @@ impl ConvergenceLayerAgent for TcpConvergenceLayer {
                     };
                     connection.connect(rx_session_queue).await;
                 }
-                Err(err) => {
-                    warn!("Error connecting to {}, {:?}", dest, err);
+                Ok(Err(_)) => {
+                    error!("Couldn't connect to {}", addr);
+                    return false;
+                }
+                Err(_) => {
+                    error!("Timeout connecting to {}", addr);
                     return false;
                 }
             }

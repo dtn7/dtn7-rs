@@ -82,14 +82,28 @@ impl RoutingAgent for EpidemicRoutingAgent {
     }
     fn sender_for_bundle(&mut self, bp: &BundlePack) -> (Vec<ClaSender>, bool) {
         let mut clas = Vec::new();
+        let mut delete_afterwards = false;
         for (_, p) in (*PEERS.lock()).iter() {
-            if let Some(cla) = p.first_cla() {
-                if !self.contains(bp.id(), &p.node_name()) {
-                    clas.push(cla);
+            if !self.contains(bp.id(), &p.node_name()) {
+                if let Some(cla) = p.first_cla() {
                     self.add(bp.id().to_string(), p.node_name().clone());
+                    if bp.destination.node().unwrap() == p.node_name() {
+                        // direct delivery possible
+                        debug!(
+                            "Attempting direct delivery of bundle {} to {}",
+                            bp.id(),
+                            p.node_name()
+                        );
+                        delete_afterwards = true;
+                        clas.clear();
+                        clas.push(cla);
+                        break;
+                    } else {
+                        clas.push(cla);
+                    }
                 }
             }
         }
-        (clas, false)
+        (clas, delete_afterwards)
     }
 }

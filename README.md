@@ -6,10 +6,10 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE-MIT)
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE-APACHE)
 
-Rust implementation of a disruption-tolerant networking (DTN) daemon for the [Bundle Protocol version 7 draft](https://tools.ietf.org/html/draft-ietf-dtn-bpbis).
+Rust implementation of a disruption-tolerant networking (DTN) daemon for the [Bundle Protocol version 7 - RFC9171](https://datatracker.ietf.org/doc/rfc9171/).
 
 Plus:
-* [TCP Convergence Layer v4](https://datatracker.ietf.org/doc/html/draft-ietf-dtn-tcpclv4)
+* [TCP Convergence Layer v4 - RFC9174](https://datatracker.ietf.org/doc/rfc9174/)
 * [Minimal TCP Convergence Layer](https://tools.ietf.org/html/draft-ietf-dtn-mtcpcl-01) 
 * A simple HTTP Convergence Layer 
 * An IP neighorhood discovery service
@@ -19,11 +19,13 @@ Plus:
 
 The actual BP7 implementation (encoding/decoding) is available as a separate [project](https://github.com/dtn7/bp7-rs).
 
-Additional dtn extensions and a client library are also [available](https://github.com/dtn7/bp7-plus-rs).
+Additional dtn extensions and a client library are also [available](https://crates.io/crates/dtn7-plus).
 
-Currently, a service discovery based on IPND but adapted to CBOR and BPv7, TCP, MTCP & HTTP CLs, flooding/epidemic/sink-routing and rest/ws command interfaces are implemented. Both addressing schemes, *dtn* as well as *ipn* are supported. Furthermore, some CLI tools are provided to easily integrate *dtn7* into shell scripts.
+Currently, a service discovery based on IPND but adapted to CBOR and BPv7, TCP, MTCP & HTTP CLs, flooding/epidemic/sink-routing and restful/ws command interfaces are implemented. 
+Both addressing schemes, *dtn* as well as *ipn* are supported. 
+Furthermore, some CLI tools are provided to easily integrate *dtn7* into shell scripts.
 
-**Beware: This code as well as the RFC drafts are not yet final and thus might change frequently.**
+**Beware: This code is still under development and thus might change frequently.**
 
 I consider this code to be work-in-progress and not finished yet. 
 
@@ -31,8 +33,11 @@ I consider this code to be work-in-progress and not finished yet.
 
 Installation from source using cargo:
 ```
-cargo install dtn7
+cargo install --bins --examples dtn7
 ```
+
+In case of compilation issues, try adding `--locked` to the command. 
+This will use the exact versions of all dependencies as used in our repository.
 
 Precompiled binaries for common platforms can be found on [GitHub](https://github.com/dtn7/dtn7-rs/releases).
 

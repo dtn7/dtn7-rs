@@ -125,7 +125,7 @@ fn main() -> Result<()> {
     } else {
         bail!("[!] Failed to subscribe to service");
     }
-    let src = format!("{}/{}", client.local_node_id()?, endpoint);
+    let src = format!("{}{}", client.local_node_id()?, endpoint);
 
     let mut seq_num: u64 = 0;
     let mut state = PingState::ReadyToSend;

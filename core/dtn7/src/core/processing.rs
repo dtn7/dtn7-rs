@@ -1,8 +1,5 @@
-use crate::cla;
 use crate::core::bundlepack::*;
 use crate::core::*;
-use crate::peer_find_by_remote;
-use crate::peers_cla_for_node;
 use crate::routing::RoutingNotifcation;
 use crate::routing_notify;
 use crate::store_push_bundle;
@@ -18,6 +15,7 @@ use bp7::CanonicalData;
 use bp7::BUNDLE_AGE_BLOCK;
 
 use anyhow::{bail, Result};
+use log::trace;
 use log::{debug, info, warn};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
@@ -297,70 +295,58 @@ async fn handle_previous_node_block(mut bundle: Bundle) -> Result<Bundle> {
 pub async fn forward(mut bp: BundlePack) -> Result<()> {
     let bpid = bp.id().to_string();
 
-    info!("Forward request for bundle: {}", bpid);
+    trace!("Forward request for bundle: {}", bpid);
 
     bp.add_constraint(Constraint::ForwardPending);
     bp.remove_constraint(Constraint::DispatchPending);
-    debug!("updating bundle info in store: {}", bpid);
+    trace!("updating bundle info in store: {}", bpid);
     bp.sync()?;
 
-    debug!("Handle lifetime");
-    let bndl = store_get_bundle(&bpid);
-    if bndl.is_none() {
-        bail!("bundle not found: {}", bpid);
-    }
-    let mut bndl = bndl.unwrap();
-    handle_primary_lifetime(&bndl).await?;
-
-    let mut delete_afterwards = true;
     let bundle_sent = Arc::new(AtomicBool::new(false));
-    let mut nodes: Vec<cla::ClaSender> = Vec::new();
 
-    debug!("Check delivery");
-    // direct delivery possible?
-    if let Some(direct_node) = peers_cla_for_node(&bp.destination) {
-        debug!("Attempting direct delivery: {:?}", direct_node);
-        nodes.push(direct_node);
-    } else {
-        let bpc = bp.clone();
-        let res = tokio::task::spawn_blocking(|| {
-            let bpc = bpc;
-            return (*DTNCORE.lock()).routing_agent.sender_for_bundle(&bpc);
-        });
+    trace!("Check delivery");
 
-        let (cla_nodes, del) = res.await.unwrap();
-        nodes = cla_nodes;
-        delete_afterwards = del;
-        if !nodes.is_empty() {
-            debug!("Attempting forwarding to nodes: {:?}", nodes);
-        }
+    let bpc = bp.clone();
+    let res = tokio::task::spawn_blocking(|| {
+        let bpc = bpc;
+        return (*DTNCORE.lock()).routing_agent.sender_for_bundle(&bpc);
+    });
+
+    let (nodes, delete_afterwards) = res.await.unwrap();
+    if !nodes.is_empty() {
+        debug!("Attempting forwarding of {} to nodes: {:?}", bp.id(), nodes);
     }
+
     if nodes.is_empty() {
-        debug!("No new peers for forwarding of bundle {}", &bp.id());
+        trace!("No new peers for forwarding of bundle {}", &bp.id());
     } else {
-        debug!("Handle hop count block");
+        trace!("Handle lifetime");
+        let bndl = store_get_bundle(&bpid);
+        if bndl.is_none() {
+            bail!("bundle not found: {}", bpid);
+        }
+        let mut bndl = bndl.unwrap();
+        handle_primary_lifetime(&bndl).await?;
+
+        trace!("Handle hop count block");
         bndl = handle_hop_count_block(bndl).await?;
 
-        debug!("Handle previous node block");
+        trace!("Handle previous node block");
         // Handle previous node block
         bndl = handle_previous_node_block(bndl).await?;
-        debug!("Handle bundle age block");
+        trace!("Handle bundle age block");
         // Handle bundle age block
         bndl = handle_bundle_age_block(bndl).await?;
 
-        //let wg = WaitGroup::new();
         let mut wg = Vec::new();
         let bundle_data = bndl.to_cbor();
-        debug!("nodes: {:?}", nodes);
         for n in nodes {
-            //let wg = wg.clone();
             let bd = bundle_data.clone(); // TODO: optimize cloning away, reference should do
             let bpid = bpid.clone();
-            //let bp2 = bp.clone();
             let bundle_sent = std::sync::Arc::clone(&bundle_sent);
             let n = n.clone();
             let task_handle = tokio::spawn(async move {
-                info!(
+                debug!(
                     "Sending bundle to a CLA: {} {} {}",
                     &bpid, n.remote, n.agent
                 );
@@ -370,24 +356,38 @@ pub async fn forward(mut bp: BundlePack) -> Result<()> {
                         &bpid, n.remote, n.agent
                     );
                     bundle_sent.store(true, Ordering::Relaxed);
-                } else if let Some(node_name) = peer_find_by_remote(&n.remote) {
-                    (*DTNCORE.lock())
-                        .routing_agent
-                        .notify(RoutingNotifcation::SendingFailed(&bpid, &node_name));
+                } else {
                     info!("Sending bundle failed: {} {} {}", &bpid, n.remote, n.agent);
+                    let mut failed_peer = None;
+                    for (key, p) in (*PEERS.lock()).iter_mut() {
+                        if p.addr == n.remote {
+                            (*DTNCORE.lock())
+                                .routing_agent
+                                .notify(RoutingNotifcation::SendingFailed(&bpid, &p.node_name()));
+                            p.report_fail();
+                            if p.failed_too_much() && p.con_type == PeerType::Dynamic {
+                                failed_peer = Some(key.clone());
+                            }
+                            break;
+                        }
+                    }
+                    if let Some(peer) = failed_peer {
+                        let peers_before = (*PEERS.lock()).len();
+                        (*PEERS.lock()).remove(&peer);
+                        let peers_after = (*PEERS.lock()).len();
+                        debug!("Removing peer {} from list of neighbors due to too many failed transmissions ({}/{})", peer, peers_before, peers_after);
+                    }
                     // TODO: send status report?
                     // if (*CONFIG.lock()).generate_service_reports {
                     //    send_status_report(&bp2, FORWARDED_BUNDLE, TRANSMISSION_CANCELED);
                     // }
                 }
-                //drop(wg);
             });
             wg.push(task_handle);
         }
         use futures::future::join_all;
 
         join_all(wg).await;
-        //wg.wait();
 
         // Reset hop count block
         /*if let Some(hc) = bndl.extension_block_by_type_mut(bp7::canonical::HOP_COUNT_BLOCK) {
@@ -419,7 +419,9 @@ pub async fn forward(mut bp: BundlePack) -> Result<()> {
             }
         } else {
             info!("Failed to forward bundle to any CLA: {}", bp.id());
-            contraindicated(bp)?;
+            // don't contraindicate if we failed to forward to any CLA
+            // retry next janitor run
+            //contraindicated(bp)?;
         }
     }
     Ok(())
@@ -602,20 +604,17 @@ async fn send_status_report(
     status: StatusInformationPos,
     reason: StatusReportReason,
 ) {
+    // Don't respond to other administrative records or anonymous bundles.
+    if bp.administrative || bp.source == EndpointID::none() {
+        warn!("status report sending denied for dtn:none sources/administrative bundles themselves: {}", bp.id());
+        return;
+    }
     let bndl = store_get_bundle(bp.id());
     if bndl.is_none() {
         warn!("bundle not found when sending status report: {}", bp.id());
         return;
     }
     let bndl = bndl.unwrap();
-    // Don't repond to other administrative records
-    if bndl
-        .primary
-        .bundle_control_flags
-        .contains(BundleControlFlags::BUNDLE_ADMINISTRATIVE_RECORD_PAYLOAD)
-    {
-        return;
-    }
 
     // Don't respond to ourself
     if (*DTNCORE.lock()).is_in_endpoints(&bndl.primary.report_to) {

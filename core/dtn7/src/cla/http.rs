@@ -36,6 +36,7 @@ impl ConvergenceLayerAgent for HttpConvergenceLayer {
         debug!("Scheduled HTTP submission: {:?}", dest);
         if !ready.is_empty() {
             let client = hyper::client::Client::new();
+
             let peeraddr: SocketAddr = dest.parse().unwrap();
             debug!("forwarding to {:?}", peeraddr);
             for b in ready {
@@ -46,11 +47,25 @@ impl ConvergenceLayerAgent for HttpConvergenceLayer {
                     .header("content-type", "application/octet-stream")
                     .body(Body::from(b.to_vec()))
                     .unwrap();
-                if let Err(err) = client.request(req).await {
-                    error!("error pushing bundle to remote: {}", err);
-                    return false;
+                match tokio::time::timeout(std::time::Duration::from_secs(5), client.request(req))
+                    .await
+                {
+                    Ok(result) => match result {
+                        Ok(_response) => debug!("successfully sent bundle to {}", peeraddr.ip()),
+                        Err(e) => {
+                            error!("could not push bundle to remote: {}", e);
+                            return false;
+                        }
+                    },
+                    Err(_) => {
+                        error!("Timeout: no response in 10 milliseconds while pushing bundle.");
+                        return false;
+                    }
                 }
-                debug!("successfully sent bundle to {}", peeraddr.ip());
+                //if let Err(err) = client.request(req).await {
+                //error!("error pushing bundle to remote: {}", err);
+                //return false;
+                //}
             }
             debug!("successfully sent {} bundles to {}", ready.len(), dest);
         } else {

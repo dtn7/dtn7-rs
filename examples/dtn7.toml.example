@@ -1,16 +1,33 @@
 # Example config file for dtn7 daemon
-debug = false
+
+# the name of this node used with dtn naming scheme
+# "node1" becomes "dtn://node1/"
 nodeid = "node1"
+
+# enable/disable debug output in the logs
+debug = false
+
 # Enables advertisement of the beaon period in discovery beacons
 beacon-period = true
 
-generate-status-reports = true
+# the generation of status reports when requested by bundles
+# can cause massive traffic on the network!
+generate-status-reports = false
 
+# the routing algorithm to use, e.g., flooding, epidemic, sink, etc.
 routing = "epidemic"
+
+# the port on which the web interface listens
+# this provides:
+# - a simple web interface with status information
+# - a REST interface for the dtn7 daemon
+# - a WebSocket interface for the dtn7 daemon
 webport = 3000
 
+# the working directory in which files can be stored
 workdir = "/tmp/dtn7"
 
+# the database to use for storing bundles, e.g., mem, sled, sneakers, etc.
 db = "mem"
 
 [core]
@@ -78,4 +95,4 @@ peers = [
 local.0 = "incoming"
 local.1 = "null"
 
-group.0 = "dtn://hometown/weather" # atm ignored
+group.0 = "dtn://hometown/~weather" # atm ignored

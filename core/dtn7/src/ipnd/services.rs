@@ -1,6 +1,6 @@
 extern crate alloc;
 use core::fmt;
-use log::info;
+use log::warn;
 use serde::de::{SeqAccess, Visitor};
 use serde::ser::{SerializeSeq, Serializer};
 use serde::{de, Deserialize, Deserializer, Serialize};
@@ -67,7 +67,7 @@ impl ServiceBlock {
                     convert.insert(*tag, message);
                 }
                 _ => {
-                    info!("Unknown Service encountered. Compare senders IPND version with this one to check for incompatibilities.");
+                    warn!("Unknown service encountered. Compare senders IPND version with this one to check for incompatibilities.");
                 }
             }
         }
@@ -222,7 +222,7 @@ impl std::fmt::Display for ServiceBlock {
                             counter, tag, address[0],address[1],address[2],address[3],address[4])
                 }
                 _ => {
-                    info!("Unknown Service encountered. Compare senders IPND version with this one to check for incompatibilities.");
+                    warn!("Unknown service encountered. Compare senders IPND version with this one to check for incompatibilities.");
                     String::new()
                 }
             };
