@@ -639,7 +639,7 @@ impl Listener {
                             INTERNAL_CHANNEL_BUFFER,
                         );
                     (*TCP_CONNECTIONS.lock()).insert(addr, tx_session_queue);
-                    connection.connect(rx_session_queue).await;
+                    tokio::spawn(connection.connect(rx_session_queue));
                 }
                 Err(e) => {
                     error!("Couldn't get client: {:?}", e)
