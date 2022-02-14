@@ -42,16 +42,10 @@ pub struct ClaSender {
 impl ClaSender {
     /// Create new convergence layer agent just for sending bundles
     pub async fn transfer(&self, ready: &[ByteBuffer]) -> bool {
-        // TODO: provide proper local settings
-        let sender: CLAEnum;
-        match self.local_settings.clone() {
-            Some(set) => {
-                sender = new(&self.agent, Some(&set));
-            }
-            _ => {
-                sender = new(&self.agent, None);
-            }
-        }
+        let sender: CLAEnum = match self.local_settings.clone() {
+            Some(set) => new(&self.agent, Some(&set)),
+            _ => new(&self.agent, None),
+        };
 
         let dest = if self.port.is_some() && self.port.unwrap() != 0 {
             format!("{}:{}", self.remote, self.port.unwrap())
