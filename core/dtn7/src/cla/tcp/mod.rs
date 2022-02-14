@@ -783,7 +783,6 @@ impl TcpConvergenceLayer {
         });
         TcpConvergenceLayer {
             local_port: port,
-            listener: None,
             refuse_existing_bundles,
             tx,
         }
@@ -794,7 +793,6 @@ impl TcpConvergenceLayer {
 #[derive(Debug)]
 pub struct TcpConvergenceLayer {
     local_port: u16,
-    listener: Option<JoinHandle<()>>,
     refuse_existing_bundles: bool,
     tx: mpsc::Sender<super::ClaCmd>,
 }
@@ -809,7 +807,7 @@ impl ConvergenceLayerAgent for TcpConvergenceLayer {
             tcp_listener,
             refuse_existing_bundles: self.refuse_existing_bundles,
         };
-        self.listener = Some(tokio::spawn(listener.run()));
+        tokio::spawn(listener.run());
     }
 
     fn port(&self) -> u16 {
