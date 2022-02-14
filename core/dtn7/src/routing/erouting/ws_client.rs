@@ -73,13 +73,18 @@ impl Client {
         // Read from websocket
         let from_ws = {
             read.for_each(|message| async {
+                if message.is_err() {
+                    // TODO: good way to handle it?
+                    return;
+                }
+
                 let data = message.unwrap().into_text();
 
                 let packet: Result<Packet> = serde_json::from_str(data.unwrap().as_str());
                 if let Ok(packet) = packet {
                     self.packet_out
                         .unbounded_send(packet)
-                        .expect("could't send packet");
+                        .expect("couldn't send packet");
                 }
             })
         };
