@@ -2,7 +2,7 @@ use crate::cla::ConvergenceLayerAgent;
 use crate::core::{DtnPeer, PeerType};
 use crate::ipnd::{beacon::Beacon, services::*};
 use crate::routing::RoutingNotifcation;
-use crate::{peers_add, routing_notify, CONFIG};
+use crate::{peers_add, peers_touch, routing_notify, CONFIG};
 use crate::{CLAS, DTNCORE};
 use anyhow::Result;
 use log::{debug, error, info, trace};
@@ -49,6 +49,10 @@ async fn receiver(socket: UdpSocket) -> Result<(), io::Error> {
                     peer,
                     size
                 );
+                // TODO: check if any fields have changed and update not only timestamp
+                if let Err(e) = peers_touch(&deserialized.eid().to_string()) {
+                    error!("Failed to touch peer: {}", e);
+                }
             }
             trace!("{}", deserialized);
             routing_notify(RoutingNotifcation::EncounteredPeer(deserialized.eid()))

@@ -19,7 +19,7 @@ pub use crate::routing::RoutingNotifcation;
 
 use crate::core::peer::PeerAddress;
 use crate::core::store::BundleStoresEnum;
-use anyhow::Result;
+use anyhow::{Context, Result};
 use lazy_static::*;
 use parking_lot::Mutex;
 use std::collections::HashMap;
@@ -72,6 +72,13 @@ pub fn peers_count() -> usize {
 }
 pub fn peers_clear() {
     (*PEERS.lock()).clear();
+}
+pub fn peers_touch(peer: &str) -> Result<()> {
+    (*PEERS.lock())
+        .get_mut(peer)
+        .context("no such peer")?
+        .touch();
+    Ok(())
 }
 pub fn peers_get_for_node(eid: &EndpointID) -> Option<DtnPeer> {
     for (_, p) in (*PEERS.lock()).iter() {
