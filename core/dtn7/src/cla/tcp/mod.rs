@@ -5,7 +5,7 @@ use self::net::*;
 
 use super::{ConvergenceLayerAgent, HelpStr};
 use async_trait::async_trait;
-use bp7::{Bundle, ByteBuffer};
+use bp7::{Bundle, ByteBuffer, EndpointID};
 //use futures_util::stream::StreamExt;
 use dtn7_codegen::cla;
 use log::{debug, error, info, trace, warn};
@@ -24,8 +24,9 @@ use tokio::time::{self, timeout};
 //use std::net::TcpStream;
 use super::tcp::proto::*;
 use crate::core::store::BundleStore;
-use crate::CONFIG;
-use crate::STORE;
+use crate::core::PeerType;
+use crate::{peers_add, peers_known, peers_touch, STORE};
+use crate::{DtnPeer, CONFIG};
 use anyhow::bail;
 use bytes::Bytes;
 use lazy_static::lazy_static;
@@ -401,6 +402,7 @@ struct TcpClReceiver {
     rx_tcp: OwnedReadHalf,
     tx_session_incoming: mpsc::Sender<TcpClPacket>,
     timeout: u16,
+    remote_node_name: String,
 }
 
 struct TcpClSender {
@@ -424,6 +426,9 @@ impl TcpClReceiver {
                         debug!("Received and successfully parsed packet");
                         if let TcpClPacket::KeepAlive = packet {
                             debug!("Received keepalive");
+                            if peers_touch(&self.remote_node_name).is_err() {
+                                debug!("Peer {} not found, could not update timestamp in peer database", self.remote_node_name);
+                            }
                         } else {
                             self.send_packet(packet).await;
                         }
@@ -564,7 +569,11 @@ impl TcpConnection {
     }
 
     /// Establish a tcp session on this connection and insert it into a session list.
-    async fn connect(mut self, rx_session_queue: mpsc::Receiver<(Vec<u8>, Sender<bool>)>) {
+    async fn connect(
+        mut self,
+        rx_session_queue: mpsc::Receiver<(Vec<u8>, Sender<bool>)>,
+        active: bool,
+    ) {
         // Phase 1
         debug!("Exchanging contact header, {}", self.addr);
         if let Err(err) = self.exchange_contact_header().await {
@@ -577,6 +586,20 @@ impl TcpConnection {
         debug!("Negotiating session parameters, {}", self.addr);
         match self.negotiate_session().await {
             Ok((local_parameters, remote_parameters)) => {
+                // TODO: validate node id
+                let remote_eid = EndpointID::try_from(remote_parameters.node_id.as_ref())
+                    .expect("Invalid node id in tcpcl session");
+                if !active && !peers_known(remote_eid.node().unwrap().as_ref()) {
+                    let peer = DtnPeer::new(
+                        remote_eid.clone(),
+                        crate::PeerAddress::Ip(self.addr.ip()),
+                        PeerType::Dynamic,
+                        None,
+                        vec![("tcp".into(), Some(self.addr.port()))],
+                        HashMap::new(),
+                    );
+                    peers_add(peer);
+                }
                 // channel between receiver task and session task, incoming packets
                 let (tx_session_incoming, rx_session_incoming) =
                     mpsc::channel::<TcpClPacket>(INTERNAL_CHANNEL_BUFFER);
@@ -588,6 +611,7 @@ impl TcpConnection {
                     rx_tcp,
                     tx_session_incoming,
                     timeout: remote_parameters.keepalive,
+                    remote_node_name: remote_eid.node().unwrap_or_default(),
                 };
                 let tx_task = TcpClSender {
                     tx_tcp,
@@ -639,7 +663,7 @@ impl Listener {
                             INTERNAL_CHANNEL_BUFFER,
                         );
                     (*TCP_CONNECTIONS.lock()).insert(addr, tx_session_queue);
-                    tokio::spawn(connection.connect(rx_session_queue));
+                    tokio::spawn(connection.connect(rx_session_queue, false));
                 }
                 Err(e) => {
                     error!("Couldn't get client: {:?}", e)
@@ -682,7 +706,7 @@ async fn tcp_send_bundles(dest: &str, bundle: ByteBuffer, refuse_existing_bundle
                     addr,
                     refuse_existing_bundles,
                 };
-                connection.connect(rx_session_queue).await;
+                connection.connect(rx_session_queue, true).await;
             }
             Ok(Err(_)) => {
                 error!("Couldn't connect to {}", addr);

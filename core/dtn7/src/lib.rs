@@ -73,6 +73,9 @@ pub fn peers_count() -> usize {
 pub fn peers_clear() {
     (*PEERS.lock()).clear();
 }
+pub fn peers_known(peer: &str) -> bool {
+    (*PEERS.lock()).contains_key(peer)
+}
 pub fn peers_touch(peer: &str) -> Result<()> {
     (*PEERS.lock())
         .get_mut(peer)
