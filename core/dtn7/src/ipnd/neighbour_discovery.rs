@@ -50,7 +50,7 @@ async fn receiver(socket: UdpSocket) -> Result<(), io::Error> {
                     size
                 );
                 // TODO: check if any fields have changed and update not only timestamp
-                if let Err(e) = peers_touch(&deserialized.eid().to_string()) {
+                if let Err(e) = peers_touch(deserialized.eid().node().unwrap().as_ref()) {
                     error!("Failed to touch peer: {}", e);
                 }
             }
