@@ -30,7 +30,7 @@ use crate::{DtnPeer, CONFIG};
 use anyhow::bail;
 use bytes::Bytes;
 use lazy_static::lazy_static;
-use tokio::io::{AsyncReadExt, AsyncWriteExt};
+use tokio::io::{AsyncReadExt, AsyncWriteExt, BufReader, BufWriter};
 use tokio::net::TcpListener;
 use tokio::net::TcpStream;
 use tokio::time::Duration;
@@ -399,14 +399,14 @@ impl TcpClSession {
 }
 
 struct TcpClReceiver {
-    rx_tcp: OwnedReadHalf,
+    rx_tcp: BufReader<OwnedReadHalf>,
     tx_session_incoming: mpsc::Sender<TcpClPacket>,
     timeout: u16,
     remote_node_name: String,
 }
 
 struct TcpClSender {
-    tx_tcp: OwnedWriteHalf,
+    tx_tcp: BufWriter<OwnedWriteHalf>,
     rx_session_outgoing: mpsc::Receiver<TcpClPacket>,
     timeout: u16,
 }
@@ -505,7 +505,8 @@ impl TcpClSender {
 /// Initial tcp connection.
 /// Session not yet established.
 struct TcpConnection {
-    stream: TcpStream,
+    reader: BufReader<OwnedReadHalf>,
+    writer: BufWriter<OwnedWriteHalf>,
     addr: SocketAddr,
     refuse_existing_bundles: bool,
 }
@@ -522,12 +523,10 @@ impl TcpConnection {
         };
 
         let session_init = TcpClPacket::SessInit(sess_init_data.clone());
-        let mut buf = vec![];
-        session_init.serialize(&mut buf).await?;
-        self.stream.write_all(&buf).await?;
-        self.stream.flush().await?;
+        session_init.serialize(&mut self.writer).await?;
+        self.writer.flush().await?;
 
-        let response = TcpClPacket::deserialize(&mut self.stream).await?;
+        let response = TcpClPacket::deserialize(&mut self.reader).await?;
         debug!("Received session parameters");
         if let TcpClPacket::SessInit(mut data) = response {
             let keepalive = sess_init_data.keepalive.min(data.keepalive);
@@ -547,18 +546,16 @@ impl TcpConnection {
     }
 
     async fn send_contact_header(&mut self, flags: ContactHeaderFlags) -> anyhow::Result<()> {
-        let mut buf = vec![];
         TcpClPacket::ContactHeader(flags)
-            .serialize(&mut buf)
+            .serialize(&mut self.writer)
             .await?;
-        self.stream.write_all(&buf).await?;
-        self.stream.flush().await?;
+        self.writer.flush().await?;
         Ok(())
     }
 
     async fn receive_contact_header(&mut self) -> anyhow::Result<ContactHeaderFlags> {
         let mut buf: [u8; 6] = [0; 6];
-        self.stream.read_exact(&mut buf).await?;
+        self.reader.read_exact(&mut buf).await?;
         if &buf[0..4] != b"dtn!" {
             bail!("Invalid magic");
         }
@@ -606,15 +603,14 @@ impl TcpConnection {
                 // channel between sender task and session task, outgoing packets
                 let (tx_session_outgoing, rx_session_outgoing) =
                     mpsc::channel::<TcpClPacket>(INTERNAL_CHANNEL_BUFFER);
-                let (rx_tcp, tx_tcp) = self.stream.into_split();
                 let rx_task = TcpClReceiver {
-                    rx_tcp,
+                    rx_tcp: self.reader,
                     tx_session_incoming,
                     timeout: remote_parameters.keepalive,
                     remote_node_name: remote_eid.node().unwrap_or_default(),
                 };
                 let tx_task = TcpClSender {
-                    tx_tcp,
+                    tx_tcp: self.writer,
                     rx_session_outgoing,
                     timeout: local_parameters.keepalive,
                 };
@@ -652,8 +648,10 @@ impl Listener {
             match self.tcp_listener.accept().await {
                 Ok((stream, addr)) => {
                     info!("Incoming connection from: {:?}", addr);
+                    let (rx, tx) = stream.into_split();
                     let connection = TcpConnection {
-                        stream,
+                        reader: BufReader::new(rx),
+                        writer: BufWriter::new(tx),
                         addr,
                         refuse_existing_bundles: self.refuse_existing_bundles,
                     };
@@ -701,8 +699,10 @@ async fn tcp_send_bundles(dest: &str, bundle: ByteBuffer, refuse_existing_bundle
         let conn_fut = TcpStream::connect(addr);
         match tokio::time::timeout(std::time::Duration::from_secs(3), conn_fut).await {
             Ok(Ok(stream)) => {
+                let (rx, tx) = stream.into_split();
                 let connection = TcpConnection {
-                    stream,
+                    reader: BufReader::new(rx),
+                    writer: BufWriter::new(tx),
                     addr,
                     refuse_existing_bundles,
                 };
