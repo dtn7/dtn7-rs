@@ -671,7 +671,12 @@ impl Listener {
     }
 }
 
-async fn tcp_send_bundles(dest: &str, bundle: ByteBuffer, refuse_existing_bundles: bool) -> bool {
+async fn tcp_send_bundles(
+    dest: String,
+    bundle: ByteBuffer,
+    refuse_existing_bundles: bool,
+    reply: Sender<bool>,
+) -> anyhow::Result<()> {
     let addr: SocketAddr = dest.parse().unwrap();
 
     let sender: mpsc::Sender<(Vec<u8>, Sender<bool>)>;
@@ -709,36 +714,23 @@ async fn tcp_send_bundles(dest: &str, bundle: ByteBuffer, refuse_existing_bundle
                 connection.connect(rx_session_queue, true).await;
             }
             Ok(Err(_)) => {
-                error!("Couldn't connect to {}", addr);
-                return false;
+                if let Err(e) = reply.send(false) {
+                    error!("Failed to send reply to internal sender channel: {}", e);
+                }
+                bail!("Couldn't connect to {}", addr);
             }
             Err(_) => {
-                error!("Timeout connecting to {}", addr);
-                return false;
+                if let Err(e) = reply.send(false) {
+                    error!("Failed to send reply to internal sender channel: {}", e);
+                }
+                bail!("Timeout connecting to {}", addr);
             }
         }
     }
 
     // then push bundles to channel
-    let mut results = Vec::new();
-    trace!("Sending bundle {:?}", bundle);
-    let (tx, rx) = oneshot::channel::<bool>();
-    if sender.send((bundle, tx)).await.is_ok() {
-        if let Ok(successful) = rx.await {
-            results.push(successful);
-        } else {
-            results.push(false);
-        }
-    } else {
-        results.push(false);
-    }
-
-    for result in results {
-        if !result {
-            return false;
-        }
-    }
-    true
+    sender.send((bundle, reply)).await?;
+    Ok(())
 }
 
 impl TcpConvergenceLayer {
@@ -773,11 +765,16 @@ impl TcpConvergenceLayer {
                             remote
                         );
                         tokio::spawn(async move {
-                            reply
-                                .send(
-                                    tcp_send_bundles(&remote, data, refuse_existing_bundles).await,
-                                )
-                                .unwrap();
+                            if let Err(e) = tcp_send_bundles(
+                                remote.clone(),
+                                data,
+                                refuse_existing_bundles,
+                                reply,
+                            )
+                            .await
+                            {
+                                error!("Failed to send data to {}: {}", remote, e);
+                            }
                         });
                     }
                     super::ClaCmd::Shutdown => {
