@@ -416,7 +416,7 @@ impl TcpClReceiver {
     async fn run(mut self) {
         loop {
             match timeout(
-                Duration::from_secs((self.timeout * 2).into()),
+                Duration::from_secs((self.timeout + 2).into()),
                 TcpClPacket::deserialize(&mut self.rx_tcp),
             )
             .await
