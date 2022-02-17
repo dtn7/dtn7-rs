@@ -13,7 +13,7 @@ A client that connects to the ECLA and implements a new transmission layer is ca
 
 All packets are JSON encoded and contain a field called ``type`` which specifies (as the name implies) the type of the packet. The protocol is compact and contains only 5 different packet types:
 
-#### RegisterPacket
+#### Register
 
 ```json
 {
@@ -23,7 +23,7 @@ All packets are JSON encoded and contain a field called ``type`` which specifies
 }
 ```
 
-#### ErrorPacket
+#### Error
 
 ```json
 {
@@ -32,7 +32,7 @@ All packets are JSON encoded and contain a field called ``type`` which specifies
 }
 ```
 
-#### RegisteredPacket
+#### Registered
 
 ```json
 {
@@ -42,7 +42,7 @@ All packets are JSON encoded and contain a field called ``type`` which specifies
 }
 ```
 
-#### ForwardDataPacket
+#### ForwardData
 
 ```json
 {
@@ -54,7 +54,7 @@ All packets are JSON encoded and contain a field called ``type`` which specifies
 }
 ```
 
-#### BeaconPacket
+#### Beacon
 
 ```json
 {
