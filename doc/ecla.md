@@ -1,6 +1,6 @@
 # ECLA
 
-![ECLA Model](./ecla_overview.png)
+![ECLA Model](./ecla_overview.drawio.png)
 
 The External Convergence Layer Agent allows implementing Convergence Layer Agents externally (e.g. outside the dtn7-rs codebase). It works by exposing a realtime JSON API via WebSocket or TCP. With the help of the ECLA it is possible to easily implement new transmission layers in different language. All languages that can encode / decode JSON and communicate via WebSocket or TCP should in theory work. Additionally, the ECLA contains a optional and simple beacon system that can be used for peer discovery.
 
@@ -73,7 +73,7 @@ After the initial connect to the ECLA the first packet that must be send is the 
 
 #### Example Sequence
 
-![ECLA Model](./ecla_reg.png)
+![ECLA Model](./ecla_reg.drawio.png)
 
 ### Forward Data
 
@@ -89,7 +89,7 @@ If you receive a packet from the transmission layer you must pass it to the ECLA
 
 #### Example Sequence
 
-![ECLA Model](./ecla_fwd.png)
+![ECLA Model](./ecla_fwd.drawio.png)
 
 ### Beacon
 
@@ -105,7 +105,7 @@ If you receive a packet from the transmission layer you can pass it to the ECLA 
 
 #### Example Sequence
 
-![ECLA Model](./ecla_beacon.png)
+![ECLA Model](./ecla_beacon.drawio.png)
 
 ## TCP Transport Layer
 
