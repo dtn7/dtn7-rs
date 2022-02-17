@@ -1,12 +1,8 @@
 use super::{
-    DroppedPeerPacket, EncounteredPeerPacket, IncomingBundlePacket,
-    IncomingBundleWithoutPreviousNodePacket, Packet, PeerStatePacket, SendForBundlePacket,
-    SendingFailedPacket, ServiceStatePacket,
+    DroppedPeer, EncounteredPeer, IncomingBundle, IncomingBundleWithoutPreviousNode, Packet,
+    PeerState, SendForBundle, SendingFailed, ServiceState,
 };
 use crate::cla::ClaSender;
-use crate::RoutingNotifcation::{
-    DroppedPeer, EncounteredPeer, IncomingBundle, IncomingBundleWithoutPreviousNode, SendingFailed,
-};
 use crate::{
     cla_names, cla_parse, cla_settings, lazy_static, peers_get_for_node, service_add, BundlePack,
     RoutingNotifcation, CONFIG, DTNCORE, PEERS,
@@ -31,14 +27,14 @@ lazy_static! {
 }
 
 fn send_peer_state() {
-    let peer_state: Packet = Packet::PeerStatePacket(PeerStatePacket {
+    let peer_state: Packet = Packet::PeerState(PeerState {
         peers: PEERS.lock().clone(),
     });
     send_packet(&peer_state);
 }
 
 fn send_service_state() {
-    let service_state: Packet = Packet::ServiceStatePacket(ServiceStatePacket {
+    let service_state: Packet = Packet::ServiceState(ServiceState {
         service_list: DTNCORE.lock().service_list.clone(),
     });
     send_packet(&service_state);
@@ -80,7 +76,7 @@ pub async fn handle_connection(ws: WebSocket) {
 
         match packet {
             Ok(packet) => match packet {
-                Packet::SendForBundleResponsePacket(packet) => {
+                Packet::SendForBundleResponse(packet) => {
                     debug!(
                         "sender_for_bundle response: {}",
                         msg.to_text().unwrap().trim()
@@ -91,13 +87,13 @@ pub async fn handle_connection(ws: WebSocket) {
                         .unwrap()
                         .get(packet.bp.to_string().as_str())
                     {
-                        tx.unbounded_send(Packet::SendForBundleResponsePacket(packet))
+                        tx.unbounded_send(Packet::SendForBundleResponse(packet))
                             .expect("could not send response to channel");
                     } else {
                         info!("sender_for_bundle response could not be passed")
                     }
                 }
-                Packet::ServiceAddPacket(packet) => {
+                Packet::ServiceAdd(packet) => {
                     info!(
                         "adding service via erouting {}:{}",
                         packet.tag, packet.service
@@ -141,35 +137,30 @@ fn send_packet(p: &Packet) {
 }
 
 pub fn notify(notification: RoutingNotifcation) {
-    let packet: Packet;
-    match notification {
-        SendingFailed(bid, cla_sender) => {
-            packet = Packet::SendingFailedPacket(SendingFailedPacket {
+    let packet: Packet = match notification {
+        RoutingNotifcation::SendingFailed(bid, cla_sender) => {
+            Packet::SendingFailed(SendingFailed {
                 bid: bid.to_string(),
                 cla_sender: cla_sender.to_string(),
-            });
+            })
         }
-        IncomingBundle(bndl) => {
-            packet = Packet::IncomingBundlePacket(IncomingBundlePacket { bndl: bndl.clone() });
+        RoutingNotifcation::IncomingBundle(bndl) => {
+            Packet::IncomingBundle(IncomingBundle { bndl: bndl.clone() })
         }
-        IncomingBundleWithoutPreviousNode(bid, node_name) => {
-            packet = Packet::IncomingBundleWithoutPreviousNodePacket(
-                IncomingBundleWithoutPreviousNodePacket {
-                    bid: bid.to_string(),
-                    node_name: node_name.to_string(),
-                },
-            );
+        RoutingNotifcation::IncomingBundleWithoutPreviousNode(bid, node_name) => {
+            Packet::IncomingBundleWithoutPreviousNode(IncomingBundleWithoutPreviousNode {
+                bid: bid.to_string(),
+                node_name: node_name.to_string(),
+            })
         }
-        EncounteredPeer(eid) => {
-            packet = Packet::EncounteredPeerPacket(EncounteredPeerPacket {
-                eid: eid.clone(),
-                peer: peers_get_for_node(eid).unwrap(),
-            });
+        RoutingNotifcation::EncounteredPeer(eid) => Packet::EncounteredPeer(EncounteredPeer {
+            eid: eid.clone(),
+            peer: peers_get_for_node(eid).unwrap(),
+        }),
+        RoutingNotifcation::DroppedPeer(eid) => {
+            Packet::DroppedPeer(DroppedPeer { eid: eid.clone() })
         }
-        DroppedPeer(eid) => {
-            packet = Packet::DroppedPeerPacket(DroppedPeerPacket { eid: eid.clone() });
-        }
-    }
+    };
 
     send_packet(&packet);
 }
@@ -188,7 +179,7 @@ pub fn sender_for_bundle(bp: &BundlePack) -> (Vec<ClaSender>, bool) {
     let (tx, mut rx) = unbounded();
     create_response_channel(bp.to_string().as_str(), tx);
 
-    let packet: Packet = Packet::SendForBundlePacket(SendForBundlePacket {
+    let packet: Packet = Packet::SendForBundle(SendForBundle {
         clas: cla_names(),
         bp: bp.clone(),
     });
@@ -196,7 +187,7 @@ pub fn sender_for_bundle(bp: &BundlePack) -> (Vec<ClaSender>, bool) {
 
     for _ in 0..25 {
         if CONNECTION.lock().unwrap().is_some() {
-            if let Ok(Some(Packet::SendForBundleResponsePacket(packet))) = rx.try_next() {
+            if let Ok(Some(Packet::SendForBundleResponse(packet))) = rx.try_next() {
                 if packet.bp.to_string() != bp.to_string() {
                     info!("got a wrong bundle pack! {} != {}", bp, packet.bp);
                     continue;

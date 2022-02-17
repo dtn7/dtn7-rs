@@ -1,7 +1,7 @@
 use anyhow::{bail, Result};
 use clap::{crate_authors, crate_version, App, Arg};
 use dtn7::routing::erouting::ws_client::{new, Command};
-use dtn7::routing::erouting::{Packet, SendForBundleResponsePacket, Sender};
+use dtn7::routing::erouting::{Packet, SendForBundleResponse, Sender};
 use dtn7::DtnPeer;
 use futures::channel::mpsc::unbounded;
 use futures_util::{future, pin_mut, StreamExt};
@@ -132,24 +132,24 @@ async fn main() -> Result<()> {
 
     let read = rx.for_each(|packet| {
         match packet {
-            Packet::PeerStatePacket(packet) => {
+            Packet::PeerState(packet) => {
                 peers = packet.peers;
                 info!("Peer State: {}", peers.len());
             }
-            Packet::EncounteredPeerPacket(packet) => {
+            Packet::EncounteredPeer(packet) => {
                 peers.insert(packet.eid.node().unwrap(), packet.peer);
                 info!("Peer Encountered: {}", packet.eid.node().unwrap());
             }
-            Packet::DroppedPeerPacket(packet) => {
+            Packet::DroppedPeer(packet) => {
                 peers.remove(packet.eid.node().unwrap().as_str());
                 info!("Peer Dropped: {}", packet.eid.node().unwrap());
             }
-            Packet::SendingFailedPacket(packet) => {
+            Packet::SendingFailed(packet) => {
                 if selected_type == "epidemic" {
                     epi_sending_failed(packet.bid.as_str(), packet.cla_sender.as_str());
                 }
             }
-            Packet::IncomingBundlePacket(packet) => {
+            Packet::IncomingBundle(packet) => {
                 if selected_type == "epidemic" {
                     if let Some(eid) = packet.bndl.previous_node() {
                         if let Some(node_name) = eid.node() {
@@ -158,12 +158,12 @@ async fn main() -> Result<()> {
                     };
                 }
             }
-            Packet::IncomingBundleWithoutPreviousNodePacket(packet) => {
+            Packet::IncomingBundleWithoutPreviousNode(packet) => {
                 if selected_type == "epidemic" {
                     epi_incoming_bundle(packet.bid.as_str(), packet.node_name.as_str());
                 }
             }
-            Packet::SendForBundlePacket(packet) => {
+            Packet::SendForBundle(packet) => {
                 info!("got bundle pack: {}", packet.bp);
 
                 let mut clas = Vec::new();
@@ -207,11 +207,10 @@ async fn main() -> Result<()> {
                     info!("selected {} to {}", clas[0].agent, clas[0].remote);
                 }
 
-                let resp: Packet =
-                    Packet::SendForBundleResponsePacket(SendForBundleResponsePacket {
-                        bp: packet.bp,
-                        clas,
-                    });
+                let resp: Packet = Packet::SendForBundleResponse(SendForBundleResponse {
+                    bp: packet.bp,
+                    clas,
+                });
 
                 cmd_tx
                     .unbounded_send(Command::SendPacket(resp))

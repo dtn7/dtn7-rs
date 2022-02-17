@@ -11,20 +11,20 @@ pub mod ws_client;
 #[derive(Serialize, Deserialize, Clone)]
 #[serde(tag = "type")]
 pub enum Packet {
-    SendForBundlePacket(SendForBundlePacket),
-    SendForBundleResponsePacket(SendForBundleResponsePacket),
-    SendingFailedPacket(SendingFailedPacket),
-    IncomingBundlePacket(IncomingBundlePacket),
-    IncomingBundleWithoutPreviousNodePacket(IncomingBundleWithoutPreviousNodePacket),
-    EncounteredPeerPacket(EncounteredPeerPacket),
-    DroppedPeerPacket(DroppedPeerPacket),
-    PeerStatePacket(PeerStatePacket),
-    ServiceStatePacket(ServiceStatePacket),
-    ServiceAddPacket(AddServicePacket),
+    SendForBundle(SendForBundle),
+    SendForBundleResponse(SendForBundleResponse),
+    SendingFailed(SendingFailed),
+    IncomingBundle(IncomingBundle),
+    IncomingBundleWithoutPreviousNode(IncomingBundleWithoutPreviousNode),
+    EncounteredPeer(EncounteredPeer),
+    DroppedPeer(DroppedPeer),
+    PeerState(PeerState),
+    ServiceState(ServiceState),
+    ServiceAdd(AddService),
 }
 
 #[derive(Serialize, Deserialize, Clone)]
-pub struct SendForBundlePacket {
+pub struct SendForBundle {
     pub clas: Vec<String>,
     pub bp: BundlePack,
 }
@@ -37,51 +37,51 @@ pub struct Sender {
 }
 
 #[derive(Serialize, Deserialize, Clone)]
-pub struct SendForBundleResponsePacket {
+pub struct SendForBundleResponse {
     pub bp: BundlePack,
     pub clas: Vec<Sender>,
 }
 
 #[derive(Serialize, Deserialize, Clone)]
-pub struct SendingFailedPacket {
+pub struct SendingFailed {
     pub bid: String,
     pub cla_sender: String,
 }
 
 #[derive(Serialize, Deserialize, Clone)]
-pub struct IncomingBundlePacket {
+pub struct IncomingBundle {
     pub bndl: Bundle,
 }
 
 #[derive(Serialize, Deserialize, Clone)]
-pub struct IncomingBundleWithoutPreviousNodePacket {
+pub struct IncomingBundleWithoutPreviousNode {
     pub bid: String,
     pub node_name: String,
 }
 
 #[derive(Serialize, Deserialize, Clone)]
-pub struct EncounteredPeerPacket {
+pub struct EncounteredPeer {
     pub eid: EndpointID,
     pub peer: DtnPeer,
 }
 
 #[derive(Serialize, Deserialize, Clone)]
-pub struct DroppedPeerPacket {
+pub struct DroppedPeer {
     pub eid: EndpointID,
 }
 
 #[derive(Serialize, Deserialize, Clone)]
-pub struct PeerStatePacket {
+pub struct PeerState {
     pub peers: HashMap<String, DtnPeer>,
 }
 
 #[derive(Serialize, Deserialize, Clone)]
-pub struct AddServicePacket {
+pub struct AddService {
     pub tag: u8,
     pub service: String,
 }
 
 #[derive(Serialize, Deserialize, Clone)]
-pub struct ServiceStatePacket {
+pub struct ServiceState {
     pub service_list: HashMap<u8, String>,
 }
