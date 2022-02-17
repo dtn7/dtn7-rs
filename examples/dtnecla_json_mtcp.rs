@@ -188,11 +188,11 @@ async fn main() -> Result<()> {
     // Read from Packet Stream
     let read = rx.for_each(|packet| {
         match packet {
-            Packet::ForwardDataPacket(fwd) => {
-                info!("Got ForwardDataPacket {} -> {}", fwd.src, fwd.dst);
+            Packet::ForwardData(fwd) => {
+                info!("Got ForwardData {} -> {}", fwd.src, fwd.dst);
 
                 // Create length delimited frame [ len: u32 | frame payload ] and send to destination
-                if let Ok(mut data) = serde_json::to_vec(&Packet::ForwardDataPacket(fwd.clone())) {
+                if let Ok(mut data) = serde_json::to_vec(&Packet::ForwardData(fwd.clone())) {
                     let len = (data.len() as u32).to_be_bytes();
                     data.splice(0..0, len.iter().cloned());
                     send_bundles(fwd.dst, data);

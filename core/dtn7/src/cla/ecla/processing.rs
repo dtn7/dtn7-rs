@@ -1,7 +1,7 @@
-use super::{Beacon, ForwardDataPacket, Packet, TransportLayer};
+use super::{Beacon, ForwardData, Packet, TransportLayer};
 use crate::cla::ecla::tcp::TCPTransportLayer;
 use crate::cla::ecla::ws::WebsocketTransportLayer;
-use crate::cla::ecla::{ErrorPacket, RegisteredPacket, TransportLayerEnum};
+use crate::cla::ecla::{Error, Registered, TransportLayerEnum};
 use crate::cla::external::ExternalConvergenceLayer;
 use crate::cla::ConvergenceLayerAgent;
 use crate::cla::PeerAddress;
@@ -117,7 +117,7 @@ pub fn handle_packet(layer_name: String, addr: String, packet: Packet) {
     match me.state {
         // If we are still in WaitingForIdent we only wait for RegisterPackets to register the Module name.
         ModuleState::WaitingForIdent => {
-            if let Packet::RegisterPacket(ident) = packet {
+            if let Packet::Register(ident) = packet {
                 info!(
                     "Received RegisterPacket from {} ({}): {}",
                     addr, layer_name, ident.name
@@ -139,7 +139,7 @@ pub fn handle_packet(layer_name: String, addr: String, packet: Packet) {
                     let nodeid = (*CONFIG.lock()).nodeid.clone();
                     layer.send_packet(
                         addr.as_str(),
-                        &Packet::RegisteredPacket(RegisteredPacket { eid, nodeid }),
+                        &Packet::Registered(Registered { eid, nodeid }),
                     );
 
                     // Send initial beacon
@@ -149,7 +149,7 @@ pub fn handle_packet(layer_name: String, addr: String, packet: Packet) {
                 } else {
                     layer.send_packet(
                         addr.as_str(),
-                        &Packet::ErrorPacket(ErrorPacket {
+                        &Packet::Error(Error {
                             reason: "already registered".to_string(),
                         }),
                     );
@@ -160,7 +160,7 @@ pub fn handle_packet(layer_name: String, addr: String, packet: Packet) {
         // If we are Active we wait for Beacon and ForwardDataPacket
         ModuleState::Active => match packet {
             // We got a new Bundle Packet that needs to be parsed and processed.
-            Packet::ForwardDataPacket(fwd) => {
+            Packet::ForwardData(fwd) => {
                 if let Ok(bndl) = Bundle::try_from(fwd.data) {
                     info!("Received bundle: {} from {}", bndl.id(), me.name);
                     {
@@ -229,7 +229,7 @@ pub fn scheduled_submission(name: &str, dest: &str, ready: &[ByteBuffer]) -> boo
             // Found the matching Module
             for b in ready {
                 if let Ok(bndl) = Bundle::try_from(b.clone()) {
-                    let packet: Packet = Packet::ForwardDataPacket(ForwardDataPacket {
+                    let packet: Packet = Packet::ForwardData(ForwardData {
                         dst: dest.to_string(),
                         src: "".to_string(), // Leave blank for now and let the Module set it to a protocol specific address on his side
                         bundle_id: bndl.id(),
@@ -261,9 +261,7 @@ pub async fn start_ecla(tcpport: u16) {
     debug!("Setup External Convergence Layer");
 
     // Create the WS Transport Layer
-    let mut ws_layer = WebsocketTransportLayer::new();
-    ws_layer.setup().await;
-    add_layer(ws_layer.into());
+    add_layer(WebsocketTransportLayer::new().into());
 
     // Create the TCP Transport Layer
     if tcpport > 0 {

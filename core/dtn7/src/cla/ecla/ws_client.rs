@@ -1,4 +1,4 @@
-use super::{Packet, RegisterPacket};
+use super::{Packet, Register};
 use crate::cla::ecla::ws_client::Command::SendPacket;
 use futures::channel::mpsc::{unbounded, UnboundedReceiver, UnboundedSender};
 use futures_util::{future, pin_mut, SinkExt, StreamExt};
@@ -65,11 +65,11 @@ impl Client {
 
         // Queue initial RegisterPacket
         self.cmd_sender
-            .unbounded_send(SendPacket(Packet::RegisterPacket(RegisterPacket {
+            .unbounded_send(SendPacket(Packet::Register(Register {
                 name: self.module_name.to_string(),
                 enable_beacon: self.enable_beacon,
             })))
-            .expect("couldn't send RegisterPacket");
+            .expect("couldn't send Register");
 
         // Pass rx to write
         let mut cmd_receiver = std::mem::replace(&mut self.cmd_receiver, unbounded().1);
@@ -99,11 +99,11 @@ impl Client {
                 if let Ok(packet) = packet {
                     // Pass received packets to read channel
                     match packet {
-                        Packet::ForwardDataPacket(mut fwd) => {
+                        Packet::ForwardData(mut fwd) => {
                             fwd.src = self.id.clone();
                             self.packet_out
-                                .unbounded_send(Packet::ForwardDataPacket(fwd))
-                                .expect("couldn't send ForwardDataPacket");
+                                .unbounded_send(Packet::ForwardData(fwd))
+                                .expect("couldn't send ForwardData");
                         }
                         Packet::Beacon(mut pdp) => {
                             pdp.addr = self.id.clone();

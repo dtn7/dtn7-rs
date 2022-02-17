@@ -32,11 +32,11 @@ mod base64 {
 #[derive(Serialize, Deserialize, Clone)]
 #[serde(tag = "type")]
 pub enum Packet {
-    RegisterPacket(RegisterPacket),
+    Register(Register),
     Beacon(Beacon),
-    ForwardDataPacket(ForwardDataPacket),
-    RegisteredPacket(RegisteredPacket),
-    ErrorPacket(ErrorPacket),
+    ForwardData(ForwardData),
+    Registered(Registered),
+    Error(Error),
 }
 
 // Beacon is a device discovery packet. It can either be from the direct connection
@@ -51,27 +51,27 @@ pub struct Beacon {
 
 // Packet that contains information about the connected node (will be send if registration was successful)
 #[derive(Serialize, Deserialize, Clone)]
-pub struct RegisteredPacket {
+pub struct Registered {
     pub eid: EndpointID,
     pub nodeid: String,
 }
 
 // Packet that contains a error message if a error happens
 #[derive(Serialize, Deserialize, Clone)]
-pub struct ErrorPacket {
+pub struct Error {
     pub reason: String,
 }
 
 // Identification Packet that registers the Module Name.
 #[derive(Serialize, Deserialize, Clone)]
-pub struct RegisterPacket {
+pub struct Register {
     pub name: String,
     pub enable_beacon: bool,
 }
 
 // Packet that forwards Bundle data
 #[derive(Serialize, Deserialize, Clone)]
-pub struct ForwardDataPacket {
+pub struct ForwardData {
     pub src: String,
     pub dst: String,
     pub bundle_id: String,

@@ -17,7 +17,7 @@ All packets are JSON encoded and contain a field called ``type`` which specifies
 
 ```json
 {
-  "type": "RegisterPacket",
+  "type": "Register",
   "name": "CLA Name",
   "enable_beacon": true
 }
@@ -27,7 +27,7 @@ All packets are JSON encoded and contain a field called ``type`` which specifies
 
 ```json
 {
-  "type": "ErrorPacket",
+  "type": "Error",
   "reason": "error text"
 }
 ```
@@ -36,7 +36,7 @@ All packets are JSON encoded and contain a field called ``type`` which specifies
 
 ```json
 {
-  "type": "RegisteredPacket",
+  "type": "Registered",
   "eid": [],
   "nodeid": "nodex"
 }
@@ -46,7 +46,7 @@ All packets are JSON encoded and contain a field called ``type`` which specifies
 
 ```json
 {
-  "type": "ForwardDataPacket",
+  "type": "ForwardData",
   "src": "...",
   "dst": "...",
   "bundle_id": "...",

@@ -3,7 +3,7 @@ use clap::{crate_authors, crate_version, App, Arg};
 use dtn7::cla::ecla::ws_client::new;
 use dtn7::cla::ecla::ws_client::Command::SendPacket;
 use dtn7::cla::ecla::Packet;
-use dtn7::cla::ecla::Packet::{Beacon, ForwardDataPacket};
+use dtn7::cla::ecla::Packet::{Beacon, ForwardData};
 use futures::channel::mpsc::{unbounded, UnboundedSender};
 use futures_util::{future, pin_mut, StreamExt};
 use log::info;
@@ -78,13 +78,13 @@ async fn main() -> Result<()> {
     // Read from Packet Stream
     let read = rx.for_each(|packet| {
         match packet {
-            Packet::ForwardDataPacket(fwd) => {
-                info!("Got ForwardDataPacket {} -> {}", fwd.src, fwd.dst);
+            Packet::ForwardData(fwd) => {
+                info!("Got ForwardData {} -> {}", fwd.src, fwd.dst);
 
                 let id = usize::from_str(fwd.dst.as_str()).unwrap_or(conns.len());
                 if id < conns.len() {
                     conns[id]
-                        .unbounded_send(ForwardDataPacket(fwd.clone()))
+                        .unbounded_send(ForwardData(fwd.clone()))
                         .expect("couldn't pass packet to client packet channel");
                 }
             }

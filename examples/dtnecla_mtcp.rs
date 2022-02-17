@@ -3,7 +3,7 @@ use bp7::Bundle;
 use clap::{crate_authors, crate_version, App, Arg};
 use dtn7::cla::ecla::ws_client::new;
 use dtn7::cla::ecla::ws_client::Command::SendPacket;
-use dtn7::cla::ecla::{ForwardDataPacket, Packet};
+use dtn7::cla::ecla::{ForwardData, Packet};
 use dtn7::cla::mtcp::{MPDUCodec, MPDU};
 use futures::channel::mpsc::{unbounded, UnboundedSender};
 use futures_util::{future, pin_mut, StreamExt};
@@ -41,14 +41,12 @@ async fn handle_connection(
                 if let Ok(mut bndl) = Bundle::try_from(frame) {
                     info!("Received bundle: {} from {}", bndl.id(), addr);
                     {
-                        if let Err(err) =
-                            tx.unbounded_send(Packet::ForwardDataPacket(ForwardDataPacket {
-                                src: "".to_string(),
-                                dst: addr.clone(),
-                                bundle_id: bndl.id(),
-                                data: bndl.to_cbor(),
-                            }))
-                        {
+                        if let Err(err) = tx.unbounded_send(Packet::ForwardData(ForwardData {
+                            src: "".to_string(),
+                            dst: addr.clone(),
+                            bundle_id: bndl.id(),
+                            data: bndl.to_cbor(),
+                        })) {
                             info!("Error sending bundle to channel {}", err);
                         }
                     }
@@ -198,8 +196,8 @@ async fn main() -> Result<()> {
     // Read from Packet Stream
     let read = rx.for_each(|packet| {
         match packet {
-            Packet::ForwardDataPacket(fwd) => {
-                info!("Got ForwardDataPacket {} -> {}", fwd.src, fwd.dst);
+            Packet::ForwardData(fwd) => {
+                info!("Got ForwardData {} -> {}", fwd.src, fwd.dst);
 
                 if let Ok(bndl) = Bundle::try_from(fwd.data) {
                     let mpdu = MPDU::new(&bndl);
