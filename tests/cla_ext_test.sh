@@ -139,7 +139,7 @@ grep -i "Received refuse" $OUT_NODE5 -q
 NODE5GREP=$?
 echo "TCP retransmission check on node 5: expected: 1 found: $NODE5GREP"
 
-if [ $NODE1GREP -eq 1 ] && [ $NODE4GREP -eq 1 ] && [ $NODE5GREP -eq 1 ] && [ $NODE3GREP -eq 1 ] && [ $NODE2GREP -eq 0 ]
+if [ $NODE1GREP -eq 1 ] && [ $NODE4GREP -eq 1 ] && [ $NODE5GREP -eq 1 ] && [ $NODE3GREP -eq 0 ] && [ $NODE2GREP -eq 0 ]
 then
   echo -n "TCP retransmission check: successful"
   echo
