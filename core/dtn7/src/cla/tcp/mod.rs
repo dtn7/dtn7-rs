@@ -197,17 +197,20 @@ impl TcpConnection {
                         received_packet = TcpClPacket::deserialize(&mut self.reader) => {
                             match received_packet {
                                 Ok(packet) => {
-                                    if let Err(err) = self.receive(packet, &local_parameters).await {
-                                        error!("error while receiving: {:?}", err);
-                                        break;
-                                    }
+                                    if packet == TcpClPacket::KeepAlive {
+                                        TcpClPacket::KeepAlive.serialize(&mut self.writer).await.unwrap();
+                                    } else {
+                                        if let Err(err) = self.receive(packet, &local_parameters).await {
+                                            error!("error while receiving: {:?}", err);
+                                            break;
+                                        }
+                                    }                                    
                                 },
                                 Err(err) => {
                                     error!("Failed parsing package: {:?}", err);
                                     break;
                                 },
                             }
-
                             keepalive_sent = false;
                         }
                         queue_bundle = rx_session_queue.recv() => {
