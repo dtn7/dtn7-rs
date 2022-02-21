@@ -136,7 +136,6 @@ impl TcpClSession {
             }
         }
         debug!("Removing tcp session {:?}", self.remote_addr);
-        (*TCP_CONNECTIONS.lock()).remove(&self.remote_addr);
     }
     /// Receive a new packet.
     /// Returns once transfer is finished and session is idle again.
@@ -416,7 +415,7 @@ impl TcpClReceiver {
     async fn run(mut self) {
         loop {
             match timeout(
-                Duration::from_secs((self.timeout + 2).into()),
+                Duration::from_secs((self.timeout * 2).into()),
                 TcpClPacket::deserialize(&mut self.rx_tcp),
             )
             .await
@@ -676,24 +675,26 @@ async fn tcp_send_bundles(
 ) -> anyhow::Result<()> {
     let addr: SocketAddr = dest.parse().unwrap();
 
-    let sender: mpsc::Sender<(Vec<u8>, Sender<bool>)>;
-    let mut receiver = None;
-    {
+    let (sender, receiver) = {
         let mut lock = TCP_CONNECTIONS.lock();
-        match lock.get(&addr) {
-            Some(value) => {
-                sender = value.clone();
-            }
-            None => {
+        if let Some(value) = lock.get(&addr) {
+            if !value.is_closed() {
+                (value.clone(), None)
+            } else {
+                lock.remove(&addr);
                 let (tx_session_queue, rx_session_queue) =
                     mpsc::channel::<(ByteBuffer, oneshot::Sender<bool>)>(INTERNAL_CHANNEL_BUFFER);
                 (*lock).insert(addr, tx_session_queue.clone());
-                sender = tx_session_queue;
-                receiver = Some(rx_session_queue);
+                (tx_session_queue, Some(rx_session_queue))
             }
+        } else {
+            let (tx_session_queue, rx_session_queue) =
+                mpsc::channel::<(ByteBuffer, oneshot::Sender<bool>)>(INTERNAL_CHANNEL_BUFFER);
+            (*lock).insert(addr, tx_session_queue.clone());
+            (tx_session_queue, Some(rx_session_queue))
         }
         // lock is dropped here
-    }
+    };
 
     // channel is inserted first into hashmap, even if connection is not yet established
     // connection is created here
