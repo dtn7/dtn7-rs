@@ -1,9 +1,9 @@
 use super::RoutingAgent;
-use crate::cla::ClaSender;
+use crate::cla::ClaSenderTask;
 use crate::core::bundlepack::BundlePack;
 use crate::routing::RoutingNotifcation;
 use crate::PEERS;
-use log::debug;
+use log::{debug, trace};
 use std::collections::{HashMap, HashSet};
 
 /// Simple epidemic routing.
@@ -80,27 +80,30 @@ impl RoutingAgent for EpidemicRoutingAgent {
             _ => {}
         }
     }
-    fn sender_for_bundle(&mut self, bp: &BundlePack) -> (Vec<ClaSender>, bool) {
+    fn sender_for_bundle(&mut self, bp: &BundlePack) -> (Vec<ClaSenderTask>, bool) {
+        trace!("search for sender for bundle {}", bp.id());
         let mut clas = Vec::new();
         let mut delete_afterwards = false;
         for (_, p) in (*PEERS.lock()).iter() {
-            if !self.contains(bp.id(), &p.node_name()) {
-                if let Some(cla) = p.first_cla() {
-                    self.add(bp.id().to_string(), p.node_name().clone());
-                    if bp.destination.node().unwrap() == p.node_name() {
-                        // direct delivery possible
-                        debug!(
-                            "Attempting direct delivery of bundle {} to {}",
-                            bp.id(),
-                            p.node_name()
-                        );
-                        delete_afterwards = true;
-                        clas.clear();
-                        clas.push(cla);
-                        break;
-                    } else {
-                        clas.push(cla);
-                    }
+            if self.contains(bp.id(), &p.node_name()) {
+                continue;
+            }
+
+            if let Some(cla) = p.first_cla() {
+                self.add(bp.id().to_string(), p.node_name().clone());
+                if bp.destination.node().unwrap() == p.node_name() {
+                    // direct delivery possible
+                    debug!(
+                        "Attempting direct delivery of bundle {} to {}",
+                        bp.id(),
+                        p.node_name()
+                    );
+                    delete_afterwards = true;
+                    clas.clear();
+                    clas.push(cla);
+                    break;
+                } else {
+                    clas.push(cla);
                 }
             }
         }
