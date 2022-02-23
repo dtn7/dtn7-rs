@@ -228,14 +228,6 @@ impl TcpClPacket {
             Err(TcpClError::UnknownPacketType(mtype))
         }
     }
-
-    pub async fn deserialize_regular(reader: &mut (impl AsyncRead + Unpin)) -> Result<Self, TcpClError> {
-        let mut packet = Self::KeepAlive;
-        while packet == Self::KeepAlive {
-            packet = Self::deserialize(reader).await?;            
-        }
-        Ok(packet)
-   }
 }
 
 #[derive(Error, Debug)]

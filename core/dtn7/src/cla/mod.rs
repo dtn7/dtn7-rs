@@ -10,6 +10,7 @@ use derive_more::*;
 use dtn7_codegen::init_cla_subsystem;
 use dummy::DummyConvergenceLayer;
 use enum_dispatch::enum_dispatch;
+use log::error;
 use mtcp::MtcpConvergenceLayer;
 use serde::{Deserialize, Serialize};
 use std::str::FromStr;
@@ -46,8 +47,16 @@ impl ClaSenderTask {
     pub async fn transfer(&self, ready: ByteBuffer) -> bool {
         let (reply_tx, reply_rx) = oneshot::channel();
         let cmd = ClaCmd::Transfer(self.dest.clone(), ready, reply_tx);
-        self.tx.send(cmd).await.unwrap();
-        reply_rx.await.unwrap()
+        if let Err(err) = self.tx.send(cmd).await {
+            error!("Cla unexpectedly closed, {}", err);
+        }
+        match reply_rx.await {
+            Ok(result) => result,
+            Err(err) => {
+                error!("Reply channel closed, {}", err);
+                false
+            }
+        }
     }
 }
 

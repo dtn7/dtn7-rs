@@ -67,8 +67,6 @@ enum TcpSessionError {
     ResultChannelError,
     #[error("Protocol error: {0:?}")]
     ProtocolError(TcpClPacket),
-    #[error("Session terminated")]
-    SessionTerminated,
 }
 
 impl From<bool> for TcpSessionError {
@@ -92,7 +90,7 @@ struct TcpSession {
     addr: SocketAddr,
     refuse_existing_bundles: bool,
     remote_session_data: SessInitData,
-    local_session_data: SessInitData,
+    _local_session_data: SessInitData,
     last_tid: u64,
     rx_session_queue: mpsc::Receiver<(Vec<u8>, Sender<bool>)>,
 }
@@ -119,6 +117,7 @@ impl TcpSession {
             if matches!(state.1, SendState::Terminated)
                 || matches!(state.0, ReceiveState::Terminated)
             {
+                info!("Session terminated {}", self.addr);
                 break;
             }
             // timeout send keepalive/send packet
@@ -544,7 +543,7 @@ impl TcpConnection {
                     addr: self.addr,
                     refuse_existing_bundles: self.refuse_existing_bundles,
                     remote_session_data: remote_parameters,
-                    local_session_data: local_parameters,
+                    _local_session_data: local_parameters,
                     last_tid: 0u64,
                     rx_session_queue,
                 };
