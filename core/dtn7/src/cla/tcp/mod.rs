@@ -20,7 +20,7 @@ use tokio::sync::mpsc;
 use tokio::sync::mpsc::error::SendError;
 use tokio::sync::oneshot::{self, Sender};
 use tokio::task::JoinHandle;
-use tokio::time::{self, timeout};
+use tokio::time::timeout;
 //use std::net::TcpStream;
 use super::tcp::proto::*;
 use crate::core::store::BundleStore;
@@ -466,8 +466,6 @@ impl TcpClReceiver {
 impl TcpClSender {
     /// Run sender task and check keepalive timeout.
     async fn run(mut self) {
-        let mut interval = time::interval(Duration::from_secs(self.timeout.into()));
-        interval.tick().await;
         loop {
             match timeout(
                 Duration::from_secs(self.timeout.into()),
