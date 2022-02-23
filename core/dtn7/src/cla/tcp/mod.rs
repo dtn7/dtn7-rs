@@ -351,6 +351,7 @@ impl TcpSession {
                     if refuse_data.tid != self.last_tid {
                         return Err(TcpSessionError::ProtocolError(packet).into());
                     }
+                    debug!("Received refuse");
                     response.send(true).unwrap();
                     return Ok(State::Idle);
                 }
