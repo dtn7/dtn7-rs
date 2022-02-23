@@ -2,7 +2,7 @@ pub mod epidemic;
 pub mod flooding;
 pub mod sink;
 
-use crate::cla::ClaSender;
+use crate::cla::ClaSenderTask;
 use crate::core::bundlepack::BundlePack;
 use bp7::Bundle;
 use bp7::EndpointID;
@@ -40,7 +40,7 @@ impl std::fmt::Display for RoutingAgentsEnum {
 #[enum_dispatch(RoutingAgentsEnum)]
 pub trait RoutingAgent: Debug + Display {
     fn notify(&mut self, _notification: RoutingNotifcation) {}
-    fn sender_for_bundle(&mut self, _bp: &BundlePack) -> (Vec<ClaSender>, bool) {
+    fn sender_for_bundle(&mut self, _bp: &BundlePack) -> (Vec<ClaSenderTask>, bool) {
         unimplemented!();
     }
 }

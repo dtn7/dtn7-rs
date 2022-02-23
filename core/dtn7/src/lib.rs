@@ -10,7 +10,7 @@ use crate::core::store::{BundleStore, InMemoryBundleStore};
 use crate::core::DtnStatistics;
 use crate::routing::RoutingAgent;
 use bp7::{Bundle, EndpointID};
-use cla::CLAEnum;
+use cla::{CLAEnum, ClaSenderTask};
 pub use dtnconfig::DtnConfig;
 use log::error;
 
@@ -19,7 +19,7 @@ pub use crate::routing::RoutingNotifcation;
 
 use crate::core::peer::PeerAddress;
 use crate::core::store::BundleStoresEnum;
-use anyhow::Result;
+use anyhow::{Context, Result};
 use lazy_static::*;
 use parking_lot::Mutex;
 use std::collections::HashMap;
@@ -32,10 +32,11 @@ lazy_static! {
     pub static ref STATS: Mutex<DtnStatistics> = Mutex::new(DtnStatistics::new());
     pub static ref SENDERTASK: Mutex<Option<Sender<Bundle>>> = Mutex::new(None);
     pub static ref STORE: Mutex<BundleStoresEnum> = Mutex::new(InMemoryBundleStore::new().into());
+    pub static ref CLAS: Mutex<Vec<CLAEnum>> = Mutex::new(Vec::new());
 }
 
 pub fn cla_add(cla: CLAEnum) {
-    (*DTNCORE.lock()).cl_list.push(cla);
+    (*CLAS.lock()).push(cla);
 }
 pub fn service_add(tag: u8, service: String) {
     (*DTNCORE.lock()).service_list.insert(tag, service);
@@ -72,6 +73,16 @@ pub fn peers_count() -> usize {
 pub fn peers_clear() {
     (*PEERS.lock()).clear();
 }
+pub fn peers_known(peer: &str) -> bool {
+    (*PEERS.lock()).contains_key(peer)
+}
+pub fn peers_touch(peer: &str) -> Result<()> {
+    (*PEERS.lock())
+        .get_mut(peer)
+        .context("no such peer")?
+        .touch();
+    Ok(())
+}
 pub fn peers_get_for_node(eid: &EndpointID) -> Option<DtnPeer> {
     for (_, p) in (*PEERS.lock()).iter() {
         if p.node_name() == eid.node().unwrap_or_default() {
@@ -83,7 +94,7 @@ pub fn peers_get_for_node(eid: &EndpointID) -> Option<DtnPeer> {
 pub fn is_local_node_id(eid: &EndpointID) -> bool {
     eid.node_id() == (*CONFIG.lock()).host_eid.node_id()
 }
-pub fn peers_cla_for_node(eid: &EndpointID) -> Option<crate::cla::ClaSender> {
+pub fn peers_cla_for_node(eid: &EndpointID) -> Option<ClaSenderTask> {
     if let Some(peer) = peers_get_for_node(eid) {
         return peer.first_cla();
     }

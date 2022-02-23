@@ -5,7 +5,7 @@ use self::net::*;
 
 use super::{ConvergenceLayerAgent, HelpStr};
 use async_trait::async_trait;
-use bp7::{Bundle, ByteBuffer};
+use bp7::{Bundle, ByteBuffer, EndpointID};
 //use futures_util::stream::StreamExt;
 use dtn7_codegen::cla;
 use log::{debug, error, info, trace, warn};
@@ -20,16 +20,17 @@ use tokio::sync::mpsc;
 use tokio::sync::mpsc::error::SendError;
 use tokio::sync::oneshot::{self, Sender};
 use tokio::task::JoinHandle;
-use tokio::time::{self, timeout};
+use tokio::time::timeout;
 //use std::net::TcpStream;
 use super::tcp::proto::*;
 use crate::core::store::BundleStore;
-use crate::CONFIG;
-use crate::STORE;
+use crate::core::PeerType;
+use crate::{peers_add, peers_known, peers_touch, STORE};
+use crate::{DtnPeer, CONFIG};
 use anyhow::bail;
 use bytes::Bytes;
 use lazy_static::lazy_static;
-use tokio::io::{AsyncReadExt, AsyncWriteExt};
+use tokio::io::{AsyncReadExt, AsyncWriteExt, BufReader, BufWriter};
 use tokio::net::TcpListener;
 use tokio::net::TcpStream;
 use tokio::time::Duration;
@@ -298,10 +299,10 @@ impl TcpClSession {
         let mut byte_vec = Vec::new();
         let mut acked = 0u64;
         self.last_tid += 1;
-        let (vec, tx_result) = data;
+        let (bndl_buf, tx_result) = data;
 
         if self.refuse_existing_bundles {
-            let bundle = Bundle::try_from(vec.clone()).unwrap();
+            let bundle = Bundle::try_from(bndl_buf.as_slice()).unwrap();
             let bundle_id = Bytes::copy_from_slice(bundle.id().as_bytes());
             // ask if peer already has bundle
             let extension = TransferExtensionItem {
@@ -330,7 +331,7 @@ impl TcpClSession {
         }
 
         // split bundle data into chunks the size of remote maximum segment size
-        for bytes in vec.chunks(self.data_remote.segment_mru as usize) {
+        for bytes in bndl_buf.chunks(self.data_remote.segment_mru as usize) {
             let buf = Bytes::copy_from_slice(bytes);
             let len = buf.len() as u64;
             //debug!("bytes len {}", len);
@@ -360,7 +361,7 @@ impl TcpClSession {
                 .await?;
         }
         // wait for all acks
-        while acked < vec.len() as u64 {
+        while acked < bndl_buf.len() as u64 {
             if let Some(received) = self.rx_session_incoming.recv().await {
                 match received {
                     TcpClPacket::XferAck(ack_data) => {
@@ -388,7 +389,7 @@ impl TcpClSession {
         debug!(
             "Transmission time: {:?} for {} bytes to {}",
             now.elapsed(),
-            vec.len(),
+            bndl_buf.len(),
             self.remote_addr
         );
         // indicate successful transfer
@@ -398,13 +399,14 @@ impl TcpClSession {
 }
 
 struct TcpClReceiver {
-    rx_tcp: OwnedReadHalf,
+    rx_tcp: BufReader<OwnedReadHalf>,
     tx_session_incoming: mpsc::Sender<TcpClPacket>,
     timeout: u16,
+    remote_node_name: String,
 }
 
 struct TcpClSender {
-    tx_tcp: OwnedWriteHalf,
+    tx_tcp: BufWriter<OwnedWriteHalf>,
     rx_session_outgoing: mpsc::Receiver<TcpClPacket>,
     timeout: u16,
 }
@@ -424,6 +426,9 @@ impl TcpClReceiver {
                         debug!("Received and successfully parsed packet");
                         if let TcpClPacket::KeepAlive = packet {
                             debug!("Received keepalive");
+                            if peers_touch(&self.remote_node_name).is_err() {
+                                debug!("Peer {} not found, could not update timestamp in peer database", self.remote_node_name);
+                            }
                         } else {
                             self.send_packet(packet).await;
                         }
@@ -461,8 +466,6 @@ impl TcpClReceiver {
 impl TcpClSender {
     /// Run sender task and check keepalive timeout.
     async fn run(mut self) {
-        let mut interval = time::interval(Duration::from_secs(self.timeout.into()));
-        interval.tick().await;
         loop {
             match timeout(
                 Duration::from_secs(self.timeout.into()),
@@ -500,7 +503,8 @@ impl TcpClSender {
 /// Initial tcp connection.
 /// Session not yet established.
 struct TcpConnection {
-    stream: TcpStream,
+    reader: BufReader<OwnedReadHalf>,
+    writer: BufWriter<OwnedWriteHalf>,
     addr: SocketAddr,
     refuse_existing_bundles: bool,
 }
@@ -517,12 +521,10 @@ impl TcpConnection {
         };
 
         let session_init = TcpClPacket::SessInit(sess_init_data.clone());
-        let mut buf = vec![];
-        session_init.serialize(&mut buf).await?;
-        self.stream.write_all(&buf).await?;
-        self.stream.flush().await?;
+        session_init.serialize(&mut self.writer).await?;
+        self.writer.flush().await?;
 
-        let response = TcpClPacket::deserialize(&mut self.stream).await?;
+        let response = TcpClPacket::deserialize(&mut self.reader).await?;
         debug!("Received session parameters");
         if let TcpClPacket::SessInit(mut data) = response {
             let keepalive = sess_init_data.keepalive.min(data.keepalive);
@@ -542,18 +544,16 @@ impl TcpConnection {
     }
 
     async fn send_contact_header(&mut self, flags: ContactHeaderFlags) -> anyhow::Result<()> {
-        let mut buf = vec![];
         TcpClPacket::ContactHeader(flags)
-            .serialize(&mut buf)
+            .serialize(&mut self.writer)
             .await?;
-        self.stream.write_all(&buf).await?;
-        self.stream.flush().await?;
+        self.writer.flush().await?;
         Ok(())
     }
 
     async fn receive_contact_header(&mut self) -> anyhow::Result<ContactHeaderFlags> {
         let mut buf: [u8; 6] = [0; 6];
-        self.stream.read_exact(&mut buf).await?;
+        self.reader.read_exact(&mut buf).await?;
         if &buf[0..4] != b"dtn!" {
             bail!("Invalid magic");
         }
@@ -564,7 +564,11 @@ impl TcpConnection {
     }
 
     /// Establish a tcp session on this connection and insert it into a session list.
-    async fn connect(mut self, rx_session_queue: mpsc::Receiver<(Vec<u8>, Sender<bool>)>) {
+    async fn connect(
+        mut self,
+        rx_session_queue: mpsc::Receiver<(Vec<u8>, Sender<bool>)>,
+        active: bool,
+    ) {
         // Phase 1
         debug!("Exchanging contact header, {}", self.addr);
         if let Err(err) = self.exchange_contact_header().await {
@@ -577,20 +581,34 @@ impl TcpConnection {
         debug!("Negotiating session parameters, {}", self.addr);
         match self.negotiate_session().await {
             Ok((local_parameters, remote_parameters)) => {
+                // TODO: validate node id
+                let remote_eid = EndpointID::try_from(remote_parameters.node_id.as_ref())
+                    .expect("Invalid node id in tcpcl session");
+                if !active && !peers_known(remote_eid.node().unwrap().as_ref()) {
+                    let peer = DtnPeer::new(
+                        remote_eid.clone(),
+                        crate::PeerAddress::Ip(self.addr.ip()),
+                        PeerType::Dynamic,
+                        None,
+                        vec![("tcp".into(), Some(self.addr.port()))],
+                        HashMap::new(),
+                    );
+                    peers_add(peer);
+                }
                 // channel between receiver task and session task, incoming packets
                 let (tx_session_incoming, rx_session_incoming) =
                     mpsc::channel::<TcpClPacket>(INTERNAL_CHANNEL_BUFFER);
                 // channel between sender task and session task, outgoing packets
                 let (tx_session_outgoing, rx_session_outgoing) =
                     mpsc::channel::<TcpClPacket>(INTERNAL_CHANNEL_BUFFER);
-                let (rx_tcp, tx_tcp) = self.stream.into_split();
                 let rx_task = TcpClReceiver {
-                    rx_tcp,
+                    rx_tcp: self.reader,
                     tx_session_incoming,
                     timeout: remote_parameters.keepalive,
+                    remote_node_name: remote_eid.node().unwrap_or_default(),
                 };
                 let tx_task = TcpClSender {
-                    tx_tcp,
+                    tx_tcp: self.writer,
                     rx_session_outgoing,
                     timeout: local_parameters.keepalive,
                 };
@@ -628,8 +646,10 @@ impl Listener {
             match self.tcp_listener.accept().await {
                 Ok((stream, addr)) => {
                     info!("Incoming connection from: {:?}", addr);
+                    let (rx, tx) = stream.into_split();
                     let connection = TcpConnection {
-                        stream,
+                        reader: BufReader::new(rx),
+                        writer: BufWriter::new(tx),
                         addr,
                         refuse_existing_bundles: self.refuse_existing_bundles,
                     };
@@ -639,7 +659,7 @@ impl Listener {
                             INTERNAL_CHANNEL_BUFFER,
                         );
                     (*TCP_CONNECTIONS.lock()).insert(addr, tx_session_queue);
-                    connection.connect(rx_session_queue).await;
+                    tokio::spawn(connection.connect(rx_session_queue, false));
                 }
                 Err(e) => {
                     error!("Couldn't get client: {:?}", e)
@@ -647,6 +667,68 @@ impl Listener {
             }
         }
     }
+}
+
+async fn tcp_send_bundles(
+    dest: String,
+    bundle: ByteBuffer,
+    refuse_existing_bundles: bool,
+    reply: Sender<bool>,
+) -> anyhow::Result<()> {
+    let addr: SocketAddr = dest.parse().unwrap();
+
+    let sender: mpsc::Sender<(Vec<u8>, Sender<bool>)>;
+    let mut receiver = None;
+    {
+        let mut lock = TCP_CONNECTIONS.lock();
+        match lock.get(&addr) {
+            Some(value) => {
+                sender = value.clone();
+            }
+            None => {
+                let (tx_session_queue, rx_session_queue) =
+                    mpsc::channel::<(ByteBuffer, oneshot::Sender<bool>)>(INTERNAL_CHANNEL_BUFFER);
+                (*lock).insert(addr, tx_session_queue.clone());
+                sender = tx_session_queue;
+                receiver = Some(rx_session_queue);
+            }
+        }
+        // lock is dropped here
+    }
+
+    // channel is inserted first into hashmap, even if connection is not yet established
+    // connection is created here
+    if let Some(rx_session_queue) = receiver {
+        let conn_fut = TcpStream::connect(addr);
+        match tokio::time::timeout(std::time::Duration::from_secs(3), conn_fut).await {
+            Ok(Ok(stream)) => {
+                let (rx, tx) = stream.into_split();
+                let connection = TcpConnection {
+                    reader: BufReader::new(rx),
+                    writer: BufWriter::new(tx),
+                    addr,
+                    refuse_existing_bundles,
+                };
+                connection.connect(rx_session_queue, true).await;
+            }
+            Ok(Err(_)) => {
+                if let Err(e) = reply.send(false) {
+                    error!("Failed to send reply to internal sender channel: {}", e);
+                }
+                bail!("Couldn't connect to {}", addr);
+            }
+            Err(_) => {
+                if let Err(e) = reply.send(false) {
+                    error!("Failed to send reply to internal sender channel: {}", e);
+                }
+                bail!("Timeout connecting to {}", addr);
+            }
+        }
+    }
+
+    // then push bundles to channel
+    sender.send((bundle, reply)).await?;
+    Ok(())
 }
 
 impl TcpConvergenceLayer {
@@ -670,20 +752,52 @@ impl TcpConvergenceLayer {
             "Extension settings: {:?}",
             (*CONFIG.lock()).cla_global_settings
         );
+        let (tx, mut rx) = mpsc::channel(100);
+
+        tokio::spawn(async move {
+            while let Some(cmd) = rx.recv().await {
+                match cmd {
+                    super::ClaCmd::Transfer(remote, data, reply) => {
+                        debug!(
+                            "TcpConvergenceLayer: received transfer command for {}",
+                            remote
+                        );
+                        tokio::spawn(async move {
+                            if let Err(e) = tcp_send_bundles(
+                                remote.clone(),
+                                data,
+                                refuse_existing_bundles,
+                                reply,
+                            )
+                            .await
+                            {
+                                error!("Failed to send data to {}: {}", remote, e);
+                            }
+                        });
+                    }
+                    super::ClaCmd::Shutdown => {
+                        debug!("TcpConvergenceLayer: received shutdown command");
+                        break;
+                    }
+                }
+            }
+        });
         TcpConvergenceLayer {
             local_port: port,
             listener: None,
             refuse_existing_bundles,
+            tx,
         }
     }
 }
 
 #[cla(tcp)]
-#[derive(Default, Debug)]
+#[derive(Debug)]
 pub struct TcpConvergenceLayer {
     local_port: u16,
     listener: Option<JoinHandle<()>>,
     refuse_existing_bundles: bool,
+    tx: mpsc::Sender<super::ClaCmd>,
 }
 
 #[async_trait]
@@ -707,77 +821,8 @@ impl ConvergenceLayerAgent for TcpConvergenceLayer {
         "tcp"
     }
 
-    async fn scheduled_submission(&self, dest: &str, ready: &[ByteBuffer]) -> bool {
-        let addr: SocketAddr = dest.parse().unwrap();
-
-        let sender: mpsc::Sender<(Vec<u8>, Sender<bool>)>;
-        let mut receiver = None;
-        {
-            let mut lock = TCP_CONNECTIONS.lock();
-            match lock.get(&addr) {
-                Some(value) => {
-                    sender = value.clone();
-                }
-                None => {
-                    let (tx_session_queue, rx_session_queue) =
-                        mpsc::channel::<(ByteBuffer, oneshot::Sender<bool>)>(
-                            INTERNAL_CHANNEL_BUFFER,
-                        );
-                    (*lock).insert(addr, tx_session_queue.clone());
-                    sender = tx_session_queue;
-                    receiver = Some(rx_session_queue);
-                }
-            }
-            // lock is dropped here
-        }
-
-        // channel is inserted first into hashmap, even if connection is not yet established
-        // connection is created here
-        if let Some(rx_session_queue) = receiver {
-            let conn_fut = TcpStream::connect(addr);
-            match tokio::time::timeout(std::time::Duration::from_secs(3), conn_fut).await {
-                Ok(Ok(stream)) => {
-                    let connection = TcpConnection {
-                        stream,
-                        addr,
-                        refuse_existing_bundles: self.refuse_existing_bundles,
-                    };
-                    connection.connect(rx_session_queue).await;
-                }
-                Ok(Err(_)) => {
-                    error!("Couldn't connect to {}", addr);
-                    return false;
-                }
-                Err(_) => {
-                    error!("Timeout connecting to {}", addr);
-                    return false;
-                }
-            }
-        }
-
-        // then push bundles to channel
-        let mut results = Vec::new();
-        for bundle in ready {
-            debug!("Sending bundle {:?}", bundle);
-            // unfortunately not possible to avoid cloning, atomic reference counting would be needed in API
-            // backchannel that responds whether bundle send was successful
-            let (tx, rx) = oneshot::channel::<bool>();
-            if sender.send((bundle.clone(), tx)).await.is_ok() {
-                if let Ok(successful) = rx.await {
-                    results.push(successful);
-                } else {
-                    results.push(false);
-                }
-            } else {
-                results.push(false);
-            }
-        }
-        for result in results {
-            if !result {
-                return false;
-            }
-        }
-        return true;
+    fn channel(&self) -> tokio::sync::mpsc::Sender<super::ClaCmd> {
+        self.tx.clone()
     }
 }
 

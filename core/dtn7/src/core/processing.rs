@@ -307,19 +307,20 @@ pub async fn forward(mut bp: BundlePack) -> Result<()> {
     trace!("Check delivery");
 
     let (nodes, delete_afterwards) = (*DTNCORE.lock()).routing_agent.sender_for_bundle(&bp);
-    if !nodes.is_empty() {
-        debug!("Attempting forwarding of {} to nodes: {:?}", bp.id(), nodes);
-    }
 
     if nodes.is_empty() {
         trace!("No new peers for forwarding of bundle {}", &bp.id());
     } else {
-        trace!("Handle lifetime");
+        debug!("Attempting forwarding of {} to nodes: {:?}", bp.id(), nodes);
+
         let bndl = store_get_bundle(&bpid);
         if bndl.is_none() {
             bail!("bundle not found: {}", bpid);
         }
+
         let mut bndl = bndl.unwrap();
+
+        trace!("Handle lifetime");
         handle_primary_lifetime(&bndl).await?;
 
         trace!("Handle hop count block");
@@ -342,29 +343,34 @@ pub async fn forward(mut bp: BundlePack) -> Result<()> {
             let task_handle = tokio::spawn(async move {
                 debug!(
                     "Sending bundle to a CLA: {} {} {}",
-                    &bpid, n.remote, n.agent
+                    &bpid, n.dest, n.cla_name
                 );
-                if n.transfer(&[bd]).await {
+                if n.transfer(bd).await {
                     info!(
                         "Sending bundle succeeded: {} {} {}",
-                        &bpid, n.remote, n.agent
+                        &bpid, n.dest, n.cla_name
                     );
                     bundle_sent.store(true, Ordering::Relaxed);
                 } else {
-                    info!("Sending bundle failed: {} {} {}", &bpid, n.remote, n.agent);
+                    info!(
+                        "Sending bundle {} via {} to {} ({}) failed",
+                        &bpid, n.cla_name, n.dest, n.next_hop
+                    );
                     let mut failed_peer = None;
-                    for (key, p) in (*PEERS.lock()).iter_mut() {
-                        if p.addr == n.remote {
-                            (*DTNCORE.lock())
-                                .routing_agent
-                                .notify(RoutingNotifcation::SendingFailed(&bpid, &p.node_name()));
-                            p.report_fail();
-                            if p.failed_too_much() && p.con_type == PeerType::Dynamic {
-                                failed_peer = Some(key.clone());
-                            }
-                            break;
+                    if let Some(peer_entry) = (*PEERS.lock()).get_mut(&n.next_hop.node().unwrap()) {
+                        (*DTNCORE.lock())
+                            .routing_agent
+                            .notify(RoutingNotifcation::SendingFailed(
+                                &bpid,
+                                &peer_entry.node_name(),
+                            ));
+                        peer_entry.report_fail();
+                        if peer_entry.failed_too_much() && peer_entry.con_type == PeerType::Dynamic
+                        {
+                            failed_peer = Some(peer_entry.node_name());
                         }
                     }
+
                     if let Some(peer) = failed_peer {
                         let peers_before = (*PEERS.lock()).len();
                         (*PEERS.lock()).remove(&peer);
