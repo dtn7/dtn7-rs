@@ -97,8 +97,13 @@ struct TcpSession {
     rx_session_queue: mpsc::Receiver<(Vec<u8>, Sender<bool>)>,
 }
 
-enum State {
+enum ReceiveState {
     Receiving(Vec<u8>, u64),
+    Idle,
+    Terminated,
+}
+
+enum SendState {
     Idle,
     Sending(u64, tokio::sync::oneshot::Sender<bool>),
     TransferRequest(Vec<u8>, tokio::sync::oneshot::Sender<bool>),
@@ -107,12 +112,13 @@ enum State {
 
 impl TcpSession {
     async fn run(mut self) {
-        // TODO: run all tasks
         let mut keepalive_sent = false;
         let mut keepalive_received = false;
-        let mut state = State::Idle;
+        let mut state = (ReceiveState::Idle, SendState::Idle);
         loop {
-            if matches!(state, State::Terminated) {
+            if matches!(state.1, SendState::Terminated)
+                || matches!(state.0, ReceiveState::Terminated)
+            {
                 break;
             }
             // timeout send keepalive/send packet
@@ -145,7 +151,7 @@ impl TcpSession {
                                 match self.receive(packet, state).await {
                                     Err(err) => {
                                         error!("error while receiving: {:?}",err);
-                                        state = State::Terminated;
+                                        state = (ReceiveState::Terminated, SendState::Terminated);
                                     }
                                     Ok(new_state) => state = new_state
                                 }
@@ -155,19 +161,19 @@ impl TcpSession {
                         },
                         Err(err) => {
                             error!("Failed parsing package: {:?}", err);
-                            state = State::Terminated;
+                            state = (ReceiveState::Terminated, SendState::Terminated);
                         },
                     }
                 }
-                queue_bundle = self.rx_session_queue.recv(), if matches!(state, State::Idle) => {
+                queue_bundle = self.rx_session_queue.recv(), if matches!(state.1, SendState::Idle) => {
                     match queue_bundle {
                         Some(bundle) => {
                             match self.send(bundle).await {
                                 Err(err) => {
                                     error!("error while sending: {:?}", err);
-                                    state = State::Terminated;
+                                    state = (ReceiveState::Terminated, SendState::Terminated);
                                 }
-                                Ok(new_state) => state = new_state
+                                Ok(new_state) => state.1 = new_state
                             }
                         },
                         None => {
@@ -192,7 +198,7 @@ impl TcpSession {
             };
         }
     }
-    async fn terminate_session(&mut self, reason: SessTermReasonCode) -> State {
+    async fn terminate_session(&mut self, reason: SessTermReasonCode) -> (ReceiveState, SendState) {
         TcpClPacket::SessTerm(SessTermData {
             flags: SessTermFlags::empty(),
             reason,
@@ -200,9 +206,9 @@ impl TcpSession {
         .serialize(&mut self.writer)
         .await
         .unwrap();
-        State::Terminated
+        (ReceiveState::Terminated, SendState::Terminated)
     }
-    async fn process_bundle(&mut self, vec: Vec<u8>, tid: u64) -> anyhow::Result<State> {
+    async fn process_bundle(&mut self, vec: Vec<u8>, tid: u64) -> anyhow::Result<ReceiveState> {
         match Bundle::try_from(vec) {
             Ok(bundle) => {
                 tokio::spawn(async move {
@@ -210,7 +216,7 @@ impl TcpSession {
                         error!("Failed to process bundle: {}", err);
                     }
                 });
-                Ok(State::Idle)
+                Ok(ReceiveState::Idle)
             }
             Err(err) => {
                 error!("Failed to parse bundle: {}", err);
@@ -221,14 +227,18 @@ impl TcpSession {
                 })
                 .serialize(&mut self.writer)
                 .await?;
-                Ok(State::Idle)
+                Ok(ReceiveState::Idle)
             }
         }
     }
     /// Receive a new packet.
     /// Returns once transfer is finished and session is idle again.
     /// Result indicates whether connection is closed (true).
-    async fn receive(&mut self, packet: TcpClPacket, state: State) -> anyhow::Result<State> {
+    async fn receive(
+        &mut self,
+        packet: TcpClPacket,
+        (receive_state, send_state): (ReceiveState, SendState),
+    ) -> anyhow::Result<(ReceiveState, SendState)> {
         match &packet {
             // session is terminated, send ack and return with true
             TcpClPacket::SessTerm(data) => {
@@ -241,7 +251,7 @@ impl TcpSession {
                     .serialize(&mut self.writer)
                     .await?;
                 }
-                Ok(State::Terminated)
+                Ok((ReceiveState::Terminated, SendState::Terminated))
             }
             // receive a bundle
             TcpClPacket::XferSeg(data) => {
@@ -249,8 +259,8 @@ impl TcpSession {
                     "Received XferSeg: TID={} LEN={} FLAGS={:?}",
                     data.tid, data.len, data.flags
                 );
-                match state {
-                    State::Receiving(mut buffer, tid) => {
+                match receive_state {
+                    ReceiveState::Receiving(mut buffer, tid) => {
                         // transfer already started
                         if data.flags.contains(XferSegmentFlags::START) {
                             return Err(TcpSessionError::ProtocolError(packet).into());
@@ -271,12 +281,12 @@ impl TcpSession {
                         .await?;
 
                         if data.flags.contains(XferSegmentFlags::END) {
-                            return self.process_bundle(buffer, data.tid).await;
+                            return Ok((self.process_bundle(buffer, data.tid).await?, send_state));
                         } else {
-                            return Ok(State::Receiving(buffer, data.tid));
+                            return Ok((ReceiveState::Receiving(buffer, data.tid), send_state));
                         }
                     }
-                    State::Idle => {
+                    ReceiveState::Idle => {
                         if (data.flags.contains(XferSegmentFlags::END)
                             && !data.flags.contains(XferSegmentFlags::START))
                             || data.flags.is_empty()
@@ -302,7 +312,7 @@ impl TcpSession {
                                             })
                                             .serialize(&mut self.writer)
                                             .await?;
-                                            return Ok(state);
+                                            return Ok((receive_state, send_state));
                                         }
                                     }
                                 }
@@ -318,49 +328,49 @@ impl TcpSession {
                         .serialize(&mut self.writer)
                         .await?;
                         if data.flags.contains(XferSegmentFlags::END) {
-                            return self.process_bundle(vec, data.tid).await;
+                            return Ok((self.process_bundle(vec, data.tid).await?, send_state));
                         } else {
-                            return Ok(State::Receiving(vec, data.tid));
+                            return Ok((ReceiveState::Receiving(vec, data.tid), send_state));
                         }
                     }
                     _ => Err(TcpSessionError::ProtocolError(packet).into()),
                 }
             }
-            TcpClPacket::XferAck(ack_data) => match state {
-                State::TransferRequest(data, response) => {
+            TcpClPacket::XferAck(ack_data) => match send_state {
+                SendState::TransferRequest(data, response) => {
                     if ack_data.tid != self.last_tid {
                         return Err(TcpSessionError::ProtocolError(packet).into());
                     }
-                    return self.send_bundle(data, response).await;
+                    return Ok((receive_state, self.send_bundle(data, response).await?));
                 }
-                State::Sending(len, response) => {
+                SendState::Sending(len, response) => {
                     if ack_data.tid != self.last_tid {
                         return Err(TcpSessionError::ProtocolError(packet).into());
                     }
                     if ack_data.len < len {
-                        Ok(State::Sending(len, response))
+                        Ok((receive_state, SendState::Sending(len, response)))
                     } else {
                         response.send(true).unwrap();
-                        Ok(State::Idle)
+                        Ok((receive_state, SendState::Idle))
                     }
                 }
                 _ => Err(TcpSessionError::ProtocolError(packet).into()),
             },
-            TcpClPacket::XferRefuse(refuse_data) => match state {
-                State::TransferRequest(_, response) => {
+            TcpClPacket::XferRefuse(refuse_data) => match send_state {
+                SendState::TransferRequest(_, response) => {
                     if refuse_data.tid != self.last_tid {
                         return Err(TcpSessionError::ProtocolError(packet).into());
                     }
                     debug!("Received refuse");
                     response.send(true).unwrap();
-                    return Ok(State::Idle);
+                    return Ok((receive_state, SendState::Idle));
                 }
-                State::Sending(_, response) => {
+                SendState::Sending(_, response) => {
                     if refuse_data.tid != self.last_tid {
                         return Err(TcpSessionError::ProtocolError(packet).into());
                     }
                     response.send(false).unwrap();
-                    return Ok(State::Idle);
+                    return Ok((receive_state, SendState::Idle));
                 }
                 _ => Err(TcpSessionError::ProtocolError(packet).into()),
             },
@@ -371,8 +381,8 @@ impl TcpSession {
     /// Result indicates whether connection is closed (true).
     async fn send(
         &mut self,
-        data: (ByteBuffer, tokio::sync::oneshot::Sender<bool>)
-    ) -> anyhow::Result<State> {
+        data: (ByteBuffer, tokio::sync::oneshot::Sender<bool>),
+    ) -> anyhow::Result<SendState> {
         self.last_tid += 1;
         let (bndl_buf, tx_result) = data;
 
@@ -393,7 +403,7 @@ impl TcpSession {
                 extensions: vec![extension],
             });
             request_packet.serialize(&mut self.writer).await?;
-            return Ok(State::TransferRequest(bndl_buf, tx_result));
+            return Ok(SendState::TransferRequest(bndl_buf, tx_result));
         } else {
             self.send_bundle(bndl_buf, tx_result).await
         }
@@ -402,7 +412,7 @@ impl TcpSession {
         &mut self,
         bndl_buf: ByteBuffer,
         tx_result: tokio::sync::oneshot::Sender<bool>,
-    ) -> anyhow::Result<State> {
+    ) -> anyhow::Result<SendState> {
         let mut byte_vec = Vec::new();
         // split bundle data into chunks the size of remote maximum segment size
         for bytes in bndl_buf.chunks(self.remote_session_data.segment_mru as usize) {
@@ -421,7 +431,7 @@ impl TcpSession {
         if byte_vec.is_empty() {
             warn!("Emtpy bundle transfer, aborting");
             tx_result.send(false).unwrap();
-            return Ok(State::Idle);
+            return Ok(SendState::Idle);
         }
         // in this case start packet has already been sent
         if !self.refuse_existing_bundles {
@@ -435,7 +445,7 @@ impl TcpSession {
                 .await?;
         }
 
-        Ok(State::Sending(bndl_buf.len() as u64, tx_result))
+        Ok(SendState::Sending(bndl_buf.len() as u64, tx_result))
     }
 }
 
