@@ -27,8 +27,8 @@ mod base64 {
     }
 }
 
-// The variant of Packets that can be send or received. The resulting JSON will have
-// a field called type that encodes the selected variant.
+/// The variant of Packets that can be send or received. The resulting JSON will have
+/// a field called type that encodes the selected variant.
 #[derive(Serialize, Deserialize, Clone)]
 #[serde(tag = "type")]
 pub enum Packet {
@@ -39,8 +39,8 @@ pub enum Packet {
     Error(Error),
 }
 
-// Beacon is a device discovery packet. It can either be from the direct connection
-// to the dtnd or received over the transmission layer of the ECLA client.
+/// Beacon is a device discovery packet. It can either be from the direct connection
+/// to the dtnd or received over the transmission layer of the ECLA client.
 #[derive(Serialize, Deserialize, Clone)]
 pub struct Beacon {
     pub eid: EndpointID,
@@ -49,27 +49,27 @@ pub struct Beacon {
     pub service_block: Vec<u8>,
 }
 
-// Packet that contains information about the connected node (will be send if registration was successful)
+/// Packet that contains information about the connected node (will be send if registration was successful)
 #[derive(Serialize, Deserialize, Clone)]
 pub struct Registered {
     pub eid: EndpointID,
     pub nodeid: String,
 }
 
-// Packet that contains a error message if a error happens
+/// Packet that contains a error message if a error happens
 #[derive(Serialize, Deserialize, Clone)]
 pub struct Error {
     pub reason: String,
 }
 
-// Identification Packet that registers the Module Name.
+/// Identification Packet that registers the Module Name.
 #[derive(Serialize, Deserialize, Clone)]
 pub struct Register {
     pub name: String,
     pub enable_beacon: bool,
 }
 
-// Packet that forwards Bundle data
+/// Packet that forwards Bundle data
 #[derive(Serialize, Deserialize, Clone)]
 pub struct ForwardData {
     pub src: String,

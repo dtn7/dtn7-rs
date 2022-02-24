@@ -126,6 +126,6 @@ impl TransportLayer for TCPTransportLayer {
     }
 
     fn close(&self, _dest: &str) {
-        // Todo: closing of client
+        // TODO: closing of client
     }
 }

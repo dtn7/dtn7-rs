@@ -27,8 +27,9 @@ lazy_static! {
 static ID_COUNTER: AtomicUsize = AtomicUsize::new(0);
 static LAYER_NAME: &str = "Websocket";
 
-// Handles the websocket connection.
+/// Handles the websocket connection coming from httpd
 pub async fn handle_connection(ws: WebSocket) {
+    // We can't get a remote address from ws so we create own monotonic increasing id's
     let id = ID_COUNTER.fetch_add(1, Ordering::SeqCst);
 
     let (tx, rx) = unbounded();
@@ -65,7 +66,7 @@ pub async fn handle_connection(ws: WebSocket) {
             }
         }
 
-        handle_packet("Websocket".to_string(), id.to_string(), packet.unwrap());
+        handle_packet(LAYER_NAME.to_string(), id.to_string(), packet.unwrap());
 
         future::ok(())
     });

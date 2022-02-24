@@ -1,6 +1,6 @@
 use super::{
     DroppedPeer, EncounteredPeer, IncomingBundle, IncomingBundleWithoutPreviousNode, Packet,
-    PeerState, SendForBundle, SendingFailed, ServiceState,
+    PeerState, SenderForBundle, SendingFailed, ServiceState,
 };
 use crate::cla::ClaSender;
 use crate::{
@@ -76,7 +76,7 @@ pub async fn handle_connection(ws: WebSocket) {
 
         match packet {
             Ok(packet) => match packet {
-                Packet::SendForBundleResponse(packet) => {
+                Packet::SenderForBundleResponse(packet) => {
                     debug!(
                         "sender_for_bundle response: {}",
                         msg.to_text().unwrap().trim()
@@ -87,7 +87,7 @@ pub async fn handle_connection(ws: WebSocket) {
                         .unwrap()
                         .get(packet.bp.to_string().as_str())
                     {
-                        tx.unbounded_send(Packet::SendForBundleResponse(packet))
+                        tx.unbounded_send(Packet::SenderForBundleResponse(packet))
                             .expect("could not send response to channel");
                     } else {
                         info!("sender_for_bundle response could not be passed")
@@ -136,6 +136,8 @@ fn send_packet(p: &Packet) {
     }
 }
 
+/// Takes the RoutingNotification's, encodes them to serializable structs and then sends them
+/// to the external router if one is connected.
 pub fn notify(notification: RoutingNotifcation) {
     let packet: Packet = match notification {
         RoutingNotifcation::SendingFailed(bid, cla_sender) => {
@@ -176,18 +178,21 @@ fn create_response_channel(id: &str, tx: UnboundedSender<Packet>) {
 pub fn sender_for_bundle(bp: &BundlePack) -> (Vec<ClaSender>, bool) {
     debug!("external sender_for_bundle initiated: {}", bp);
 
+    // Register a response channel for the request
     let (tx, mut rx) = unbounded();
     create_response_channel(bp.to_string().as_str(), tx);
 
-    let packet: Packet = Packet::SendForBundle(SendForBundle {
+    // Send out the SenderForBundle packet
+    let packet: Packet = Packet::SenderForBundle(SenderForBundle {
         clas: cla_names(),
         bp: bp.clone(),
     });
     send_packet(&packet);
 
+    // Wait for an answer on the response channel
     for _ in 0..25 {
         if CONNECTION.lock().unwrap().is_some() {
-            if let Ok(Some(Packet::SendForBundleResponse(packet))) = rx.try_next() {
+            if let Ok(Some(Packet::SenderForBundleResponse(packet))) = rx.try_next() {
                 if packet.bp.to_string() != bp.to_string() {
                     info!("got a wrong bundle pack! {} != {}", bp, packet.bp);
                     continue;

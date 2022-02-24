@@ -1,7 +1,7 @@
 use anyhow::{bail, Result};
 use clap::{crate_authors, crate_version, App, Arg};
 use dtn7::routing::erouting::ws_client::{new, Command};
-use dtn7::routing::erouting::{Packet, SendForBundleResponse, Sender};
+use dtn7::routing::erouting::{Packet, SenderForBundleResponse, Sender};
 use dtn7::DtnPeer;
 use futures::channel::mpsc::unbounded;
 use futures_util::{future, pin_mut, StreamExt};
@@ -163,7 +163,7 @@ async fn main() -> Result<()> {
                     epi_incoming_bundle(packet.bid.as_str(), packet.node_name.as_str());
                 }
             }
-            Packet::SendForBundle(packet) => {
+            Packet::SenderForBundle(packet) => {
                 info!("got bundle pack: {}", packet.bp);
 
                 let mut clas = Vec::new();
@@ -207,7 +207,7 @@ async fn main() -> Result<()> {
                     info!("selected {} to {}", clas[0].agent, clas[0].remote);
                 }
 
-                let resp: Packet = Packet::SendForBundleResponse(SendForBundleResponse {
+                let resp: Packet = Packet::SenderForBundleResponse(SenderForBundleResponse {
                     bp: packet.bp,
                     clas,
                 });

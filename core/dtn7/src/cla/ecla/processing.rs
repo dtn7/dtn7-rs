@@ -28,17 +28,17 @@ lazy_static! {
     static ref LAYER_MAP: LayerMap = LayerMap::new(Mutex::new(HashMap::new()));
 }
 
-// Represents in which state the Module WebSocket connection is.
+/// Represents in which state the Module WebSocket connection is.
 enum ModuleState {
-    // The Module has not signaled his name
+    /// The Module has not signaled his name
     WaitingForIdent,
-    // The Module has succesfully registered and is ready for messages
+    /// The Module has succesfully registered and is ready for messages
     Active,
 }
 
-// Represents the Module. A module has a connection state of the Websocket connection
-// it's name (typically name of the used transmission protocol) and the tx which is the
-// write stream to the underlying WebSocket.
+/// Represents the Module. A module has a connection state of the Websocket connection
+/// it's name (typically name of the used transmission protocol) and the tx which is the
+/// write stream to the underlying WebSocket.
 struct Module {
     state: ModuleState,
     name: String,
@@ -46,7 +46,7 @@ struct Module {
     enable_beacon: bool,
 }
 
-// Generates a beacon packet for the own dtnd instance.
+/// Generates a beacon packet for the own dtnd instance.
 pub fn generate_beacon() -> Beacon {
     let mut service_block = ServiceBlock::new();
     let mut beacon = Beacon {
@@ -76,7 +76,7 @@ pub fn generate_beacon() -> Beacon {
     beacon
 }
 
-// Periodically advertises it's own node to the connected WebSocket clients.
+/// Periodically advertises it's own node to the connected WebSocket clients.
 async fn announcer() {
     let mut task = interval(crate::CONFIG.lock().announcement_interval);
     loop {
