@@ -156,12 +156,14 @@ pub fn notify(notification: RoutingNotifcation) {
             })
         }
         RoutingNotifcation::EncounteredPeer(eid) => Packet::EncounteredPeer(EncounteredPeer {
+            name: eid.node().unwrap(),
             eid: eid.clone(),
             peer: peers_get_for_node(eid).unwrap(),
         }),
-        RoutingNotifcation::DroppedPeer(eid) => {
-            Packet::DroppedPeer(DroppedPeer { eid: eid.clone() })
-        }
+        RoutingNotifcation::DroppedPeer(eid) => Packet::DroppedPeer(DroppedPeer {
+            name: eid.node().unwrap(),
+            eid: eid.clone(),
+        }),
     };
 
     send_packet(&packet);

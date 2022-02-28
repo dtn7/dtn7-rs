@@ -69,6 +69,7 @@ pub struct IncomingBundleWithoutPreviousNode {
 /// Packet that signals that a new peer was encountered.
 #[derive(Serialize, Deserialize, Clone)]
 pub struct EncounteredPeer {
+    pub name: String,
     pub eid: EndpointID,
     pub peer: DtnPeer,
 }
@@ -76,6 +77,7 @@ pub struct EncounteredPeer {
 /// Packet that signals that a new peer was dropped.
 #[derive(Serialize, Deserialize, Clone)]
 pub struct DroppedPeer {
+    pub name: String,
     pub eid: EndpointID,
 }
 
