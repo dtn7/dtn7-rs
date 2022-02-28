@@ -59,7 +59,7 @@ pub struct IncomingBundle {
     pub bndl: Bundle,
 }
 
-/// Packet that signals that a bundle is incoming without a previouse node.
+/// Packet that signals that a bundle is incoming without a previous node.
 #[derive(Serialize, Deserialize, Clone)]
 pub struct IncomingBundleWithoutPreviousNode {
     pub bid: String,
