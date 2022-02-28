@@ -1,6 +1,7 @@
 use super::ConvergenceLayerAgent;
 use async_trait::async_trait;
 use std::collections::HashMap;
+use std::str::FromStr;
 
 use crate::cla::ecla::processing::scheduled_submission;
 use crate::cla::HelpStr;
@@ -11,16 +12,21 @@ use dtn7_codegen::cla;
 #[derive(Debug, Clone, Default)]
 pub struct ExternalConvergenceLayer {
     name: String,
+    port: u16,
 }
 
 impl ExternalConvergenceLayer {
     pub fn new(local_settings: Option<&HashMap<String, String>>) -> ExternalConvergenceLayer {
+        let settings = local_settings.expect("no settings for ECLA");
+
+        let mut port: u16 = 0;
+        if let Some(setting_port) = settings.get("port") {
+            port = u16::from_str(setting_port.as_str()).unwrap();
+        }
+
         ExternalConvergenceLayer {
-            name: local_settings
-                .expect("no settings for ECLA")
-                .get("name")
-                .expect("name missing")
-                .to_string(),
+            name: settings.get("name").expect("name missing").to_string(),
+            port,
         }
     }
 }
@@ -29,7 +35,7 @@ impl ExternalConvergenceLayer {
 impl ConvergenceLayerAgent for ExternalConvergenceLayer {
     async fn setup(&mut self) {}
     fn port(&self) -> u16 {
-        0
+        self.port
     }
     fn name(&self) -> &str {
         self.name.as_str()

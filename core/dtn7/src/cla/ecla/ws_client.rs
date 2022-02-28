@@ -18,6 +18,7 @@ pub struct Client {
     ip: String,
     id: String,
     port: i16,
+    ecla_port: Option<u16>,
     cmd_receiver: UnboundedReceiver<Command>,
     cmd_sender: UnboundedSender<Command>,
     packet_out: UnboundedSender<Packet>,
@@ -46,6 +47,7 @@ pub fn new(
         ip: parts[0].to_string(),
         id: current_id.to_string(),
         port: i16::from_str(parts[1]).expect("could not parse port"),
+        ecla_port: None,
         enable_beacon,
         cmd_receiver,
         cmd_sender,
@@ -68,6 +70,7 @@ impl Client {
             .unbounded_send(SendPacket(Packet::Register(Register {
                 name: self.module_name.to_string(),
                 enable_beacon: self.enable_beacon,
+                port: self.ecla_port
             })))
             .expect("couldn't send Register");
 
@@ -121,6 +124,10 @@ impl Client {
         future::select(to_ws, from_ws).await;
 
         Ok(())
+    }
+    
+    pub fn set_ecla_port(&mut self, port: u16) {
+        self.ecla_port = Some(port);
     }
 
     pub fn command_channel(&self) -> UnboundedSender<Command> {

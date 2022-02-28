@@ -132,6 +132,11 @@ pub fn handle_packet(layer_name: String, addr: String, packet: Packet) {
 
                     let mut settings: HashMap<String, String> = HashMap::new();
                     settings.insert("name".to_string(), me.name.clone());
+                    
+                    if let Some(port) = ident.port {
+                        settings.insert("port".to_string(), port.to_string());
+                    }
+                    
                     cla_add(ExternalConvergenceLayer::new(Option::Some(&settings)).into());
 
                     // Send registered packet

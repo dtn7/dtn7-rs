@@ -176,6 +176,7 @@ async fn main() -> Result<()> {
         tokio::spawn(async move {
             let crx = crx;
             let mut c = new("mtcp", addr.as_str(), "", tx, false).expect("couldn't create client");
+            c.set_ecla_port(u16::from_str(matches.value_of("port").unwrap()).unwrap());
 
             let cmd_chan = c.command_channel();
             let read = crx.for_each(|packet| {

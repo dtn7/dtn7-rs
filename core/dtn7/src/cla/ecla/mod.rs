@@ -67,6 +67,7 @@ pub struct Error {
 pub struct Register {
     pub name: String,
     pub enable_beacon: bool,
+    pub port: Option<u16>,
 }
 
 /// Packet that forwards Bundle data
