@@ -7,6 +7,10 @@ The External Convergence Layer Agent allows implementing Convergence Layer Agent
 
 A client that connects to the ECLA and implements a new transmission layer is called a External Convergence Layer Module (in short ECL-Module).
 
+## Arguments
+
+To enable the ECLA add the argument ``--ecla`` to dtnd.
+
 ## Protocol
 
 ### Packets & Encoding
@@ -116,6 +120,10 @@ If the TCP Transport Layer is used the packets use a big-endian length delimited
 | len: u32 |          frame payload         |
 +----------+--------------------------------+
 ```
+
+## WebSocket Transport Layer
+
+The WebSocket is accessible under the same port as defined by ``-w``, ``--web-port`` and the route ``/ws/ecla``. A Example for a web port 3000 would be ``127.0.0.1:3000/ws/ecla``.
 
 ## ECLA Rust WebSocket Client
 
