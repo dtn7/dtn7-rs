@@ -352,13 +352,13 @@ pub async fn forward(mut bp: BundlePack) -> Result<()> {
                     );
                     debug!("Error while transferring bundle {}: {}", &bpid, err);
                     let mut failed_peer = None;
+                    (*DTNCORE.lock())
+                        .routing_agent
+                        .notify(RoutingNotifcation::SendingFailed(
+                            &bpid,
+                            &n.next_hop.node().unwrap(),
+                        ));
                     if let Some(peer_entry) = (*PEERS.lock()).get_mut(&n.next_hop.node().unwrap()) {
-                        (*DTNCORE.lock())
-                            .routing_agent
-                            .notify(RoutingNotifcation::SendingFailed(
-                                &bpid,
-                                &peer_entry.node_name(),
-                            ));
                         peer_entry.report_fail();
                         if peer_entry.failed_too_much() && peer_entry.con_type == PeerType::Dynamic
                         {
