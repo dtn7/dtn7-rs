@@ -15,6 +15,7 @@ readme = "README.md"
 
 default = []
 tracing = ["console-subscriber"]
+deadlock_detection = [ "parking_lot/deadlock_detection" ]
 
 [dependencies]
 bp7 = {version = "0.10.5", default-features = false }
@@ -40,7 +41,7 @@ clap = { version = "3.0.13", features = ["cargo", "derive"] }
 config = {version = "0.11.0", default-features = false, features = ["toml"] }
 lazy_static = "1.4.0"
 anyhow = "1.0.32"
-parking_lot = { version = "0.12.0", features = ["send_guard"] }
+parking_lot = "0.12.0"
 async-trait = "0.1.40"
 attohttpc = { version = "0.18", default-features = false }
 tinytemplate = "1.1.0"
