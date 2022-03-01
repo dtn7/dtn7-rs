@@ -21,7 +21,7 @@ pub(crate) enum TcpClPacket {
 }
 
 impl TcpClPacket {
-    pub async fn serialize(&self, writer: &mut (impl AsyncWrite + Unpin)) -> anyhow::Result<()> {
+    pub async fn write(&self, writer: &mut (impl AsyncWrite + Unpin)) -> anyhow::Result<()> {
         match self {
             TcpClPacket::SessInit(sess_init_data) => {
                 writer.write_u8(MessageType::SessInit as u8).await?;
@@ -90,10 +90,11 @@ impl TcpClPacket {
                 writer.write_u8(flags.bits()).await?;
             }
         }
+        writer.flush().await?;
         Ok(())
     }
 
-    pub async fn deserialize(reader: &mut (impl AsyncRead + Unpin)) -> Result<Self, TcpClError> {
+    pub async fn read(reader: &mut (impl AsyncRead + Unpin)) -> Result<Self, TcpClError> {
         let mtype = reader.read_u8().await?;
         if let Some(mtype) = MessageType::from_u8(mtype) {
             match mtype {
