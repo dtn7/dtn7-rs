@@ -345,17 +345,12 @@ pub async fn forward(mut bp: BundlePack) -> Result<()> {
                     "Sending bundle to a CLA: {} {} {}",
                     &bpid, n.dest, n.cla_name
                 );
-                if n.transfer(bd).await {
-                    info!(
-                        "Sending bundle succeeded: {} {} {}",
-                        &bpid, n.dest, n.cla_name
-                    );
-                    bundle_sent.store(true, Ordering::Relaxed);
-                } else {
+                if let Err(err) = n.transfer(bd).await {
                     info!(
                         "Sending bundle {} via {} to {} ({}) failed",
                         &bpid, n.cla_name, n.dest, n.next_hop
                     );
+                    debug!("Error while transferring bundle {}: {}", &bpid, err);
                     let mut failed_peer = None;
                     if let Some(peer_entry) = (*PEERS.lock()).get_mut(&n.next_hop.node().unwrap()) {
                         (*DTNCORE.lock())
@@ -370,7 +365,6 @@ pub async fn forward(mut bp: BundlePack) -> Result<()> {
                             failed_peer = Some(peer_entry.node_name());
                         }
                     }
-
                     if let Some(peer) = failed_peer {
                         let peers_before = (*PEERS.lock()).len();
                         (*PEERS.lock()).remove(&peer);
@@ -381,6 +375,12 @@ pub async fn forward(mut bp: BundlePack) -> Result<()> {
                     // if (*CONFIG.lock()).generate_service_reports {
                     //    send_status_report(&bp2, FORWARDED_BUNDLE, TRANSMISSION_CANCELED);
                     // }
+                } else {
+                    info!(
+                        "Sending bundle succeeded: {} {} {}",
+                        &bpid, n.dest, n.cla_name
+                    );
+                    bundle_sent.store(true, Ordering::Relaxed);
                 }
             });
             wg.push(task_handle);

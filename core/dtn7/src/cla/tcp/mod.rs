@@ -9,15 +9,16 @@ use bp7::{Bundle, ByteBuffer, EndpointID};
 //use futures_util::stream::StreamExt;
 use dtn7_codegen::cla;
 use log::{debug, error, info, trace, warn};
+use parking_lot::Mutex;
 use std::collections::HashMap;
 use std::convert::TryFrom;
 use std::net::SocketAddr;
 use std::time::Instant;
 use thiserror::Error;
 use tokio::net::tcp::{OwnedReadHalf, OwnedWriteHalf};
+use tokio::sync::mpsc;
 use tokio::sync::mpsc::error::SendError;
 use tokio::sync::oneshot::{self, Sender};
-use tokio::sync::{mpsc, Mutex};
 use tokio::time::{self};
 //use std::net::TcpStream;
 use super::tcp::proto::*;
@@ -49,7 +50,7 @@ use tokio::time::Duration;
 
 type SessionMap = HashMap<SocketAddr, mpsc::Sender<(ByteBuffer, oneshot::Sender<bool>)>>;
 
-const KEEPALIVE: u16 = 300;
+const KEEPALIVE: u16 = 30;
 const SEGMENT_MRU: u64 = 64000;
 const TRANSFER_MRU: u64 = 64000;
 const INTERNAL_CHANNEL_BUFFER: usize = 50;
@@ -142,7 +143,10 @@ impl TcpSession {
                         Ok(packet) => {
                             if packet == TcpClPacket::KeepAlive {
                                 if !keepalive_sent {
-                                    TcpClPacket::KeepAlive.write(&mut self.writer).await.unwrap();
+                                    if let Err(err) = TcpClPacket::KeepAlive.write(&mut self.writer).await {
+                                        error!("error while sending keepalive: {:?}", err);
+                                        state = (ReceiveState::Terminated, SendState::Terminated);
+                                    }
                                     keepalive_sent = true;
                                 } else {
                                     keepalive_sent = false;
@@ -188,7 +192,10 @@ impl TcpSession {
                 _ = sleep => {
                     if !keepalive_sent {
                         // 1st time send keepalive
-                        TcpClPacket::KeepAlive.write(&mut self.writer).await.unwrap();
+                        if let Err(err) = TcpClPacket::KeepAlive.write(&mut self.writer).await {
+                            error!("error while sending keepalive: {:?}", err);
+                            state = (ReceiveState::Terminated, SendState::Terminated);
+                        }
                         keepalive_sent = true;
                     }
                     if !keepalive_received && keepalive_sent{
@@ -200,13 +207,15 @@ impl TcpSession {
         }
     }
     async fn terminate_session(&mut self, reason: SessTermReasonCode) -> (ReceiveState, SendState) {
-        TcpClPacket::SessTerm(SessTermData {
+        if let Err(err) = TcpClPacket::SessTerm(SessTermData {
             flags: SessTermFlags::empty(),
             reason,
         })
         .write(&mut self.writer)
         .await
-        .unwrap();
+        {
+            error!("error while sending session terminate: {:?}", err);
+        }
         (ReceiveState::Terminated, SendState::Terminated)
     }
     async fn process_bundle(&mut self, vec: Vec<u8>, tid: u64) -> anyhow::Result<ReceiveState> {
@@ -351,7 +360,11 @@ impl TcpSession {
                     if ack_data.len < len {
                         Ok((receive_state, SendState::Sending(len, response)))
                     } else {
-                        response.send(true).unwrap();
+                        if let Err(err) = response.send(true) {
+                            error!("Failed to send response: {}", err);
+                            return Err(TcpSessionError::Protocol(packet).into());
+                        }
+
                         Ok((receive_state, SendState::Idle))
                     }
                 }
@@ -363,14 +376,20 @@ impl TcpSession {
                         return Err(TcpSessionError::Protocol(packet).into());
                     }
                     debug!("Received refuse");
-                    response.send(true).unwrap();
+                    if response.send(true).is_err() {
+                        error!("Failed to send response");
+                        return Err(TcpSessionError::Protocol(packet).into());
+                    }
                     Ok((receive_state, SendState::Idle))
                 }
                 SendState::Sending(_, response) => {
                     if refuse_data.tid != self.last_tid {
                         return Err(TcpSessionError::Protocol(packet).into());
                     }
-                    response.send(false).unwrap();
+                    if response.send(false).is_err() {
+                        error!("Failed to send response");
+                        return Err(TcpSessionError::Protocol(packet).into());
+                    }
                     Ok((receive_state, SendState::Idle))
                 }
                 _ => Err(TcpSessionError::Protocol(packet).into()),
@@ -388,7 +407,7 @@ impl TcpSession {
         let (bndl_buf, tx_result) = data;
 
         if self.refuse_existing_bundles {
-            let bundle = Bundle::try_from(bndl_buf.as_slice()).unwrap();
+            let bundle = Bundle::try_from(bndl_buf.as_slice())?;
             let bundle_id = Bytes::copy_from_slice(bundle.id().as_bytes());
             // ask if peer already has bundle
             let extension = TransferExtensionItem {
@@ -432,14 +451,23 @@ impl TcpSession {
         }
         if byte_vec.is_empty() {
             warn!("Emtpy bundle transfer, aborting");
-            tx_result.send(false).unwrap();
+            if tx_result.send(false).is_err() {
+                error!("Failed to send response");
+                bail!("Failed to send response");
+            }
             return Ok(SendState::Idle);
         }
         // in this case start packet has already been sent
         if !self.refuse_existing_bundles {
-            byte_vec.first_mut().unwrap().flags |= XferSegmentFlags::START;
+            byte_vec
+                .first_mut()
+                .expect("no xfer segments, this should not be possible")
+                .flags |= XferSegmentFlags::START;
         }
-        byte_vec.last_mut().unwrap().flags |= XferSegmentFlags::END;
+        byte_vec
+            .last_mut()
+            .expect("no xfer segments, this should not be possible")
+            .flags |= XferSegmentFlags::END;
         // push packets to send task
         for packet in byte_vec {
             TcpClPacket::XferSeg(packet).write(&mut self.writer).await?;
@@ -583,7 +611,7 @@ impl Listener {
                         mpsc::channel::<(ByteBuffer, oneshot::Sender<bool>)>(
                             INTERNAL_CHANNEL_BUFFER,
                         );
-                    (*TCP_CONNECTIONS.lock().await).insert(addr, tx_session_queue);
+                    (*TCP_CONNECTIONS.lock()).insert(addr, tx_session_queue);
                     tokio::spawn(connection.connect(rx_session_queue, false));
                 }
                 Err(e) => {
@@ -603,7 +631,7 @@ async fn tcp_send_bundles(
     let addr: SocketAddr = dest.parse().unwrap();
 
     let (sender, receiver) = {
-        let mut lock = TCP_CONNECTIONS.lock().await;
+        let mut lock = TCP_CONNECTIONS.lock();
         if let Some(value) = lock.get(&addr) {
             if !value.is_closed() {
                 (value.clone(), None)

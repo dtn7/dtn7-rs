@@ -48,9 +48,9 @@ impl TcpClPacket {
                     let mut ext_data = Cursor::new(Vec::new());
                     let mut len = 0u32;
                     for ext in &xfer_seg_data.extensions {
-                        ext_data.write_u8(ext.flags.bits()).await.unwrap();
-                        ext_data.write_u16(ext.item_type as u16).await.unwrap();
-                        ext_data.write_u16(ext.data.len() as u16).await.unwrap();
+                        ext_data.write_u8(ext.flags.bits()).await?;
+                        ext_data.write_u16(ext.item_type as u16).await?;
+                        ext_data.write_u16(ext.data.len() as u16).await?;
                         ext_data.write_all(ext.data.as_ref()).await?;
                         len += MINIMUM_EXTENSION_ITEM_SIZE + ext.data.len() as u32;
                     }
