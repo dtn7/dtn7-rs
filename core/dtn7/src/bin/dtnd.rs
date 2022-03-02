@@ -14,6 +14,32 @@ async fn main() -> Result<(), std::io::Error> {
     #[cfg(feature = "tracing")]
     console_subscriber::init();
 
+    #[cfg(feature = "deadlock_detection")]
+    {
+        // only for #[cfg]
+        use parking_lot::deadlock;
+        use std::thread;
+        use std::time::Duration;
+
+        // Create a background thread which checks for deadlocks every 10s
+        thread::spawn(move || loop {
+            thread::sleep(Duration::from_secs(10));
+            let deadlocks = deadlock::check_deadlock();
+            if deadlocks.is_empty() {
+                continue;
+            }
+
+            println!("{} deadlocks detected", deadlocks.len());
+            for (i, threads) in deadlocks.iter().enumerate() {
+                println!("Deadlock #{}", i);
+                for t in threads {
+                    println!("Thread Id {:#?}", t.thread_id());
+                    println!("{:#?}", t.backtrace());
+                }
+            }
+        });
+    } // only for #[cfg]
+
     let mut cfg = DtnConfig::new();
     if cfg!(debug_assertions) {
         // Whenever a threads has a panic, quit the whole program!

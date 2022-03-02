@@ -43,7 +43,7 @@ impl ApplicationAgent for SimpleApplicationAgent {
         if let Some(addr) = self.delivery_addr() {
             // TODO: remove clone and work with reference
 
-            if addr.try_send(BundleDelivery { 0: bundle.clone() }).is_err() {
+            if addr.try_send(BundleDelivery(bundle.clone())).is_err() {
                 self.bundles.push_back(bundle.clone());
             }
         } else {
