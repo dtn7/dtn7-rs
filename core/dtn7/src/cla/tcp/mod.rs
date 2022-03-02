@@ -543,13 +543,14 @@ impl TcpConnection {
         mut self,
         rx_session_queue: mpsc::Receiver<(Vec<u8>, Sender<bool>)>,
         active: bool,
-    ) {
+    ) -> anyhow::Result<()> {
         // Phase 1
         debug!("Exchanging contact header, {}", self.addr);
         if let Err(err) = self.exchange_contact_header().await {
-            error!(
+            bail!(
                 "Failed to exchange contact header with {}: {}",
-                self.addr, err
+                self.addr,
+                err
             );
         }
         // Phase 2
@@ -587,8 +588,9 @@ impl TcpConnection {
                 };
                 session.run().await;
             }
-            Err(err) => error!("Failed to negotiate session for {}: {}", self.addr, err),
+            Err(err) => bail!("Failed to negotiate session for {}: {}", self.addr, err),
         }
+        Ok(())
     }
 }
 
@@ -616,7 +618,11 @@ impl Listener {
                             INTERNAL_CHANNEL_BUFFER,
                         );
                     (*TCP_CONNECTIONS.lock()).insert(addr, tx_session_queue);
-                    tokio::spawn(connection.connect(rx_session_queue, false));
+                    tokio::spawn(async move {
+                        if let Err(err) = connection.connect(rx_session_queue, false).await {
+                            error!("Failed to establish TCP session with {}: {}", addr, err);
+                        }
+                    });
                 }
                 Err(e) => {
                     error!("Couldn't get client: {:?}", e)
