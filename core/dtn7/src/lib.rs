@@ -137,10 +137,9 @@ pub fn store_delete_expired() {
 
     let expired: Vec<String> = pending_bids
         .iter()
-        .map(|b| (*STORE.lock()).get_bundle(b))
+        .flat_map(|b| (*STORE.lock()).get_bundle(b))
         //.filter(|b| b.is_some())
         //.map(|b| b.unwrap())
-        .flatten()
         .filter(|e| e.primary.is_lifetime_exceeded())
         .map(|e| e.id())
         .collect();
