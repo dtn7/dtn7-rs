@@ -203,6 +203,10 @@ impl TcpSession {
                         state = self.terminate_session(SessTermReasonCode::IdleTimeout).await;
                     }
                 }
+                else => {
+                    error!("all channels closed");
+                    state = (ReceiveState::Terminated, SendState::Terminated);
+                }
             };
         }
     }
