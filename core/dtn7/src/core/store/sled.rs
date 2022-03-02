@@ -25,7 +25,7 @@ impl BundleStore for SledBundleStore {
             if self.metadata.contains_key(bp.id())? {
                 bail!("Bundle metadata already in store!");
             }
-            self.metadata.insert(bp.id().to_string(), bp.to_cbor())?;
+            self.metadata.insert(bp.id(), bp.to_cbor())?;
             self.metadata.flush()?;
         }
         // TODO: eliminate double clone (here and in BundlePack::from)
@@ -39,7 +39,7 @@ impl BundleStore for SledBundleStore {
         if !self.metadata.contains_key(bp.id())? {
             bail!("Bundle not in store!");
         }
-        self.metadata.insert(bp.id().to_string(), bp.to_cbor())?;
+        self.metadata.insert(bp.id(), bp.to_cbor())?;
         self.metadata.flush()?;
         Ok(())
     }

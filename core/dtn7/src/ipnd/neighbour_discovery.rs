@@ -76,7 +76,7 @@ async fn announcer(socket: UdpSocket, _v6: bool) {
         // Get all available clas
         (*CLAS.lock())
             .iter()
-            .for_each(|cla| pkt.add_cla(&cla.name().to_string(), &Some(cla.port())));
+            .for_each(|cla| pkt.add_cla(cla.name(), &Some(cla.port())));
         // Get all available services
         (*DTNCORE.lock())
             .service_list

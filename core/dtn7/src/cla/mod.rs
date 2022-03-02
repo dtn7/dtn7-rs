@@ -4,6 +4,7 @@ pub mod mtcp;
 pub mod tcp;
 
 use self::http::HttpConvergenceLayer;
+use anyhow::Result;
 use async_trait::async_trait;
 use bp7::{ByteBuffer, EndpointID};
 use derive_more::*;
@@ -43,11 +44,17 @@ pub struct ClaSenderTask {
 }
 
 impl ClaSenderTask {
-    pub async fn transfer(&self, ready: ByteBuffer) -> bool {
+    pub async fn transfer(&self, ready: ByteBuffer) -> Result<()> {
         let (reply_tx, reply_rx) = oneshot::channel();
         let cmd = ClaCmd::Transfer(self.dest.clone(), ready, reply_tx);
-        self.tx.send(cmd).await.unwrap();
-        reply_rx.await.unwrap()
+        self.tx.send(cmd).await?;
+        if !reply_rx.await? {
+            return Err(anyhow::anyhow!(
+                "CLA {} failed to send bundle",
+                self.cla_name
+            ));
+        }
+        Ok(())
     }
 }
 

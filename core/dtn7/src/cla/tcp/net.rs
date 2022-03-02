@@ -21,7 +21,7 @@ pub(crate) enum TcpClPacket {
 }
 
 impl TcpClPacket {
-    pub async fn serialize(&self, writer: &mut (impl AsyncWrite + Unpin)) -> anyhow::Result<()> {
+    pub async fn write(&self, writer: &mut (impl AsyncWrite + Unpin)) -> anyhow::Result<()> {
         match self {
             TcpClPacket::SessInit(sess_init_data) => {
                 writer.write_u8(MessageType::SessInit as u8).await?;
@@ -48,9 +48,9 @@ impl TcpClPacket {
                     let mut ext_data = Cursor::new(Vec::new());
                     let mut len = 0u32;
                     for ext in &xfer_seg_data.extensions {
-                        ext_data.write_u8(ext.flags.bits()).await.unwrap();
-                        ext_data.write_u16(ext.item_type as u16).await.unwrap();
-                        ext_data.write_u16(ext.data.len() as u16).await.unwrap();
+                        ext_data.write_u8(ext.flags.bits()).await?;
+                        ext_data.write_u16(ext.item_type as u16).await?;
+                        ext_data.write_u16(ext.data.len() as u16).await?;
                         ext_data.write_all(ext.data.as_ref()).await?;
                         len += MINIMUM_EXTENSION_ITEM_SIZE + ext.data.len() as u32;
                     }
@@ -90,10 +90,11 @@ impl TcpClPacket {
                 writer.write_u8(flags.bits()).await?;
             }
         }
+        writer.flush().await?;
         Ok(())
     }
 
-    pub async fn deserialize(reader: &mut (impl AsyncRead + Unpin)) -> Result<Self, TcpClError> {
+    pub async fn read(reader: &mut (impl AsyncRead + Unpin)) -> Result<Self, TcpClError> {
         let mtype = reader.read_u8().await?;
         if let Some(mtype) = MessageType::from_u8(mtype) {
             match mtype {
