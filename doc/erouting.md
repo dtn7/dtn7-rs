@@ -1,6 +1,6 @@
 # External Routing
 
-![External Routing](./erouting_overview.drawio.png)
+![External Routing](./graphics/erouting_overview.drawio.png)
 
 The External Routing allows implementing routing algorithms externally (e.g. outside the dtn7-rs codebase). It works by exposing a realtime JSON API via WebSocket. With the help of the erouting it is possible to easily implement new routing algorithms in different language. All languages that can encode / decode JSON and communicate via WebSocket should in theory work.
 
@@ -20,6 +20,8 @@ All packets are JSON encoded and contain a field called ``type`` which specifies
 
 #### Packet SenderForBundle
 
+ERouting → ERouter
+
 The ``SenderForBundle`` is the most important packet. It specifies that a bundle wants to be sent by ``dtnd`` and senders that it can be forwarded to are wanted from your router.
 
 - ``clas``: The registered clas at the time of the request
@@ -34,6 +36,8 @@ The ``SenderForBundle`` is the most important packet. It specifies that a bundle
 ```
 
 #### Packet SenderForBundleResponse
+
+ERouter → ERouting
 
 The ``SenderForBundleResponse`` as the name suggests is the response to a ``SenderForBundle`` packet by your router.
 
@@ -60,6 +64,8 @@ The ``SenderForBundleResponse`` as the name suggests is the response to a ``Send
 
 #### Packet SendingFailed
 
+ERouting → ERouter
+
 The ``SendingFailed`` is emitted when the sending of a bundle failed.
 
 ```json
@@ -72,6 +78,8 @@ The ``SendingFailed`` is emitted when the sending of a bundle failed.
 
 #### Packet IncomingBundle
 
+ERouting → ERouter
+
 The ``IncomingBundle`` is emitted when a bundle is incoming.
 
 ```json
@@ -82,6 +90,8 @@ The ``IncomingBundle`` is emitted when a bundle is incoming.
 ```
 
 #### Packet IncomingBundleWithoutPreviousNode
+
+ERouting → ERouter
 
 The ``IncomingBundleWithoutPreviousNode`` is emitted when a bundle is incoming with a previous node.
 
@@ -94,6 +104,8 @@ The ``IncomingBundleWithoutPreviousNode`` is emitted when a bundle is incoming w
 ```
 
 #### Packet EncounteredPeer
+
+ERouting → ERouter
 
 The ``EncounteredPeer`` is a signal that a new peer is encountered.
 
@@ -108,6 +120,8 @@ The ``EncounteredPeer`` is a signal that a new peer is encountered.
 
 #### Packet DroppedPeer
 
+ERouting → ERouter
+
 The ``DroppedPeer`` is a signal that a peer was dropped.
 
 ```json
@@ -119,6 +133,8 @@ The ``DroppedPeer`` is a signal that a peer was dropped.
 ```
 
 #### Packet PeerState
+
+ERouting → ERouter
 
 The ``PeerState`` is the initial state of the peers.
 
@@ -136,6 +152,8 @@ The ``PeerState`` is the initial state of the peers.
 
 #### Packet AddService
 
+ERouter → ERouting
+
 The ``AddService`` packet can be sent to register a service.
 
 ```json
@@ -147,6 +165,8 @@ The ``AddService`` packet can be sent to register a service.
 ```
 
 #### Packet ServiceState
+
+ERouting → ERouter
 
 The ``ServiceState`` is the initial state of the peers.
 
@@ -164,7 +184,7 @@ The ``ServiceState`` is the initial state of the peers.
 
 Connecting is only possible if no other external router is already connected. If a connection is successful the ERouting will start by sending an initial ``PeerState`` and ``ServiceState`` packet. After that ``SenderForBundle`` and other Packets can be received or send.
 
-![Connection](./erouting_conn.drawio.png)
+![Connection](./graphics/erouting_conn.drawio.png)
 
 ## Implementing a routing strategy
 

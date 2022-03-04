@@ -1,6 +1,6 @@
 # ECLA
 
-![ECLA Model](./ecla_overview.drawio.png)
+![ECLA Model](./graphics/ecla_overview.drawio.png)
 
 The External Convergence Layer Agent allows implementing Convergence Layer Agents externally (e.g. outside the dtn7-rs codebase). It works by exposing a realtime JSON API via WebSocket or TCP. With the help of the ECLA it is possible to easily implement new transmission layers in different language. All languages that can encode / decode JSON and communicate via WebSocket or TCP should in theory work. Additionally, the ECLA contains a optional and simple beacon system that can be used for peer discovery.
 
@@ -19,6 +19,10 @@ All packets are JSON encoded and contain a field called ``type`` which specifies
 
 #### Register
 
+ECLA-Module → ECLA
+
+The ``Register`` packet must be sent as first packet to the ECLA to register the ECLA-Module.
+
 ```json
 {
   "type": "Register",
@@ -29,6 +33,10 @@ All packets are JSON encoded and contain a field called ``type`` which specifies
 
 #### Error
 
+ECLA → ECLA-Module
+
+The ``Error`` packet will be emitted if an error happens while registration.
+
 ```json
 {
   "type": "Error",
@@ -38,15 +46,21 @@ All packets are JSON encoded and contain a field called ``type`` which specifies
 
 #### Registered
 
+ECLA → ECLA-Module
+
+The ``Registered`` packet will be emitted if the registration was successful.
+
 ```json
 {
   "type": "Registered",
-  "eid": [],
+  "eid": [1, "//nodex/..."],
   "nodeid": "nodex"
 }
 ```
 
 #### ForwardData
+
+ECLA ⇄ ECLA-Module
 
 ```json
 {
@@ -60,10 +74,12 @@ All packets are JSON encoded and contain a field called ``type`` which specifies
 
 #### Beacon
 
+ECLA ⇄ ECLA-Module
+
 ```json
 {
   "type": "Beacon",
-  "eid": [],
+  "eid": [1, "//nodex/..."],
   "addr": "...",
   "service_block": "aGVsbG8...gd29ybGQ="
 }
@@ -77,7 +93,7 @@ After the initial connect to the ECLA the first packet that must be send is the 
 
 #### Example Sequence
 
-![ECLA Model](./ecla_reg.drawio.png)
+![ECLA Model](./graphics/ecla_reg.drawio.png)
 
 ### Forward Data
 
@@ -93,7 +109,7 @@ If you receive a packet from the transmission layer you must pass it to the ECLA
 
 #### Example Sequence
 
-![ECLA Model](./ecla_fwd.drawio.png)
+![ECLA Model](./graphics/ecla_fwd.drawio.png)
 
 ### Beacon
 
@@ -109,7 +125,7 @@ If you receive a packet from the transmission layer you can pass it to the ECLA 
 
 #### Example Sequence
 
-![ECLA Model](./ecla_beacon.drawio.png)
+![ECLA Model](./graphics/ecla_beacon.drawio.png)
 
 ## TCP Transport Layer
 
