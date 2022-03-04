@@ -306,13 +306,13 @@ pub async fn forward(mut bp: BundlePack) -> Result<()> {
 
     trace!("Check delivery");
 
-    let bpc = bp.clone();
+    /*let bpc = bp.clone();
     let res = tokio::task::spawn_blocking(|| {
         let bpc = bpc;
         return (*DTNCORE.lock()).routing_agent.sender_for_bundle(&bpc);
-    });
+    });*/
 
-    let (nodes, delete_afterwards) = res.await.unwrap();
+    let (nodes, delete_afterwards) = (*DTNCORE.lock()).routing_agent.sender_for_bundle(&bp).await;
     if !nodes.is_empty() {
         debug!("Attempting forwarding of {} to nodes: {:?}", bp.id(), nodes);
     }

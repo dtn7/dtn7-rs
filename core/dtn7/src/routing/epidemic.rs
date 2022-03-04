@@ -3,6 +3,7 @@ use crate::cla::ClaSender;
 use crate::core::bundlepack::BundlePack;
 use crate::routing::RoutingNotifcation;
 use crate::PEERS;
+use async_trait::async_trait;
 use log::debug;
 use std::collections::{HashMap, HashSet};
 
@@ -61,6 +62,8 @@ impl std::fmt::Display for EpidemicRoutingAgent {
         write!(f, "EpidemicRoutingAgent")
     }
 }
+
+#[async_trait]
 impl RoutingAgent for EpidemicRoutingAgent {
     fn notify(&mut self, notification: RoutingNotifcation) {
         match notification {
@@ -80,7 +83,7 @@ impl RoutingAgent for EpidemicRoutingAgent {
             _ => {}
         }
     }
-    fn sender_for_bundle(&mut self, bp: &BundlePack) -> (Vec<ClaSender>, bool) {
+    async fn sender_for_bundle(&mut self, bp: &BundlePack) -> (Vec<ClaSender>, bool) {
         let mut clas = Vec::new();
         let mut delete_afterwards = false;
         for (_, p) in (*PEERS.lock()).iter() {

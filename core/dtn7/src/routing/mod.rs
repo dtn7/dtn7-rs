@@ -6,6 +6,7 @@ pub mod sink;
 
 use crate::cla::ClaSender;
 use crate::core::bundlepack::BundlePack;
+use async_trait::async_trait;
 use bp7::Bundle;
 use bp7::EndpointID;
 use derive_more::*;
@@ -42,10 +43,11 @@ impl std::fmt::Display for RoutingAgentsEnum {
 }
 */
 
+#[async_trait]
 #[enum_dispatch(RoutingAgentsEnum)]
 pub trait RoutingAgent: Debug + Display {
     fn notify(&mut self, _notification: RoutingNotifcation) {}
-    fn sender_for_bundle(&mut self, _bp: &BundlePack) -> (Vec<ClaSender>, bool) {
+    async fn sender_for_bundle(&mut self, _bp: &BundlePack) -> (Vec<ClaSender>, bool) {
         unimplemented!();
     }
 }

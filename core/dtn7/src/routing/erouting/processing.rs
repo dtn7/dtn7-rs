@@ -13,13 +13,15 @@ use futures_util::{future, pin_mut, StreamExt, TryStreamExt};
 use log::{debug, info};
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
-use std::{thread, time};
+use std::time;
+use tokio::sync::oneshot;
+use tokio::time::timeout;
 
 struct Connection {
     tx: UnboundedSender<Message>,
 }
 
-type ResponseMap = Arc<Mutex<HashMap<String, UnboundedSender<Packet>>>>;
+type ResponseMap = Arc<Mutex<HashMap<String, oneshot::Sender<Packet>>>>;
 
 lazy_static! {
     static ref CONNECTION: Arc<Mutex<Option<Connection>>> = Arc::new(Mutex::new(None));
@@ -85,12 +87,13 @@ pub async fn handle_connection(ws: WebSocket) {
                     if let Some(tx) = RESPONSES
                         .lock()
                         .unwrap()
-                        .get(packet.bp.to_string().as_str())
+                        .remove(packet.bp.to_string().as_str())
                     {
-                        tx.unbounded_send(Packet::SenderForBundleResponse(packet))
-                            .expect("could not send response to channel");
+                        if let Err(_) = tx.send(Packet::SenderForBundleResponse(packet)) {
+                            info!("sender_for_bundle response could not be passed to channel")
+                        }
                     } else {
-                        info!("sender_for_bundle response could not be passed")
+                        info!("sender_for_bundle no response channel available")
                     }
                 }
                 Packet::ServiceAdd(packet) => {
@@ -173,15 +176,15 @@ fn remove_response_channel(id: &str) {
     RESPONSES.lock().unwrap().remove(id);
 }
 
-fn create_response_channel(id: &str, tx: UnboundedSender<Packet>) {
+fn create_response_channel(id: &str, tx: oneshot::Sender<Packet>) {
     RESPONSES.lock().unwrap().insert(id.to_string(), tx);
 }
 
-pub fn sender_for_bundle(bp: &BundlePack) -> (Vec<ClaSender>, bool) {
+pub async fn sender_for_bundle(bp: &BundlePack) -> (Vec<ClaSender>, bool) {
     debug!("external sender_for_bundle initiated: {}", bp);
 
     // Register a response channel for the request
-    let (tx, mut rx) = unbounded();
+    let (tx, rx) = oneshot::channel();
     create_response_channel(bp.to_string().as_str(), tx);
 
     // Send out the SenderForBundle packet
@@ -191,42 +194,31 @@ pub fn sender_for_bundle(bp: &BundlePack) -> (Vec<ClaSender>, bool) {
     });
     send_packet(&packet);
 
-    // Wait for an answer on the response channel
-    for _ in 0..25 {
-        if CONNECTION.lock().unwrap().is_some() {
-            if let Ok(Some(Packet::SenderForBundleResponse(packet))) = rx.try_next() {
-                if packet.bp.to_string() != bp.to_string() {
-                    info!("got a wrong bundle pack! {} != {}", bp, packet.bp);
-                    continue;
-                }
+    let res = timeout(time::Duration::from_millis(1500), rx).await;
+    if let Ok(Ok(Packet::SenderForBundleResponse(packet))) = res {
+        remove_response_channel(bp.to_string().as_str());
 
-                remove_response_channel(bp.to_string().as_str());
-                return (
-                    packet
-                        .clas
-                        .iter()
-                        .map(|sender| ClaSender {
-                            remote: sender.remote.clone(),
-                            port: sender.port,
-                            agent: cla_parse(sender.agent.as_str()),
-                            local_settings: cla_settings(sender.agent.to_string()),
-                        })
-                        .collect(),
-                    false,
-                );
-            }
-        } else {
-            info!("no external routing! no sender_for_bundle possible");
-
-            remove_response_channel(bp.to_string().as_str());
+        if packet.bp.to_string() != bp.to_string() {
+            info!("got a wrong bundle pack! {} != {}", bp, packet.bp);
             return (vec![], false);
         }
 
-        thread::sleep(time::Duration::from_millis(100)); // TODO: Make timeout configurable or find better solution
+        return (
+            packet
+                .clas
+                .iter()
+                .map(|sender| ClaSender {
+                    remote: sender.remote.clone(),
+                    port: sender.port,
+                    agent: cla_parse(sender.agent.as_str()),
+                    local_settings: cla_settings(sender.agent.to_string()),
+                })
+                .collect(),
+            false,
+        );
     }
 
     info!("timeout while waiting for sender_for_bundle");
-
     remove_response_channel(bp.to_string().as_str());
     (vec![], false)
 }
