@@ -19,6 +19,8 @@ use log::trace;
 use log::{error, info};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use std::sync::atomic::AtomicUsize;
+use std::sync::atomic::Ordering;
 use std::time::Instant;
 
 use crate::core::application_agent::ApplicationAgentEnum;
@@ -139,7 +141,42 @@ pub fn process_peers() {
 /// Reprocess bundles in store
 pub async fn process_bundles() {
     let now_total = Instant::now();
+
     let forwarding_bids: Vec<String> = (*STORE.lock()).forwarding();
+
+    // avoid transmission attempts if peers are the same as last time and bundles are also the same.
+    // only process bundles if peers have changed or if we have already skipped retransmission a few times.
+    //
+    // only check if number of peers and number of bundles have changed.
+    // the chances that the exact same number of peers and bundles are removed and new ones added is very low.
+    // proper hashing would be much more expensive.
+
+    const MAX_SKIPS_BEFORE_RETRANSMISSION: usize = 5;
+
+    static LAST_NUM_PEERS: AtomicUsize = AtomicUsize::new(0);
+    static LAST_NUM_BUNDLES: AtomicUsize = AtomicUsize::new(0);
+    static RETRY_COUNTDOWN: AtomicUsize = AtomicUsize::new(MAX_SKIPS_BEFORE_RETRANSMISSION);
+
+    let num_peers: usize = (*PEERS.lock()).len();
+    let num_bundles = forwarding_bids.len();
+
+    if num_peers == LAST_NUM_PEERS.load(Ordering::Relaxed)
+        && num_bundles == LAST_NUM_BUNDLES.load(Ordering::Relaxed)
+    {
+        if RETRY_COUNTDOWN.fetch_sub(1, std::sync::atomic::Ordering::Relaxed) <= 1 {
+            RETRY_COUNTDOWN.store(MAX_SKIPS_BEFORE_RETRANSMISSION, Ordering::Relaxed);
+            debug!("Retrying bundle processing, even though neighbors haven't changed");
+        } else {
+            debug!("Neighbors and bundles haven't changed, skipping bundle processing");
+            LAST_NUM_PEERS.store(num_peers, Ordering::Relaxed);
+            LAST_NUM_BUNDLES.store(num_bundles, Ordering::Relaxed);
+            return;
+        }
+    }
+    LAST_NUM_PEERS.store(num_peers, Ordering::Relaxed);
+    LAST_NUM_BUNDLES.store(num_bundles, Ordering::Relaxed);
+
+    // start actual bundle processing
 
     let mut forwarding_bundles: Vec<BundlePack> = forwarding_bids
         .iter()
