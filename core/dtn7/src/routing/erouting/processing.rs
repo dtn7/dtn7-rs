@@ -10,7 +10,7 @@ use crate::{
 use axum::extract::ws::{Message, WebSocket};
 use futures::channel::mpsc::{unbounded, UnboundedSender};
 use futures_util::{future, pin_mut, StreamExt, TryStreamExt};
-use log::{debug, info, trace};
+use log::{info, trace};
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 use std::time;
