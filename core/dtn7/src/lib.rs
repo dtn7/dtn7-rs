@@ -35,6 +35,8 @@ lazy_static! {
     pub static ref STATS: Mutex<DtnStatistics> = Mutex::new(DtnStatistics::new());
     pub static ref SENDERTASK: Mutex<Option<Sender<Bundle>>> = Mutex::new(None);
     pub static ref STORE: Mutex<BundleStoresEnum> = Mutex::new(InMemoryBundleStore::new().into());
+    pub static ref ROUTINGAGENT: Mutex<crate::routing::RoutingAgentsEnum> =
+        Mutex::new(crate::routing::epidemic::EpidemicRoutingAgent::new().into());
 }
 
 pub fn cla_add(cla: CLAEnum) {
@@ -188,5 +190,5 @@ pub fn store_delete_expired() {
     }
 }
 pub fn routing_notify(notification: RoutingNotifcation) {
-    (*DTNCORE.lock()).routing_agent.notify(notification);
+    (*ROUTINGAGENT.lock()).notify(notification);
 }

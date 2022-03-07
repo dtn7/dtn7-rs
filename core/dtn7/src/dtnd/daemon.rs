@@ -8,7 +8,7 @@ use crate::core::application_agent::SimpleApplicationAgent;
 use crate::dtnconfig::DtnConfig;
 use crate::ipnd::neighbour_discovery;
 use crate::peers_add;
-use crate::{CONFIG, DTNCLAS, DTNCORE, STORE};
+use crate::{CONFIG, DTNCLAS, DTNCORE, ROUTINGAGENT, STORE};
 use bp7::EndpointID;
 use log::{error, info};
 
@@ -99,9 +99,9 @@ pub async fn start_dtnd(cfg: DtnConfig) -> anyhow::Result<()> {
     );
 
     let routing = (*CONFIG.lock()).routing.clone();
-    (*DTNCORE.lock()).routing_agent = crate::routing::new(&routing);
+    (*ROUTINGAGENT.lock()) = crate::routing::new(&routing);
 
-    info!("RoutingAgent: {}", (*DTNCORE.lock()).routing_agent);
+    info!("RoutingAgent: {}", routing);
 
     let clas = (*CONFIG.lock()).clas.clone();
     for (cla, local_settings) in &clas {

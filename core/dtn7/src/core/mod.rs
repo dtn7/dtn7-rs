@@ -9,7 +9,6 @@ use crate::cla::CLAEnum;
 pub use crate::core::peer::{DtnPeer, PeerType};
 use crate::core::store::BundleStore;
 use crate::routing::RoutingAgent;
-use crate::routing::RoutingAgentsEnum;
 use crate::{routing_notify, store_get_bundle, store_get_metadata};
 pub use crate::{store_has_item, store_push_bundle};
 use crate::{PEERS, STORE};
@@ -52,7 +51,7 @@ impl DtnStatistics {
 pub struct DtnCore {
     pub endpoints: Vec<ApplicationAgentEnum>,
     pub service_list: HashMap<u8, String>,
-    pub routing_agent: RoutingAgentsEnum,
+    //pub routing_agent: RoutingAgentsEnum,
 }
 
 impl Default for DtnCore {
@@ -67,7 +66,7 @@ impl DtnCore {
             endpoints: Vec::new(),
             service_list: HashMap::new(),
             //routing_agent: crate::routing::flooding::FloodingRoutingAgent::new().into(),
-            routing_agent: crate::routing::epidemic::EpidemicRoutingAgent::new().into(),
+            //routing_agent: crate::routing::epidemic::EpidemicRoutingAgent::new().into(),
         }
     }
 

@@ -6,6 +6,7 @@ use crate::store_push_bundle;
 use crate::store_remove;
 use crate::CONFIG;
 use crate::DTNCORE;
+use crate::ROUTINGAGENT;
 use crate::{is_local_node_id, STATS};
 
 use bp7::administrative_record::*;
@@ -306,13 +307,7 @@ pub async fn forward(mut bp: BundlePack) -> Result<()> {
 
     trace!("Check delivery");
 
-    /*let bpc = bp.clone();
-    let res = tokio::task::spawn_blocking(|| {
-        let bpc = bpc;
-        return (*DTNCORE.lock()).routing_agent.sender_for_bundle(&bpc);
-    });*/
-
-    let (nodes, delete_afterwards) = (*DTNCORE.lock()).routing_agent.sender_for_bundle(&bp).await;
+    let (nodes, delete_afterwards) = (*ROUTINGAGENT.lock()).sender_for_bundle(&bp).await;
     if !nodes.is_empty() {
         debug!("Attempting forwarding of {} to nodes: {:?}", bp.id(), nodes);
     }
@@ -361,8 +356,7 @@ pub async fn forward(mut bp: BundlePack) -> Result<()> {
                     let mut failed_peer = None;
                     for (key, p) in (*PEERS.lock()).iter_mut() {
                         if p.addr == n.remote {
-                            (*DTNCORE.lock())
-                                .routing_agent
+                            (*ROUTINGAGENT.lock())
                                 .notify(RoutingNotifcation::SendingFailed(&bpid, &p.node_name()));
                             p.report_fail();
                             if p.failed_too_much() && p.con_type == PeerType::Dynamic {
