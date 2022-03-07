@@ -118,7 +118,7 @@ pub fn handle_packet(layer_name: String, addr: String, packet: Packet) {
         // If we are still in WaitingForIdent we only wait for RegisterPackets to register the Module name.
         ModuleState::WaitingForIdent => {
             if let Packet::Register(ident) = packet {
-                info!(
+                debug!(
                     "Received RegisterPacket from {} ({}): {}",
                     addr, layer_name, ident.name
                 );
@@ -132,11 +132,11 @@ pub fn handle_packet(layer_name: String, addr: String, packet: Packet) {
 
                     let mut settings: HashMap<String, String> = HashMap::new();
                     settings.insert("name".to_string(), me.name.clone());
-                    
+
                     if let Some(port) = ident.port {
                         settings.insert("port".to_string(), port.to_string());
                     }
-                    
+
                     cla_add(ExternalConvergenceLayer::new(Option::Some(&settings)).into());
 
                     // Send registered packet
@@ -152,6 +152,8 @@ pub fn handle_packet(layer_name: String, addr: String, packet: Packet) {
                         layer.send_packet(addr.as_str(), &Packet::Beacon(generate_beacon()));
                     }
                 } else {
+                    info!("Rejected ECLA because '{}' CLA is already present", me.name);
+
                     layer.send_packet(
                         addr.as_str(),
                         &Packet::Error(Error {
@@ -167,7 +169,7 @@ pub fn handle_packet(layer_name: String, addr: String, packet: Packet) {
             // We got a new Bundle Packet that needs to be parsed and processed.
             Packet::ForwardData(fwd) => {
                 if let Ok(bndl) = Bundle::try_from(fwd.data) {
-                    info!("Received bundle: {} from {}", bndl.id(), me.name);
+                    debug!("Received bundle: {} from {}", bndl.id(), me.name);
                     {
                         tokio::spawn(async move {
                             if let Err(err) = crate::core::processing::receive(bndl).await {

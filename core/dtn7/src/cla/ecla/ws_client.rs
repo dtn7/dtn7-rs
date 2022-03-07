@@ -70,7 +70,7 @@ impl Client {
             .unbounded_send(SendPacket(Packet::Register(Register {
                 name: self.module_name.to_string(),
                 enable_beacon: self.enable_beacon,
-                port: self.ecla_port
+                port: self.ecla_port,
             })))
             .expect("couldn't send Register");
 
@@ -125,7 +125,7 @@ impl Client {
 
         Ok(())
     }
-    
+
     pub fn set_ecla_port(&mut self, port: u16) {
         self.ecla_port = Some(port);
     }

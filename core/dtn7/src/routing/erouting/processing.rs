@@ -10,7 +10,7 @@ use crate::{
 use axum::extract::ws::{Message, WebSocket};
 use futures::channel::mpsc::{unbounded, UnboundedSender};
 use futures_util::{future, pin_mut, StreamExt, TryStreamExt};
-use log::{debug, info};
+use log::{debug, info, trace};
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 use std::time;
@@ -69,7 +69,7 @@ pub async fn handle_connection(ws: WebSocket) {
     let (outgoing, incoming) = ws.split();
 
     let broadcast_incoming = incoming.try_for_each(|msg| {
-        debug!(
+        trace!(
             "Received a external routing message: {}",
             msg.to_text().unwrap().trim()
         );
@@ -79,7 +79,7 @@ pub async fn handle_connection(ws: WebSocket) {
         match packet {
             Ok(packet) => match packet {
                 Packet::SenderForBundleResponse(packet) => {
-                    debug!(
+                    trace!(
                         "sender_for_bundle response: {}",
                         msg.to_text().unwrap().trim()
                     );
@@ -181,7 +181,7 @@ fn create_response_channel(id: &str, tx: oneshot::Sender<Packet>) {
 }
 
 pub async fn sender_for_bundle(bp: &BundlePack) -> (Vec<ClaSender>, bool) {
-    debug!("external sender_for_bundle initiated: {}", bp);
+    trace!("external sender_for_bundle initiated: {}", bp);
 
     if CONNECTION.lock().unwrap().is_none() {
         return (vec![], false);

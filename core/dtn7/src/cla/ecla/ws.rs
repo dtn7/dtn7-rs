@@ -43,7 +43,7 @@ pub async fn handle_connection(ws: WebSocket) {
     let (outgoing, incoming) = ws.split();
 
     let broadcast_incoming = incoming.try_for_each(|msg| {
-        info!(
+        trace!(
             "Received a message from {}: {}",
             id,
             msg.to_text().unwrap().trim()
