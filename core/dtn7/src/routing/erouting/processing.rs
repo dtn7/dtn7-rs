@@ -183,6 +183,10 @@ fn create_response_channel(id: &str, tx: oneshot::Sender<Packet>) {
 pub async fn sender_for_bundle(bp: &BundlePack) -> (Vec<ClaSender>, bool) {
     debug!("external sender_for_bundle initiated: {}", bp);
 
+    if CONNECTION.lock().unwrap().is_none() {
+        return (vec![], false);
+    }
+
     // Register a response channel for the request
     let (tx, rx) = oneshot::channel();
     create_response_channel(bp.to_string().as_str(), tx);
@@ -194,7 +198,7 @@ pub async fn sender_for_bundle(bp: &BundlePack) -> (Vec<ClaSender>, bool) {
     });
     send_packet(&packet);
 
-    let res = timeout(time::Duration::from_millis(1500), rx).await;
+    let res = timeout(time::Duration::from_millis(250), rx).await;
     if let Ok(Ok(Packet::SenderForBundleResponse(packet))) = res {
         remove_response_channel(bp.to_string().as_str());
 
