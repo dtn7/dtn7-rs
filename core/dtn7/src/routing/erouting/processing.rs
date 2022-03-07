@@ -10,7 +10,7 @@ use crate::{
 use axum::extract::ws::{Message, WebSocket};
 use futures::channel::mpsc::{unbounded, UnboundedSender};
 use futures_util::{future, pin_mut, StreamExt, TryStreamExt};
-use log::{info, trace};
+use log::{error, info, trace};
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 use std::time;
@@ -90,7 +90,7 @@ pub async fn handle_connection(ws: WebSocket) {
                         .remove(packet.bp.to_string().as_str())
                     {
                         if let Err(_) = tx.send(Packet::SenderForBundleResponse(packet)) {
-                            info!("sender_for_bundle response could not be passed to channel")
+                            error!("sender_for_bundle response could not be passed to channel")
                         }
                     } else {
                         info!("sender_for_bundle no response channel available")
@@ -203,7 +203,7 @@ pub async fn sender_for_bundle(bp: &BundlePack) -> (Vec<ClaSender>, bool) {
         remove_response_channel(bp.to_string().as_str());
 
         if packet.bp.to_string() != bp.to_string() {
-            info!("got a wrong bundle pack! {} != {}", bp, packet.bp);
+            error!("got a wrong bundle pack! {} != {}", bp, packet.bp);
             return (vec![], false);
         }
 

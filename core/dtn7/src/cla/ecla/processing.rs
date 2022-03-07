@@ -12,9 +12,7 @@ use crate::{cla_names, DTNCLAS, DTNCORE};
 use crate::{lazy_static, routing_notify, RoutingNotifcation};
 use crate::{peers_add, DtnPeer};
 use bp7::{Bundle, ByteBuffer};
-use log::debug;
-use log::error;
-use log::info;
+use log::{debug, error, info};
 use serde::__private::TryFrom;
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
@@ -152,7 +150,7 @@ pub fn handle_packet(layer_name: String, addr: String, packet: Packet) {
                         layer.send_packet(addr.as_str(), &Packet::Beacon(generate_beacon()));
                     }
                 } else {
-                    info!("Rejected ECLA because '{}' CLA is already present", me.name);
+                    error!("Rejected ECLA because '{}' CLA is already present", me.name);
 
                     layer.send_packet(
                         addr.as_str(),
