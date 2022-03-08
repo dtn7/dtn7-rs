@@ -36,6 +36,7 @@ pub struct DtnConfig {
     pub workdir: PathBuf,
     pub db: String,
     pub generate_status_reports: bool,
+    pub parallel_bundle_processing: bool,
 }
 
 pub fn rnd_node_name() -> String {
@@ -61,6 +62,8 @@ impl From<PathBuf> for DtnConfig {
             //std::env::set_var("RUST_LOG", "dtn7=debug,dtnd=debug");
         }
         dtncfg.generate_status_reports = s.get_bool("generate_status_reports").unwrap_or(false);
+        dtncfg.parallel_bundle_processing =
+            s.get_bool("parallel-bundle-processing").unwrap_or(false);
         dtncfg.unsafe_httpd = s.get_bool("unsafe_httpd").unwrap_or(false);
         dtncfg.v4 = s.get_bool("ipv4").unwrap_or(true);
         debug!("ipv4: {:?}", dtncfg.v4);
@@ -241,6 +244,7 @@ impl DtnConfig {
             workdir: std::env::current_dir().unwrap(),
             db: String::from("mem"),
             generate_status_reports: false,
+            parallel_bundle_processing: false,
         }
     }
     pub fn set(&mut self, cfg: DtnConfig) {
@@ -266,6 +270,7 @@ impl DtnConfig {
         self.workdir = cfg.workdir;
         self.db = cfg.db;
         self.generate_status_reports = cfg.generate_status_reports;
+        self.parallel_bundle_processing = cfg.parallel_bundle_processing;
     }
 
     /// Helper function that adds discovery destinations to a config struct
