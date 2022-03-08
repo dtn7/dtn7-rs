@@ -215,6 +215,11 @@ Tag 255 takes 5 arguments and is interpreted as address. Usage: -S 255:'Samplest
                 .long("generate-status-reports")
                 .help("Generate status report bundles, can lead to a lot of traffic (default: deactivated)")
                 .takes_value(false),
+        ).arg(
+            Arg::new("parallel-bundle-processing")                
+                .long("parallel-bundle-processing")
+                .help("(Re-)Process bundles in parallel, can cause congestion but might be faster (default: deactivated)")
+                .takes_value(false),
         )
         .arg(
             Arg::new("unsafe_httpd")
@@ -255,6 +260,9 @@ Tag 255 takes 5 arguments and is interpreted as address. Usage: -S 255:'Samplest
     cfg.v4 = matches.is_present("ipv4") || cfg.v4;
     cfg.generate_status_reports =
         matches.is_present("generate-status-reports") || cfg.generate_status_reports;
+
+    cfg.parallel_bundle_processing =
+        matches.is_present("parallel-bundle-processing") || cfg.parallel_bundle_processing;
 
     cfg.unsafe_httpd = matches.is_present("unsafe_httpd") || cfg.unsafe_httpd;
     cfg.enable_period = matches.is_present("beacon-period");
