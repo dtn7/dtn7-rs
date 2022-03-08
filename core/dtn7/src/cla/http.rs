@@ -3,7 +3,7 @@ use crate::CONFIG;
 use async_trait::async_trait;
 use bp7::ByteBuffer;
 use dtn7_codegen::cla;
-use hyper::{Body, Method, Request};
+use hyper::{client::HttpConnector, Body, Client, Method, Request};
 use log::{debug, error};
 use std::{collections::HashMap, net::SocketAddr, time::Instant};
 use tokio::sync::mpsc;
@@ -17,10 +17,14 @@ pub struct HttpConvergenceLayer {
     local_port: u16,
 }
 
-pub async fn http_send_bundles(remote: String, ready: ByteBuffer) -> bool {
+pub async fn http_send_bundles(
+    client: Client<HttpConnector>,
+    remote: String,
+    ready: ByteBuffer,
+) -> bool {
     if !ready.is_empty() {
         let now = Instant::now();
-        let client = hyper::client::Client::new();
+        //let client = hyper::client::Client::new();
         let peeraddr: SocketAddr = remote.parse().unwrap();
         let buf_len = ready.len();
         debug!("forwarding to {:?}", peeraddr);
@@ -63,6 +67,13 @@ impl HttpConvergenceLayer {
     pub fn new(_local_settings: Option<&HashMap<String, String>>) -> HttpConvergenceLayer {
         let (tx, mut rx) = mpsc::channel(100);
         tokio::spawn(async move {
+            let client = hyper::client::Client::new();
+            /*let client = hyper::client::Client::builder()
+            .pool_idle_timeout(Duration::from_secs(15))
+            .retry_canceled_requests(false)
+            .set_host(false)
+            .build_http();*/
+
             while let Some(cmd) = rx.recv().await {
                 match cmd {
                     super::ClaCmd::Transfer(remote, ready, reply) => {
@@ -70,8 +81,11 @@ impl HttpConvergenceLayer {
                             "HttpConvergenceLayer: received transfer command for {}",
                             remote
                         );
+                        let client2 = client.clone();
                         tokio::spawn(async move {
-                            reply.send(http_send_bundles(remote, ready).await).unwrap();
+                            reply
+                                .send(http_send_bundles(client2, remote, ready).await)
+                                .unwrap();
                         });
                     }
                     super::ClaCmd::Shutdown => {
