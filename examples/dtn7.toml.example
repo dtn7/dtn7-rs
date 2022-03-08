@@ -14,6 +14,14 @@ beacon-period = true
 # can cause massive traffic on the network!
 generate-status-reports = false
 
+# when reprocessing bundles should they be handled sequentially or in parallel?
+# parallel can be faster but may cause congestion on the network
+# sequential is more reliable but slower which can be a problem when nodes are highly mobile
+# and often lose contact with each other
+#
+# sequential is the default
+parallel-bundle-processing = false
+
 # the routing algorithm to use, e.g., flooding, epidemic, sink, etc.
 routing = "epidemic"
 
