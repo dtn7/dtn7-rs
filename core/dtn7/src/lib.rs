@@ -12,7 +12,7 @@ use crate::routing::RoutingAgent;
 use bp7::{Bundle, EndpointID};
 use cla::{CLAEnum, ClaSenderTask};
 pub use dtnconfig::DtnConfig;
-use log::error;
+use log::{error, info};
 
 pub use crate::core::{DtnCore, DtnPeer};
 pub use crate::routing::RoutingNotifcation;
@@ -113,7 +113,18 @@ pub fn store_push_bundle(bndl: &Bundle) -> Result<()> {
     (*STORE.lock()).push(bndl)
 }
 
+pub fn store_add_bundle_if_unknown(bndl: &Bundle) -> Result<bool> {
+    let store = &mut (*STORE.lock());
+    if !store.has_item(bndl.id().as_str()) {
+        store.push(bndl)?;
+        Ok(true)
+    } else {
+        Ok(false)
+    }
+}
+
 pub fn store_remove(bid: &str) {
+    info!("Removing bundle {}", bid);
     if let Err(err) = (*STORE.lock()).remove(bid) {
         error!("store_remove: {}", err);
     }

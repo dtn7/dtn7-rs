@@ -2,6 +2,7 @@ use crate::core::bundlepack::*;
 use crate::core::*;
 use crate::routing::RoutingNotifcation;
 use crate::routing_notify;
+use crate::store_add_bundle_if_unknown;
 use crate::store_push_bundle;
 use crate::store_remove;
 use crate::CONFIG;
@@ -94,7 +95,9 @@ pub async fn transmit(mut bp: BundlePack) -> Result<()> {
 
 // handle received/incoming bundles.
 pub async fn receive(mut bndl: Bundle) -> Result<()> {
-    if store_has_item(&bndl.id()) {
+    if store_add_bundle_if_unknown(&bndl)? {
+        info!("Received new bundle: {}", bndl.id());
+    } else {
         debug!(
             "Received an already known bundle, skip processing: {}",
             bndl.id()
@@ -103,13 +106,8 @@ pub async fn receive(mut bndl: Bundle) -> Result<()> {
         // bundleDeletion is _not_ called because this would delete the already
         // stored BundlePack.
         return Ok(());
-    } else {
-        info!("Received new bundle: {}", bndl.id());
     }
 
-    if let Err(err) = store_push_bundle(&bndl) {
-        bail!("error adding received bundle: {} {}", bndl.id(), err);
-    }
     let mut bp = BundlePack::from(&bndl);
     bp.add_constraint(Constraint::DispatchPending);
     bp.sync()?;
@@ -195,7 +193,7 @@ pub async fn dispatch(bp: BundlePack) -> Result<()> {
         local_delivery(bp.clone()).await?;
     }
     if !is_local_node_id(&bp.destination) {
-        forward(bp).await?;
+        tokio::spawn(forward(bp));
     }
     Ok(())
 }
@@ -226,7 +224,7 @@ async fn handle_hop_count_block(mut bundle: Bundle) -> Result<Bundle> {
 async fn handle_primary_lifetime(bundle: &Bundle) -> Result<()> {
     if bundle.primary.is_lifetime_exceeded() {
         warn!(
-            "Bundle's primary block's lifetime is exceeded: {} {:?}",
+            "Dropping bundle, primary block lifetime is exceeded: {} {:?}",
             bundle.id(),
             bundle.primary
         );
@@ -261,7 +259,7 @@ pub fn update_bundle_age(bundle: &mut Bundle) -> Option<u64> {
 async fn handle_bundle_age_block(mut bundle: Bundle) -> Result<Bundle> {
     if let Some(age) = update_bundle_age(&mut bundle) {
         if std::time::Duration::from_micros(age) >= bundle.primary.lifetime {
-            warn!("Bundle's lifetime has expired: {}", bundle.id());
+            warn!("Dropping bundle, age exceeds lifetime: {}", bundle.id());
             delete(bundle.into(), LIFETIME_EXPIRED).await?;
             bail!("age block lifetime exceeded");
         }
@@ -358,7 +356,12 @@ pub async fn forward(mut bp: BundlePack) -> Result<()> {
                             &bpid,
                             &n.next_hop.node().unwrap(),
                         ));
+                    //debug!("current peers: {:?}", (*PEERS.lock()).keys());
                     if let Some(peer_entry) = (*PEERS.lock()).get_mut(&n.next_hop.node().unwrap()) {
+                        debug!(
+                            "Reporting failed sending to peer: {}",
+                            &n.next_hop.node().unwrap()
+                        );
                         peer_entry.report_fail();
                         if peer_entry.failed_too_much() && peer_entry.con_type == PeerType::Dynamic
                         {
