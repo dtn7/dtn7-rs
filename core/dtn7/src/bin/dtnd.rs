@@ -14,6 +14,32 @@ async fn main() -> Result<(), std::io::Error> {
     #[cfg(feature = "tracing")]
     console_subscriber::init();
 
+    #[cfg(feature = "deadlock_detection")]
+    {
+        // only for #[cfg]
+        use parking_lot::deadlock;
+        use std::thread;
+        use std::time::Duration;
+
+        // Create a background thread which checks for deadlocks every 10s
+        thread::spawn(move || loop {
+            thread::sleep(Duration::from_secs(10));
+            let deadlocks = deadlock::check_deadlock();
+            if deadlocks.is_empty() {
+                continue;
+            }
+
+            println!("{} deadlocks detected", deadlocks.len());
+            for (i, threads) in deadlocks.iter().enumerate() {
+                println!("Deadlock #{}", i);
+                for t in threads {
+                    println!("Thread Id {:#?}", t.thread_id());
+                    println!("{:#?}", t.backtrace());
+                }
+            }
+        });
+    } // only for #[cfg]
+
     let mut cfg = DtnConfig::new();
     if cfg!(debug_assertions) {
         // Whenever a threads has a panic, quit the whole program!
@@ -208,6 +234,11 @@ Tag 255 takes 5 arguments and is interpreted as address. Usage: -S 255:'Samplest
                 .long("generate-status-reports")
                 .help("Generate status report bundles, can lead to a lot of traffic (default: deactivated)")
                 .takes_value(false),
+        ).arg(
+            Arg::new("parallel-bundle-processing")                
+                .long("parallel-bundle-processing")
+                .help("(Re-)Process bundles in parallel, can cause congestion but might be faster (default: deactivated)")
+                .takes_value(false),
         )
         .arg(
             Arg::new("unsafe_httpd")
@@ -255,6 +286,8 @@ Tag 255 takes 5 arguments and is interpreted as address. Usage: -S 255:'Samplest
             .parse()
             .expect("Could not parse ECLA tcp port paramter!");
     }
+    cfg.parallel_bundle_processing =
+        matches.is_present("parallel-bundle-processing") || cfg.parallel_bundle_processing;
 
     cfg.unsafe_httpd = matches.is_present("unsafe_httpd") || cfg.unsafe_httpd;
     cfg.enable_period = matches.is_present("beacon-period");

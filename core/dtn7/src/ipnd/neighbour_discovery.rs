@@ -2,8 +2,8 @@ use crate::cla::ConvergenceLayerAgent;
 use crate::core::{DtnPeer, PeerType};
 use crate::ipnd::{beacon::Beacon, services::*};
 use crate::routing::RoutingNotifcation;
-use crate::DTNCORE;
-use crate::{peers_add, routing_notify, CONFIG, DTNCLAS};
+use crate::{peers_add, routing_notify, CLAS, CONFIG};
+use crate::{peers_touch, DTNCORE};
 use anyhow::Result;
 use log::{debug, error, info, trace};
 use socket2::{Domain, Socket, Type};
@@ -17,11 +17,11 @@ async fn receiver(socket: UdpSocket) -> Result<(), io::Error> {
     let mut buf: Vec<u8> = vec![0; 1024 * 64];
     loop {
         if let Ok((size, peer)) = socket.recv_from(&mut buf).await {
-            debug!("received {} bytes", size);
+            trace!("received {} bytes", size);
             let deserialized: Beacon = match serde_cbor::from_slice(&buf[..size]) {
                 Ok(pkt) => pkt,
                 Err(e) => {
-                    error!("Deserialization of beacon failed!{}", e);
+                    error!("Deserialization of beacon failed: {}", e);
                     continue;
                 }
             };
@@ -42,7 +42,6 @@ async fn receiver(socket: UdpSocket) -> Result<(), io::Error> {
                     peer,
                     size
                 );
-                debug!(":\n{}", deserialized);
             } else {
                 debug!(
                     "Beacon from known peer: {} @ {} (len={})",
@@ -50,8 +49,12 @@ async fn receiver(socket: UdpSocket) -> Result<(), io::Error> {
                     peer,
                     size
                 );
-                debug!(":\n{}", deserialized);
+                // TODO: check if any fields have changed and update not only timestamp
+                if let Err(e) = peers_touch(deserialized.eid().node().unwrap().as_ref()) {
+                    error!("Failed to touch peer: {}", e);
+                }
             }
+            trace!("{}", deserialized);
             routing_notify(RoutingNotifcation::EncounteredPeer(deserialized.eid()))
         }
     }
@@ -61,7 +64,6 @@ async fn announcer(socket: UdpSocket, _v6: bool) {
     let mut task = interval(crate::CONFIG.lock().announcement_interval);
     loop {
         task.tick().await;
-        debug!("running announcer");
 
         // Start to build beacon announcement
         let eid = (*CONFIG.lock()).host_eid.clone();
@@ -72,10 +74,9 @@ async fn announcer(socket: UdpSocket, _v6: bool) {
         };
         let mut pkt = Beacon::with_config(eid, ServiceBlock::new(), beacon_period);
         // Get all available clas
-        (*DTNCLAS.lock())
-            .list
+        (*CLAS.lock())
             .iter()
-            .for_each(|cla| pkt.add_cla(&cla.name().to_string(), &Some(cla.port())));
+            .for_each(|cla| pkt.add_cla(cla.name(), &Some(cla.port())));
         // Get all available services
         (*DTNCORE.lock())
             .service_list
@@ -114,7 +115,7 @@ async fn announcer(socket: UdpSocket, _v6: bool) {
                 .await
             {
                 Ok(amt) => {
-                    debug!("sent announcement beacon(len={}) to {}", amt, destination);
+                    debug!("sent announcement beacon (len={}) to {}", amt, destination);
                 }
                 Err(err) => error!("Sending announcement failed: {}", err),
             }

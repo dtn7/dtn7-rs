@@ -5,10 +5,11 @@ pub mod peer;
 pub mod processing;
 pub mod store;
 
-use crate::cla::CLAEnum;
 pub use crate::core::peer::{DtnPeer, PeerType};
 use crate::core::store::BundleStore;
 use crate::routing::RoutingAgent;
+use crate::routing::RoutingAgentsEnum;
+use crate::CONFIG;
 use crate::{routing_notify, store_get_bundle, store_get_metadata};
 pub use crate::{store_has_item, store_push_bundle};
 use crate::{PEERS, STORE};
@@ -51,7 +52,7 @@ impl DtnStatistics {
 pub struct DtnCore {
     pub endpoints: Vec<ApplicationAgentEnum>,
     pub service_list: HashMap<u8, String>,
-    //pub routing_agent: RoutingAgentsEnum,
+    pub routing_agent: RoutingAgentsEnum,
 }
 
 impl Default for DtnCore {
@@ -66,7 +67,7 @@ impl DtnCore {
             endpoints: Vec::new(),
             service_list: HashMap::new(),
             //routing_agent: crate::routing::flooding::FloodingRoutingAgent::new().into(),
-            //routing_agent: crate::routing::epidemic::EpidemicRoutingAgent::new().into(),
+            routing_agent: crate::routing::epidemic::EpidemicRoutingAgent::new().into(),
         }
     }
 
@@ -123,23 +124,6 @@ impl DtnCore {
     }
 }
 
-#[derive(Debug)]
-pub struct DtnCLAs {
-    pub list: Vec<CLAEnum>,
-}
-
-impl Default for DtnCLAs {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
-impl DtnCLAs {
-    pub fn new() -> DtnCLAs {
-        DtnCLAs { list: Vec::new() }
-    }
-}
-
 /// Removes peers from global peer list that haven't been seen in a while.
 pub fn process_peers() {
     (*PEERS.lock()).retain(|_k, v| {
@@ -168,14 +152,35 @@ pub async fn process_bundles() {
     forwarding_bundles.sort_unstable_by(|a, b| a.creation_time.cmp(&b.creation_time));
 
     let num_bundles = forwarding_bundles.len();
-    for bp in forwarding_bundles {
-        let bpid = bp.id().to_string();
-        let now = Instant::now();
-        if let Err(err) = forward(bp).await {
-            error!("Error forwarding bundle: {}", err);
+
+    if (*CONFIG.lock()).parallel_bundle_processing {
+        let mut tasks = Vec::new();
+        for bp in forwarding_bundles {
+            let bpid = bp.id().to_string();
+            let task_handle = tokio::spawn(async move {
+                let now = Instant::now();
+                if let Err(err) = forward(bp).await {
+                    error!("Error forwarding bundle: {}", err);
+                }
+                trace!("Forwarding time: {:?} for {}", now.elapsed(), bpid);
+            });
+            tasks.push(task_handle);
         }
-        trace!("Forwarding time: {:?} for {}", now.elapsed(), bpid);
+        use futures::future::join_all;
+
+        join_all(tasks).await;
+    } else {
+        for bp in forwarding_bundles {
+            let bpid = bp.id().to_string();
+
+            let now = Instant::now();
+            if let Err(err) = forward(bp).await {
+                error!("Error forwarding bundle: {}", err);
+            }
+            trace!("Forwarding time: {:?} for {}", now.elapsed(), bpid);
+        }
     }
+
     debug!(
         "time to process {} bundles: {:?}",
         num_bundles,

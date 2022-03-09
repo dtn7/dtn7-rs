@@ -27,7 +27,8 @@ use bp7::helpers::rnd_bundle;
 use bp7::EndpointID;
 use http::StatusCode;
 use humansize::{file_size_opts, FileSize};
-use log::{debug, info, warn};
+use log::trace;
+use log::{debug, warn};
 use serde::Serialize;
 use std::collections::HashMap;
 use std::convert::{TryFrom, TryInto};
@@ -400,9 +401,9 @@ async fn push_post(body: bytes::Bytes) -> Result<String, (StatusCode, String)> {
     let bytes = body.to_vec();
 
     let b_len = bytes.len();
-    debug!("Received: {:?}", b_len);
+    trace!("received via /push: {:?} bytes", b_len);
     if let Ok(bndl) = bp7::Bundle::try_from(bytes.to_vec()) {
-        info!("Received bundle {}", bndl.id());
+        trace!("received bundle {}", bndl.id());
         if let Err(err) = crate::core::processing::receive(bndl).await {
             warn!("Error processing bundle: {}", err);
             Err((

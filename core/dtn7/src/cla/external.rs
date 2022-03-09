@@ -1,16 +1,17 @@
 use super::ConvergenceLayerAgent;
+use crate::cla::ecla::processing::scheduled_submission;
+use crate::cla::{ClaCmd, HelpStr};
 use async_trait::async_trait;
+use dtn7_codegen::cla;
 use std::collections::HashMap;
 use std::str::FromStr;
-
-use crate::cla::ecla::processing::scheduled_submission;
-use crate::cla::HelpStr;
-use bp7::ByteBuffer;
-use dtn7_codegen::cla;
+use tokio::sync::mpsc;
+use tokio::sync::mpsc::Sender;
 
 #[cla(external)]
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone)]
 pub struct ExternalConvergenceLayer {
+    tx: mpsc::Sender<super::ClaCmd>,
     name: String,
     port: u16,
 }
@@ -24,10 +25,32 @@ impl ExternalConvergenceLayer {
             port = u16::from_str(setting_port.as_str()).unwrap();
         }
 
-        ExternalConvergenceLayer {
-            name: settings.get("name").expect("name missing").to_string(),
-            port,
-        }
+        let name = settings
+            .get("name")
+            .expect("name missing")
+            .to_string()
+            .clone();
+        let (tx, mut rx) = mpsc::channel(1);
+        tokio::spawn(async move {
+            while let Some(cmd) = rx.recv().await {
+                match cmd {
+                    super::ClaCmd::Transfer(dest, ready, reply) => {
+                        reply
+                            .send(scheduled_submission(
+                                name.clone().as_str(),
+                                dest.as_str(),
+                                &ready,
+                            ))
+                            .unwrap();
+                    }
+                    super::ClaCmd::Shutdown => {
+                        break;
+                    }
+                }
+            }
+        });
+
+        ExternalConvergenceLayer { tx, name, port }
     }
 }
 
@@ -45,8 +68,8 @@ impl ConvergenceLayerAgent for ExternalConvergenceLayer {
         settings.insert("name".to_string(), self.name.clone());
         Some(settings)
     }
-    async fn scheduled_submission(&self, dest: &str, ready: &[ByteBuffer]) -> bool {
-        return scheduled_submission(&self.name, dest, ready);
+    fn channel(&self) -> Sender<ClaCmd> {
+        return self.tx.clone();
     }
 }
 

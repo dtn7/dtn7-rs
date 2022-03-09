@@ -3,22 +3,101 @@ use crate::CONFIG;
 use async_trait::async_trait;
 use bp7::ByteBuffer;
 use dtn7_codegen::cla;
-use hyper::{Body, Method, Request};
+use hyper::{client::HttpConnector, Body, Client, Method, Request};
 use log::{debug, error};
-use std::{collections::HashMap, net::SocketAddr};
+use std::{collections::HashMap, net::SocketAddr, time::Instant};
+use tokio::sync::mpsc;
 
 use super::HelpStr;
 
 #[cla(http)]
-#[derive(Debug, Clone, Default, Copy)]
+#[derive(Debug, Clone)]
 pub struct HttpConvergenceLayer {
+    tx: mpsc::Sender<super::ClaCmd>,
     local_port: u16,
+}
+
+pub async fn http_send_bundles(
+    client: Client<HttpConnector>,
+    remote: String,
+    ready: ByteBuffer,
+) -> bool {
+    if !ready.is_empty() {
+        let now = Instant::now();
+        //let client = hyper::client::Client::new();
+        let peeraddr: SocketAddr = remote.parse().unwrap();
+        let buf_len = ready.len();
+        debug!("forwarding to {:?}", peeraddr);
+        //for b in &ready {
+        let req_url = format!("http://{}:{}/push", peeraddr.ip(), peeraddr.port());
+        let req = Request::builder()
+            .method(Method::POST)
+            .uri(req_url)
+            .header("content-type", "application/octet-stream")
+            .body(Body::from(ready))
+            .unwrap();
+        // TODO: make timout configurable
+        match tokio::time::timeout(std::time::Duration::from_secs(5), client.request(req)).await {
+            Ok(result) => match result {
+                Ok(_response) => debug!(
+                    "Transmission time: {:?} for {} bytes to {}",
+                    now.elapsed(),
+                    buf_len,
+                    peeraddr
+                ),
+                Err(e) => {
+                    error!("could not push bundle to remote: {}", e);
+                    return false;
+                }
+            },
+            Err(_) => {
+                error!("Timeout: no response in 5 seconds while pushing bundle.");
+                return false;
+            }
+        }
+        //}
+        //debug!("successfully sent {} bundles to {}", ready.len(), remote);
+    } else {
+        debug!("Nothing to forward.");
+    }
+    true
 }
 
 impl HttpConvergenceLayer {
     pub fn new(_local_settings: Option<&HashMap<String, String>>) -> HttpConvergenceLayer {
+        let (tx, mut rx) = mpsc::channel(100);
+        tokio::spawn(async move {
+            let client = hyper::client::Client::new();
+            /*let client = hyper::client::Client::builder()
+            .pool_idle_timeout(Duration::from_secs(15))
+            .retry_canceled_requests(false)
+            .set_host(false)
+            .build_http();*/
+
+            while let Some(cmd) = rx.recv().await {
+                match cmd {
+                    super::ClaCmd::Transfer(remote, ready, reply) => {
+                        debug!(
+                            "HttpConvergenceLayer: received transfer command for {}",
+                            remote
+                        );
+                        let client2 = client.clone();
+                        tokio::spawn(async move {
+                            reply
+                                .send(http_send_bundles(client2, remote, ready).await)
+                                .unwrap();
+                        });
+                    }
+                    super::ClaCmd::Shutdown => {
+                        debug!("HttpConvergenceLayer: received shutdown command");
+                        break;
+                    }
+                }
+            }
+        });
         HttpConvergenceLayer {
             local_port: (*CONFIG.lock()).webport,
+            tx,
         }
     }
 }
@@ -32,46 +111,8 @@ impl ConvergenceLayerAgent for HttpConvergenceLayer {
     fn name(&self) -> &str {
         "http"
     }
-    async fn scheduled_submission(&self, dest: &str, ready: &[ByteBuffer]) -> bool {
-        debug!("Scheduled HTTP submission: {:?}", dest);
-        if !ready.is_empty() {
-            let client = hyper::client::Client::new();
-
-            let peeraddr: SocketAddr = dest.parse().unwrap();
-            debug!("forwarding to {:?}", peeraddr);
-            for b in ready {
-                let req_url = format!("http://{}:{}/push", peeraddr.ip(), peeraddr.port());
-                let req = Request::builder()
-                    .method(Method::POST)
-                    .uri(req_url)
-                    .header("content-type", "application/octet-stream")
-                    .body(Body::from(b.to_vec()))
-                    .unwrap();
-                match tokio::time::timeout(std::time::Duration::from_secs(5), client.request(req))
-                    .await
-                {
-                    Ok(result) => match result {
-                        Ok(_response) => debug!("successfully sent bundle to {}", peeraddr.ip()),
-                        Err(e) => {
-                            error!("could not push bundle to remote: {}", e);
-                            return false;
-                        }
-                    },
-                    Err(_) => {
-                        error!("Timeout: no response in 10 milliseconds while pushing bundle.");
-                        return false;
-                    }
-                }
-                //if let Err(err) = client.request(req).await {
-                //error!("error pushing bundle to remote: {}", err);
-                //return false;
-                //}
-            }
-            debug!("successfully sent {} bundles to {}", ready.len(), dest);
-        } else {
-            debug!("Nothing to forward.");
-        }
-        true
+    fn channel(&self) -> tokio::sync::mpsc::Sender<super::ClaCmd> {
+        self.tx.clone()
     }
 }
 

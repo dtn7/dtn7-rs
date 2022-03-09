@@ -2,10 +2,10 @@ use super::{
     DroppedPeer, EncounteredPeer, IncomingBundle, IncomingBundleWithoutPreviousNode, Packet,
     PeerState, SenderForBundle, SendingFailed, ServiceState,
 };
-use crate::cla::ClaSender;
+use crate::cla::ConvergenceLayerAgent;
 use crate::{
-    cla_names, cla_parse, cla_settings, lazy_static, peers_get_for_node, service_add, BundlePack,
-    RoutingNotifcation, CONFIG, DTNCORE, PEERS,
+    cla_names, lazy_static, peers_get_for_node, service_add, BundlePack, ClaSenderTask,
+    RoutingNotifcation, CLAS, CONFIG, DTNCORE, PEERS,
 };
 use axum::extract::ws::{Message, WebSocket};
 use futures::channel::mpsc::{unbounded, UnboundedSender};
@@ -180,7 +180,7 @@ fn create_response_channel(id: &str, tx: oneshot::Sender<Packet>) {
     RESPONSES.lock().unwrap().insert(id.to_string(), tx);
 }
 
-pub async fn sender_for_bundle(bp: &BundlePack) -> (Vec<ClaSender>, bool) {
+pub async fn sender_for_bundle(bp: &BundlePack) -> (Vec<ClaSenderTask>, bool) {
     trace!("external sender_for_bundle initiated: {}", bp);
 
     if CONNECTION.lock().unwrap().is_none() {
@@ -209,13 +209,26 @@ pub async fn sender_for_bundle(bp: &BundlePack) -> (Vec<ClaSender>, bool) {
 
         return (
             packet
+                .clone()
                 .clas
                 .iter()
-                .map(|sender| ClaSender {
-                    remote: sender.remote.clone(),
-                    port: sender.port,
-                    agent: cla_parse(sender.agent.as_str()),
-                    local_settings: cla_settings(sender.agent.to_string()),
+                .filter_map(|sender| {
+                    for cla_instance in &(*CLAS.lock()) {
+                        if sender.agent == cla_instance.name() {
+                            let dest = format!(
+                                "{}:{}",
+                                sender.remote,
+                                sender.port.unwrap_or_else(|| cla_instance.port())
+                            );
+                            return Some(ClaSenderTask {
+                                tx: cla_instance.channel(),
+                                dest,
+                                cla_name: cla_instance.name().into(),
+                                next_hop: packet.bp.destination.clone(),
+                            });
+                        }
+                    }
+                    None
                 })
                 .collect(),
             false,

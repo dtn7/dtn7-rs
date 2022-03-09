@@ -39,6 +39,7 @@ pub struct DtnConfig {
     pub generate_status_reports: bool,
     pub ecla_tcp_port: u16,
     pub ecla_enable: bool,
+    pub parallel_bundle_processing: bool,
 }
 
 pub fn rnd_node_name() -> String {
@@ -64,6 +65,8 @@ impl From<PathBuf> for DtnConfig {
             //std::env::set_var("RUST_LOG", "dtn7=debug,dtnd=debug");
         }
         dtncfg.generate_status_reports = s.get_bool("generate_status_reports").unwrap_or(false);
+        dtncfg.parallel_bundle_processing =
+            s.get_bool("parallel-bundle-processing").unwrap_or(false);
         dtncfg.unsafe_httpd = s.get_bool("unsafe_httpd").unwrap_or(false);
         dtncfg.v4 = s.get_bool("ipv4").unwrap_or(true);
         debug!("ipv4: {:?}", dtncfg.v4);
@@ -247,6 +250,7 @@ impl DtnConfig {
             generate_status_reports: false,
             ecla_enable: false,
             ecla_tcp_port: 0,
+            parallel_bundle_processing: false,
         }
     }
     pub fn set(&mut self, cfg: DtnConfig) {
@@ -275,6 +279,7 @@ impl DtnConfig {
         self.generate_status_reports = cfg.generate_status_reports;
         self.ecla_enable = cfg.ecla_enable;
         self.ecla_tcp_port = cfg.ecla_tcp_port;
+        self.parallel_bundle_processing = cfg.parallel_bundle_processing;
     }
 
     /// Helper function that adds discovery destinations to a config struct
