@@ -1,4 +1,5 @@
-use crate::{cla_parse, cla_settings, CONFIG};
+use crate::cla::{ClaSenderTask, ConvergenceLayerAgent};
+use crate::{CLAS, CONFIG};
 use bp7::EndpointID;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -142,15 +143,24 @@ impl DtnPeer {
     pub fn node_name(&self) -> String {
         self.eid.node().unwrap_or_default()
     }
-    pub fn first_cla(&self) -> Option<crate::cla::ClaSender> {
-        if let Some((c, port)) = self.cla_list.first() {
-            let sender = crate::cla::ClaSender {
-                remote: self.addr.clone(),
-                port: *port,
-                agent: cla_parse(c),
-                local_settings: cla_settings(c.to_string()),
-            };
-            return Some(sender);
+
+    pub fn first_cla(&self) -> Option<ClaSenderTask> {
+        for cla in &self.cla_list {
+            for cla_instance in &(*CLAS.lock()) {
+                if cla.0 == cla_instance.name() {
+                    let dest = format!(
+                        "{}:{}",
+                        self.addr,
+                        cla.1.unwrap_or_else(|| cla_instance.port())
+                    );
+                    return Some(ClaSenderTask {
+                        tx: cla_instance.channel(),
+                        dest,
+                        cla_name: cla_instance.name().into(),
+                        next_hop: self.eid.clone(),
+                    });
+                }
+            }
         }
         None
     }

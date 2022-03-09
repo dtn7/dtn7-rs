@@ -5,7 +5,7 @@ use self::net::*;
 
 use super::{ConvergenceLayerAgent, HelpStr};
 use async_trait::async_trait;
-use bp7::{Bundle, ByteBuffer};
+use bp7::{Bundle, ByteBuffer, EndpointID};
 //use futures_util::stream::StreamExt;
 use dtn7_codegen::cla;
 use log::{debug, error, info, trace, warn};
@@ -19,17 +19,17 @@ use tokio::net::tcp::{OwnedReadHalf, OwnedWriteHalf};
 use tokio::sync::mpsc;
 use tokio::sync::mpsc::error::SendError;
 use tokio::sync::oneshot::{self, Sender};
-use tokio::task::JoinHandle;
-use tokio::time::{self, timeout};
+use tokio::time::{self};
 //use std::net::TcpStream;
 use super::tcp::proto::*;
 use crate::core::store::BundleStore;
-use crate::CONFIG;
-use crate::STORE;
+use crate::core::PeerType;
+use crate::{peers_add, peers_known, STORE};
+use crate::{DtnPeer, CONFIG};
 use anyhow::bail;
 use bytes::Bytes;
 use lazy_static::lazy_static;
-use tokio::io::{AsyncReadExt, AsyncWriteExt};
+use tokio::io::{AsyncReadExt, BufReader, BufWriter};
 use tokio::net::TcpListener;
 use tokio::net::TcpStream;
 use tokio::time::Duration;
@@ -59,233 +59,346 @@ lazy_static! {
     pub static ref TCP_CONNECTIONS: Mutex<SessionMap> = Mutex::new(HashMap::new());
 }
 
-/// Represents a tcp convergence layer session.
-/// Convergence layer connection is established at this point.
-struct TcpClSession {
-    /// Transmitter to tcp sending task
-    tx_session_outgoing: mpsc::Sender<TcpClPacket>,
-    /// Receiver from tcp receiving task
-    rx_session_incoming: mpsc::Receiver<TcpClPacket>,
-    /// Queue of all outgoing bundles
-    rx_session_queue: mpsc::Receiver<(ByteBuffer, oneshot::Sender<bool>)>,
-    /// Local session parameters
-    data_local: SessInitData,
-    /// Remote session parameters
-    data_remote: SessInitData,
-    /// Last transaction id, incremented by 1
-    last_tid: u64,
-    refuse_existing_bundles: bool,
-    remote_addr: SocketAddr,
-}
-
 #[derive(Error, Debug)]
 enum TcpSessionError {
     #[error("Internal channel send error")]
-    InternalChannelError(#[from] SendError<TcpClPacket>),
+    InternalChannel(#[from] SendError<TcpClPacket>),
     #[error("Result channel send error")]
-    ResultChannelError,
+    ResultChannel,
     #[error("Protocol error: {0:?}")]
-    ProtocolError(TcpClPacket),
-    #[error("Connection closed")]
-    ConnectionClosed,
-    #[error("Session terminated")]
-    SessionTerminated,
+    Protocol(TcpClPacket),
 }
 
 impl From<bool> for TcpSessionError {
     fn from(_: bool) -> Self {
-        TcpSessionError::ResultChannelError
+        TcpSessionError::ResultChannel
     }
 }
 
-impl TcpClSession {
-    /// Run this future until the connection is closed
+/// Initial tcp connection.
+/// Session not yet established.
+struct TcpConnection {
+    reader: BufReader<OwnedReadHalf>,
+    writer: BufWriter<OwnedWriteHalf>,
+    addr: SocketAddr,
+    refuse_existing_bundles: bool,
+}
+
+struct TcpSession {
+    reader: BufReader<OwnedReadHalf>,
+    writer: BufWriter<OwnedWriteHalf>,
+    addr: SocketAddr,
+    refuse_existing_bundles: bool,
+    remote_session_data: SessInitData,
+    _local_session_data: SessInitData,
+    last_tid: u64,
+    rx_session_queue: mpsc::Receiver<(Vec<u8>, Sender<bool>)>,
+}
+
+enum ReceiveState {
+    Idle,
+    Receiving(Vec<u8>, u64),
+    Terminated,
+}
+
+enum SendState {
+    Idle,
+    Sending(u64, tokio::sync::oneshot::Sender<bool>),
+    TransferRequest(Vec<u8>, tokio::sync::oneshot::Sender<bool>),
+    Terminated,
+}
+
+impl TcpSession {
     async fn run(mut self) {
+        let mut keepalive_sent = false;
+        let mut keepalive_received = false;
+        let mut state = (ReceiveState::Idle, SendState::Idle);
         loop {
-            // session is idle, try to send/receive
+            if matches!(state.1, SendState::Terminated)
+                || matches!(state.0, ReceiveState::Terminated)
+            {
+                info!(
+                    "Session terminated for {} ({})",
+                    self.remote_session_data.node_id, self.addr
+                );
+                break;
+            }
+            // timeout send keepalive/send packet
+            // timeout receive keepalive/receive packet
+            // select!
+            // if first task completes first, receiving timeout is cancelled
+            // but because we await an ack or some sort of response anyway, this doesn't matter
+            // the timeout is respected in send()
+
+            // if second task completes first, sending timeout is cancelled
+            // but we will send response packets anyway
+            // if keepalive is received, just answer with a keepalive anyway
+            let sleep = time::sleep(Duration::from_secs(
+                self.remote_session_data.keepalive.into(),
+            ));
+            tokio::pin!(sleep);
             tokio::select! {
-                // poll for new incoming packages
-                received = self.rx_session_incoming.recv() => {
-                    if let Some(packet) = received {
-                        if let Err(err) = self.receive(packet).await {
-                            error!("error while receiving: {:?}", err);
-                            match &err {
-                                TcpSessionError::InternalChannelError(_) | TcpSessionError::ResultChannelError => panic!("Cannot recover from channel errors"),
-                                _ => break,
+                received_packet = TcpClPacket::read(&mut self.reader) => {
+                    match received_packet {
+                        Ok(packet) => {
+                            if packet == TcpClPacket::KeepAlive {
+                                if !keepalive_sent {
+                                    if let Err(err) = TcpClPacket::KeepAlive.write(&mut self.writer).await {
+                                        error!("error while sending keepalive: {:?}", err);
+                                        state = (ReceiveState::Terminated, SendState::Terminated);
+                                    }
+                                    keepalive_sent = true;
+                                } else {
+                                    keepalive_sent = false;
+                                }
+                                keepalive_received = true;
+                            } else {
+                                match self.receive(packet, state).await {
+                                    Err(err) => {
+                                        error!("error while receiving: {:?}",err);
+                                        state = (ReceiveState::Terminated, SendState::Terminated);
+                                    }
+                                    Ok(new_state) => state = new_state
+                                }
+                                keepalive_received = false;
+                                keepalive_sent = false;
                             }
-                        }
-                    } else {
-                        break;
-                    }
-                },
-                // send outgoing packages
-                bundle = self.rx_session_queue.recv() =>  {
-                    if let Some(message) = bundle {
-                        if let Err(err) = self.send(message).await {
-                            error!("error while sending: {:?}", err);
-                            match &err {
-                                TcpSessionError::InternalChannelError(_) | TcpSessionError::ResultChannelError => panic!("Cannot recover from channel errors"),
-                                _ => break,
-                            }
-                        }
-                    } else {
-                        break;
+                        },
+                        Err(err) => {
+                            error!("Failed parsing package: {:?}", err);
+                            state = (ReceiveState::Terminated, SendState::Terminated);
+                        },
                     }
                 }
+                queue_bundle = self.rx_session_queue.recv(), if matches!(state.1, SendState::Idle) => {
+                    match queue_bundle {
+                        Some(bundle) => {
+                            match self.send(bundle).await {
+                                Err(err) => {
+                                    error!("error while sending: {:?}", err);
+                                    state = (ReceiveState::Terminated, SendState::Terminated);
+                                }
+                                Ok(new_state) => state.1 = new_state
+                            }
+                        },
+                        None => {
+                            // session closed by closing internal channel
+                            state = self.terminate_session(SessTermReasonCode::Unknown).await;
+                        },
+                    }
+                    keepalive_sent = false;
+                    keepalive_received = false;
+                }
+                _ = sleep => {
+                    if !keepalive_sent {
+                        // 1st time send keepalive
+                        if let Err(err) = TcpClPacket::KeepAlive.write(&mut self.writer).await {
+                            error!("error while sending keepalive: {:?}", err);
+                            state = (ReceiveState::Terminated, SendState::Terminated);
+                        }
+                        keepalive_sent = true;
+                    }
+                    if !keepalive_received && keepalive_sent{
+                        // 2nd time terminate session
+                        state = self.terminate_session(SessTermReasonCode::IdleTimeout).await;
+                    }
+                }
+                else => {
+                    error!("all channels closed");
+                    state = (ReceiveState::Terminated, SendState::Terminated);
+                }
+            };
+        }
+    }
+    async fn terminate_session(&mut self, reason: SessTermReasonCode) -> (ReceiveState, SendState) {
+        if let Err(err) = TcpClPacket::SessTerm(SessTermData {
+            flags: SessTermFlags::empty(),
+            reason,
+        })
+        .write(&mut self.writer)
+        .await
+        {
+            error!("error while sending session terminate: {:?}", err);
+        }
+        (ReceiveState::Terminated, SendState::Terminated)
+    }
+    async fn process_bundle(&mut self, vec: Vec<u8>, tid: u64) -> anyhow::Result<ReceiveState> {
+        match Bundle::try_from(vec) {
+            Ok(bundle) => {
+                tokio::spawn(async move {
+                    if let Err(err) = crate::core::processing::receive(bundle).await {
+                        error!("Failed to process bundle: {}", err);
+                    }
+                });
+                Ok(ReceiveState::Idle)
+            }
+            Err(err) => {
+                error!("Failed to parse bundle: {}", err);
+                //error!("Failed bytes: {}", bp7::helpers::hexify(&vec));
+                TcpClPacket::XferRefuse(XferRefuseData {
+                    reason: XferRefuseReasonCode::NotAcceptable,
+                    tid,
+                })
+                .write(&mut self.writer)
+                .await?;
+                Ok(ReceiveState::Idle)
             }
         }
-        debug!("Removing tcp session {:?}", self.remote_addr);
-        (*TCP_CONNECTIONS.lock()).remove(&self.remote_addr);
     }
     /// Receive a new packet.
     /// Returns once transfer is finished and session is idle again.
     /// Result indicates whether connection is closed (true).
-    async fn receive(&mut self, packet: TcpClPacket) -> Result<(), TcpSessionError> {
+    async fn receive(
+        &mut self,
+        packet: TcpClPacket,
+        (receive_state, send_state): (ReceiveState, SendState),
+    ) -> anyhow::Result<(ReceiveState, SendState)> {
         match &packet {
             // session is terminated, send ack and return with true
             TcpClPacket::SessTerm(data) => {
                 trace!("Received SessTerm: {:?}", data);
                 if !data.flags.contains(SessTermFlags::REPLY) {
-                    self.tx_session_outgoing
-                        .send(TcpClPacket::SessTerm(SessTermData {
-                            flags: SessTermFlags::REPLY,
-                            reason: data.reason,
-                        }))
-                        .await?;
+                    TcpClPacket::SessTerm(SessTermData {
+                        flags: SessTermFlags::REPLY,
+                        reason: data.reason,
+                    })
+                    .write(&mut self.writer)
+                    .await?;
                 }
-                Ok(())
+                Ok((ReceiveState::Terminated, SendState::Terminated))
             }
             // receive a bundle
             TcpClPacket::XferSeg(data) => {
-                let now = Instant::now();
                 debug!(
                     "Received XferSeg: TID={} LEN={} FLAGS={:?}",
                     data.tid, data.len, data.flags
                 );
-                if (data.flags.contains(XferSegmentFlags::END)
-                    && !data.flags.contains(XferSegmentFlags::START))
-                    || data.flags.is_empty()
-                {
-                    return Err(TcpSessionError::ProtocolError(packet));
-                }
-                if data.flags.contains(XferSegmentFlags::START) && !data.extensions.is_empty() {
-                    for extension in &data.extensions {
-                        if extension.item_type == TransferExtensionItemType::BundleID
-                            && self.refuse_existing_bundles
-                        {
-                            if let Ok(bundle_id) = String::from_utf8(extension.data.to_vec()) {
-                                debug!("transfer extension: bundle id: {}", bundle_id);
-                                if (*STORE.lock()).has_item(&bundle_id) {
-                                    debug!("refusing bundle, already in store");
-                                    self.tx_session_outgoing
-                                        .send(TcpClPacket::XferRefuse(XferRefuseData {
-                                            reason: XferRefuseReasonCode::NotAcceptable,
-                                            tid: data.tid,
-                                        }))
-                                        .await?;
-                                    return Ok(());
-                                }
-                            }
+                match receive_state {
+                    ReceiveState::Receiving(mut buffer, tid) => {
+                        // transfer already started
+                        if data.flags.contains(XferSegmentFlags::START) {
+                            return Err(TcpSessionError::Protocol(packet).into());
+                        }
+
+                        if tid != data.tid {
+                            return Err(TcpSessionError::Protocol(packet).into());
+                        }
+
+                        buffer.append(&mut data.buf.to_vec());
+                        trace!("Sending XferAck: TID={}", data.tid);
+                        TcpClPacket::XferAck(XferAckData {
+                            tid: data.tid,
+                            len: buffer.len() as u64,
+                            flags: XferSegmentFlags::empty(),
+                        })
+                        .write(&mut self.writer)
+                        .await?;
+
+                        if data.flags.contains(XferSegmentFlags::END) {
+                            Ok((self.process_bundle(buffer, data.tid).await?, send_state))
+                        } else {
+                            Ok((ReceiveState::Receiving(buffer, data.tid), send_state))
                         }
                     }
-                }
-                let mut vec = data.buf.to_vec();
-                trace!("Sending XferAck: TID={}", data.tid);
-                self.tx_session_outgoing
-                    .send(TcpClPacket::XferAck(XferAckData {
-                        tid: data.tid,
-                        len: data.len,
-                        flags: XferSegmentFlags::empty(),
-                    }))
-                    .await?;
-                let mut ending = false;
-                // receive further packages until transfer is finished
-                if !data.flags.contains(XferSegmentFlags::END) {
-                    let mut len = data.len;
-                    if data.len > self.data_local.segment_mru {
-                        self.tx_session_outgoing
-                            .send(TcpClPacket::XferRefuse(XferRefuseData {
-                                reason: XferRefuseReasonCode::NotAcceptable,
-                                tid: data.tid,
-                            }))
-                            .await?;
-                    }
-                    loop {
-                        if let Some(packet) = self.rx_session_incoming.recv().await {
-                            match packet {
-                                TcpClPacket::SessTerm(mut data) => {
-                                    data.flags |= SessTermFlags::REPLY;
-                                    self.tx_session_outgoing
-                                        .send(TcpClPacket::SessTerm(data))
-                                        .await?;
-                                    ending = true;
-                                }
-                                TcpClPacket::XferSeg(data) => {
-                                    debug!(
-                                        "Received ongoing XferSeg: TID={} LEN={} FLAGS={:?}",
-                                        data.tid, data.len, data.flags
-                                    );
-                                    vec.append(&mut data.buf.to_vec());
-                                    len += data.len;
-                                    self.tx_session_outgoing
-                                        .send(TcpClPacket::XferAck(XferAckData {
-                                            tid: data.tid,
-                                            len,
-                                            flags: XferSegmentFlags::empty(),
-                                        }))
-                                        .await?;
-                                    if data.flags.contains(XferSegmentFlags::END) {
-                                        break;
+                    ReceiveState::Idle => {
+                        if (data.flags.contains(XferSegmentFlags::END)
+                            && !data.flags.contains(XferSegmentFlags::START))
+                            || data.flags.is_empty()
+                        {
+                            return Err(TcpSessionError::Protocol(packet).into());
+                        }
+                        if data.flags.contains(XferSegmentFlags::START)
+                            && !data.extensions.is_empty()
+                        {
+                            for extension in &data.extensions {
+                                if extension.item_type == TransferExtensionItemType::BundleID
+                                    && self.refuse_existing_bundles
+                                {
+                                    if let Ok(bundle_id) =
+                                        String::from_utf8(extension.data.to_vec())
+                                    {
+                                        debug!("transfer extension: bundle id: {}", bundle_id);
+                                        if (*STORE.lock()).has_item(&bundle_id) {
+                                            debug!("refusing bundle, already in store");
+                                            TcpClPacket::XferRefuse(XferRefuseData {
+                                                reason: XferRefuseReasonCode::NotAcceptable,
+                                                tid: data.tid,
+                                            })
+                                            .write(&mut self.writer)
+                                            .await?;
+                                            return Ok((receive_state, send_state));
+                                        }
                                     }
                                 }
-                                TcpClPacket::MsgReject(data) => {
-                                    warn!("Received message reject: {:?}", data);
-                                }
-                                _ => {
-                                    return Err(TcpSessionError::ProtocolError(packet));
-                                }
                             }
+                        }
+                        let vec = data.buf.to_vec();
+                        trace!("Sending XferAck: TID={}", data.tid);
+                        TcpClPacket::XferAck(XferAckData {
+                            tid: data.tid,
+                            len: data.len,
+                            flags: XferSegmentFlags::empty(),
+                        })
+                        .write(&mut self.writer)
+                        .await?;
+                        if data.flags.contains(XferSegmentFlags::END) {
+                            Ok((self.process_bundle(vec, data.tid).await?, send_state))
                         } else {
-                            return Err(TcpSessionError::ConnectionClosed);
+                            Ok((ReceiveState::Receiving(vec, data.tid), send_state))
                         }
                     }
-                }
-                trace!("Parsing bundle from received tcp bytes");
-                let received_bytes = vec.len();
-                // parse bundle
-                match Bundle::try_from(vec) {
-                    Ok(bundle) => {
-                        debug!(
-                            "Receive time: {:?} for bundle {} with {} bytes from {}",
-                            now.elapsed(),
-                            bundle.id(),
-                            received_bytes,
-                            self.remote_addr
-                        );
-                        tokio::spawn(async move {
-                            if let Err(err) = crate::core::processing::receive(bundle).await {
-                                error!("Failed to process bundle: {}", err);
-                            }
-                        });
-                    }
-                    Err(err) => {
-                        error!("Failed to parse bundle: {}", err);
-                        //error!("Failed bytes: {}", bp7::helpers::hexify(&vec));
-                        self.tx_session_outgoing
-                            .send(TcpClPacket::XferRefuse(XferRefuseData {
-                                reason: XferRefuseReasonCode::NotAcceptable,
-                                tid: data.tid,
-                            }))
-                            .await?;
-                    }
-                }
-                if ending {
-                    Err(TcpSessionError::SessionTerminated)
-                } else {
-                    Ok(())
+                    _ => Err(TcpSessionError::Protocol(packet).into()),
                 }
             }
-            _ => Err(TcpSessionError::ProtocolError(packet)),
+            TcpClPacket::XferAck(ack_data) => match send_state {
+                SendState::TransferRequest(data, response) => {
+                    if ack_data.tid != self.last_tid {
+                        return Err(TcpSessionError::Protocol(packet).into());
+                    }
+                    return Ok((receive_state, self.send_bundle(data, response).await?));
+                }
+                SendState::Sending(len, response) => {
+                    if ack_data.tid != self.last_tid {
+                        return Err(TcpSessionError::Protocol(packet).into());
+                    }
+                    if ack_data.len < len {
+                        Ok((receive_state, SendState::Sending(len, response)))
+                    } else {
+                        if let Err(err) = response.send(true) {
+                            error!("Failed to send response: {}", err);
+                            return Err(TcpSessionError::Protocol(packet).into());
+                        }
+
+                        Ok((receive_state, SendState::Idle))
+                    }
+                }
+                _ => Err(TcpSessionError::Protocol(packet).into()),
+            },
+            TcpClPacket::XferRefuse(refuse_data) => match send_state {
+                SendState::TransferRequest(_, response) => {
+                    if refuse_data.tid != self.last_tid {
+                        return Err(TcpSessionError::Protocol(packet).into());
+                    }
+                    debug!("Received refuse");
+                    if response.send(true).is_err() {
+                        error!("Failed to send response");
+                        return Err(TcpSessionError::Protocol(packet).into());
+                    }
+                    Ok((receive_state, SendState::Idle))
+                }
+                SendState::Sending(_, response) => {
+                    if refuse_data.tid != self.last_tid {
+                        return Err(TcpSessionError::Protocol(packet).into());
+                    }
+                    if response.send(false).is_err() {
+                        error!("Failed to send response");
+                        return Err(TcpSessionError::Protocol(packet).into());
+                    }
+                    Ok((receive_state, SendState::Idle))
+                }
+                _ => Err(TcpSessionError::Protocol(packet).into()),
+            },
+            _ => Err(TcpSessionError::Protocol(packet).into()),
         }
     }
     /// Send outgoing bundle.
@@ -293,15 +406,12 @@ impl TcpClSession {
     async fn send(
         &mut self,
         data: (ByteBuffer, tokio::sync::oneshot::Sender<bool>),
-    ) -> Result<(), TcpSessionError> {
-        let now = Instant::now();
-        let mut byte_vec = Vec::new();
-        let mut acked = 0u64;
+    ) -> anyhow::Result<SendState> {
         self.last_tid += 1;
-        let (vec, tx_result) = data;
+        let (bndl_buf, tx_result) = data;
 
         if self.refuse_existing_bundles {
-            let bundle = Bundle::try_from(vec.clone()).unwrap();
+            let bundle = Bundle::try_from(bndl_buf.as_slice())?;
             let bundle_id = Bytes::copy_from_slice(bundle.id().as_bytes());
             // ask if peer already has bundle
             let extension = TransferExtensionItem {
@@ -316,21 +426,21 @@ impl TcpClSession {
                 buf: Bytes::new(),
                 extensions: vec![extension],
             });
-            self.tx_session_outgoing.send(request_packet).await?;
-
-            if let Some(packet) = self.rx_session_incoming.recv().await {
-                if let TcpClPacket::XferAck(_data) = packet {
-                    debug!("Received ack for zero length segment")
-                } else if let TcpClPacket::XferRefuse(_data) = packet {
-                    debug!("Received refuse");
-                    tx_result.send(true)?;
-                    return Ok(());
-                }
-            }
+            request_packet.write(&mut self.writer).await?;
+            Ok(SendState::TransferRequest(bndl_buf, tx_result))
+        } else {
+            self.send_bundle(bndl_buf, tx_result).await
         }
-
+    }
+    async fn send_bundle(
+        &mut self,
+        bndl_buf: ByteBuffer,
+        tx_result: tokio::sync::oneshot::Sender<bool>,
+    ) -> anyhow::Result<SendState> {
+        let now = Instant::now();
+        let mut byte_vec = Vec::new();
         // split bundle data into chunks the size of remote maximum segment size
-        for bytes in vec.chunks(self.data_remote.segment_mru as usize) {
+        for bytes in bndl_buf.chunks(self.remote_session_data.segment_mru as usize) {
             let buf = Bytes::copy_from_slice(bytes);
             let len = buf.len() as u64;
             //debug!("bytes len {}", len);
@@ -345,164 +455,35 @@ impl TcpClSession {
         }
         if byte_vec.is_empty() {
             warn!("Emtpy bundle transfer, aborting");
-            tx_result.send(false)?;
-            return Ok(());
+            if tx_result.send(false).is_err() {
+                error!("Failed to send response");
+                bail!("Failed to send response");
+            }
+            return Ok(SendState::Idle);
         }
         // in this case start packet has already been sent
         if !self.refuse_existing_bundles {
-            byte_vec.first_mut().unwrap().flags |= XferSegmentFlags::START;
+            byte_vec
+                .first_mut()
+                .expect("no xfer segments, this should not be possible")
+                .flags |= XferSegmentFlags::START;
         }
-        byte_vec.last_mut().unwrap().flags |= XferSegmentFlags::END;
+        byte_vec
+            .last_mut()
+            .expect("no xfer segments, this should not be possible")
+            .flags |= XferSegmentFlags::END;
         // push packets to send task
         for packet in byte_vec {
-            self.tx_session_outgoing
-                .send(TcpClPacket::XferSeg(packet))
-                .await?;
+            TcpClPacket::XferSeg(packet).write(&mut self.writer).await?;
         }
-        // wait for all acks
-        while acked < vec.len() as u64 {
-            if let Some(received) = self.rx_session_incoming.recv().await {
-                match received {
-                    TcpClPacket::XferAck(ack_data) => {
-                        if ack_data.tid == self.last_tid {
-                            acked = ack_data.len;
-                        }
-                    }
-                    TcpClPacket::XferRefuse(refuse_data) => {
-                        warn!("Transfer refused, {:?}", refuse_data.reason);
-                        tx_result.send(false)?;
-                        return Ok(());
-                    }
-                    TcpClPacket::MsgReject(msg_reject_data) => {
-                        warn!("Message rejected, {:?}", msg_reject_data.reason);
-                        tx_result.send(false)?;
-                        return Ok(());
-                    }
-                    _ => {
-                        tx_result.send(false)?;
-                        return Err(TcpSessionError::ProtocolError(received));
-                    }
-                }
-            }
-        }
-        debug!(
-            "Transmission time: {:?} for {} bytes to {}",
+        info!(
+            "Transmission time: {:?} for 1 bundles in {} bytes to {}",
             now.elapsed(),
-            vec.len(),
-            self.remote_addr
+            bndl_buf.len(),
+            self.addr
         );
-        // indicate successful transfer
-        tx_result.send(true)?;
-        Ok(())
+        Ok(SendState::Sending(bndl_buf.len() as u64, tx_result))
     }
-}
-
-struct TcpClReceiver {
-    rx_tcp: OwnedReadHalf,
-    tx_session_incoming: mpsc::Sender<TcpClPacket>,
-    timeout: u16,
-}
-
-struct TcpClSender {
-    tx_tcp: OwnedWriteHalf,
-    rx_session_outgoing: mpsc::Receiver<TcpClPacket>,
-    timeout: u16,
-}
-
-impl TcpClReceiver {
-    /// Run receiver task and check keepalive timeout.
-    async fn run(mut self) {
-        loop {
-            match timeout(
-                Duration::from_secs((self.timeout * 2).into()),
-                TcpClPacket::deserialize(&mut self.rx_tcp),
-            )
-            .await
-            {
-                Ok(parsed_packet) => match parsed_packet {
-                    Ok(packet) => {
-                        debug!("Received and successfully parsed packet");
-                        if let TcpClPacket::KeepAlive = packet {
-                            debug!("Received keepalive");
-                        } else {
-                            self.send_packet(packet).await;
-                        }
-                    }
-                    Err(err) => {
-                        error!("Failed parsing package: {:?}", err);
-                        self.send_packet(TcpClPacket::SessTerm(SessTermData {
-                            flags: SessTermFlags::empty(),
-                            reason: SessTermReasonCode::ContactFailure,
-                        }))
-                        .await;
-                        break;
-                    }
-                },
-                Err(_) => {
-                    debug!("Keepalive timeout");
-                    self.send_packet(TcpClPacket::SessTerm(SessTermData {
-                        flags: SessTermFlags::empty(),
-                        reason: SessTermReasonCode::IdleTimeout,
-                    }))
-                    .await;
-                    break;
-                }
-            }
-        }
-        debug!("Shutting down receiver part");
-    }
-    async fn send_packet(&mut self, packet: TcpClPacket) {
-        if let Err(err) = self.tx_session_incoming.send(packet).await {
-            error!("Error while sending via internal channel: {}", err);
-        }
-    }
-}
-
-impl TcpClSender {
-    /// Run sender task and check keepalive timeout.
-    async fn run(mut self) {
-        let mut interval = time::interval(Duration::from_secs(self.timeout.into()));
-        interval.tick().await;
-        loop {
-            match timeout(
-                Duration::from_secs(self.timeout.into()),
-                self.rx_session_outgoing.recv(),
-            )
-            .await
-            {
-                Ok(packet) => {
-                    if let Some(packet) = packet {
-                        self.send_packet(&packet).await;
-                        if let TcpClPacket::SessTerm(_) = packet {
-                            //breaks loop, tasks finished, dropped sender, connection closed
-                            break;
-                        }
-                    }
-                }
-                Err(_) => {
-                    trace!("sending keepalive");
-                    self.send_packet(&TcpClPacket::KeepAlive).await;
-                }
-            }
-        }
-        debug!("Shutting down sender part");
-    }
-    async fn send_packet(&mut self, packet: &TcpClPacket) {
-        if let Err(err) = packet.serialize(&mut self.tx_tcp).await {
-            error!("Error while serializing packet: {}", err);
-        }
-        if let Err(err) = self.tx_tcp.flush().await {
-            error!("Error while flushing tcp sending queue: {}", err);
-        }
-    }
-}
-
-/// Initial tcp connection.
-/// Session not yet established.
-struct TcpConnection {
-    stream: TcpStream,
-    addr: SocketAddr,
-    refuse_existing_bundles: bool,
 }
 
 impl TcpConnection {
@@ -517,12 +498,9 @@ impl TcpConnection {
         };
 
         let session_init = TcpClPacket::SessInit(sess_init_data.clone());
-        let mut buf = vec![];
-        session_init.serialize(&mut buf).await?;
-        self.stream.write_all(&buf).await?;
-        self.stream.flush().await?;
+        session_init.write(&mut self.writer).await?;
 
-        let response = TcpClPacket::deserialize(&mut self.stream).await?;
+        let response = TcpClPacket::read(&mut self.reader).await?;
         debug!("Received session parameters");
         if let TcpClPacket::SessInit(mut data) = response {
             let keepalive = sess_init_data.keepalive.min(data.keepalive);
@@ -542,18 +520,15 @@ impl TcpConnection {
     }
 
     async fn send_contact_header(&mut self, flags: ContactHeaderFlags) -> anyhow::Result<()> {
-        let mut buf = vec![];
         TcpClPacket::ContactHeader(flags)
-            .serialize(&mut buf)
+            .write(&mut self.writer)
             .await?;
-        self.stream.write_all(&buf).await?;
-        self.stream.flush().await?;
         Ok(())
     }
 
     async fn receive_contact_header(&mut self) -> anyhow::Result<ContactHeaderFlags> {
         let mut buf: [u8; 6] = [0; 6];
-        self.stream.read_exact(&mut buf).await?;
+        self.reader.read_exact(&mut buf).await?;
         if &buf[0..4] != b"dtn!" {
             bail!("Invalid magic");
         }
@@ -564,56 +539,58 @@ impl TcpConnection {
     }
 
     /// Establish a tcp session on this connection and insert it into a session list.
-    async fn connect(mut self, rx_session_queue: mpsc::Receiver<(Vec<u8>, Sender<bool>)>) {
+    async fn connect(
+        mut self,
+        rx_session_queue: mpsc::Receiver<(Vec<u8>, Sender<bool>)>,
+        active: bool,
+    ) -> anyhow::Result<()> {
         // Phase 1
         debug!("Exchanging contact header, {}", self.addr);
         if let Err(err) = self.exchange_contact_header().await {
-            error!(
+            bail!(
                 "Failed to exchange contact header with {}: {}",
-                self.addr, err
+                self.addr,
+                err
             );
         }
         // Phase 2
         debug!("Negotiating session parameters, {}", self.addr);
         match self.negotiate_session().await {
             Ok((local_parameters, remote_parameters)) => {
-                // channel between receiver task and session task, incoming packets
-                let (tx_session_incoming, rx_session_incoming) =
-                    mpsc::channel::<TcpClPacket>(INTERNAL_CHANNEL_BUFFER);
-                // channel between sender task and session task, outgoing packets
-                let (tx_session_outgoing, rx_session_outgoing) =
-                    mpsc::channel::<TcpClPacket>(INTERNAL_CHANNEL_BUFFER);
-                let (rx_tcp, tx_tcp) = self.stream.into_split();
-                let rx_task = TcpClReceiver {
-                    rx_tcp,
-                    tx_session_incoming,
-                    timeout: remote_parameters.keepalive,
-                };
-                let tx_task = TcpClSender {
-                    tx_tcp,
-                    rx_session_outgoing,
-                    timeout: local_parameters.keepalive,
-                };
-                let session_task = TcpClSession {
-                    tx_session_outgoing,
-                    rx_session_incoming,
-                    rx_session_queue,
-                    data_local: local_parameters,
-                    data_remote: remote_parameters.clone(),
-                    last_tid: 0,
-                    refuse_existing_bundles: self.refuse_existing_bundles,
-                    remote_addr: self.addr,
-                };
-                tokio::spawn(rx_task.run());
-                tokio::spawn(tx_task.run());
-                tokio::spawn(session_task.run());
+                // TODO: validate node id
+                let remote_eid = EndpointID::try_from(remote_parameters.node_id.as_ref())
+                    .expect("Invalid node id in tcpcl session");
+                if !active && !peers_known(remote_eid.node().unwrap().as_ref()) {
+                    let peer = DtnPeer::new(
+                        remote_eid.clone(),
+                        crate::PeerAddress::Ip(self.addr.ip()),
+                        PeerType::Dynamic,
+                        None,
+                        vec![("tcp".into(), Some(self.addr.port()))],
+                        HashMap::new(),
+                    );
+                    peers_add(peer);
+                }
+
                 info!(
                     "Started TCP session for {} @ {} | refuse existing bundles: {}",
                     remote_parameters.node_id, self.addr, self.refuse_existing_bundles
                 );
+                let session = TcpSession {
+                    reader: self.reader,
+                    writer: self.writer,
+                    addr: self.addr,
+                    refuse_existing_bundles: self.refuse_existing_bundles,
+                    remote_session_data: remote_parameters,
+                    _local_session_data: local_parameters,
+                    last_tid: 0u64,
+                    rx_session_queue,
+                };
+                session.run().await;
             }
-            Err(err) => error!("Failed to negotiate session for {}: {}", self.addr, err),
+            Err(err) => bail!("Failed to negotiate session for {}: {}", self.addr, err),
         }
+        Ok(())
     }
 }
 
@@ -628,8 +605,10 @@ impl Listener {
             match self.tcp_listener.accept().await {
                 Ok((stream, addr)) => {
                     info!("Incoming connection from: {:?}", addr);
+                    let (rx, tx) = stream.into_split();
                     let connection = TcpConnection {
-                        stream,
+                        reader: BufReader::new(rx),
+                        writer: BufWriter::new(tx),
                         addr,
                         refuse_existing_bundles: self.refuse_existing_bundles,
                     };
@@ -639,7 +618,11 @@ impl Listener {
                             INTERNAL_CHANNEL_BUFFER,
                         );
                     (*TCP_CONNECTIONS.lock()).insert(addr, tx_session_queue);
-                    connection.connect(rx_session_queue).await;
+                    tokio::spawn(async move {
+                        if let Err(err) = connection.connect(rx_session_queue, false).await {
+                            error!("Failed to establish TCP session with {}: {}", addr, err);
+                        }
+                    });
                 }
                 Err(e) => {
                     error!("Couldn't get client: {:?}", e)
@@ -647,6 +630,70 @@ impl Listener {
             }
         }
     }
+}
+
+async fn tcp_send_bundles(
+    dest: String,
+    bundle: ByteBuffer,
+    refuse_existing_bundles: bool,
+    reply: Sender<bool>,
+) -> anyhow::Result<()> {
+    let addr: SocketAddr = dest.parse().unwrap();
+
+    let (sender, receiver) = {
+        let mut lock = TCP_CONNECTIONS.lock();
+        if let Some(value) = lock.get(&addr) {
+            if !value.is_closed() {
+                (value.clone(), None)
+            } else {
+                lock.remove(&addr);
+                let (tx_session_queue, rx_session_queue) =
+                    mpsc::channel::<(ByteBuffer, oneshot::Sender<bool>)>(INTERNAL_CHANNEL_BUFFER);
+                (*lock).insert(addr, tx_session_queue.clone());
+                (tx_session_queue, Some(rx_session_queue))
+            }
+        } else {
+            let (tx_session_queue, rx_session_queue) =
+                mpsc::channel::<(ByteBuffer, oneshot::Sender<bool>)>(INTERNAL_CHANNEL_BUFFER);
+            (*lock).insert(addr, tx_session_queue.clone());
+            (tx_session_queue, Some(rx_session_queue))
+        }
+        // lock is dropped here
+    };
+
+    // channel is inserted first into hashmap, even if connection is not yet established
+    // connection is created here
+    if let Some(rx_session_queue) = receiver {
+        let conn_fut = TcpStream::connect(addr);
+        match tokio::time::timeout(std::time::Duration::from_secs(3), conn_fut).await {
+            Ok(Ok(stream)) => {
+                let (rx, tx) = stream.into_split();
+                let connection = TcpConnection {
+                    reader: BufReader::new(rx),
+                    writer: BufWriter::new(tx),
+                    addr,
+                    refuse_existing_bundles,
+                };
+                tokio::spawn(connection.connect(rx_session_queue, true));
+            }
+            Ok(Err(_)) => {
+                if let Err(e) = reply.send(false) {
+                    error!("Failed to send reply to internal sender channel: {}", e);
+                }
+                bail!("Couldn't connect to {}", addr);
+            }
+            Err(_) => {
+                if let Err(e) = reply.send(false) {
+                    error!("Failed to send reply to internal sender channel: {}", e);
+                }
+                bail!("Timeout connecting to {}", addr);
+            }
+        }
+    }
+
+    // then push bundles to channel
+    sender.send((bundle, reply)).await?;
+    Ok(())
 }
 
 impl TcpConvergenceLayer {
@@ -670,20 +717,50 @@ impl TcpConvergenceLayer {
             "Extension settings: {:?}",
             (*CONFIG.lock()).cla_global_settings
         );
+        let (tx, mut rx) = mpsc::channel(INTERNAL_CHANNEL_BUFFER);
+
+        tokio::spawn(async move {
+            while let Some(cmd) = rx.recv().await {
+                match cmd {
+                    super::ClaCmd::Transfer(remote, data, reply) => {
+                        debug!(
+                            "TcpConvergenceLayer: received transfer command for {}",
+                            remote
+                        );
+                        tokio::spawn(async move {
+                            if let Err(e) = tcp_send_bundles(
+                                remote.clone(),
+                                data,
+                                refuse_existing_bundles,
+                                reply,
+                            )
+                            .await
+                            {
+                                error!("Failed to send data to {}: {}", remote, e);
+                            }
+                        });
+                    }
+                    super::ClaCmd::Shutdown => {
+                        debug!("TcpConvergenceLayer: received shutdown command");
+                        break;
+                    }
+                }
+            }
+        });
         TcpConvergenceLayer {
             local_port: port,
-            listener: None,
             refuse_existing_bundles,
+            tx,
         }
     }
 }
 
 #[cla(tcp)]
-#[derive(Default, Debug)]
+#[derive(Debug)]
 pub struct TcpConvergenceLayer {
     local_port: u16,
-    listener: Option<JoinHandle<()>>,
     refuse_existing_bundles: bool,
+    tx: mpsc::Sender<super::ClaCmd>,
 }
 
 #[async_trait]
@@ -696,7 +773,7 @@ impl ConvergenceLayerAgent for TcpConvergenceLayer {
             tcp_listener,
             refuse_existing_bundles: self.refuse_existing_bundles,
         };
-        self.listener = Some(tokio::spawn(listener.run()));
+        tokio::spawn(listener.run());
     }
 
     fn port(&self) -> u16 {
@@ -707,77 +784,8 @@ impl ConvergenceLayerAgent for TcpConvergenceLayer {
         "tcp"
     }
 
-    async fn scheduled_submission(&self, dest: &str, ready: &[ByteBuffer]) -> bool {
-        let addr: SocketAddr = dest.parse().unwrap();
-
-        let sender: mpsc::Sender<(Vec<u8>, Sender<bool>)>;
-        let mut receiver = None;
-        {
-            let mut lock = TCP_CONNECTIONS.lock();
-            match lock.get(&addr) {
-                Some(value) => {
-                    sender = value.clone();
-                }
-                None => {
-                    let (tx_session_queue, rx_session_queue) =
-                        mpsc::channel::<(ByteBuffer, oneshot::Sender<bool>)>(
-                            INTERNAL_CHANNEL_BUFFER,
-                        );
-                    (*lock).insert(addr, tx_session_queue.clone());
-                    sender = tx_session_queue;
-                    receiver = Some(rx_session_queue);
-                }
-            }
-            // lock is dropped here
-        }
-
-        // channel is inserted first into hashmap, even if connection is not yet established
-        // connection is created here
-        if let Some(rx_session_queue) = receiver {
-            let conn_fut = TcpStream::connect(addr);
-            match tokio::time::timeout(std::time::Duration::from_secs(3), conn_fut).await {
-                Ok(Ok(stream)) => {
-                    let connection = TcpConnection {
-                        stream,
-                        addr,
-                        refuse_existing_bundles: self.refuse_existing_bundles,
-                    };
-                    connection.connect(rx_session_queue).await;
-                }
-                Ok(Err(_)) => {
-                    error!("Couldn't connect to {}", addr);
-                    return false;
-                }
-                Err(_) => {
-                    error!("Timeout connecting to {}", addr);
-                    return false;
-                }
-            }
-        }
-
-        // then push bundles to channel
-        let mut results = Vec::new();
-        for bundle in ready {
-            debug!("Sending bundle {:?}", bundle);
-            // unfortunately not possible to avoid cloning, atomic reference counting would be needed in API
-            // backchannel that responds whether bundle send was successful
-            let (tx, rx) = oneshot::channel::<bool>();
-            if sender.send((bundle.clone(), tx)).await.is_ok() {
-                if let Ok(successful) = rx.await {
-                    results.push(successful);
-                } else {
-                    results.push(false);
-                }
-            } else {
-                results.push(false);
-            }
-        }
-        for result in results {
-            if !result {
-                return false;
-            }
-        }
-        return true;
+    fn channel(&self) -> tokio::sync::mpsc::Sender<super::ClaCmd> {
+        self.tx.clone()
     }
 }
 
@@ -936,9 +944,9 @@ mod tests {
         for s in segs {
             let mut buf = Vec::new();
             let packet = TcpClPacket::XferSeg(s);
-            block_on(packet.serialize(&mut buf)).unwrap();
+            block_on(packet.write(&mut buf)).unwrap();
             let mut slice = buf.as_ref();
-            let result = block_on(TcpClPacket::deserialize(&mut slice)).unwrap();
+            let result = block_on(TcpClPacket::read(&mut slice)).unwrap();
             dbg!(&packet);
             dbg!(&buf);
             dbg!(&result);

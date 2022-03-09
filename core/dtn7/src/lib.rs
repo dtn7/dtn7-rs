@@ -11,17 +11,17 @@ use crate::core::store::{BundleStore, InMemoryBundleStore};
 use crate::core::DtnStatistics;
 use crate::routing::RoutingAgent;
 use bp7::{Bundle, EndpointID};
-use cla::CLAEnum;
+use cla::{CLAEnum, ClaSenderTask};
 pub use dtnconfig::DtnConfig;
-use log::error;
+use log::{error, info};
 
-pub use crate::core::{DtnCLAs, DtnCore, DtnPeer};
+pub use crate::core::{DtnCore, DtnPeer};
 pub use crate::routing::RoutingNotifcation;
 
 use crate::cla::ConvergenceLayerAgent;
 use crate::core::peer::PeerAddress;
 use crate::core::store::BundleStoresEnum;
-use anyhow::Result;
+use anyhow::{Context, Result};
 use lazy_static::*;
 use parking_lot::Mutex;
 use std::collections::HashMap;
@@ -30,25 +30,25 @@ use tokio::sync::mpsc::Sender;
 lazy_static! {
     pub static ref CONFIG: Mutex<DtnConfig> = Mutex::new(DtnConfig::new());
     pub static ref DTNCORE: Mutex<DtnCore> = Mutex::new(DtnCore::new());
-    pub static ref DTNCLAS: Mutex<DtnCLAs> = Mutex::new(DtnCLAs::new());
     pub static ref PEERS: Mutex<HashMap<String, DtnPeer>> = Mutex::new(HashMap::new());
     pub static ref STATS: Mutex<DtnStatistics> = Mutex::new(DtnStatistics::new());
     pub static ref SENDERTASK: Mutex<Option<Sender<Bundle>>> = Mutex::new(None);
     pub static ref STORE: Mutex<BundleStoresEnum> = Mutex::new(InMemoryBundleStore::new().into());
-    pub static ref ROUTINGAGENT: Mutex<crate::routing::RoutingAgentsEnum> =
-        Mutex::new(crate::routing::epidemic::EpidemicRoutingAgent::new().into());
+    /*pub static ref ROUTINGAGENT: Mutex<crate::routing::RoutingAgentsEnum> =
+        Mutex::new(crate::routing::epidemic::EpidemicRoutingAgent::new().into());*/
+    pub static ref CLAS: Mutex<Vec<CLAEnum>> = Mutex::new(Vec::new());
 }
 
 pub fn cla_add(cla: CLAEnum) {
-    (*DTNCLAS.lock()).list.push(cla);
+    (*CLAS.lock()).push(cla);
 }
 pub fn cla_remove(name: String) {
-    (*DTNCLAS.lock()).list.retain(|value| {
+    (*CLAS.lock()).retain(|value| {
         return value.name() != name;
     })
 }
 pub fn cla_is_external(name: String) -> bool {
-    return (*DTNCLAS.lock()).list.iter().any(|p| match p {
+    return (*CLAS.lock()).iter().any(|p| match p {
         CLAEnum::ExternalConvergenceLayer(e) => {
             return e.name() == name;
         }
@@ -63,8 +63,7 @@ pub fn cla_parse(name: &str) -> CLAsAvailable {
     name.parse::<CLAsAvailable>().unwrap()
 }
 pub fn cla_settings(name: String) -> Option<HashMap<String, String>> {
-    let res: Vec<Option<HashMap<String, String>>> = (*DTNCLAS.lock())
-        .list
+    let res: Vec<Option<HashMap<String, String>>> = (*CLAS.lock())
         .iter()
         .filter(|p| {
             return p.name() == name;
@@ -79,8 +78,7 @@ pub fn cla_settings(name: String) -> Option<HashMap<String, String>> {
     return Some(res[0].as_ref().unwrap().clone());
 }
 pub fn cla_names() -> Vec<String> {
-    let names: Vec<String> = (*DTNCLAS.lock())
-        .list
+    let names: Vec<String> = (*CLAS.lock())
         .iter()
         .map(|val| {
             return String::from(val.name());
@@ -124,6 +122,16 @@ pub fn peers_count() -> usize {
 pub fn peers_clear() {
     (*PEERS.lock()).clear();
 }
+pub fn peers_known(peer: &str) -> bool {
+    (*PEERS.lock()).contains_key(peer)
+}
+pub fn peers_touch(peer: &str) -> Result<()> {
+    (*PEERS.lock())
+        .get_mut(peer)
+        .context("no such peer")?
+        .touch();
+    Ok(())
+}
 pub fn peers_get_for_node(eid: &EndpointID) -> Option<DtnPeer> {
     for (_, p) in (*PEERS.lock()).iter() {
         if p.node_name() == eid.node().unwrap_or_default() {
@@ -135,7 +143,7 @@ pub fn peers_get_for_node(eid: &EndpointID) -> Option<DtnPeer> {
 pub fn is_local_node_id(eid: &EndpointID) -> bool {
     eid.node_id() == (*CONFIG.lock()).host_eid.node_id()
 }
-pub fn peers_cla_for_node(eid: &EndpointID) -> Option<crate::cla::ClaSender> {
+pub fn peers_cla_for_node(eid: &EndpointID) -> Option<ClaSenderTask> {
     if let Some(peer) = peers_get_for_node(eid) {
         return peer.first_cla();
     }
@@ -154,7 +162,18 @@ pub fn store_push_bundle(bndl: &Bundle) -> Result<()> {
     (*STORE.lock()).push(bndl)
 }
 
+pub fn store_add_bundle_if_unknown(bndl: &Bundle) -> Result<bool> {
+    let store = &mut (*STORE.lock());
+    if !store.has_item(bndl.id().as_str()) {
+        store.push(bndl)?;
+        Ok(true)
+    } else {
+        Ok(false)
+    }
+}
+
 pub fn store_remove(bid: &str) {
+    info!("Removing bundle {}", bid);
     if let Err(err) = (*STORE.lock()).remove(bid) {
         error!("store_remove: {}", err);
     }
@@ -178,10 +197,9 @@ pub fn store_delete_expired() {
 
     let expired: Vec<String> = pending_bids
         .iter()
-        .map(|b| (*STORE.lock()).get_bundle(b))
+        .flat_map(|b| (*STORE.lock()).get_bundle(b))
         //.filter(|b| b.is_some())
         //.map(|b| b.unwrap())
-        .flatten()
         .filter(|e| e.primary.is_lifetime_exceeded())
         .map(|e| e.id())
         .collect();
@@ -190,5 +208,5 @@ pub fn store_delete_expired() {
     }
 }
 pub fn routing_notify(notification: RoutingNotifcation) {
-    (*ROUTINGAGENT.lock()).notify(notification);
+    (*DTNCORE.lock()).routing_agent.notify(notification);
 }

@@ -6,10 +6,11 @@ pub mod mtcp;
 pub mod tcp;
 
 use self::http::HttpConvergenceLayer;
-use crate::core::peer::PeerAddress;
+use anyhow::Result;
 use async_trait::async_trait;
-use bp7::ByteBuffer;
+use bp7::{ByteBuffer, EndpointID};
 use derive_more::*;
+use dtn7_codegen::init_cla_subsystem;
 use dummy::DummyConvergenceLayer;
 use enum_dispatch::enum_dispatch;
 use external::ExternalConvergenceLayer;
@@ -21,8 +22,7 @@ use std::{
     fmt::{Debug, Display},
 };
 use tcp::TcpConvergenceLayer;
-
-use dtn7_codegen::init_cla_subsystem;
+use tokio::sync::{mpsc, oneshot};
 
 // generate various helpers
 // - enum CLAsAvailable for verification and loading from str
@@ -32,27 +32,32 @@ use dtn7_codegen::init_cla_subsystem;
 // global_help()
 init_cla_subsystem!();
 
-#[derive(Debug, PartialEq, Eq, Clone, Serialize, Deserialize)]
-pub struct ClaSender {
-    pub remote: PeerAddress,
-    pub port: Option<u16>,
-    pub agent: CLAsAvailable,
-    pub local_settings: Option<HashMap<String, String>>,
+#[derive(Debug)]
+pub enum ClaCmd {
+    Transfer(String, ByteBuffer, oneshot::Sender<bool>),
+    Shutdown,
 }
-impl ClaSender {
-    /// Create new convergence layer agent just for sending bundles
-    pub async fn transfer(&self, ready: &[ByteBuffer]) -> bool {
-        let sender: CLAEnum = match self.local_settings.clone() {
-            Some(set) => new(&self.agent, Some(&set)),
-            _ => new(&self.agent, None),
-        };
 
-        let dest = if self.port.is_some() && self.port.unwrap() != 0 {
-            format!("{}:{}", self.remote, self.port.unwrap())
-        } else {
-            self.remote.to_string()
-        };
-        sender.scheduled_submission(&dest, ready).await
+#[derive(Debug, Clone)]
+pub struct ClaSenderTask {
+    pub tx: mpsc::Sender<ClaCmd>,
+    pub dest: String,
+    pub cla_name: String,
+    pub next_hop: EndpointID,
+}
+
+impl ClaSenderTask {
+    pub async fn transfer(&self, ready: ByteBuffer) -> Result<()> {
+        let (reply_tx, reply_rx) = oneshot::channel();
+        let cmd = ClaCmd::Transfer(self.dest.clone(), ready, reply_tx);
+        self.tx.send(cmd).await?;
+        if !reply_rx.await? {
+            return Err(anyhow::anyhow!(
+                "CLA {} failed to send bundle",
+                self.cla_name
+            ));
+        }
+        Ok(())
     }
 }
 
@@ -65,7 +70,7 @@ pub trait ConvergenceLayerAgent: Debug + Display {
     fn local_settings(&self) -> Option<HashMap<String, String>> {
         None
     }
-    async fn scheduled_submission(&self, dest: &str, ready: &[ByteBuffer]) -> bool;
+    fn channel(&self) -> mpsc::Sender<ClaCmd>;
 }
 
 pub trait HelpStr {

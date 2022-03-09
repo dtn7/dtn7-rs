@@ -4,11 +4,10 @@ use crate::cla::ecla::ws::WebsocketTransportLayer;
 use crate::cla::ecla::{Error, Registered, TransportLayerEnum};
 use crate::cla::external::ExternalConvergenceLayer;
 use crate::cla::ConvergenceLayerAgent;
-use crate::cla::PeerAddress;
 use crate::core::PeerType;
 use crate::ipnd::services::ServiceBlock;
-use crate::{cla_add, cla_remove, CONFIG};
-use crate::{cla_names, DTNCLAS, DTNCORE};
+use crate::{cla_add, cla_remove, PeerAddress, CONFIG};
+use crate::{cla_names, CLAS, DTNCORE};
 use crate::{lazy_static, routing_notify, RoutingNotifcation};
 use crate::{peers_add, DtnPeer};
 use bp7::{Bundle, ByteBuffer};
@@ -54,8 +53,7 @@ pub fn generate_beacon() -> Beacon {
     };
 
     // Get all available clas
-    (*DTNCLAS.lock())
-        .list
+    (*CLAS.lock())
         .iter()
         .for_each(|cla| service_block.add_cla(&cla.name().to_string(), &Some(cla.port())));
 
@@ -220,7 +218,7 @@ pub fn handle_disconnect(addr: String) {
     MODULE_MAP.lock().unwrap().remove(&addr);
 }
 
-pub fn scheduled_submission(name: &str, dest: &str, ready: &[ByteBuffer]) -> bool {
+pub fn scheduled_submission(name: &str, dest: &str, ready: &ByteBuffer) -> bool {
     debug!(
             "Scheduled submission External Convergence Layer for Destination with Module '{}' and Target '{}'",
             name, dest
@@ -231,20 +229,17 @@ pub fn scheduled_submission(name: &str, dest: &str, ready: &[ByteBuffer]) -> boo
     let mut lmap = LAYER_MAP.lock().unwrap();
     mmap.retain(|addr, value| {
         if value.name == name {
-            // Found the matching Module
-            for b in ready {
-                if let Ok(bndl) = Bundle::try_from(b.clone()) {
-                    let packet: Packet = Packet::ForwardData(ForwardData {
-                        dst: dest.to_string(),
-                        src: "".to_string(), // Leave blank for now and let the Module set it to a protocol specific address on his side
-                        bundle_id: bndl.id(),
-                        data: b.to_vec(),
-                    });
+            if let Ok(bndl) = Bundle::try_from(ready.as_slice()) {
+                let packet: Packet = Packet::ForwardData(ForwardData {
+                    dst: dest.to_string(),
+                    src: "".to_string(), // Leave blank for now and let the Module set it to a protocol specific address on his side
+                    bundle_id: bndl.id(),
+                    data: ready.to_vec(),
+                });
 
-                    if let Some(layer) = lmap.get_mut(value.layer.as_str()) {
-                        layer.send_packet(addr, &packet);
-                        was_sent = true;
-                    }
+                if let Some(layer) = lmap.get_mut(value.layer.as_str()) {
+                    layer.send_packet(addr, &packet);
+                    was_sent = true;
                 }
             }
         }

@@ -3,12 +3,11 @@ use std::convert::TryFrom;
 use super::{httpd, janitor};
 use crate::cla::ecla::processing::start_ecla;
 use crate::cla::ConvergenceLayerAgent;
-use crate::cla_add;
 use crate::core::application_agent::SimpleApplicationAgent;
 use crate::dtnconfig::DtnConfig;
 use crate::ipnd::neighbour_discovery;
-use crate::peers_add;
-use crate::{CONFIG, DTNCLAS, DTNCORE, ROUTINGAGENT, STORE};
+use crate::{cla_add, peers_add};
+use crate::{CLAS, CONFIG, DTNCORE, STORE};
 use bp7::EndpointID;
 use log::{error, info};
 
@@ -55,7 +54,7 @@ fn spawn_core_daemon(rx: Receiver<DtnCmd>) {
 async fn start_convergencylayers() {
     info!("Starting convergency layers");
 
-    for cl in &mut (*DTNCLAS.lock()).list {
+    for cl in &mut (*CLAS.lock()) {
         info!("Setup {}", cl);
         cl.setup().await;
     }
@@ -99,7 +98,7 @@ pub async fn start_dtnd(cfg: DtnConfig) -> anyhow::Result<()> {
     );
 
     let routing = (*CONFIG.lock()).routing.clone();
-    (*ROUTINGAGENT.lock()) = crate::routing::new(&routing);
+    (*DTNCORE.lock()).routing_agent = crate::routing::new(&routing);
 
     info!("RoutingAgent: {}", routing);
 

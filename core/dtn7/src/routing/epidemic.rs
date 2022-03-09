@@ -1,8 +1,7 @@
 use super::RoutingAgent;
-use crate::cla::ClaSender;
 use crate::core::bundlepack::BundlePack;
 use crate::routing::RoutingNotifcation;
-use crate::PEERS;
+use crate::{ClaSenderTask, PEERS};
 use async_trait::async_trait;
 use log::debug;
 use std::collections::{HashMap, HashSet};
@@ -83,7 +82,7 @@ impl RoutingAgent for EpidemicRoutingAgent {
             _ => {}
         }
     }
-    async fn sender_for_bundle(&mut self, bp: &BundlePack) -> (Vec<ClaSender>, bool) {
+    async fn sender_for_bundle(&mut self, bp: &BundlePack) -> (Vec<ClaSenderTask>, bool) {
         let mut clas = Vec::new();
         let mut delete_afterwards = false;
         for (_, p) in (*PEERS.lock()).iter() {

@@ -2,11 +2,11 @@ use crate::core::bundlepack::*;
 use crate::core::*;
 use crate::routing::RoutingNotifcation;
 use crate::routing_notify;
+use crate::store_add_bundle_if_unknown;
 use crate::store_push_bundle;
 use crate::store_remove;
 use crate::CONFIG;
 use crate::DTNCORE;
-use crate::ROUTINGAGENT;
 use crate::{is_local_node_id, STATS};
 
 use bp7::administrative_record::*;
@@ -95,7 +95,9 @@ pub async fn transmit(mut bp: BundlePack) -> Result<()> {
 
 // handle received/incoming bundles.
 pub async fn receive(mut bndl: Bundle) -> Result<()> {
-    if store_has_item(&bndl.id()) {
+    if store_add_bundle_if_unknown(&bndl)? {
+        info!("Received new bundle: {}", bndl.id());
+    } else {
         debug!(
             "Received an already known bundle, skip processing: {}",
             bndl.id()
@@ -104,13 +106,8 @@ pub async fn receive(mut bndl: Bundle) -> Result<()> {
         // bundleDeletion is _not_ called because this would delete the already
         // stored BundlePack.
         return Ok(());
-    } else {
-        info!("Received new bundle: {}", bndl.id());
     }
 
-    if let Err(err) = store_push_bundle(&bndl) {
-        bail!("error adding received bundle: {} {}", bndl.id(), err);
-    }
     let mut bp = BundlePack::from(&bndl);
     bp.add_constraint(Constraint::DispatchPending);
     bp.sync()?;
@@ -196,7 +193,7 @@ pub async fn dispatch(bp: BundlePack) -> Result<()> {
         local_delivery(bp.clone()).await?;
     }
     if !is_local_node_id(&bp.destination) {
-        forward(bp).await?;
+        tokio::spawn(forward(bp));
     }
     Ok(())
 }
@@ -227,7 +224,7 @@ async fn handle_hop_count_block(mut bundle: Bundle) -> Result<Bundle> {
 async fn handle_primary_lifetime(bundle: &Bundle) -> Result<()> {
     if bundle.primary.is_lifetime_exceeded() {
         warn!(
-            "Bundle's primary block's lifetime is exceeded: {} {:?}",
+            "Dropping bundle, primary block lifetime is exceeded: {} {:?}",
             bundle.id(),
             bundle.primary
         );
@@ -262,7 +259,7 @@ pub fn update_bundle_age(bundle: &mut Bundle) -> Option<u64> {
 async fn handle_bundle_age_block(mut bundle: Bundle) -> Result<Bundle> {
     if let Some(age) = update_bundle_age(&mut bundle) {
         if std::time::Duration::from_micros(age) >= bundle.primary.lifetime {
-            warn!("Bundle's lifetime has expired: {}", bundle.id());
+            warn!("Dropping bundle, age exceeds lifetime: {}", bundle.id());
             delete(bundle.into(), LIFETIME_EXPIRED).await?;
             bail!("age block lifetime exceeded");
         }
@@ -307,7 +304,7 @@ pub async fn forward(mut bp: BundlePack) -> Result<()> {
 
     trace!("Check delivery");
 
-    let (nodes, delete_afterwards) = (*ROUTINGAGENT.lock()).sender_for_bundle(&bp).await;
+    let (nodes, delete_afterwards) = (*DTNCORE.lock()).routing_agent.sender_for_bundle(&bp).await;
     if !nodes.is_empty() {
         debug!("Attempting forwarding of {} to nodes: {:?}", bp.id(), nodes);
     }
@@ -315,12 +312,16 @@ pub async fn forward(mut bp: BundlePack) -> Result<()> {
     if nodes.is_empty() {
         trace!("No new peers for forwarding of bundle {}", &bp.id());
     } else {
-        trace!("Handle lifetime");
+        debug!("Attempting forwarding of {} to nodes: {:?}", bp.id(), nodes);
+
         let bndl = store_get_bundle(&bpid);
         if bndl.is_none() {
             bail!("bundle not found: {}", bpid);
         }
+
         let mut bndl = bndl.unwrap();
+
+        trace!("Handle lifetime");
         handle_primary_lifetime(&bndl).await?;
 
         trace!("Handle hop count block");
@@ -343,26 +344,33 @@ pub async fn forward(mut bp: BundlePack) -> Result<()> {
             let task_handle = tokio::spawn(async move {
                 debug!(
                     "Sending bundle to a CLA: {} {} {}",
-                    &bpid, n.remote, n.agent
+                    &bpid, n.dest, n.cla_name
                 );
-                if n.transfer(&[bd]).await {
+                if let Err(err) = n.transfer(bd).await {
                     info!(
-                        "Sending bundle succeeded: {} {} {}",
-                        &bpid, n.remote, n.agent
+                        "Sending bundle {} via {} to {} ({}) failed",
+                        &bpid, n.cla_name, n.dest, n.next_hop
                     );
-                    bundle_sent.store(true, Ordering::Relaxed);
-                } else {
-                    info!("Sending bundle failed: {} {} {}", &bpid, n.remote, n.agent);
+                    debug!("Error while transferring bundle {}: {}", &bpid, err);
                     let mut failed_peer = None;
-                    for (key, p) in (*PEERS.lock()).iter_mut() {
-                        if p.addr == n.remote {
-                            (*ROUTINGAGENT.lock())
-                                .notify(RoutingNotifcation::SendingFailed(&bpid, &p.node_name()));
-                            p.report_fail();
-                            if p.failed_too_much() && p.con_type == PeerType::Dynamic {
-                                failed_peer = Some(key.clone());
-                            }
-                            break;
+
+                    (*DTNCORE.lock())
+                        .routing_agent
+                        .notify(RoutingNotifcation::SendingFailed(
+                            &bpid,
+                            &n.next_hop.node().unwrap(),
+                        ));
+
+                    //debug!("current peers: {:?}", (*PEERS.lock()).keys());
+                    if let Some(peer_entry) = (*PEERS.lock()).get_mut(&n.next_hop.node().unwrap()) {
+                        debug!(
+                            "Reporting failed sending to peer: {}",
+                            &n.next_hop.node().unwrap()
+                        );
+                        peer_entry.report_fail();
+                        if peer_entry.failed_too_much() && peer_entry.con_type == PeerType::Dynamic
+                        {
+                            failed_peer = Some(peer_entry.node_name());
                         }
                     }
                     if let Some(peer) = failed_peer {
@@ -375,6 +383,12 @@ pub async fn forward(mut bp: BundlePack) -> Result<()> {
                     // if (*CONFIG.lock()).generate_service_reports {
                     //    send_status_report(&bp2, FORWARDED_BUNDLE, TRANSMISSION_CANCELED);
                     // }
+                } else {
+                    info!(
+                        "Sending bundle succeeded: {} {} {}",
+                        &bpid, n.dest, n.cla_name
+                    );
+                    bundle_sent.store(true, Ordering::Relaxed);
                 }
             });
             wg.push(task_handle);

@@ -4,7 +4,7 @@ pub mod external;
 pub mod flooding;
 pub mod sink;
 
-use crate::cla::ClaSender;
+use crate::cla::ClaSenderTask;
 use crate::core::bundlepack::BundlePack;
 use async_trait::async_trait;
 use bp7::Bundle;
@@ -47,7 +47,7 @@ impl std::fmt::Display for RoutingAgentsEnum {
 #[enum_dispatch(RoutingAgentsEnum)]
 pub trait RoutingAgent: Debug + Display {
     fn notify(&mut self, _notification: RoutingNotifcation) {}
-    async fn sender_for_bundle(&mut self, _bp: &BundlePack) -> (Vec<ClaSender>, bool) {
+    async fn sender_for_bundle(&mut self, _bp: &BundlePack) -> (Vec<ClaSenderTask>, bool) {
         unimplemented!();
     }
 }

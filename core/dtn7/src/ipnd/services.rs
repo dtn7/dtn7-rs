@@ -81,7 +81,7 @@ impl ServiceBlock {
 
     /// This method adds a cla to the corresponding vector of a ServiceBlock
     pub fn add_cla(&mut self, name: &str, port: &Option<u16>) {
-        self.clas.push((name.to_string(), *port))
+        self.clas.push((name.into(), *port))
     }
 
     /// This method adds a custom service to the HashMap of a ServiceBlock
