@@ -27,12 +27,14 @@ use bp7::helpers::rnd_bundle;
 use bp7::EndpointID;
 use http::StatusCode;
 use humansize::{file_size_opts, FileSize};
+use log::info;
 use log::trace;
 use log::{debug, warn};
 use serde::Serialize;
 use std::collections::HashMap;
 use std::convert::{TryFrom, TryInto};
 use std::net::SocketAddr;
+use std::time::Instant;
 use tinytemplate::TinyTemplate;
 /*
 
@@ -383,21 +385,21 @@ async fn send_post(
 
 //#[post("/push")]
 async fn push_post(body: bytes::Bytes) -> Result<String, (StatusCode, String)> {
-    let bytes = body.to_vec();
-
-    let b_len = bytes.len();
+    let b_len = body.len();
     trace!("received via /push: {:?} bytes", b_len);
-    if let Ok(bndl) = bp7::Bundle::try_from(bytes.to_vec()) {
-        trace!("received bundle {}", bndl.id());
+    if let Ok(bndl) = bp7::Bundle::try_from(body.as_ref()) {
+        //trace!("received bundle {}", bndl.id());
+        info!("Received bundle: {}", bndl.id());
+        let bid = bndl.id();
+        //tokio::spawn(async move {
+        let now = Instant::now();
         if let Err(err) = crate::core::processing::receive(bndl).await {
             warn!("Error processing bundle: {}", err);
-            Err((
-                StatusCode::BAD_REQUEST,
-                format!("Error processing bundle: {}", err),
-            ))
-        } else {
-            Ok(format!("Received {} bytes", b_len))
         }
+        let elapsed = now.elapsed();
+        debug!("Processed received bundle {} in {:?}", bid, elapsed);
+        //});
+        Ok(format!("Received {} bytes", b_len))
     } else {
         Err((
             StatusCode::BAD_REQUEST,
