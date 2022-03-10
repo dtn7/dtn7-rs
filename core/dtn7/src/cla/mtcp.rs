@@ -1,4 +1,4 @@
-use crate::cla::ConvergenceLayerAgent;
+use crate::cla::{ConvergenceLayerAgent, TransferResult};
 use async_trait::async_trait;
 use bp7::{Bundle, ByteBuffer};
 use bytes::buf::Buf;
@@ -210,7 +210,7 @@ async fn mtcp_listener(port: u16) -> Result<(), io::Error> {
     }
 }
 
-pub fn mtcp_send_bundles(addr: SocketAddr, bundles: Vec<ByteBuffer>) -> bool {
+pub fn mtcp_send_bundles(addr: SocketAddr, bundles: Vec<ByteBuffer>) -> TransferResult {
     // TODO: implement correct error handling
     // TODO: classic sending thread, tokio code would block and not complete large transmissions
     let now = Instant::now();
@@ -222,7 +222,7 @@ pub fn mtcp_send_bundles(addr: SocketAddr, bundles: Vec<ByteBuffer>) -> bool {
             buf.extend_from_slice(&buf2);
         } else {
             error!("MPDU encoding error!");
-            return false;
+            return TransferResult::Failure;
         }
     }
 
@@ -233,7 +233,7 @@ pub fn mtcp_send_bundles(addr: SocketAddr, bundles: Vec<ByteBuffer>) -> bool {
             MTCP_CONNECTIONS.lock().insert(addr, stream);
         } else {
             error!("Error connecting to remote {}", addr);
-            return false;
+            return TransferResult::Failure;
         }
     } else {
         debug!("Already connected to {}", addr);
@@ -248,7 +248,7 @@ pub fn mtcp_send_bundles(addr: SocketAddr, bundles: Vec<ByteBuffer>) -> bool {
     if s1.write_all(&buf).is_err() {
         error!("Error writing data to {}", addr);
         MTCP_CONNECTIONS.lock().remove(&addr);
-        return false;
+        return TransferResult::Failure;
     }
     debug!(
         "Transmission time: {:?} for {} bundles in {} bytes to {}",
@@ -258,7 +258,7 @@ pub fn mtcp_send_bundles(addr: SocketAddr, bundles: Vec<ByteBuffer>) -> bool {
         addr
     );
 
-    true
+    TransferResult::Successful
 }
 
 #[cla(mtcp)]
@@ -291,7 +291,7 @@ impl MtcpConvergenceLayer {
                             });
                         } else {
                             debug!("Nothing to forward.");
-                            reply.send(true).unwrap();
+                            reply.send(TransferResult::Successful).unwrap();
                         }
                     }
                     super::ClaCmd::Shutdown => {

@@ -3,7 +3,7 @@ pub mod proto;
 
 use self::net::*;
 
-use super::{ConvergenceLayerAgent, HelpStr};
+use super::{ConvergenceLayerAgent, HelpStr, TransferResult};
 use async_trait::async_trait;
 use bp7::{Bundle, ByteBuffer, EndpointID};
 //use futures_util::stream::StreamExt;
@@ -48,7 +48,7 @@ use tokio::time::Duration;
     A third TcpSession task maintains session state and sends/receives bundles. TcpConvergenceLayer communicates via channels with TcpSession.
 */
 
-type SessionMap = HashMap<SocketAddr, mpsc::Sender<(ByteBuffer, oneshot::Sender<bool>)>>;
+type SessionMap = HashMap<SocketAddr, mpsc::Sender<(ByteBuffer, oneshot::Sender<TransferResult>)>>;
 
 const KEEPALIVE: u16 = 30;
 const SEGMENT_MRU: u64 = 64000;
@@ -69,8 +69,8 @@ enum TcpSessionError {
     Protocol(TcpClPacket),
 }
 
-impl From<bool> for TcpSessionError {
-    fn from(_: bool) -> Self {
+impl From<TransferResult> for TcpSessionError {
+    fn from(_: TransferResult) -> Self {
         TcpSessionError::ResultChannel
     }
 }
@@ -92,7 +92,7 @@ struct TcpSession {
     remote_session_data: SessInitData,
     _local_session_data: SessInitData,
     last_tid: u64,
-    rx_session_queue: mpsc::Receiver<(Vec<u8>, Sender<bool>)>,
+    rx_session_queue: mpsc::Receiver<(Vec<u8>, Sender<TransferResult>)>,
 }
 
 enum ReceiveState {
@@ -103,8 +103,8 @@ enum ReceiveState {
 
 enum SendState {
     Idle,
-    Sending(u64, tokio::sync::oneshot::Sender<bool>),
-    TransferRequest(Vec<u8>, tokio::sync::oneshot::Sender<bool>),
+    Sending(u64, tokio::sync::oneshot::Sender<TransferResult>),
+    TransferRequest(Vec<u8>, tokio::sync::oneshot::Sender<TransferResult>),
     Terminated,
 }
 
@@ -364,8 +364,8 @@ impl TcpSession {
                     if ack_data.len < len {
                         Ok((receive_state, SendState::Sending(len, response)))
                     } else {
-                        if let Err(err) = response.send(true) {
-                            error!("Failed to send response: {}", err);
+                        if let Err(err) = response.send(TransferResult::Successful) {
+                            error!("Failed to send response: {:?}", err);
                             return Err(TcpSessionError::Protocol(packet).into());
                         }
 
@@ -380,7 +380,7 @@ impl TcpSession {
                         return Err(TcpSessionError::Protocol(packet).into());
                     }
                     debug!("Received refuse");
-                    if response.send(true).is_err() {
+                    if response.send(TransferResult::Successful).is_err() {
                         error!("Failed to send response");
                         return Err(TcpSessionError::Protocol(packet).into());
                     }
@@ -390,7 +390,7 @@ impl TcpSession {
                     if refuse_data.tid != self.last_tid {
                         return Err(TcpSessionError::Protocol(packet).into());
                     }
-                    if response.send(false).is_err() {
+                    if response.send(TransferResult::Failure).is_err() {
                         error!("Failed to send response");
                         return Err(TcpSessionError::Protocol(packet).into());
                     }
@@ -405,7 +405,7 @@ impl TcpSession {
     /// Result indicates whether connection is closed (true).
     async fn send(
         &mut self,
-        data: (ByteBuffer, tokio::sync::oneshot::Sender<bool>),
+        data: (ByteBuffer, tokio::sync::oneshot::Sender<TransferResult>),
     ) -> anyhow::Result<SendState> {
         self.last_tid += 1;
         let (bndl_buf, tx_result) = data;
@@ -435,7 +435,7 @@ impl TcpSession {
     async fn send_bundle(
         &mut self,
         bndl_buf: ByteBuffer,
-        tx_result: tokio::sync::oneshot::Sender<bool>,
+        tx_result: tokio::sync::oneshot::Sender<TransferResult>,
     ) -> anyhow::Result<SendState> {
         let now = Instant::now();
         let mut byte_vec = Vec::new();
@@ -455,7 +455,7 @@ impl TcpSession {
         }
         if byte_vec.is_empty() {
             warn!("Emtpy bundle transfer, aborting");
-            if tx_result.send(false).is_err() {
+            if tx_result.send(TransferResult::Failure).is_err() {
                 error!("Failed to send response");
                 bail!("Failed to send response");
             }
@@ -541,7 +541,7 @@ impl TcpConnection {
     /// Establish a tcp session on this connection and insert it into a session list.
     async fn connect(
         mut self,
-        rx_session_queue: mpsc::Receiver<(Vec<u8>, Sender<bool>)>,
+        rx_session_queue: mpsc::Receiver<(Vec<u8>, Sender<TransferResult>)>,
         active: bool,
     ) -> anyhow::Result<()> {
         // Phase 1
@@ -614,7 +614,7 @@ impl Listener {
                     };
                     // establish session and insert into shared session list
                     let (tx_session_queue, rx_session_queue) =
-                        mpsc::channel::<(ByteBuffer, oneshot::Sender<bool>)>(
+                        mpsc::channel::<(ByteBuffer, oneshot::Sender<TransferResult>)>(
                             INTERNAL_CHANNEL_BUFFER,
                         );
                     (*TCP_CONNECTIONS.lock()).insert(addr, tx_session_queue);
@@ -636,7 +636,7 @@ async fn tcp_send_bundles(
     dest: String,
     bundle: ByteBuffer,
     refuse_existing_bundles: bool,
-    reply: Sender<bool>,
+    reply: Sender<TransferResult>,
 ) -> anyhow::Result<()> {
     let addr: SocketAddr = dest.parse().unwrap();
 
@@ -648,13 +648,17 @@ async fn tcp_send_bundles(
             } else {
                 lock.remove(&addr);
                 let (tx_session_queue, rx_session_queue) =
-                    mpsc::channel::<(ByteBuffer, oneshot::Sender<bool>)>(INTERNAL_CHANNEL_BUFFER);
+                    mpsc::channel::<(ByteBuffer, oneshot::Sender<TransferResult>)>(
+                        INTERNAL_CHANNEL_BUFFER,
+                    );
                 (*lock).insert(addr, tx_session_queue.clone());
                 (tx_session_queue, Some(rx_session_queue))
             }
         } else {
-            let (tx_session_queue, rx_session_queue) =
-                mpsc::channel::<(ByteBuffer, oneshot::Sender<bool>)>(INTERNAL_CHANNEL_BUFFER);
+            let (tx_session_queue, rx_session_queue) = mpsc::channel::<(
+                ByteBuffer,
+                oneshot::Sender<TransferResult>,
+            )>(INTERNAL_CHANNEL_BUFFER);
             (*lock).insert(addr, tx_session_queue.clone());
             (tx_session_queue, Some(rx_session_queue))
         }
@@ -677,14 +681,14 @@ async fn tcp_send_bundles(
                 tokio::spawn(connection.connect(rx_session_queue, true));
             }
             Ok(Err(_)) => {
-                if let Err(e) = reply.send(false) {
-                    error!("Failed to send reply to internal sender channel: {}", e);
+                if let Err(e) = reply.send(TransferResult::Failure) {
+                    error!("Failed to send reply to internal sender channel: {:?}", e);
                 }
                 bail!("Couldn't connect to {}", addr);
             }
             Err(_) => {
-                if let Err(e) = reply.send(false) {
-                    error!("Failed to send reply to internal sender channel: {}", e);
+                if let Err(e) = reply.send(TransferResult::Failure) {
+                    error!("Failed to send reply to internal sender channel: {:?}", e);
                 }
                 bail!("Timeout connecting to {}", addr);
             }

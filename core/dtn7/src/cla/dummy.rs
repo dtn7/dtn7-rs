@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 
+use super::TransferResult;
 use super::{ConvergenceLayerAgent, HelpStr};
 use async_trait::async_trait;
 use dtn7_codegen::cla;
@@ -23,7 +24,7 @@ impl DummyConvergenceLayer {
                             "DummyConvergenceLayer: received transfer command for {}",
                             remote
                         );
-                        reply.send(true).unwrap();
+                        reply.send(TransferResult::Successful).unwrap();
                     }
                     super::ClaCmd::Shutdown => {
                         debug!("DummyConvergenceLayer: received shutdown command");
