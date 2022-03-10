@@ -1,21 +1,38 @@
 use super::RoutingAgent;
-use crate::core::bundlepack::BundlePack;
-use crate::ClaSenderTask;
 use async_trait::async_trait;
+use tokio::sync::mpsc;
+use tokio::sync::mpsc::Sender;
 
-#[derive(Default, Debug)]
-pub struct SinkRoutingAgent;
+#[derive(Debug)]
+pub struct SinkRoutingAgent {
+    tx: mpsc::Sender<super::RoutingCmd>,
+}
 
 impl SinkRoutingAgent {
     pub fn new() -> Self {
-        SinkRoutingAgent {}
+        let (tx, mut rx) = mpsc::channel(1);
+        tokio::spawn(async move {
+            while let Some(cmd) = rx.recv().await {
+                match cmd {
+                    super::RoutingCmd::SenderForBundle(_bp, reply) => {
+                        reply.send((vec![], false)).unwrap();
+                    }
+                    super::RoutingCmd::Shutdown => {
+                        break;
+                    }
+                    super::RoutingCmd::Notify(_) => {}
+                }
+            }
+        });
+
+        SinkRoutingAgent { tx }
     }
 }
 
 #[async_trait]
 impl RoutingAgent for SinkRoutingAgent {
-    async fn sender_for_bundle(&mut self, _bp: &BundlePack) -> (Vec<ClaSenderTask>, bool) {
-        (vec![], false)
+    fn channel(&self) -> Sender<crate::RoutingCmd> {
+        self.tx.clone()
     }
 }
 

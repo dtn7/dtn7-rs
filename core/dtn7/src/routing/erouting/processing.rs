@@ -144,24 +144,21 @@ fn send_packet(p: &Packet) {
 pub fn notify(notification: RoutingNotifcation) {
     let packet: Packet = match notification {
         RoutingNotifcation::SendingFailed(bid, cla_sender) => {
-            Packet::SendingFailed(SendingFailed {
-                bid: bid.to_string(),
-                cla_sender: cla_sender.to_string(),
-            })
+            Packet::SendingFailed(SendingFailed { bid, cla_sender })
         }
         RoutingNotifcation::IncomingBundle(bndl) => {
             Packet::IncomingBundle(IncomingBundle { bndl: bndl.clone() })
         }
         RoutingNotifcation::IncomingBundleWithoutPreviousNode(bid, node_name) => {
             Packet::IncomingBundleWithoutPreviousNode(IncomingBundleWithoutPreviousNode {
-                bid: bid.to_string(),
-                node_name: node_name.to_string(),
+                bid,
+                node_name,
             })
         }
         RoutingNotifcation::EncounteredPeer(eid) => Packet::EncounteredPeer(EncounteredPeer {
             name: eid.node().unwrap(),
             eid: eid.clone(),
-            peer: peers_get_for_node(eid).unwrap(),
+            peer: peers_get_for_node(&eid).unwrap(),
         }),
         RoutingNotifcation::DroppedPeer(eid) => Packet::DroppedPeer(DroppedPeer {
             name: eid.node().unwrap(),

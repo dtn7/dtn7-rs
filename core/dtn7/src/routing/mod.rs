@@ -17,13 +17,14 @@ use flooding::FloodingRoutingAgent;
 use sink::SinkRoutingAgent;
 use std::fmt::Debug;
 use std::fmt::Display;
+use tokio::sync::{mpsc, oneshot};
 
-pub enum RoutingNotifcation<'a> {
-    SendingFailed(&'a str, &'a str),
-    IncomingBundle(&'a Bundle),
-    IncomingBundleWithoutPreviousNode(&'a str, &'a str),
-    EncounteredPeer(&'a EndpointID),
-    DroppedPeer(&'a EndpointID),
+pub enum RoutingNotifcation {
+    SendingFailed(String, String),
+    IncomingBundle(Bundle),
+    IncomingBundleWithoutPreviousNode(String, String),
+    EncounteredPeer(EndpointID),
+    DroppedPeer(EndpointID),
 }
 
 #[enum_dispatch]
@@ -33,6 +34,12 @@ pub enum RoutingAgentsEnum {
     FloodingRoutingAgent,
     SinkRoutingAgent,
     ExternalRoutingAgent,
+}
+
+pub enum RoutingCmd {
+    SenderForBundle(BundlePack, oneshot::Sender<(Vec<ClaSenderTask>, bool)>),
+    Notify(RoutingNotifcation),
+    Shutdown,
 }
 
 /*
@@ -46,10 +53,7 @@ impl std::fmt::Display for RoutingAgentsEnum {
 #[async_trait]
 #[enum_dispatch(RoutingAgentsEnum)]
 pub trait RoutingAgent: Debug + Display {
-    fn notify(&mut self, _notification: RoutingNotifcation) {}
-    async fn sender_for_bundle(&mut self, _bp: &BundlePack) -> (Vec<ClaSenderTask>, bool) {
-        unimplemented!();
-    }
+    fn channel(&self) -> mpsc::Sender<RoutingCmd>;
 }
 
 pub fn routing_algorithms() -> Vec<&'static str> {

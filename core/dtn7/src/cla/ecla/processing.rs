@@ -6,9 +6,10 @@ use crate::cla::external::ExternalConvergenceLayer;
 use crate::cla::ConvergenceLayerAgent;
 use crate::core::PeerType;
 use crate::ipnd::services::ServiceBlock;
-use crate::{cla_add, cla_remove, PeerAddress, CONFIG};
+use crate::routing::RoutingAgent;
+use crate::{cla_add, cla_remove, PeerAddress, RoutingCmd, CONFIG};
 use crate::{cla_names, CLAS, DTNCORE};
-use crate::{lazy_static, routing_notify, RoutingNotifcation};
+use crate::{lazy_static, RoutingNotifcation};
 use crate::{peers_add, DtnPeer};
 use bp7::{Bundle, ByteBuffer};
 use log::{debug, error, info};
@@ -76,9 +77,7 @@ pub fn generate_beacon() -> Beacon {
 async fn announcer() {
     let mut task = interval(crate::CONFIG.lock().announcement_interval);
     loop {
-        debug!("waiting announcer");
         task.tick().await;
-        debug!("running announcer");
 
         let mut mmap = MODULE_MAP.lock().unwrap();
         let mut lmap = LAYER_MAP.lock().unwrap();
@@ -193,7 +192,13 @@ pub fn handle_packet(layer_name: String, addr: String, packet: Packet) {
                     service_block.convert_services(),
                 ));
 
-                routing_notify(RoutingNotifcation::EncounteredPeer(&pdp.eid.clone()));
+                (*DTNCORE.lock())
+                    .routing_agent
+                    .channel()
+                    .try_send(RoutingCmd::Notify(RoutingNotifcation::EncounteredPeer(
+                        pdp.eid.clone(),
+                    )));
+                //routing_notify(RoutingNotifcation::EncounteredPeer(pdp.eid.clone()));
             }
             _ => {}
         },
@@ -218,7 +223,7 @@ pub fn handle_disconnect(addr: String) {
     MODULE_MAP.lock().unwrap().remove(&addr);
 }
 
-pub fn scheduled_submission(name: &str, dest: &str, ready: &ByteBuffer) -> bool {
+pub fn scheduled_submission(name: String, dest: String, ready: &ByteBuffer) -> bool {
     debug!(
             "Scheduled submission External Convergence Layer for Destination with Module '{}' and Target '{}'",
             name, dest

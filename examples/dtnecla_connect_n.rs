@@ -79,9 +79,10 @@ async fn main() -> Result<()> {
     let read = rx.for_each(|packet| {
         match packet {
             Packet::ForwardData(fwd) => {
-                info!("Got ForwardData {} -> {}", fwd.src, fwd.dst);
+                let dst: Vec<&str> = fwd.dst.split(":").collect();
+                info!("Got ForwardData {} -> {}", fwd.src, dst[0]);
 
-                let id = usize::from_str(fwd.dst.as_str()).unwrap_or(conns.len());
+                let id = usize::from_str(dst[0]).unwrap_or(conns.len());
                 if id < conns.len() {
                     conns[id]
                         .unbounded_send(ForwardData(fwd.clone()))

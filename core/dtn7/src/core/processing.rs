@@ -1,13 +1,13 @@
 use crate::core::bundlepack::*;
 use crate::core::*;
 use crate::routing::RoutingNotifcation;
-use crate::routing_notify;
 use crate::store_add_bundle_if_unknown;
 use crate::store_push_bundle;
 use crate::store_remove;
 use crate::CONFIG;
 use crate::DTNCORE;
 use crate::{is_local_node_id, STATS};
+use crate::{routing_notify, RoutingCmd};
 
 use bp7::administrative_record::*;
 use bp7::bundle::*;
@@ -23,6 +23,7 @@ use std::sync::Arc;
 use std::time::SystemTime;
 use std::time::UNIX_EPOCH;
 use tokio::sync::mpsc::channel;
+use tokio::sync::oneshot;
 
 // transmit an outbound bundle.
 pub async fn send_bundle(bndl: Bundle) {
@@ -184,8 +185,9 @@ pub async fn dispatch(bp: BundlePack) -> Result<()> {
     info!("Dispatching bundle: {}", bp.id());
 
     routing_notify(RoutingNotifcation::IncomingBundle(
-        &store_get_bundle(bp.id()).unwrap(),
-    ));
+        store_get_bundle(bp.id()).unwrap(),
+    ))
+    .await;
 
     if (*DTNCORE.lock()).is_in_endpoints(&bp.destination)
     // TODO: lookup here AND in local delivery, optmize for just one
@@ -304,7 +306,17 @@ pub async fn forward(mut bp: BundlePack) -> Result<()> {
 
     trace!("Check delivery");
 
-    let (nodes, delete_afterwards) = (*DTNCORE.lock()).routing_agent.sender_for_bundle(&bp).await;
+    let (reply_tx, reply_rx) = oneshot::channel();
+    let cmd = RoutingCmd::SenderForBundle(bp.clone(), reply_tx);
+    let chan = (*DTNCORE.lock()).routing_agent.channel();
+    chan.send(cmd).await;
+
+    let res = reply_rx.await;
+    if let Err(err) = res {
+        bail!("Error while waiting for SenderForBundle reply: {}", err);
+    }
+
+    let (nodes, delete_afterwards) = res.unwrap();
     if !nodes.is_empty() {
         debug!("Attempting forwarding of {} to nodes: {:?}", bp.id(), nodes);
     }
@@ -354,12 +366,11 @@ pub async fn forward(mut bp: BundlePack) -> Result<()> {
                     debug!("Error while transferring bundle {}: {}", &bpid, err);
                     let mut failed_peer = None;
 
-                    (*DTNCORE.lock())
-                        .routing_agent
-                        .notify(RoutingNotifcation::SendingFailed(
-                            &bpid,
-                            &n.next_hop.node().unwrap(),
-                        ));
+                    routing_notify(RoutingNotifcation::SendingFailed(
+                        bpid,
+                        n.next_hop.node().unwrap(),
+                    ))
+                    .await;
 
                     //debug!("current peers: {:?}", (*PEERS.lock()).keys());
                     if let Some(peer_entry) = (*PEERS.lock()).get_mut(&n.next_hop.node().unwrap()) {

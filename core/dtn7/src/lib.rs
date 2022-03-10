@@ -9,7 +9,7 @@ use crate::cla::CLAsAvailable;
 use crate::core::bundlepack::BundlePack;
 use crate::core::store::{BundleStore, InMemoryBundleStore};
 use crate::core::DtnStatistics;
-use crate::routing::RoutingAgent;
+use crate::routing::{RoutingAgent, RoutingCmd};
 use bp7::{Bundle, EndpointID};
 use cla::{CLAEnum, ClaSenderTask};
 pub use dtnconfig::DtnConfig;
@@ -207,6 +207,7 @@ pub fn store_delete_expired() {
         store_remove(&bid);
     }
 }
-pub fn routing_notify(notification: RoutingNotifcation) {
-    (*DTNCORE.lock()).routing_agent.notify(notification);
+pub async fn routing_notify(notification: RoutingNotifcation) {
+    let chan = (*DTNCORE.lock()).routing_agent.channel();
+    chan.send(RoutingCmd::Notify(notification)).await;
 }

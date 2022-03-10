@@ -125,7 +125,9 @@ impl DtnCore {
 }
 
 /// Removes peers from global peer list that haven't been seen in a while.
-pub fn process_peers() {
+pub async fn process_peers() {
+    let mut dropped: Vec<EndpointID> = Vec::new();
+
     (*PEERS.lock()).retain(|_k, v| {
         let val = v.still_valid();
         if !val {
@@ -134,10 +136,14 @@ pub fn process_peers() {
                 v.eid, v.addr
             );
 
-            routing_notify(DroppedPeer(&v.eid));
+            dropped.push(v.eid.clone());
         }
         v.con_type == PeerType::Static || val
     });
+
+    for eid in dropped {
+        routing_notify(DroppedPeer(eid)).await;
+    }
 }
 
 /// Reprocess bundles in store

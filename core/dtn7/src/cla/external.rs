@@ -25,23 +25,19 @@ impl ExternalConvergenceLayer {
             port = u16::from_str(setting_port.as_str()).unwrap();
         }
 
-        let name = settings
-            .get("name")
-            .expect("name missing")
-            .to_string()
-            .clone();
-        let (tx, mut rx) = mpsc::channel(1);
+        let name = settings.get("name").expect("name missing").to_string();
+        let task_name = name.clone();
+        let (tx, mut rx) = mpsc::channel(100);
         tokio::spawn(async move {
             while let Some(cmd) = rx.recv().await {
                 match cmd {
                     super::ClaCmd::Transfer(dest, ready, reply) => {
-                        reply
-                            .send(scheduled_submission(
-                                name.clone().as_str(),
-                                dest.as_str(),
-                                &ready,
-                            ))
-                            .unwrap();
+                        let name = task_name.clone();
+                        tokio::spawn(async move {
+                            reply
+                                .send(scheduled_submission(name, dest, &ready))
+                                .unwrap();
+                        });
                     }
                     super::ClaCmd::Shutdown => {
                         break;
@@ -69,7 +65,7 @@ impl ConvergenceLayerAgent for ExternalConvergenceLayer {
         Some(settings)
     }
     fn channel(&self) -> Sender<ClaCmd> {
-        return self.tx.clone();
+        self.tx.clone()
     }
 }
 
