@@ -192,13 +192,12 @@ pub fn handle_packet(layer_name: String, addr: String, packet: Packet) {
                     service_block.convert_services(),
                 ));
 
-                (*DTNCORE.lock())
-                    .routing_agent
-                    .channel()
-                    .try_send(RoutingCmd::Notify(RoutingNotifcation::EncounteredPeer(
-                        pdp.eid.clone(),
-                    )));
-                //routing_notify(RoutingNotifcation::EncounteredPeer(pdp.eid.clone()));
+                let cmd_channel = (*DTNCORE.lock()).routing_agent.channel();
+                if let Err(err) = cmd_channel.try_send(RoutingCmd::Notify(
+                    RoutingNotifcation::EncounteredPeer(pdp.eid.clone()),
+                )) {
+                    error!("Failed to add peer: {}", err);
+                }
             }
             _ => {}
         },

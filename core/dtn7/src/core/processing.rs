@@ -184,10 +184,13 @@ pub async fn receive(mut bndl: Bundle) -> Result<()> {
 pub async fn dispatch(bp: BundlePack) -> Result<()> {
     info!("Dispatching bundle: {}", bp.id());
 
-    routing_notify(RoutingNotifcation::IncomingBundle(
+    if let Err(err) = routing_notify(RoutingNotifcation::IncomingBundle(
         store_get_bundle(bp.id()).unwrap(),
     ))
-    .await;
+    .await
+    {
+        info!("Error while sending incoming bundle notification: {}", err);
+    }
 
     if (*DTNCORE.lock()).is_in_endpoints(&bp.destination)
     // TODO: lookup here AND in local delivery, optmize for just one
@@ -308,8 +311,10 @@ pub async fn forward(mut bp: BundlePack) -> Result<()> {
 
     let (reply_tx, reply_rx) = oneshot::channel();
     let cmd = RoutingCmd::SenderForBundle(bp.clone(), reply_tx);
-    let chan = (*DTNCORE.lock()).routing_agent.channel();
-    chan.send(cmd).await;
+    let cmd_channel = (*DTNCORE.lock()).routing_agent.channel();
+    if let Err(err) = cmd_channel.send(cmd).await {
+        bail!("Error while sending command to routing agent: {}", err);
+    }
 
     let res = reply_rx.await;
     if let Err(err) = res {
@@ -366,11 +371,14 @@ pub async fn forward(mut bp: BundlePack) -> Result<()> {
                     debug!("Error while transferring bundle {}: {}", &bpid, err);
                     let mut failed_peer = None;
 
-                    routing_notify(RoutingNotifcation::SendingFailed(
+                    if let Err(err) = routing_notify(RoutingNotifcation::SendingFailed(
                         bpid,
                         n.next_hop.node().unwrap(),
                     ))
-                    .await;
+                    .await
+                    {
+                        info!("Error while sending failed notification: {}", err);
+                    }
 
                     //debug!("current peers: {:?}", (*PEERS.lock()).keys());
                     if let Some(peer_entry) = (*PEERS.lock()).get_mut(&n.next_hop.node().unwrap()) {

@@ -55,10 +55,13 @@ async fn receiver(socket: UdpSocket) -> Result<(), io::Error> {
                 }
             }
             trace!("{}", deserialized);
-            routing_notify(RoutingNotifcation::EncounteredPeer(
+            if let Err(err) = routing_notify(RoutingNotifcation::EncounteredPeer(
                 deserialized.eid().clone(),
             ))
-            .await;
+            .await
+            {
+                info!("Error while encountered peer notification: {}", err);
+            }
         }
     }
 }

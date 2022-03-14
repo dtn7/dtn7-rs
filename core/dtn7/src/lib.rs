@@ -21,7 +21,7 @@ pub use crate::routing::RoutingNotifcation;
 use crate::cla::ConvergenceLayerAgent;
 use crate::core::peer::PeerAddress;
 use crate::core::store::BundleStoresEnum;
-use anyhow::{Context, Result};
+use anyhow::{bail, Context, Result};
 use lazy_static::*;
 use parking_lot::Mutex;
 use std::collections::HashMap;
@@ -207,7 +207,10 @@ pub fn store_delete_expired() {
         store_remove(&bid);
     }
 }
-pub async fn routing_notify(notification: RoutingNotifcation) {
+pub async fn routing_notify(notification: RoutingNotifcation) -> Result<()> {
     let chan = (*DTNCORE.lock()).routing_agent.channel();
-    chan.send(RoutingCmd::Notify(notification)).await;
+    if let Err(err) = chan.send(RoutingCmd::Notify(notification)).await {
+        bail!("Error while sending notification: {}", err);
+    }
+    Ok(())
 }
