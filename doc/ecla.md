@@ -23,6 +23,9 @@ ECLA-Module → ECLA
 
 The ``Register`` packet must be sent as first packet to the ECLA to register the ECLA-Module.
 
+- ``name``: Name of the new CLA
+- ``enable_beacon``: If beacons should be periodically sent
+
 ```json
 {
   "type": "Register",
@@ -49,6 +52,8 @@ The ``Error`` packet will be emitted if an error happens while registration.
 ECLA → ECLA-Module
 
 The ``Registered`` packet will be emitted if the registration was successful.
+- ``eid``: Endpoint ID of connected Node
+- ``nodeid``: Raw Node ID as string
 
 ```json
 {
@@ -61,6 +66,12 @@ The ``Registered`` packet will be emitted if the registration was successful.
 #### ForwardData
 
 ECLA ⇄ ECLA-Module
+
+- ``src``: Address of data source
+  - If it is received from the ECLA it should be set to a reachable address in the transmission layer
+- ``dst``: Address of data destination
+- ``bundle_id``: String representation of Bundle ID
+- ``data``: Base64 and CBOR encoded data containing the bundle information
 
 ```json
 {
@@ -75,6 +86,13 @@ ECLA ⇄ ECLA-Module
 #### Beacon
 
 ECLA ⇄ ECLA-Module
+
+- ``eid``: Endpoint ID
+  - If it comes from the ECLA **eid** is the Endpoint ID of the connected node
+  - If it is received from the transmission layer the **eid** is the Endpoint ID of the foreign dtnd
+- ``addr``: In transmission layer reachable address (Optional)
+    - If it is received from the ECLA it should be set to a reachable address in the transmission layer
+- ``service_block``: Base64 and CBOR encoded data containing available CLAs and Services
 
 ```json
 {
@@ -129,7 +147,7 @@ If you receive a packet from the transmission layer you can pass it to the ECLA 
 
 ## TCP Transport Layer
 
-If the TCP Transport Layer is used the packets use a big-endian length delimited codec. More information about the codec can be found here: [tokio_util::codec::length_delimited](https://docs.rs/tokio-util/0.2.0/tokio_util/codec/length_delimited/index.html). This layer will be activated if the tcp port is set via the ``-ecla-tcp`` flag.
+If the TCP Transport Layer is used the packets use a big-endian length delimited codec. More information about the codec can be found here: [tokio_util::codec::length_delimited](https://docs.rs/tokio-util/0.2.0/tokio_util/codec/length_delimited/index.html). This layer will be activated if the tcp port is set via the ``-ecla-tcp 7263`` flag.
 
 ```
 +----------+--------------------------------+
@@ -140,6 +158,12 @@ If the TCP Transport Layer is used the packets use a big-endian length delimited
 ## WebSocket Transport Layer
 
 The WebSocket is accessible under the same port as defined by ``-w``, ``--web-port`` and the route ``/ws/ecla``. A Example for a web port 3000 would be ``127.0.0.1:3000/ws/ecla``.
+
+## Static Peers
+
+Normally dntd won't accept static peers for CLAs that are not present at startup. In case of ECLAs where a CLA will be registered at a later time it is still possible to add peers with a different notation. A ``ecla+`` will indicate dtnd that the peer is intended for a ECLA and added without the CLA presence check.
+
+**Example:** ``-s ecla+mtcp://127.0.0.1:4223/node2``
 
 ## ECLA Rust WebSocket Client
 

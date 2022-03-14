@@ -9,15 +9,15 @@ The External Routing needs to pass all ``enum RoutingNotifcation<'a>`` from rust
 Let's imagine some kind of new notification was added to the enum.
 
 ```rust
-pub enum RoutingNotifcation<'a> {
-    SendingFailed(&'a str, &'a str),
-    IncomingBundle(&'a Bundle),
-    IncomingBundleWithoutPreviousNode(&'a str, &'a str),
-    EncounteredPeer(&'a EndpointID),
-    DroppedPeer(&'a EndpointID),
+pub enum RoutingNotifcation {
+    SendingFailed(String, String),
+    IncomingBundle(Bundle),
+    IncomingBundleWithoutPreviousNode(String, String),
+    EncounteredPeer(EndpointID),
+    DroppedPeer(EndpointID),
     
     // Our new notification
-    NewNotification(&'a str, &'a i32)
+    NewNotification(String, i32)
 }
 ```
 
