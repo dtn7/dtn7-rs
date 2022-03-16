@@ -5,7 +5,7 @@ use num_derive::*;
 bitflags! {
     /// Contact Header flags
     #[derive(Default)]
-    pub(crate) struct ContactHeaderFlags : u8 {
+    pub struct ContactHeaderFlags : u8 {
         const CAN_TLS = 0x01;
     }
 }
@@ -13,7 +13,7 @@ bitflags! {
 /// Message Types
 #[derive(Debug, FromPrimitive)]
 #[repr(u8)]
-pub(crate) enum MessageType {
+pub enum MessageType {
     /// Indicates the transmission of a segment of bundle data.
     XferSegment = 0x01,
     /// Acknowledges reception of a data segment.
@@ -28,11 +28,34 @@ pub(crate) enum MessageType {
     MsgReject = 0x06,
     /// Contains the session parameter inputs from one of the entities.
     SessInit = 0x07,
+    /// Sends the bundle id as extension, can be used to prevent retransmission of already existing bundles
+    BundleIDRequest = 0xFB,
+    /// Bundle id response
+    BundleIDResponse = 0xFC,
+}
+
+#[derive(Debug, PartialEq, Eq, Clone)]
+pub struct BundleIDRequestData {
+    pub tid: u64,
+    pub data: Bytes,
+}
+
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
+pub struct BundleIDResponseData {
+    pub tid: u64,
+    pub code: BundleIDResponse,
+}
+
+#[derive(Debug, PartialEq, Eq, Clone, Copy, FromPrimitive)]
+#[repr(u8)]
+pub enum BundleIDResponse {
+    Accept = 0x1,
+    Refuse = 0x2,
 }
 
 bitflags! {
     /// Session Extension Item flags
-    pub(crate) struct SessionExtensionItemFlags : u8 {
+    pub struct SessionExtensionItemFlags : u8 {
         const CRITICAL = 0x01;
     }
 }
@@ -40,7 +63,7 @@ bitflags! {
 /// MSG_REJECT Reason Codes
 #[derive(FromPrimitive, Clone, Copy, PartialEq, Eq)]
 #[repr(u8)]
-pub(crate) enum MsgRejectReasonCode {
+pub enum MsgRejectReasonCode {
     /// A message was received with a Message Type code unknown to the TCPCL node.
     TypeUnknown = 0x01,
     /// A message was received but the TCPCL entity cannot comply with the message contents.
@@ -61,7 +84,7 @@ impl std::fmt::Debug for MsgRejectReasonCode {
 
 bitflags! {
     /// XFER_SEGMENT flags
-    pub(crate) struct XferSegmentFlags : u8 {
+    pub struct XferSegmentFlags : u8 {
         const END = 0x01;
         const START = 0x02;
     }
@@ -70,7 +93,7 @@ bitflags! {
 /// XFER_REFUSE Reason Codes
 #[derive(Debug, FromPrimitive, Clone, Copy, PartialEq, Eq)]
 #[repr(u8)]
-pub(crate) enum XferRefuseReasonCode {
+pub enum XferRefuseReasonCode {
     /// Reason for refusal is unknown or not specified.
     Unknown = 0,
     /// The receiver already has the complete bundle. The sender MAY consider the bundle as completely received.
@@ -87,28 +110,25 @@ pub(crate) enum XferRefuseReasonCode {
 
 bitflags! {
     /// Transfer Extension Item flags
-    pub(crate) struct TransferExtensionItemFlags : u8 {
+    pub struct TransferExtensionItemFlags : u8 {
         const CRITICAL = 0x01;
     }
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]
-pub(crate) struct TransferExtensionItem {
+pub struct TransferExtensionItem {
     pub flags: TransferExtensionItemFlags,
     pub item_type: TransferExtensionItemType,
     pub data: Bytes,
 }
 
 #[derive(Debug, PartialEq, Eq, FromPrimitive, Clone, Copy)]
-#[repr(u16)]
-pub(crate) enum TransferExtensionItemType {
-    /// Sends the bundle id as extension, can be used to prevent retransmission of already existing bundles
-    BundleID = 0x01,
-}
+#[non_exhaustive]
+pub enum TransferExtensionItemType {}
 
 bitflags! {
     /// SESS_TERM flags
-    pub(crate) struct SessTermFlags : u8 {
+    pub struct SessTermFlags : u8 {
         /// If bit is set, indicates that this message is an acknowledgement of an earlier SESS_TERM message.
         const REPLY = 0x01;
     }
@@ -117,7 +137,7 @@ bitflags! {
 /// SESS_TERM Reason Codes
 #[derive(Debug, FromPrimitive, Clone, Copy, PartialEq, Eq)]
 #[repr(u8)]
-pub(crate) enum SessTermReasonCode {
+pub enum SessTermReasonCode {
     /// A termination reason is not available.
     Unknown = 0,
     /// The session is being closed due to idleness.
@@ -132,15 +152,29 @@ pub(crate) enum SessTermReasonCode {
     ResourceExhaustion = 0x05,
 }
 #[derive(Debug, Default, Clone, PartialEq, Eq)]
-pub(crate) struct SessInitData {
+pub struct SessInitData {
     pub keepalive: u16,
     pub segment_mru: u64,
     pub transfer_mru: u64,
     pub node_id: String,
+    pub extensions: Vec<SessionExtensionItem>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct SessionExtensionItem {
+    pub flags: SessionExtensionItemFlags,
+    pub item_type: SessionExtensionItemType,
+    pub data: Bytes,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, FromPrimitive)]
+#[repr(u16)]
+pub enum SessionExtensionItemType {
+    BundleID = 0xbd1d,
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]
-pub(crate) struct XferSegData {
+pub struct XferSegData {
     pub flags: XferSegmentFlags,
     pub tid: u64,
     pub len: u64,
@@ -149,24 +183,24 @@ pub(crate) struct XferSegData {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(crate) struct XferAckData {
+pub struct XferAckData {
     pub flags: XferSegmentFlags,
     pub tid: u64,
     pub len: u64,
 }
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(crate) struct XferRefuseData {
+pub struct XferRefuseData {
     pub reason: XferRefuseReasonCode,
     pub tid: u64,
 }
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(crate) struct SessTermData {
+pub struct SessTermData {
     pub flags: SessTermFlags,
     pub reason: SessTermReasonCode,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(crate) struct MsgRejectData {
+pub struct MsgRejectData {
     pub reason: MsgRejectReasonCode,
     pub header: u8,
 }

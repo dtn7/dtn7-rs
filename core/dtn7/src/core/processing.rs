@@ -339,6 +339,7 @@ pub async fn forward(mut bp: BundlePack) -> Result<()> {
             let bundle_sent = std::sync::Arc::clone(&bundle_sent);
             let n = n.clone();
             let task_handle = tokio::spawn(async move {
+                let now = Instant::now();
                 debug!(
                     "Sending bundle to a CLA: {} {} {}",
                     &bpid, n.dest, n.cla_name
@@ -349,6 +350,7 @@ pub async fn forward(mut bp: BundlePack) -> Result<()> {
                         &bpid, n.cla_name, n.dest, n.next_hop
                     );
                     debug!("Error while transferring bundle {}: {}", &bpid, err);
+                    debug!("TIME BUNDLE FAILED {:?}", now.elapsed());
                     let mut failed_peer = None;
                     (*DTNCORE.lock())
                         .routing_agent
@@ -383,6 +385,7 @@ pub async fn forward(mut bp: BundlePack) -> Result<()> {
                         "Sending bundle succeeded: {} {} {}",
                         &bpid, n.dest, n.cla_name
                     );
+                    debug!("TIME BUNDLE SENDING {:?}", now.elapsed());
                     bundle_sent.store(true, Ordering::Relaxed);
                 }
             });

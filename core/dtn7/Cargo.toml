@@ -30,7 +30,7 @@ url = "2.2.2"
 rand = "0.8.3"
 tokio = { version = "1.16.1", features = ["net", "rt-multi-thread", "macros", "time", "tracing"]}
 console-subscriber = { version = "0.1.2", features = ["parking_lot"], optional = true }
-tokio-util = { version = "0.6.7", features = ["codec"] }
+tokio-util = { version = "0.7.1", features = ["codec"] }
 futures = "0.3.5"
 futures-util = "0.3.5"
 pretty_env_logger = "0.4.0"
@@ -63,6 +63,8 @@ num-traits = "0.2.14"
 thiserror = "1.0.23"
 dtn7-codegen = { path = "../codegen", version = "0.1.0"}
 byteorder = "1.4.3"
+tokio-stream = {version="0.1.8", features = ["time"]}
+pin-project-lite = "0.2"
 
 [lib]
 name = "dtn7"
