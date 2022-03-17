@@ -11,97 +11,30 @@ A client that connects to the ECLA and implements a new transmission layer is ca
 
 To enable the ECLA add the argument ``--ecla`` to dtnd.
 
-## Protocol
+## Transport Layer Agents
 
-### Packets & Encoding
+### WebSocket
 
-All packets are JSON encoded and contain a field called ``type`` which specifies (as the name implies) the type of the packet. The protocol is compact and contains only 5 different packet types:
+The WebSocket is accessible under the same port as defined by ``-w``, ``--web-port`` and the route ``/ws/ecla``. A Example for a web port 3000 would be ``127.0.0.1:3000/ws/ecla``.
 
-#### Register
 
-ECLA-Module → ECLA
+### TCP
 
-The ``Register`` packet must be sent as first packet to the ECLA to register the ECLA-Module.
+If the TCP Transport Layer is used the packets use a big-endian length delimited codec. More information about the codec can be found here: [tokio_util::codec::length_delimited](https://docs.rs/tokio-util/0.2.0/tokio_util/codec/length_delimited/index.html). This layer will be activated if the tcp port is set via the ``-ecla-tcp 7263`` flag.
 
-- ``name``: Name of the new CLA
-- ``enable_beacon``: If beacons should be periodically sent
-
-```json
-{
-  "type": "Register",
-  "name": "CLA Name",
-  "enable_beacon": true
-}
+```
++----------+--------------------------------+
+| len: u32 |          frame payload         |
++----------+--------------------------------+
 ```
 
-#### Error
+## Static Peers
 
-ECLA → ECLA-Module
+Normally dntd won't accept static peers for CLAs that are not present at startup. In case of ECLAs where a CLA will be registered at a later time it is still possible to add peers with a different notation. A ``ecla+`` will indicate dtnd that the peer is intended for a ECLA and added without the CLA presence check.
 
-The ``Error`` packet will be emitted if an error happens while registration.
+**Example:** ``-s ecla+mtcp://127.0.0.1:4223/node2``
 
-```json
-{
-  "type": "Error",
-  "reason": "error text"
-}
-```
-
-#### Registered
-
-ECLA → ECLA-Module
-
-The ``Registered`` packet will be emitted if the registration was successful.
-- ``eid``: Endpoint ID of connected Node
-- ``nodeid``: Raw Node ID as string
-
-```json
-{
-  "type": "Registered",
-  "eid": [1, "//nodex/..."],
-  "nodeid": "nodex"
-}
-```
-
-#### ForwardData
-
-ECLA ⇄ ECLA-Module
-
-- ``src``: Address of data source
-  - If it is received from the ECLA it should be set to a reachable address in the transmission layer
-- ``dst``: Address of data destination
-- ``bundle_id``: String representation of Bundle ID
-- ``data``: Base64 and CBOR encoded data containing the bundle information
-
-```json
-{
-  "type": "ForwardData",
-  "src": "...",
-  "dst": "...",
-  "bundle_id": "...",
-  "data": "aGVsbG8...gd29ybGQ="
-}
-```
-
-#### Beacon
-
-ECLA ⇄ ECLA-Module
-
-- ``eid``: Endpoint ID
-  - If it comes from the ECLA **eid** is the Endpoint ID of the connected node
-  - If it is received from the transmission layer the **eid** is the Endpoint ID of the foreign dtnd
-- ``addr``: In transmission layer reachable address (Optional)
-    - If it is received from the ECLA it should be set to a reachable address in the transmission layer
-- ``service_block``: Base64 and CBOR encoded data containing available CLAs and Services
-
-```json
-{
-  "type": "Beacon",
-  "eid": [1, "//nodex/..."],
-  "addr": "...",
-  "service_block": "aGVsbG8...gd29ybGQ="
-}
-```
+## Behaviour
 
 ### Registration
 
@@ -135,7 +68,7 @@ If the beacon is enabled dtnd will periodically send beacons to the ECL-Module a
 
 #### Coming from dtnd
 
-If you receive the packet from the dtnd that means the ECL-Module can send the beacon to all reachable devices. If the transmission layer has addressable id's the ECL-Module should set the ``addr`` field to it's own id. 
+If you receive the packet from the dtnd that means the ECL-Module can send the beacon to all reachable devices. If the transmission layer has addressable id's the ECL-Module should set the ``addr`` field to it's own id.
 
 #### Coming from the Transmission Layer
 
@@ -145,27 +78,105 @@ If you receive a packet from the transmission layer you can pass it to the ECLA 
 
 ![ECLA Model](./graphics/ecla_beacon.drawio.png)
 
-## TCP Transport Layer
+## Protocol
 
-If the TCP Transport Layer is used the packets use a big-endian length delimited codec. More information about the codec can be found here: [tokio_util::codec::length_delimited](https://docs.rs/tokio-util/0.2.0/tokio_util/codec/length_delimited/index.html). This layer will be activated if the tcp port is set via the ``-ecla-tcp 7263`` flag.
+### Packets & Encoding
 
+All packets are JSON encoded and contain a field called ``type`` which specifies (as the name implies) the type of the packet. The protocol is compact and contains only 5 different packet types:
+
+### From dtnd
+
+#### Error
+
+dtnd → external
+
+The ``Error`` packet will be emitted if an error happens while registration.
+
+```json
+{
+  "type": "Error",
+  "reason": "error text"
+}
 ```
-+----------+--------------------------------+
-| len: u32 |          frame payload         |
-+----------+--------------------------------+
+
+#### Registered
+
+dtnd → external
+
+The ``Registered`` packet will be emitted if the registration was successful.
+- ``eid``: Endpoint ID of connected Node
+- ``nodeid``: Raw Node ID as string
+
+```json
+{
+  "type": "Registered",
+  "eid": [1, "//nodex/..."],
+  "nodeid": "nodex"
+}
 ```
 
-## WebSocket Transport Layer
+### From external
 
-The WebSocket is accessible under the same port as defined by ``-w``, ``--web-port`` and the route ``/ws/ecla``. A Example for a web port 3000 would be ``127.0.0.1:3000/ws/ecla``.
+#### Register
 
-## Static Peers
+external → dtnd
 
-Normally dntd won't accept static peers for CLAs that are not present at startup. In case of ECLAs where a CLA will be registered at a later time it is still possible to add peers with a different notation. A ``ecla+`` will indicate dtnd that the peer is intended for a ECLA and added without the CLA presence check.
+The ``Register`` packet must be sent as first packet to the ECLA to register the ECLA-Module.
 
-**Example:** ``-s ecla+mtcp://127.0.0.1:4223/node2``
+- ``name``: Name of the new CLA
+- ``enable_beacon``: If beacons should be periodically sent
 
-## ECLA Rust WebSocket Client
+```json
+{
+  "type": "Register",
+  "name": "CLA Name",
+  "enable_beacon": true
+}
+```
+
+### Bidirectional
+
+#### ForwardData
+
+dtnd ⇄ external
+
+- ``src``: Address of data source
+  - If it is received from the ECLA it should be set to a reachable address in the transmission layer
+- ``dst``: Address of data destination
+- ``bundle_id``: String representation of Bundle ID
+- ``data``: Base64 and CBOR encoded data containing the bundle information
+
+```json
+{
+  "type": "ForwardData",
+  "src": "...",
+  "dst": "...",
+  "bundle_id": "...",
+  "data": "aGVsbG8...gd29ybGQ="
+}
+```
+
+#### Beacon
+
+dtnd ⇄ external
+
+- ``eid``: Endpoint ID
+  - If it comes from the ECLA **eid** is the Endpoint ID of the connected node
+  - If it is received from the transmission layer the **eid** is the Endpoint ID of the foreign dtnd
+- ``addr``: In transmission layer reachable address (Optional)
+    - If it is received from the ECLA it should be set to a reachable address in the transmission layer
+- ``service_block``: Base64 and CBOR encoded data containing available CLAs and Services
+
+```json
+{
+  "type": "Beacon",
+  "eid": [1, "//nodex/..."],
+  "addr": "...",
+  "service_block": "aGVsbG8...gd29ybGQ="
+}
+```
+
+## Example: ECLA Rust WebSocket Client
 
 An implementation for a Rust WebSocket Client is included in the `ecla` module.
 

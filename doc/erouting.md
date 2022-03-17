@@ -12,15 +12,23 @@ To enable the erouting use ``-r external`` as a routing algorithm.
 
 The WebSocket is accessible under the same port as defined by ``-w``, ``--web-port`` and the route ``/ws/erouting``. A Example for a web port 3000 would be ``127.0.0.1:3000/ws/erouting``.
 
+## Connection Sequence
+
+Connecting is only possible if no other external router is already connected. If a connection is successful the ERouting will start by sending an initial ``PeerState`` and ``ServiceState`` packet. After that ``SenderForBundle`` and other Packets can be received or send.
+
+![Connection](./graphics/erouting_conn.drawio.png)
+
 ## Protocol
 
 ### Packets & Encoding
 
 All packets are JSON encoded and contain a field called ``type`` which specifies (as the name implies) the type of the packet.
 
+### From dtdn
+
 #### Packet SenderForBundle
 
-ERouting → ERouter
+dtnd → external
 
 The ``SenderForBundle`` is the most important packet. It specifies that a bundle wants to be sent by ``dtnd`` and senders that it can be forwarded to are wanted from your router.
 
@@ -35,9 +43,129 @@ The ``SenderForBundle`` is the most important packet. It specifies that a bundle
 }
 ```
 
+#### Packet SendingFailed
+
+dtnd → external
+
+The ``SendingFailed`` is emitted when the sending of a bundle failed.
+
+```json
+{
+  "type": "SendingFailed",
+  "bid": "bundle_id",
+  "cla_sender": "cla_name"
+}
+```
+
+#### Packet IncomingBundle
+
+dtnd → external
+
+The ``IncomingBundle`` is emitted when a bundle is incoming.
+
+```json
+{
+  "type": "IncomingBundle",
+  "bundle": { ... }
+}
+```
+
+#### Packet IncomingBundleWithoutPreviousNode
+
+dtnd → external
+
+The ``IncomingBundleWithoutPreviousNode`` is emitted when a bundle is incoming with a previous node.
+
+```json
+{
+  "type": "IncomingBundleWithoutPreviousNode",
+  "bid": "bundle_id",
+  "node_name": "nodex"
+}
+```
+
+#### Packet EncounteredPeer
+
+dtnd → external
+
+The ``EncounteredPeer`` is a signal that a new peer is encountered.
+
+```json
+{
+  "type": "EncounteredPeer",
+  "name": "nodex",
+  "eid": [ ... ],
+  "peer": { ... }
+}
+```
+
+#### Packet DroppedPeer
+
+dtnd → external
+
+The ``DroppedPeer`` is a signal that a peer was dropped.
+
+```json
+{
+  "type": "DroppedPeer",
+  "name": "nodex",
+  "eid": [ ... ]
+}
+```
+
+#### Packet PeerState
+
+dtnd → external
+
+The ``PeerState`` is the initial state of the peers.
+
+```json
+{
+  "type": "PeerState",
+  "peers": {
+    "peer_addr_x": { ... },
+    "peer_addr_y": { ... },
+    "peer_addr_z": { ... },
+    ...
+  }
+}
+```
+
+#### Packet ServiceState
+
+dtnd → external
+
+The ``ServiceState`` is the initial state of the peers.
+
+```json
+{
+  "type": "ServiceState",
+  "services": {
+    "tag": "name",
+    ...
+  }
+}
+```
+
+### From external
+
+#### Packet AddService
+
+external → dtnd
+
+The ``AddService`` packet can be sent to register a service.
+
+```json
+{
+  "type": "AddService",
+  "tag": 10,
+  "service": "name"
+}
+```
+
 #### Packet SenderForBundleResponse
 
-ERouter → ERouting
+external → dtnd
 
 The ``SenderForBundleResponse`` as the name suggests is the response to a ``SenderForBundle`` packet by your router.
 
@@ -61,130 +189,6 @@ The ``SenderForBundleResponse`` as the name suggests is the response to a ``Send
   ]
 }
 ```
-
-#### Packet SendingFailed
-
-ERouting → ERouter
-
-The ``SendingFailed`` is emitted when the sending of a bundle failed.
-
-```json
-{
-  "type": "SendingFailed",
-  "bid": "bundle_id",
-  "cla_sender": "cla_name"
-}
-```
-
-#### Packet IncomingBundle
-
-ERouting → ERouter
-
-The ``IncomingBundle`` is emitted when a bundle is incoming.
-
-```json
-{
-  "type": "IncomingBundle",
-  "bundle": { ... }
-}
-```
-
-#### Packet IncomingBundleWithoutPreviousNode
-
-ERouting → ERouter
-
-The ``IncomingBundleWithoutPreviousNode`` is emitted when a bundle is incoming with a previous node.
-
-```json
-{
-  "type": "IncomingBundleWithoutPreviousNode",
-  "bid": "bundle_id",
-  "node_name": "nodex"
-}
-```
-
-#### Packet EncounteredPeer
-
-ERouting → ERouter
-
-The ``EncounteredPeer`` is a signal that a new peer is encountered.
-
-```json
-{
-  "type": "EncounteredPeer",
-  "name": "nodex",
-  "eid": [ ... ],
-  "peer": { ... }
-}
-```
-
-#### Packet DroppedPeer
-
-ERouting → ERouter
-
-The ``DroppedPeer`` is a signal that a peer was dropped.
-
-```json
-{
-  "type": "DroppedPeer",
-  "name": "nodex",
-  "eid": [ ... ]
-}
-```
-
-#### Packet PeerState
-
-ERouting → ERouter
-
-The ``PeerState`` is the initial state of the peers.
-
-```json
-{
-  "type": "PeerState",
-  "peers": {
-    "peer_addr_x": { ... },
-    "peer_addr_y": { ... },
-    "peer_addr_z": { ... },
-    ...
-  }
-}
-```
-
-#### Packet AddService
-
-ERouter → ERouting
-
-The ``AddService`` packet can be sent to register a service.
-
-```json
-{
-  "type": "AddService",
-  "tag": 10,
-  "service": "name"
-}
-```
-
-#### Packet ServiceState
-
-ERouting → ERouter
-
-The ``ServiceState`` is the initial state of the peers.
-
-```json
-{
-  "type": "ServiceState",
-  "services": {
-    "tag": "name",
-    ...
-  }
-}
-```
-
-## Connection Sequence
-
-Connecting is only possible if no other external router is already connected. If a connection is successful the ERouting will start by sending an initial ``PeerState`` and ``ServiceState`` packet. After that ``SenderForBundle`` and other Packets can be received or send.
-
-![Connection](./graphics/erouting_conn.drawio.png)
 
 ## Implementing a routing strategy
 
