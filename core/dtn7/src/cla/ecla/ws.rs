@@ -12,9 +12,11 @@ use serde_json::Result;
 use std::collections::HashMap;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex};
+use tokio::sync::oneshot;
 
 struct Connection {
     tx: Tx,
+    close: Option<oneshot::Sender<()>>,
 }
 
 type Tx = UnboundedSender<Message>;
@@ -33,11 +35,15 @@ pub async fn handle_connection(ws: WebSocket) {
     let id = ID_COUNTER.fetch_add(1, Ordering::SeqCst);
 
     let (tx, rx) = unbounded();
+    let (tx_close, rx_close) = oneshot::channel();
 
-    PEER_MAP
-        .lock()
-        .unwrap()
-        .insert(id.to_string(), Connection { tx });
+    PEER_MAP.lock().unwrap().insert(
+        id.to_string(),
+        Connection {
+            tx,
+            close: Some(tx_close),
+        },
+    );
     handle_connect(LAYER_NAME.to_string(), id.to_string());
 
     let (outgoing, incoming) = ws.split();
@@ -73,8 +79,12 @@ pub async fn handle_connection(ws: WebSocket) {
 
     let receive_from_others = rx.map(Ok).forward(outgoing);
 
-    pin_mut!(broadcast_incoming, receive_from_others);
-    future::select(broadcast_incoming, receive_from_others).await;
+    pin_mut!(broadcast_incoming, receive_from_others, rx_close);
+    future::select(
+        broadcast_incoming,
+        future::select(receive_from_others, rx_close),
+    )
+    .await;
 
     info!("{} disconnected", id);
     handle_disconnect(id.to_string());
@@ -115,5 +125,12 @@ impl TransportLayer for WebsocketTransportLayer {
         false
     }
 
-    fn close(&self, _: &str) {}
+    fn close(&self, addr: &str) {
+        if let Some(conn) = PEER_MAP.lock().unwrap().get_mut(addr) {
+            let close = std::mem::replace(&mut conn.close, None);
+            if let Err(_err) = close.unwrap().send(()) {
+                debug!("Error while sending close to {}", addr);
+            }
+        }
+    }
 }

@@ -118,11 +118,11 @@ pub fn handle_packet(layer_name: String, addr: String, packet: Packet) {
                     addr, layer_name, ident.name
                 );
 
-                me.name = ident.name;
-                me.state = ModuleState::Active;
-
                 // TODO: check for wrong names
-                if !cla_names().contains(&me.name) {
+                if !cla_names().contains(&ident.name) {
+                    me.name = ident.name;
+                    me.state = ModuleState::Active;
+                    
                     info!("Adding CLA '{}'", me.name);
 
                     let mut settings: HashMap<String, String> = HashMap::new();
@@ -210,7 +210,7 @@ pub fn handle_connect(layer_name: String, from: String) {
         Module {
             state: ModuleState::WaitingForIdent,
             name: "".to_string(),
-            layer: layer_name.to_string(),
+            layer: layer_name,
             enable_beacon: true,
         },
     );
@@ -218,7 +218,13 @@ pub fn handle_connect(layer_name: String, from: String) {
 
 pub fn handle_disconnect(addr: String) {
     info!("{} disconnected", &addr);
-    cla_remove(MODULE_MAP.lock().unwrap().get(&addr).unwrap().name.clone());
+    
+    if let Some(module) = MODULE_MAP.lock().unwrap().get(&addr) {
+        if let ModuleState::Active = module.state {
+            cla_remove(module.name.clone());
+        }
+    }
+    
     MODULE_MAP.lock().unwrap().remove(&addr);
 }
 

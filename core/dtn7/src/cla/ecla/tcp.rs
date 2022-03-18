@@ -11,11 +11,13 @@ use std::collections::HashMap;
 use std::net::SocketAddr;
 use std::sync::{Arc, Mutex};
 use tokio::net::{TcpListener, TcpStream};
+use tokio::sync::oneshot;
 use tokio_serde::formats::SymmetricalJson;
 use tokio_util::codec::{FramedRead, LengthDelimitedCodec};
 
 struct Connection {
     tx: Tx,
+    close: Option<oneshot::Sender<()>>,
 }
 
 type Tx = UnboundedSender<Vec<u8>>;
@@ -30,12 +32,16 @@ async fn handle_connection(mut raw_stream: TcpStream, addr: SocketAddr) {
     info!("Incoming TCP connection from: {}", addr);
 
     let (tx, rx) = unbounded();
+    let (tx_close, rx_close) = oneshot::channel();
 
     // Insert the write part of this peer to the peer map.
-    PEER_MAP
-        .lock()
-        .unwrap()
-        .insert(addr.to_string(), Connection { tx });
+    PEER_MAP.lock().unwrap().insert(
+        addr.to_string(),
+        Connection {
+            tx,
+            close: Some(tx_close),
+        },
+    );
     handle_connect("TCP".to_string(), addr.to_string());
 
     let (incoming, outgoing) = raw_stream.split();
@@ -61,8 +67,12 @@ async fn handle_connection(mut raw_stream: TcpStream, addr: SocketAddr) {
         future::ready(())
     });
 
-    pin_mut!(broadcast_incoming, broadcast_outgoing);
-    future::select(broadcast_incoming, broadcast_outgoing).await;
+    pin_mut!(broadcast_incoming, broadcast_outgoing, rx_close);
+    future::select(
+        rx_close,
+        future::select(broadcast_incoming, broadcast_outgoing),
+    )
+    .await;
 
     if PEER_MAP.lock().unwrap().remove(&addr.to_string()).is_some() {
         info!("{} disconnected", &addr);
@@ -125,7 +135,12 @@ impl TransportLayer for TCPTransportLayer {
         false
     }
 
-    fn close(&self, _dest: &str) {
-        // TODO: closing of client
+    fn close(&self, addr: &str) {
+        if let Some(conn) = PEER_MAP.lock().unwrap().get_mut(addr) {
+            let close = std::mem::replace(&mut conn.close, None);
+            if let Err(_err) = close.unwrap().send(()) {
+                debug!("Error while sending close to {}", addr);
+            }
+        }
     }
 }

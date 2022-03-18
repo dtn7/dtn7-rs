@@ -1,5 +1,7 @@
 use super::{Packet, Register};
+use crate::cla::ecla;
 use crate::cla::ecla::ws_client::Command::SendPacket;
+use anyhow::bail;
 use futures::channel::mpsc::{unbounded, UnboundedReceiver, UnboundedSender};
 use futures_util::{future, pin_mut, SinkExt, StreamExt};
 use log::info;
@@ -56,7 +58,7 @@ pub fn new(
 }
 
 impl Client {
-    pub async fn connect(&mut self) -> Result<()> {
+    pub async fn connect(&mut self) -> anyhow::Result<()> {
         let (ws_stream, _) = connect_async(format!("ws://{}:{}/ws/ecla", self.ip, self.port))
             .await
             .expect("Failed to connect");
@@ -93,9 +95,15 @@ impl Client {
             }
         });
 
+        let (err_sender, err_receiver) = unbounded::<ecla::Error>();
+
         // Read from websocket
         let from_ws = {
             read.for_each(|message| async {
+                if message.is_err() {
+                    return;
+                }
+
                 let data = message.unwrap().into_text();
 
                 let packet: Result<Packet> = serde_json::from_str(data.unwrap().as_str());
@@ -114,14 +122,27 @@ impl Client {
                                 .unbounded_send(Packet::Beacon(pdp))
                                 .expect("couldn't send Beacon");
                         }
+                        Packet::Error(err) => {
+                            info!("Error received: {}", err.reason);
+
+                            err_sender
+                                .clone()
+                                .send(err)
+                                .await
+                                .expect("couldn't send Error");
+                        }
                         _ => {}
                     }
                 }
             })
         };
 
-        pin_mut!(to_ws, from_ws);
+        pin_mut!(to_ws, from_ws, err_receiver);
         future::select(to_ws, from_ws).await;
+
+        if let Ok(Some(err)) = err_receiver.try_next() {
+            bail!("{}", err.reason);
+        }
 
         Ok(())
     }

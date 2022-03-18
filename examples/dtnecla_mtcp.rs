@@ -6,6 +6,7 @@ use dtn7::cla::ecla::ws_client::Command::SendPacket;
 use dtn7::cla::ecla::{ForwardData, Packet};
 use dtn7::cla::mtcp::{MPDUCodec, MPDU};
 use futures::channel::mpsc::{unbounded, UnboundedSender};
+use futures_util::future::Either;
 use futures_util::{future, pin_mut, StreamExt};
 use lazy_static::lazy_static;
 use log::{debug, error, info};
@@ -188,7 +189,14 @@ async fn main() -> Result<()> {
             let connecting = c.connect();
 
             pin_mut!(connecting, read);
-            future::select(connecting, read).await;
+            let res = future::select(connecting, read).await;
+            if let Either::Left((con_res, _)) = res {
+                if let Err(err) = con_res {
+                    panic!("error {}", err);
+                }
+            }
+
+            std::process::exit(0);
         });
     } else {
         panic!("no ecla address given");
