@@ -79,19 +79,17 @@ async fn announcer() {
     loop {
         task.tick().await;
 
-        let mut module_map = MODULE_MAP.lock().unwrap();
         let mut layer_map = LAYER_MAP.lock().unwrap();
-        module_map.retain(|addr, value| {
+        let module_map = MODULE_MAP.lock().unwrap();
+        module_map.iter().for_each(|(addr, value)| {
             if !value.enable_beacon {
-                return true;
+                return;
             }
 
             if let Some(layer) = layer_map.get_mut(value.layer.as_str()) {
                 debug!("Sending Beacon to {} ({})", addr, value.layer);
                 layer.send_packet(addr, &Packet::Beacon(generate_beacon()));
             }
-
-            true
         });
     }
 }
@@ -244,9 +242,9 @@ pub fn scheduled_submission(name: String, dest: String, ready: &ByteBuffer) -> b
         );
 
     let mut was_sent = false;
-    let mut module_map = MODULE_MAP.lock().unwrap();
     let mut layer_map = LAYER_MAP.lock().unwrap();
-    module_map.retain(|addr, value| {
+    let module_map = MODULE_MAP.lock().unwrap();
+    module_map.iter().for_each(|(addr, value)| {
         if value.name == name {
             if let Ok(bndl) = Bundle::try_from(ready.as_slice()) {
                 let packet: Packet = Packet::ForwardData(ForwardData {
@@ -262,8 +260,6 @@ pub fn scheduled_submission(name: String, dest: String, ready: &ByteBuffer) -> b
                 }
             }
         }
-
-        true
     });
 
     was_sent
