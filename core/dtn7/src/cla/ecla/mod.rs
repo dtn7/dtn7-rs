@@ -49,14 +49,14 @@ pub struct Beacon {
     pub service_block: Vec<u8>,
 }
 
-/// Packet that contains information about the connected node (will be send if registration was successful)
+/// Packet that contains information about the connected node (will be send if registration was successful).
 #[derive(Serialize, Deserialize, Clone)]
 pub struct Registered {
     pub eid: EndpointID,
     pub nodeid: String,
 }
 
-/// Packet that contains a error message if a error happens
+/// Packet that contains a error message if a error happens.
 #[derive(Serialize, Deserialize, Clone)]
 pub struct Error {
     pub reason: String,
@@ -70,7 +70,7 @@ pub struct Register {
     pub port: Option<u16>,
 }
 
-/// Packet that forwards Bundle data
+/// Packet that forwards Bundle data.
 #[derive(Serialize, Deserialize, Clone)]
 pub struct ForwardData {
     pub src: String,

@@ -26,17 +26,16 @@ lazy_static! {
     static ref LAYER_MAP: LayerMap = LayerMap::new(Mutex::new(HashMap::new()));
 }
 
-/// Represents in which state the Module WebSocket connection is.
+/// Represents in which state the Module connection is.
 enum ModuleState {
     /// The Module has not signaled his name
     WaitingForIdent,
-    /// The Module has succesfully registered and is ready for messages
+    /// The Module has successfully registered and is ready for messages
     Active,
 }
 
-/// Represents the Module. A module has a connection state of the Websocket connection
-/// it's name (typically name of the used transmission protocol) and the tx which is the
-/// write stream to the underlying WebSocket.
+/// Represents the Module. A module holds it's connection state, it's name (typically name of the used transmission protocol),
+/// the layer over which it's connected and if the optional service discovery via periodically sent beacons is enabled.
 struct Module {
     state: ModuleState,
     name: String,
@@ -73,7 +72,7 @@ pub fn generate_beacon() -> Beacon {
     beacon
 }
 
-/// Periodically advertises it's own node to the connected WebSocket clients.
+/// Periodically advertises it's own node to the clients.
 async fn announcer() {
     let mut task = interval(crate::CONFIG.lock().announcement_interval);
     loop {
@@ -183,7 +182,7 @@ pub fn handle_packet(layer_name: String, addr: String, packet: Packet) {
             }
             // We got a new Peer that is advertised through a Beacon Packet. The beacon packet
             // will typically be from the other side of the transmission Protocol that the connected
-            // WebSocket client implements.
+            // client implements.
             Packet::Beacon(pdp) => {
                 debug!("Received beacon: {} {} {}", me.name, pdp.eid, pdp.addr);
 
