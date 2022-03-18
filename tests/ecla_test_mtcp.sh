@@ -90,7 +90,25 @@ echo -n "Receiving on node 3: "
 $DIR/../target/$TARGET/dtnrecv -v -e incoming -p $PORT_NODE3
 RC=$? 
 echo "RET: $RC" 
-echo 
+echo
+
+echo "Testing if 'already registered' is emitted"
+
+$DIR/../target/$TARGET/examples/dtnecla_mtcp -a 127.0.0.1:$PORT_NODE3 -p 2433 & PID_ECLA_2=$!
+echo ecla pid: $PID_ECLA_2
+
+sleep 1
+
+ALREADY_REG=0
+if ps -p $PID_ECLA_2 > /dev/null
+then
+  echo "Second ECLA is still running although it should have been aborted because of 'already registered' error"
+  ALREADY_REG=1
+else
+  echo "Second ECLA is not running anymore: success"
+fi
+
+sleep 1
 
 if [[ $1 = "-k" ]]; then
   echo "Press any key to stop daemons and clean up logs"
@@ -101,8 +119,12 @@ else
   echo
 fi
 
-kill $PID_ECLA_1 $PID_NODE1 $PID_NODE2 $PID_NODE3
+kill $PID_ECLA_1 $PID_ECLA_2 $PID_NODE1 $PID_NODE2 $PID_NODE3
 rm $OUT_NODE1 $OUT_NODE2 $OUT_NODE3
+
+if [ $ALREADY_REG -eq 1 ]; then
+  exit 101
+fi
 
 if [ "$NUM_BUNDLES" = "$EXPECTED_BUNDLES" ]; then
   exit $RC

@@ -192,7 +192,8 @@ async fn main() -> Result<()> {
             let res = future::select(connecting, read).await;
             if let Either::Left((con_res, _)) = res {
                 if let Err(err) = con_res {
-                    panic!("error {}", err);
+                    error!("error {}", err);
+                    std::process::exit(101);
                 }
             }
 
