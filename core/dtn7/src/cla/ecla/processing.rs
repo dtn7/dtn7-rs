@@ -79,14 +79,14 @@ async fn announcer() {
     loop {
         task.tick().await;
 
-        let mut mmap = MODULE_MAP.lock().unwrap();
-        let mut lmap = LAYER_MAP.lock().unwrap();
-        mmap.retain(|addr, value| {
+        let mut module_map = MODULE_MAP.lock().unwrap();
+        let mut layer_map = LAYER_MAP.lock().unwrap();
+        module_map.retain(|addr, value| {
             if !value.enable_beacon {
                 return true;
             }
 
-            if let Some(layer) = lmap.get_mut(value.layer.as_str()) {
+            if let Some(layer) = layer_map.get_mut(value.layer.as_str()) {
                 debug!("Sending Beacon to {} ({})", addr, value.layer);
                 layer.send_packet(addr, &Packet::Beacon(generate_beacon()));
             }
@@ -98,11 +98,11 @@ async fn announcer() {
 
 pub fn handle_packet(layer_name: String, addr: String, packet: Packet) {
     // Get own peer
-    let mut mmap = MODULE_MAP.lock().unwrap();
-    let mut lmap = LAYER_MAP.lock().unwrap();
+    let mut module_map = MODULE_MAP.lock().unwrap();
+    let mut layer_map = LAYER_MAP.lock().unwrap();
 
-    let mod_opt = mmap.get_mut(&addr);
-    let layer_opt = lmap.get_mut(&layer_name);
+    let mod_opt = module_map.get_mut(&addr);
+    let layer_opt = layer_map.get_mut(&layer_name);
     if mod_opt.is_none() || layer_opt.is_none() {
         return;
     }
@@ -118,11 +118,20 @@ pub fn handle_packet(layer_name: String, addr: String, packet: Packet) {
                     addr, layer_name, ident.name
                 );
 
-                // TODO: check for wrong names
-                if !cla_names().contains(&ident.name) {
+                if ident.name.is_empty() || ident.name.len() > 64 {
+                    error!("Rejected ECLA because name was empty or too long");
+
+                    layer.send_packet(
+                        addr.as_str(),
+                        &Packet::Error(Error {
+                            reason: "invalid name".to_string(),
+                        }),
+                    );
+                    layer.close(addr.as_str());
+                } else if !cla_names().contains(&ident.name) {
                     me.name = ident.name;
                     me.state = ModuleState::Active;
-                    
+
                     info!("Adding CLA '{}'", me.name);
 
                     let mut settings: HashMap<String, String> = HashMap::new();
@@ -218,13 +227,13 @@ pub fn handle_connect(layer_name: String, from: String) {
 
 pub fn handle_disconnect(addr: String) {
     info!("{} disconnected", &addr);
-    
+
     if let Some(module) = MODULE_MAP.lock().unwrap().get(&addr) {
         if let ModuleState::Active = module.state {
             cla_remove(module.name.clone());
         }
     }
-    
+
     MODULE_MAP.lock().unwrap().remove(&addr);
 }
 
@@ -235,9 +244,9 @@ pub fn scheduled_submission(name: String, dest: String, ready: &ByteBuffer) -> b
         );
 
     let mut was_sent = false;
-    let mut mmap = MODULE_MAP.lock().unwrap();
-    let mut lmap = LAYER_MAP.lock().unwrap();
-    mmap.retain(|addr, value| {
+    let mut module_map = MODULE_MAP.lock().unwrap();
+    let mut layer_map = LAYER_MAP.lock().unwrap();
+    module_map.retain(|addr, value| {
         if value.name == name {
             if let Ok(bndl) = Bundle::try_from(ready.as_slice()) {
                 let packet: Packet = Packet::ForwardData(ForwardData {
@@ -247,7 +256,7 @@ pub fn scheduled_submission(name: String, dest: String, ready: &ByteBuffer) -> b
                     data: ready.to_vec(),
                 });
 
-                if let Some(layer) = lmap.get_mut(value.layer.as_str()) {
+                if let Some(layer) = layer_map.get_mut(value.layer.as_str()) {
                     layer.send_packet(addr, &packet);
                     was_sent = true;
                 }
