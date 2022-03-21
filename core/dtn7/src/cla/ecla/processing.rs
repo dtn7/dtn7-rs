@@ -3,7 +3,7 @@ use crate::cla::ecla::tcp::TCPTransportLayer;
 use crate::cla::ecla::ws::WebsocketTransportLayer;
 use crate::cla::ecla::{Error, Registered, TransportLayerEnum};
 use crate::cla::external::ExternalConvergenceLayer;
-use crate::cla::ConvergenceLayerAgent;
+use crate::cla::{ConvergenceLayerAgent, TransferResult};
 use crate::core::PeerType;
 use crate::ipnd::services::ServiceBlock;
 use crate::routing::RoutingAgent;
@@ -234,13 +234,13 @@ pub fn handle_disconnect(addr: String) {
     MODULE_MAP.lock().unwrap().remove(&addr);
 }
 
-pub fn scheduled_submission(name: String, dest: String, ready: &ByteBuffer) -> bool {
+pub fn scheduled_submission(name: String, dest: String, ready: &ByteBuffer) -> TransferResult {
     debug!(
             "Scheduled submission External Convergence Layer for Destination with Module '{}' and Target '{}'",
             name, dest
         );
 
-    let mut was_sent = false;
+    let mut was_sent = TransferResult::Failure;
     let mut layer_map = LAYER_MAP.lock().unwrap();
     let module_map = MODULE_MAP.lock().unwrap();
     module_map.iter().for_each(|(addr, value)| {
@@ -255,7 +255,7 @@ pub fn scheduled_submission(name: String, dest: String, ready: &ByteBuffer) -> b
 
                 if let Some(layer) = layer_map.get_mut(value.layer.as_str()) {
                     layer.send_packet(addr, &packet);
-                    was_sent = true;
+                    was_sent = TransferResult::Successful;
                 }
             }
         }
