@@ -10,8 +10,16 @@ if [ "$#" -ne 1 ]; then
     exit 1
 fi
 
+PLATFORM=$(uname)
+
 mkdir -p $1/bin
-cargo build --all --release --locked && for i in $(find ../../target/release/ -executable -type f | grep -v -); do cp -v $i  $1/bin ; done
+if [ "$PLATFORM" = "Darwin" ]; then
+    cross build --all --release --locked --target=x86_64-unknown-linux-gnu && for i in $(find ../../target/x86_64-unknown-linux-gnu/release/ -perm +111 -depth 1); do cp -v $i  $1/bin ; done
+    cross build --all --release --locked --target=x86_64-unknown-linux-gnu --examples && for i in $(find ../../target/x86_64-unknown-linux-gnu/release/examples/ -perm +111 -depth 1); do cp -v $i  $1/bin ; done
+else
+    cargo build --all --release --locked && for i in $(find ../../target/release/ -executable -type f | grep -v -); do cp -v $i  $1/bin ; done
+    cargo build --all --release --locked --examples && for i in $(find ../../target/release/examples/ -executable -type f | grep -v -); do cp -v $i  $1/bin ; done
+fi
 
 ./clab $1 || exit 255
 
