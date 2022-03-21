@@ -57,6 +57,19 @@ The ``SendingFailed`` is emitted when the sending of a bundle failed.
 }
 ```
 
+#### Packet Timeout
+
+dtnd → external
+
+The ``Timeout`` is emitted when no ``SenderForBundleReponse`` was recieved or the timeout (250ms) ran out.
+
+```json
+{
+  "type": "Timeout",
+  "bp": { ... }
+}
+```
+
 #### Packet IncomingBundle
 
 dtnd → external
