@@ -289,7 +289,7 @@ pub async fn start_ecla(tcp_port: u16) {
 
     // Create the TCP Transport Layer
     if tcp_port > 0 {
-        let mut tcp_layer = TCPTransportLayer::new(tcpport);
+        let mut tcp_layer = TCPTransportLayer::new(tcp_port);
         tcp_layer.setup().await;
         add_layer(tcp_layer.into());
     }
