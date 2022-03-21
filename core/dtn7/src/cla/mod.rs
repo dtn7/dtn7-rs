@@ -32,9 +32,15 @@ use tokio::sync::{mpsc, oneshot};
 // global_help()
 init_cla_subsystem!();
 
+#[derive(Debug, Clone, PartialEq)]
+pub enum TransferResult {
+    Successful,
+    Failure,
+}
+
 #[derive(Debug)]
 pub enum ClaCmd {
-    Transfer(String, ByteBuffer, oneshot::Sender<bool>),
+    Transfer(String, ByteBuffer, oneshot::Sender<TransferResult>),
     Shutdown,
 }
 
@@ -51,7 +57,7 @@ impl ClaSenderTask {
         let (reply_tx, reply_rx) = oneshot::channel();
         let cmd = ClaCmd::Transfer(self.dest.clone(), ready, reply_tx);
         self.tx.send(cmd).await?;
-        if !reply_rx.await? {
+        if reply_rx.await? == TransferResult::Failure {
             return Err(anyhow::anyhow!(
                 "CLA {} failed to send bundle",
                 self.cla_name

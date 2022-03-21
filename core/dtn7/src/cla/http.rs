@@ -8,7 +8,7 @@ use log::{debug, error};
 use std::{collections::HashMap, net::SocketAddr, time::Instant};
 use tokio::sync::mpsc;
 
-use super::HelpStr;
+use super::{HelpStr, TransferResult};
 
 #[cla(http)]
 #[derive(Debug, Clone)]
@@ -21,7 +21,7 @@ pub async fn http_send_bundles(
     client: Client<HttpConnector>,
     remote: String,
     ready: ByteBuffer,
-) -> bool {
+) -> TransferResult {
     if !ready.is_empty() {
         let now = Instant::now();
         //let client = hyper::client::Client::new();
@@ -47,12 +47,12 @@ pub async fn http_send_bundles(
                 ),
                 Err(e) => {
                     error!("could not push bundle to remote: {}", e);
-                    return false;
+                    return TransferResult::Failure;
                 }
             },
             Err(_) => {
                 error!("Timeout: no response in 5 seconds while pushing bundle.");
-                return false;
+                return TransferResult::Failure;
             }
         }
         //}
@@ -60,7 +60,7 @@ pub async fn http_send_bundles(
     } else {
         debug!("Nothing to forward.");
     }
-    true
+    TransferResult::Successful
 }
 
 impl HttpConvergenceLayer {
