@@ -39,6 +39,7 @@ def on_message(ws, raw):
         "PeerEncountered": on_peer_encountered,
         "PeerDropped": on_peer_dropped,
         "SendingFailed": on_sending_failed,
+        "Timeout": on_sending_timeout,
     }
 
     switcher.get(msg["type"])(msg)
@@ -78,14 +79,16 @@ def on_sender_for_bundle(msg):
             target_clas.append({
                 "remote": target["addr"],
                 "agent": c[0],
-                "port": c[1]
+                "port": c[1],
+                "next_hop": target["eid"]
             })
 
     # Build and send response
     resp = {
         "type": "SenderForBundleResponse",
         "bp": msg["bp"],
-        "clas": target_clas
+        "clas": target_clas,
+        "delete_afterwards": False
     }
 
     # If some cla was found set as delivered
@@ -126,6 +129,15 @@ def on_sending_failed(msg):
     # Remove from delivered if sending failed
     global delivered
     del delivered[msg['bid']]
+
+
+def on_sending_timeout(msg):
+    print("===> Timeout: For Bundle", msg["bp"]["id"])
+
+    # Remove from delivered if sending was not received fast enough
+    global delivered
+    del delivered[msg["bp"]["id"]]
+
 
 
 #
