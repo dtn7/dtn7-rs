@@ -54,6 +54,7 @@ pub struct Sender {
 pub struct SenderForBundleResponse {
     pub bp: BundlePack,
     pub clas: Vec<Sender>,
+    pub delete_afterwards: bool,
 }
 
 /// If no SenderForBundleResponse was received in a certain timeframe a

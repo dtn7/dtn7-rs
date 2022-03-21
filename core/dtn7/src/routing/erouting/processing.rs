@@ -238,7 +238,7 @@ pub async fn sender_for_bundle(bp: &BundlePack) -> (Vec<ClaSenderTask>, bool) {
                     None
                 })
                 .collect(),
-            false,
+            packet.delete_afterwards,
         );
     }
 
