@@ -9,9 +9,9 @@ pub use crate::core::peer::{DtnPeer, PeerType};
 use crate::core::store::BundleStore;
 use crate::routing::RoutingAgent;
 use crate::routing::RoutingAgentsEnum;
-use crate::CONFIG;
 use crate::{routing_notify, store_get_bundle, store_get_metadata};
 pub use crate::{store_has_item, store_push_bundle};
+use crate::{RoutingNotifcation, CONFIG};
 use crate::{PEERS, STORE};
 use application_agent::ApplicationAgent;
 use bp7::EndpointID;
@@ -23,7 +23,6 @@ use std::collections::HashMap;
 use std::time::Instant;
 
 use crate::core::application_agent::ApplicationAgentEnum;
-use crate::RoutingNotifcation::DroppedPeer;
 
 use self::bundlepack::BundlePack;
 use self::processing::forward;
@@ -142,7 +141,7 @@ pub async fn process_peers() {
     });
 
     for eid in dropped {
-        if let Err(err) = routing_notify(DroppedPeer(eid)).await {
+        if let Err(err) = routing_notify(RoutingNotifcation::DroppedPeer(eid)).await {
             info!("Error while dropping peer: {}", err);
         }
     }

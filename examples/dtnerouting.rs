@@ -42,8 +42,12 @@ fn epi_sending_failed(bundle_id: &str, node_name: &str) {
 
 fn epi_sending_timeout(bundle_id: &str) {
     if let Some(entries) = HISTORY.lock().unwrap().get_mut(bundle_id) {
+        let before = entries.len();
         entries.clear();
-        debug!("removed all from sent list for bundle {}", bundle_id);
+        debug!(
+            "removed {} entries from sent list for bundle {}",
+            before, bundle_id
+        );
     }
 }
 
