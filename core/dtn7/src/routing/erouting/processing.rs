@@ -177,6 +177,8 @@ fn create_response_channel(id: &str, tx: oneshot::Sender<Packet>) {
     RESPONSES.lock().unwrap().insert(id.to_string(), tx);
 }
 
+/// Tries to send a routing requests to the external router and waits for the response.
+/// The wait will be limited to a timeout of 250ms.
 pub async fn sender_for_bundle(bp: &BundlePack) -> (Vec<ClaSenderTask>, bool) {
     trace!("external sender_for_bundle initiated: {}", bp);
 
@@ -231,6 +233,10 @@ pub async fn sender_for_bundle(bp: &BundlePack) -> (Vec<ClaSenderTask>, bool) {
             false,
         );
     }
+
+    // Signal to the external router that the timeout was reached and
+    // no SenderForBundleResponse was processed
+    send_packet(&Packet::Timeout(super::Timeout { bp: bp.clone() }));
 
     info!("timeout while waiting for sender_for_bundle");
     remove_response_channel(bp.to_string().as_str());

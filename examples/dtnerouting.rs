@@ -1,7 +1,7 @@
 use anyhow::{bail, Result};
 use clap::{crate_authors, crate_version, App, Arg};
 use dtn7::routing::erouting::ws_client::{new, Command};
-use dtn7::routing::erouting::{Packet, SenderForBundleResponse, Sender};
+use dtn7::routing::erouting::{Packet, Sender, SenderForBundleResponse};
 use dtn7::DtnPeer;
 use futures::channel::mpsc::unbounded;
 use futures_util::{future, pin_mut, StreamExt};
@@ -37,6 +37,13 @@ fn epi_sending_failed(bundle_id: &str, node_name: &str) {
             "removed {:?} from sent list for bundle {}",
             node_name, bundle_id
         );
+    }
+}
+
+fn epi_sending_timeout(bundle_id: &str) {
+    if let Some(entries) = HISTORY.lock().unwrap().get_mut(bundle_id) {
+        entries.clear();
+        debug!("removed all from sent list for bundle {}", bundle_id);
     }
 }
 
@@ -147,6 +154,11 @@ async fn main() -> Result<()> {
             Packet::SendingFailed(packet) => {
                 if selected_type == "epidemic" {
                     epi_sending_failed(packet.bid.as_str(), packet.cla_sender.as_str());
+                }
+            }
+            Packet::Timeout(packet) => {
+                if selected_type == "epidemic" {
+                    epi_sending_timeout(packet.bp.id.as_str());
                 }
             }
             Packet::IncomingBundle(packet) => {

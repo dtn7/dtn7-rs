@@ -13,6 +13,7 @@ pub mod ws_client;
 pub enum Packet {
     SenderForBundle(SenderForBundle),
     SenderForBundleResponse(SenderForBundleResponse),
+    Timeout(Timeout),
     SendingFailed(SendingFailed),
     IncomingBundle(IncomingBundle),
     IncomingBundleWithoutPreviousNode(IncomingBundleWithoutPreviousNode),
@@ -44,6 +45,13 @@ pub struct Sender {
 pub struct SenderForBundleResponse {
     pub bp: BundlePack,
     pub clas: Vec<Sender>,
+}
+
+/// If no SenderForBundleResponse was received in a certain timeframe a
+/// Timeout packet will be emitted.
+#[derive(Serialize, Deserialize, Clone)]
+pub struct Timeout {
+    pub bp: BundlePack,
 }
 
 /// Packet that signals that the sending failed.
