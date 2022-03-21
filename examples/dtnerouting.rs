@@ -90,10 +90,7 @@ async fn main() -> Result<()> {
     let routing_types = vec!["flooding", "epidemic"];
 
     if matches.is_present("debug") {
-        std::env::set_var(
-            "RUST_LOG",
-            "dtn7=debug,dtnd=debug,actix_server=debug,actix_web=debug,dtnerouting=debug,dtnerouting=info,debug,info",
-        );
+        std::env::set_var("RUST_LOG", "debug");
         pretty_env_logger::init_timed();
     }
 

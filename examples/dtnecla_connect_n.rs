@@ -34,10 +34,7 @@ async fn main() -> Result<()> {
         .get_matches();
 
     if matches.is_present("debug") {
-        std::env::set_var(
-            "RUST_LOG",
-            "trace,examples=debug,dtn7=debug,dtnd=debug,actix_server=debug,actix_web=debug,debug,dtnecla_connect_n=debug",
-        );
+        std::env::set_var("RUST_LOG", "debug");
         pretty_env_logger::init_timed();
     }
 
