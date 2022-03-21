@@ -200,15 +200,6 @@ async fn main() -> Result<()> {
                 let mut clas = Vec::new();
                 let mut delete_afterwards = false;
 
-                history.iter().for_each(|kv| {
-                    debug!("Entry {}", kv.0);
-                    let mut sets: Vec<String> = vec![];
-                    kv.1.iter().for_each(|e| {
-                        sets.push(e.clone());
-                    });
-                    debug!("{}", sets.join(", "))
-                });
-
                 match selected_type {
                     "flooding" => {
                         for (_, p) in peers.iter() {
