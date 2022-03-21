@@ -39,11 +39,6 @@ pub struct Client {
 /// * `packet_our` - Channel to which received packets will be passed
 /// * `enable_beacon` - If the optional service discovery should be enabled and beacon packets received.
 ///
-/// # Examples
-///
-/// ```
-/// let client = ecla::new("mtcp", "127.0.0.1:3000", "", tx, false);
-/// ```
 pub fn new(
     module_name: &str,
     addr: &str,

@@ -30,11 +30,6 @@ pub struct Client {
 /// * `addr` - Address to connect to in format ip:port without any websocket url parts.
 /// * `packet_our` - Channel to which received packets will be passed
 ///
-/// # Examples
-///
-/// ```
-/// let client = erouting::new("127.0.0.1:3000", tx);
-/// ```
 pub fn new(addr: &str, packet_out: UnboundedSender<Packet>) -> std::io::Result<Client> {
     let parts: Vec<&str> = addr.split(':').collect();
 
