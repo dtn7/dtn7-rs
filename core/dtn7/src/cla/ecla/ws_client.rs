@@ -10,10 +10,13 @@ use std::str::FromStr;
 use tokio_tungstenite::{connect_async, tungstenite::protocol::Message};
 
 pub enum Command {
+    /// Requests a send of the given packet.
     SendPacket(Packet),
+    /// Requests the closure of the client.
     Close,
 }
 
+/// Represents the client session of a ecla module.
 pub struct Client {
     module_name: String,
     enable_beacon: bool,
@@ -26,6 +29,21 @@ pub struct Client {
     packet_out: UnboundedSender<Packet>,
 }
 
+/// Creates a new ecla client.
+///
+/// # Arguments
+///
+/// * `module_name` - The name of the ecla module (most likely name of the transportation layer)
+/// * `addr` - Address to connect to in format ip:port without any websocket url parts.
+/// * `current_id` - Addressable id (e.g. IP, BL MAC, ...) of the transport layer (optional)
+/// * `packet_our` - Channel to which received packets will be passed
+/// * `enable_beacon` - If the optional service discovery should be enabled and beacon packets received.
+///
+/// # Examples
+///
+/// ```
+/// let client = ecla::new("mtcp", "127.0.0.1:3000", "", tx, false);
+/// ```
 pub fn new(
     module_name: &str,
     addr: &str,
@@ -58,6 +76,7 @@ pub fn new(
 }
 
 impl Client {
+    /// Connects and starts to handle packets. Will block until a severe error is encountered or the client is closed.
     pub async fn connect(&mut self) -> anyhow::Result<()> {
         let (ws_stream, _) = connect_async(format!("ws://{}:{}/ws/ecla", self.ip, self.port))
             .await
@@ -149,6 +168,10 @@ impl Client {
 
     pub fn set_ecla_port(&mut self, port: u16) {
         self.ecla_port = Some(port);
+    }
+
+    pub fn set_current_id(&mut self, id: &str) {
+        self.id = id.to_string();
     }
 
     pub fn command_channel(&self) -> UnboundedSender<Command> {

@@ -17,6 +17,7 @@ use std::time;
 use tokio::sync::oneshot;
 use tokio::time::timeout;
 
+/// Holds the channel to send messages to the connected router.
 struct Connection {
     tx: UnboundedSender<Message>,
 }
@@ -24,7 +25,9 @@ struct Connection {
 type ResponseMap = Arc<Mutex<HashMap<String, oneshot::Sender<Packet>>>>;
 
 lazy_static! {
+    /// Keeps track of the single router that can be connected.
     static ref CONNECTION: Arc<Mutex<Option<Connection>>> = Arc::new(Mutex::new(None));
+    /// Tracks the response channels for SenderForBundle requests.
     static ref RESPONSES: ResponseMap = ResponseMap::new(Mutex::new(HashMap::new()));
 }
 
@@ -63,6 +66,7 @@ pub async fn handle_connection(ws: WebSocket) {
 
     *CONNECTION.lock().unwrap() = Some(Connection { tx });
 
+    // Send initial states to the router
     send_peer_state();
     send_service_state();
 
@@ -78,6 +82,8 @@ pub async fn handle_connection(ws: WebSocket) {
 
         match packet {
             Ok(packet) => match packet {
+                // When a SenderForBundleResponse is received we check if a response channel for that
+                // bundle id exists and send the response on that channel.
                 Packet::SenderForBundleResponse(packet) => {
                     trace!(
                         "sender_for_bundle response: {}",
@@ -96,6 +102,7 @@ pub async fn handle_connection(ws: WebSocket) {
                         info!("sender_for_bundle no response channel available")
                     }
                 }
+                // Add a service on packet
                 Packet::ServiceAdd(packet) => {
                     info!(
                         "adding service via erouting {}:{}",
@@ -129,6 +136,7 @@ fn disconnect() {
     }
 }
 
+/// Sends a JSON encoded packet to the connected router.
 fn send_packet(p: &Packet) {
     if let Ok(data) = serde_json::to_string(p) {
         if let Some(con) = CONNECTION.lock().unwrap().as_ref() {
@@ -234,8 +242,10 @@ pub async fn sender_for_bundle(bp: &BundlePack) -> (Vec<ClaSenderTask>, bool) {
         );
     }
 
-    // Signal to the external router that the timeout was reached and
-    // no SenderForBundleResponse was processed
+    // Signal to the external router that the timeout was reached and no SenderForBundleResponse was processed.
+    // This is needed in case that the response arrived later than the timeout and the connected router thinks
+    // it successfully send its response. Otherwise there is no way for the router to know if its response has
+    // failed.
     send_packet(&Packet::Timeout(super::Timeout { bp: bp.clone() }));
 
     info!("timeout while waiting for sender_for_bundle");

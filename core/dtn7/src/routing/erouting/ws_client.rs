@@ -8,10 +8,13 @@ use tokio_tungstenite::connect_async;
 use tokio_tungstenite::tungstenite::Message;
 
 pub enum Command {
+    /// Requests a send of the given packet.
     SendPacket(Packet),
+    /// Requests the closure of the client.
     Close,
 }
 
+/// Represents the client session of a external router.
 pub struct Client {
     ip: String,
     port: i16,
@@ -20,6 +23,18 @@ pub struct Client {
     packet_out: UnboundedSender<Packet>,
 }
 
+/// Creates a new extern router client.
+///
+/// # Arguments
+///
+/// * `addr` - Address to connect to in format ip:port without any websocket url parts.
+/// * `packet_our` - Channel to which received packets will be passed
+///
+/// # Examples
+///
+/// ```
+/// let client = erouting::new("127.0.0.1:3000", tx);
+/// ```
 pub fn new(addr: &str, packet_out: UnboundedSender<Packet>) -> std::io::Result<Client> {
     let parts: Vec<&str> = addr.split(':').collect();
 
@@ -42,6 +57,7 @@ pub fn new(addr: &str, packet_out: UnboundedSender<Packet>) -> std::io::Result<C
 }
 
 impl Client {
+    /// Connects and starts to handle packets. Will block until a severe error is encountered or the client is closed.
     pub async fn connect(&mut self) -> Result<()> {
         let (ws_stream, _) = connect_async(format!("ws://{}:{}/ws/erouting", self.ip, self.port))
             .await

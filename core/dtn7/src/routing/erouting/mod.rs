@@ -6,6 +6,15 @@ use std::collections::HashMap;
 pub mod processing;
 pub mod ws_client;
 
+/*
+
+    The External Routing allows implementing routing algorithms externally (e.g. outside the dtn7-rs codebase).
+    It works by exposing a realtime JSON API via WebSocket. With the help of the erouting it is possible to easily
+    implement new routing algorithms in different language. All languages that can encode / decode JSON
+    and communicate via WebSocket should in theory work.
+
+*/
+
 /// The variant of Packets that can be send or received. The resulting JSON will have
 /// a field called type that encodes the selected variant.
 #[derive(Serialize, Deserialize, Clone)]

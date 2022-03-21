@@ -22,15 +22,17 @@ type ModuleMap = Arc<Mutex<HashMap<String, Module>>>;
 type LayerMap = Arc<Mutex<HashMap<String, TransportLayerEnum>>>;
 
 lazy_static! {
+    /// Tracks the registered modules.
     static ref MODULE_MAP: ModuleMap = ModuleMap::new(Mutex::new(HashMap::new()));
+    /// Tracks the registered transportation layers.
     static ref LAYER_MAP: LayerMap = LayerMap::new(Mutex::new(HashMap::new()));
 }
 
 /// Represents in which state the Module connection is.
 enum ModuleState {
-    /// The Module has not signaled his name
+    /// The Module has not signaled his name.
     WaitingForIdent,
-    /// The Module has successfully registered and is ready for messages
+    /// The Module has successfully registered and is ready for messages.
     Active,
 }
 
@@ -43,7 +45,7 @@ struct Module {
     enable_beacon: bool,
 }
 
-/// Generates a beacon packet for the own dtnd instance.
+/// Generates a beacon packet that contains advertisement information about this dtnd instance.
 pub fn generate_beacon() -> Beacon {
     let mut service_block = ServiceBlock::new();
     let mut beacon = Beacon {
@@ -93,6 +95,7 @@ async fn announcer() {
     }
 }
 
+/// Handles packets from a transport layer
 pub fn handle_packet(layer_name: String, addr: String, packet: Packet) {
     // Get own peer
     let mut module_map = MODULE_MAP.lock().unwrap();
@@ -210,6 +213,8 @@ pub fn handle_packet(layer_name: String, addr: String, packet: Packet) {
     }
 }
 
+/// When a module connects in a transport layer this function should be called. It will initialize
+/// the information about the new module.
 pub fn handle_connect(layer_name: String, from: String) {
     MODULE_MAP.lock().unwrap().insert(
         from,
@@ -222,6 +227,8 @@ pub fn handle_connect(layer_name: String, from: String) {
     );
 }
 
+/// When a module disconnects in a transport layer this function should be called. It will remove the
+/// client from the internal module registry and remove the CLA if the module was already fully registered.
 pub fn handle_disconnect(addr: String) {
     info!("{} disconnected", &addr);
 
@@ -234,6 +241,7 @@ pub fn handle_disconnect(addr: String) {
     MODULE_MAP.lock().unwrap().remove(&addr);
 }
 
+/// Will schedule a submission to a module by name
 pub fn scheduled_submission(name: String, dest: String, ready: &ByteBuffer) -> TransferResult {
     debug!(
             "Scheduled submission External Convergence Layer for Destination with Module '{}' and Target '{}'",
@@ -264,6 +272,7 @@ pub fn scheduled_submission(name: String, dest: String, ready: &ByteBuffer) -> T
     was_sent
 }
 
+/// Adds a transportation layer to the registered layers.
 pub fn add_layer(layer: TransportLayerEnum) {
     LAYER_MAP
         .lock()
@@ -271,14 +280,15 @@ pub fn add_layer(layer: TransportLayerEnum) {
         .insert(layer.name().to_string(), layer);
 }
 
-pub async fn start_ecla(tcpport: u16) {
+/// Starts the websocket transport layer and the tcp transport layer when the tcp_port > 0.
+pub async fn start_ecla(tcp_port: u16) {
     debug!("Setup External Convergence Layer");
 
     // Create the WS Transport Layer
     add_layer(WebsocketTransportLayer::new().into());
 
     // Create the TCP Transport Layer
-    if tcpport > 0 {
+    if tcp_port > 0 {
         let mut tcp_layer = TCPTransportLayer::new(tcpport);
         tcp_layer.setup().await;
         add_layer(tcp_layer.into());

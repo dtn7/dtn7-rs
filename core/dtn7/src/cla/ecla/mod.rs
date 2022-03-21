@@ -11,6 +11,17 @@ pub mod tcp;
 pub mod ws;
 pub mod ws_client;
 
+/*
+
+    The External Convergence Layer Agent allows implementing Convergence Layer Agents externally (e.g. outside the dtn7-rs codebase).
+    It works by exposing a realtime JSON API via WebSocket or TCP. With the help of the ECLA it is possible to easily implement new transmission
+    layers in different language. All languages that can encode / decode JSON and communicate via WebSocket or TCP should in theory work.
+    Additionally, the ECLA contains a optional and simple beacon system that can be used for peer discovery.
+
+    A client that connects to the ECLA and implements a new transmission layer is called a External Convergence Layer Module (in short ECL-Module).
+
+*/
+
 mod base64 {
     use base64::{decode, encode};
     use serde::{Deserialize, Serialize};
@@ -88,6 +99,7 @@ pub enum TransportLayerEnum {
 
 #[async_trait]
 #[enum_dispatch(TransportLayerEnum)]
+/// Trait to implement transport layer (e.g. WebSocket, TCP, ...) over which ecla modules can connect to.
 pub trait TransportLayer {
     async fn setup(&mut self);
     fn name(&self) -> &str;

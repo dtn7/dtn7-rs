@@ -14,6 +14,8 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex};
 use tokio::sync::oneshot;
 
+/// Connection represents the session of a connection with a Tx channel to send data
+/// and a oneshot channel to signal a closing of the session once.
 struct Connection {
     tx: Tx,
     close: Option<oneshot::Sender<()>>,
@@ -23,6 +25,7 @@ type Tx = UnboundedSender<Message>;
 type PeerMap = Arc<Mutex<HashMap<String, Connection>>>;
 
 lazy_static! {
+    /// Tracks the connected peers (modules)
     static ref PEER_MAP: PeerMap = PeerMap::new(Mutex::new(HashMap::new()));
 }
 
@@ -58,9 +61,9 @@ pub async fn handle_connection(ws: WebSocket) {
         let packet: Result<Packet>;
         {
             // Get own peer
-            let mut pmap = PEER_MAP.lock().unwrap();
+            let mut peer_map = PEER_MAP.lock().unwrap();
 
-            let me_opt = pmap.get_mut(&id.to_string());
+            let me_opt = peer_map.get_mut(&id.to_string());
             if me_opt.is_none() {
                 return future::ok(());
             }
@@ -113,8 +116,8 @@ impl TransportLayer for WebsocketTransportLayer {
     fn send_packet(&self, dest: &str, packet: &Packet) -> bool {
         debug!("Sending Packet to {} ({})", dest, self.name());
 
-        let pmap = PEER_MAP.lock().unwrap();
-        if let Some(target) = pmap.get(dest) {
+        let peer_map = PEER_MAP.lock().unwrap();
+        if let Some(target) = peer_map.get(dest) {
             let data = serde_json::to_string(&packet);
             return target
                 .tx
