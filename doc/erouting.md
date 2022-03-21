@@ -107,7 +107,7 @@ The ``EncounteredPeer`` is a signal that a new peer is encountered.
 {
   "type": "EncounteredPeer",
   "name": "nodex",
-  "eid": [ ... ],
+  "eid": [ 1, "//nodex/..." ],
   "peer": { ... }
 }
 ```
@@ -122,7 +122,7 @@ The ``DroppedPeer`` is a signal that a peer was dropped.
 {
   "type": "DroppedPeer",
   "name": "nodex",
-  "eid": [ ... ]
+  "eid": [ 1, "//nodex/..." ]
 }
 ```
 
@@ -187,6 +187,7 @@ The ``SenderForBundleResponse`` as the name suggests is the response to a ``Send
   - ``remote``: The remote address
   - ``port``(optional): Port for the CLA
   - ``agent``: Name of the CLA
+  - ``next_hop``: EndpointID of the next hop (e.g. the node where the bundle should be sent to)
 
 ```json
 {
@@ -196,7 +197,8 @@ The ``SenderForBundleResponse`` as the name suggests is the response to a ``Send
     {
       "remote": { ... },
       "port": 1837,
-      "agent": "mtcp"
+      "agent": "mtcp",
+      "next_hop": [ 1, "//nodex/..." ]
     },
     ...
   ]
