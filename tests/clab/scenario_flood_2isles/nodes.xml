@@ -1,53 +1,143 @@
 <?xml version='1.0' encoding='UTF-8'?>
-<scenario name="/shared/three_nodes.xml">
+<scenario name="/shared/laggy.xml">
   <networks>
-    <network id="5" name="AdHocWiFi" type="WIRELESS_LAN">
-      <position x="62" y="157" lat="47.57773960399303" lon="-122.13148656678577" alt="2.0"/>
+    <network id="1" name="wlan1" type="WIRELESS_LAN">
+      <position x="111" y="70" lat="47.578530419961346" lon="-122.13082630505193" alt="2.0"/>
     </network>
   </networks>
   <devices>
-    <device id="1" name="n1" type="PC" class="" image="">
-      <position x="496" y="464" lat="47.57494892806669" lon="-122.12563853428615" alt="2.0"/>
+    <device id="2" name="n2" type="host" class="" image="">
+      <position x="157" y="479" lat="47.574812572011666" lon="-122.1302064675059" alt="2.0"/>
       <services>
         <service name="DefaultRoute"/>
+        <service name="SSH"/>
       </services>
     </device>
-    <device id="2" name="n2" type="PC" class="" image="">
-      <position x="643" y="439" lat="47.57517618736935" lon="-122.12365774908467" alt="2.0"/>
+    <device id="3" name="n3" type="host" class="" image="">
+      <position x="319" y="591" lat="47.57379443557744" lon="-122.1280235613655" alt="2.0"/>
       <services>
         <service name="DefaultRoute"/>
+        <service name="SSH"/>
       </services>
     </device>
-    <device id="3" name="n3" type="PC" class="" image="">
-      <position x="591" y="451" lat="47.57506710302717" lon="-122.12435843500629" alt="2.0"/>
+    <device id="4" name="n4" type="host" class="" image="">
+      <position x="237" y="663" lat="47.573139908845015" lon="-122.12912848916496" alt="2.0"/>
       <services>
         <service name="DefaultRoute"/>
+        <service name="SSH"/>
       </services>
-    </device>    
+    </device>
+    <device id="5" name="n5" type="host" class="" image="">
+      <position x="812" y="550" lat="47.57416714853331" lon="-122.12138051983942" alt="2.0"/>
+      <services>
+        <service name="DefaultRoute"/>
+        <service name="SSH"/>
+      </services>
+    </device>
+    <device id="6" name="n6" type="host" class="" image="">
+      <position x="144" y="542" lat="47.574239872703195" lon="-122.13038163898631" alt="2.0"/>
+      <services>
+        <service name="DefaultRoute"/>
+        <service name="SSH"/>
+      </services>
+    </device>
+    <device id="7" name="n7" type="host" class="" image="">
+      <position x="748" y="561" lat="47.57406715263479" lon="-122.12224290251218" alt="2.0"/>
+      <services>
+        <service name="DefaultRoute"/>
+        <service name="SSH"/>
+      </services>
+    </device>
+    <device id="8" name="n8" type="host" class="" image="">
+      <position x="885" y="632" lat="47.57342171996879" lon="-122.12039686460331" alt="2.0"/>
+      <services>
+        <service name="DefaultRoute"/>
+        <service name="SSH"/>
+      </services>
+    </device>
+    <device id="9" name="n9" type="host" class="" image="">
+      <position x="239" y="520" lat="47.574439863649616" lon="-122.12910153970644" alt="2.0"/>
+      <services>
+        <service name="DefaultRoute"/>
+        <service name="SSH"/>
+      </services>
+    </device>
+    <device id="10" name="n10" type="host" class="" image="">
+      <position x="883" y="518" lat="47.57445804460687" lon="-122.12042381406184" alt="2.0"/>
+      <services>
+        <service name="DefaultRoute"/>
+        <service name="SSH"/>
+      </services>
+    </device>
+    <device id="11" name="n11" type="host" class="" image="">
+      <position x="103" y="639" lat="47.57335808533147" lon="-122.13093410288602" alt="2.0"/>
+      <services>
+        <service name="DefaultRoute"/>
+        <service name="SSH"/>
+      </services>
+    </device>
   </devices>
   <links>
-    <link node1="5" node2="1">
-      <iface2 id="0" name="eth0" mac="00:00:00:aa:00:05" ip4="10.0.0.20" ip4_mask="24" ip6="2001::20" ip6_mask="128"/>
+    <link node1="1" node2="2">
+      <iface2 id="0" name="eth0" mac="00:00:00:aa:00:0a" ip4="10.0.0.10" ip4_mask="24" ip6="2001::10" ip6_mask="128"/>
     </link>
-    <link node1="5" node2="2">
-      <iface2 id="0" name="eth0" mac="00:00:00:aa:00:06" ip4="10.0.0.21" ip4_mask="24" ip6="2001::21" ip6_mask="128"/>
+    <link node1="1" node2="3">
+      <iface2 id="0" name="eth0" mac="00:00:00:aa:00:0b" ip4="10.0.0.11" ip4_mask="24" ip6="2001::11" ip6_mask="128"/>
     </link>
-    <link node1="5" node2="3">
-      <iface2 id="0" name="eth0" mac="00:00:00:aa:00:07" ip4="10.0.0.22" ip4_mask="24" ip6="2001::22" ip6_mask="128"/>
-    </link>    
+    <link node1="1" node2="4">
+      <iface2 id="0" name="eth0" mac="00:00:00:aa:00:0c" ip4="10.0.0.12" ip4_mask="24" ip6="2001::12" ip6_mask="128"/>
+    </link>
+    <link node1="1" node2="5">
+      <iface2 id="0" name="eth0" mac="00:00:00:aa:00:0d" ip4="10.0.0.13" ip4_mask="24" ip6="2001::13" ip6_mask="128"/>
+    </link>
+    <link node1="1" node2="6">
+      <iface2 id="0" name="eth0" mac="00:00:00:aa:00:0e" ip4="10.0.0.14" ip4_mask="24" ip6="2001::14" ip6_mask="128"/>
+    </link>
+    <link node1="1" node2="7">
+      <iface2 id="0" name="eth0" mac="00:00:00:aa:00:0f" ip4="10.0.0.15" ip4_mask="24" ip6="2001::15" ip6_mask="128"/>
+    </link>
+    <link node1="1" node2="8">
+      <iface2 id="0" name="eth0" mac="00:00:00:aa:00:10" ip4="10.0.0.16" ip4_mask="24" ip6="2001::16" ip6_mask="128"/>
+    </link>
+    <link node1="1" node2="9">
+      <iface2 id="0" name="eth0" mac="00:00:00:aa:00:11" ip4="10.0.0.17" ip4_mask="24" ip6="2001::17" ip6_mask="128"/>
+    </link>
+    <link node1="1" node2="10">
+      <iface2 id="0" name="eth0" mac="00:00:00:aa:00:12" ip4="10.0.0.18" ip4_mask="24" ip6="2001::18" ip6_mask="128"/>
+    </link>
+    <link node1="1" node2="11">
+      <iface2 id="0" name="eth0" mac="00:00:00:aa:00:13" ip4="10.0.0.19" ip4_mask="24" ip6="2001::19" ip6_mask="128"/>
+    </link>
   </links>
   <mobility_configurations>
-    <mobility_configuration node="5" model="basic_range">
-      <configuration name="range" value="180"/>
+    <mobility_configuration node="1" model="basic_range">
+      <configuration name="range" value="275"/>
       <configuration name="bandwidth" value="54000000"/>
       <configuration name="jitter" value="0"/>
       <configuration name="delay" value="20000"/>
       <configuration name="error" value="0"/>
       <configuration name="promiscuous" value="0"/>
-    </mobility_configuration>    
+    </mobility_configuration>
   </mobility_configurations>
   <emane_global_configuration>
-    <emulator/>
+    <emulator>
+      <configuration name="antennaprofilemanifesturi" value=""/>
+      <configuration name="controlportendpoint" value="0.0.0.0:47000"/>
+      <configuration name="eventservicedevice" value="ctrl0"/>
+      <configuration name="eventservicegroup" value="224.1.2.8:45703"/>
+      <configuration name="eventservicettl" value="1"/>
+      <configuration name="otamanagerchannelenable" value="1"/>
+      <configuration name="otamanagerdevice" value="ctrl0"/>
+      <configuration name="otamanagergroup" value="224.1.2.8:45702"/>
+      <configuration name="otamanagerloopback" value="0"/>
+      <configuration name="otamanagermtu" value="0"/>
+      <configuration name="otamanagerpartcheckthreshold" value="2"/>
+      <configuration name="otamanagerparttimeoutthreshold" value="5"/>
+      <configuration name="otamanagerttl" value="1"/>
+      <configuration name="stats.event.maxeventcountrows" value="0"/>
+      <configuration name="stats.ota.maxeventcountrows" value="0"/>
+      <configuration name="stats.ota.maxpacketcountrows" value="0"/>
+    </emulator>
     <core>
       <configuration name="platform_id_start" value="1"/>
       <configuration name="nem_id_start" value="1"/>
@@ -73,7 +163,7 @@
   </session_options>
   <session_metadata>
     <configuration name="canvas c1" value="{name {Canvas1}}"/>
-    <configuration name="global_options" value="interface_names=no ip_addresses=yes ipv6_addresses=no node_labels=yes link_labels=yes show_api=no background_images=no annotations=yes grid=yes traffic_start=0"/>
+    <configuration name="global_options" value="interface_names=no ip_addresses=yes ipv6_addresses=yes node_labels=yes link_labels=yes show_api=no background_images=no annotations=yes grid=yes traffic_start=0"/>
   </session_metadata>
   <default_services>
     <node type="mdr">
