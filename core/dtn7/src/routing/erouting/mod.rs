@@ -46,6 +46,7 @@ pub struct Sender {
     pub remote: PeerAddress,
     pub port: Option<u16>,
     pub agent: String,
+    pub next_hop: EndpointID,
 }
 
 /// Packet response to a SenderForBundle packet. Contains the original

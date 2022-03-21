@@ -227,11 +227,12 @@ pub async fn sender_for_bundle(bp: &BundlePack) -> (Vec<ClaSenderTask>, bool) {
                                 sender.remote,
                                 sender.port.unwrap_or_else(|| cla_instance.port())
                             );
+
                             return Some(ClaSenderTask {
                                 tx: cla_instance.channel(),
                                 dest,
                                 cla_name: cla_instance.name().into(),
-                                next_hop: packet.bp.destination.clone(),
+                                next_hop: sender.next_hop.clone(),
                             });
                         }
                     }

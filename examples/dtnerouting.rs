@@ -5,33 +5,37 @@ use dtn7::routing::erouting::{Packet, Sender, SenderForBundleResponse};
 use dtn7::DtnPeer;
 use futures::channel::mpsc::unbounded;
 use futures_util::{future, pin_mut, StreamExt};
-use lazy_static::lazy_static;
 use log::{debug, info};
 use std::collections::{HashMap, HashSet};
-use std::sync::Mutex;
 
-lazy_static! {
-    pub static ref HISTORY: Mutex<HashMap<String, HashSet<String>>> = Mutex::new(HashMap::new());
+fn epi_add(history: &mut HashMap<String, HashSet<String>>, bundle_id: String, node_name: String) {
+    let entries = history.entry(bundle_id).or_insert_with(HashSet::new);
+    entries.insert(node_name);
 }
 
-fn epi_add(bundle_id: String, node_name: String) {
-    HISTORY
-        .lock()
-        .unwrap()
-        .entry(bundle_id)
-        .or_insert_with(HashSet::new)
-        .insert(node_name);
-}
-
-fn epi_contains(bundle_id: &str, node_name: &str) -> bool {
-    if let Some(entries) = HISTORY.lock().unwrap().get(bundle_id) {
+fn epi_contains(
+    history: &mut HashMap<String, HashSet<String>>,
+    bundle_id: &str,
+    node_name: &str,
+) -> bool {
+    if let Some(entries) = history.get(bundle_id) {
+        debug!(
+            "Contains: {} {} {}",
+            bundle_id,
+            node_name,
+            entries.contains(node_name)
+        );
         return entries.contains(node_name);
     }
     false
 }
 
-fn epi_sending_failed(bundle_id: &str, node_name: &str) {
-    if let Some(entries) = HISTORY.lock().unwrap().get_mut(bundle_id) {
+fn epi_sending_failed(
+    history: &mut HashMap<String, HashSet<String>>,
+    bundle_id: &str,
+    node_name: &str,
+) {
+    if let Some(entries) = history.get_mut(bundle_id) {
         entries.remove(node_name);
         debug!(
             "removed {:?} from sent list for bundle {}",
@@ -40,20 +44,24 @@ fn epi_sending_failed(bundle_id: &str, node_name: &str) {
     }
 }
 
-fn epi_sending_timeout(bundle_id: &str) {
-    if let Some(entries) = HISTORY.lock().unwrap().get_mut(bundle_id) {
+fn epi_incoming_bundle(
+    history: &mut HashMap<String, HashSet<String>>,
+    bundle_id: &str,
+    node_name: &str,
+) {
+    if !node_name.is_empty() && !epi_contains(history, bundle_id, node_name) {
+        epi_add(history, bundle_id.to_string(), node_name.to_string());
+    }
+}
+
+fn epi_sending_timeout(history: &mut HashMap<String, HashSet<String>>, bundle_id: &str) {
+    if let Some(entries) = history.get_mut(bundle_id) {
         let before = entries.len();
         entries.clear();
         debug!(
             "removed {} entries from sent list for bundle {}",
             before, bundle_id
         );
-    }
-}
-
-fn epi_incoming_bundle(bundle_id: &str, node_name: &str) {
-    if !node_name.is_empty() && !epi_contains(bundle_id, node_name) {
-        epi_add(bundle_id.to_string(), node_name.to_string());
     }
 }
 
@@ -136,6 +144,7 @@ async fn main() -> Result<()> {
         }
     }
 
+    let mut history: HashMap<String, HashSet<String>> = HashMap::new();
     let mut peers: HashMap<String, DtnPeer> = HashMap::new();
 
     let read = rx.for_each(|packet| {
@@ -154,32 +163,51 @@ async fn main() -> Result<()> {
             }
             Packet::SendingFailed(packet) => {
                 if selected_type == "epidemic" {
-                    epi_sending_failed(packet.bid.as_str(), packet.cla_sender.as_str());
+                    debug!("Node: {}", packet.cla_sender.as_str());
+                    epi_sending_failed(
+                        &mut history,
+                        packet.bid.as_str(),
+                        packet.cla_sender.as_str(),
+                    );
                 }
             }
             Packet::Timeout(packet) => {
                 if selected_type == "epidemic" {
-                    epi_sending_timeout(packet.bp.id.as_str());
+                    epi_sending_timeout(&mut history, packet.bp.id.as_str());
                 }
             }
             Packet::IncomingBundle(packet) => {
                 if selected_type == "epidemic" {
                     if let Some(eid) = packet.bndl.previous_node() {
                         if let Some(node_name) = eid.node() {
-                            epi_incoming_bundle(&packet.bndl.id(), &node_name);
+                            epi_incoming_bundle(&mut history, &packet.bndl.id(), &node_name);
                         }
                     };
                 }
             }
             Packet::IncomingBundleWithoutPreviousNode(packet) => {
                 if selected_type == "epidemic" {
-                    epi_incoming_bundle(packet.bid.as_str(), packet.node_name.as_str());
+                    epi_incoming_bundle(
+                        &mut history,
+                        packet.bid.as_str(),
+                        packet.node_name.as_str(),
+                    );
                 }
             }
             Packet::SenderForBundle(packet) => {
                 info!("got bundle pack: {}", packet.bp);
 
                 let mut clas = Vec::new();
+                let mut delete_afterwards = false;
+
+                history.iter().for_each(|kv| {
+                    debug!("Entry {}", kv.0);
+                    let mut sets: Vec<String> = vec![];
+                    kv.1.iter().for_each(|e| {
+                        sets.push(e.clone());
+                    });
+                    debug!("{}", sets.join(", "))
+                });
 
                 match selected_type {
                     "flooding" => {
@@ -190,6 +218,7 @@ async fn main() -> Result<()> {
                                         remote: p.addr.clone(),
                                         port: c.1,
                                         agent: c.0.clone(),
+                                        next_hop: p.eid.clone(),
                                     });
                                 }
                             }
@@ -199,14 +228,44 @@ async fn main() -> Result<()> {
                         for (_, p) in peers.iter() {
                             for c in p.cla_list.iter() {
                                 if packet.clas.contains(&c.0)
-                                    && !epi_contains(packet.bp.id(), &p.node_name())
+                                    && !epi_contains(&mut history, packet.bp.id(), &p.node_name())
                                 {
-                                    clas.push(Sender {
-                                        remote: p.addr.clone(),
-                                        port: c.1,
-                                        agent: c.0.clone(),
-                                    });
-                                    epi_add(packet.bp.id().to_string(), p.node_name().clone());
+                                    epi_add(
+                                        &mut history,
+                                        packet.bp.id().to_string(),
+                                        p.node_name().clone(),
+                                    );
+                                    if packet.bp.destination.node().unwrap() == p.node_name() {
+                                        // direct delivery possible
+                                        debug!(
+                                            "Attempting direct delivery of bundle {} to {}",
+                                            packet.bp.id(),
+                                            p.node_name()
+                                        );
+
+                                        delete_afterwards = true;
+                                        clas.clear();
+                                        clas.push(Sender {
+                                            remote: p.addr.clone(),
+                                            port: c.1,
+                                            agent: c.0.clone(),
+                                            next_hop: p.eid.clone(),
+                                        });
+                                        break;
+                                    } else {
+                                        debug!(
+                                            "Attempting delivery of bundle {} to {}",
+                                            packet.bp.id(),
+                                            p.node_name()
+                                        );
+
+                                        clas.push(Sender {
+                                            remote: p.addr.clone(),
+                                            port: c.1,
+                                            agent: c.0.clone(),
+                                            next_hop: p.eid.clone(),
+                                        });
+                                    }
                                 }
                             }
                         }
@@ -223,6 +282,7 @@ async fn main() -> Result<()> {
                 let resp: Packet = Packet::SenderForBundleResponse(SenderForBundleResponse {
                     bp: packet.bp,
                     clas,
+                    delete_afterwards,
                 });
 
                 cmd_tx
