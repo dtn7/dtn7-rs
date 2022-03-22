@@ -12,6 +12,12 @@ pub struct FloodingRoutingAgent {
     tx: mpsc::Sender<super::RoutingCmd>,
 }
 
+impl Default for FloodingRoutingAgent {
+    fn default() -> Self {
+        FloodingRoutingAgent::new()
+    }
+}
+
 impl FloodingRoutingAgent {
     pub fn new() -> FloodingRoutingAgent {
         let (tx, mut rx) = mpsc::channel(100);
@@ -50,6 +56,6 @@ impl std::fmt::Display for FloodingRoutingAgent {
 #[async_trait]
 impl RoutingAgent for FloodingRoutingAgent {
     fn channel(&self) -> Sender<RoutingCmd> {
-        return self.tx.clone();
+        self.tx.clone()
     }
 }

@@ -57,7 +57,7 @@ pub fn generate_beacon() -> Beacon {
     // Get all available clas
     (*CLAS.lock())
         .iter()
-        .for_each(|cla| service_block.add_cla(&cla.name().to_string(), &Some(cla.port())));
+        .for_each(|cla| service_block.add_cla(cla.name(), &Some(cla.port())));
 
     // Get all available services
     (*DTNCORE.lock())
@@ -203,7 +203,7 @@ pub fn handle_packet(layer_name: String, addr: String, packet: Packet) {
 
                 let cmd_channel = (*DTNCORE.lock()).routing_agent.channel();
                 if let Err(err) = cmd_channel.try_send(RoutingCmd::Notify(
-                    RoutingNotifcation::EncounteredPeer(pdp.eid.clone()),
+                    RoutingNotifcation::EncounteredPeer(pdp.eid),
                 )) {
                     error!("Failed to add peer: {}", err);
                 }

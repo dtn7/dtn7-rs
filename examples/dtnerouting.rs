@@ -277,7 +277,7 @@ async fn main() -> Result<()> {
                 });
 
                 cmd_tx
-                    .unbounded_send(Command::SendPacket(resp))
+                    .unbounded_send(Command::SendPacket(Box::new(resp)))
                     .expect("send packet failed");
             }
             _ => {}

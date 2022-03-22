@@ -8,6 +8,12 @@ pub struct SinkRoutingAgent {
     tx: mpsc::Sender<super::RoutingCmd>,
 }
 
+impl Default for SinkRoutingAgent {
+    fn default() -> Self {
+        SinkRoutingAgent::new()
+    }
+}
+
 impl SinkRoutingAgent {
     pub fn new() -> Self {
         let (tx, mut rx) = mpsc::channel(1);

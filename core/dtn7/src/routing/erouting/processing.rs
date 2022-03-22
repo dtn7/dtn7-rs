@@ -95,7 +95,7 @@ pub async fn handle_connection(ws: WebSocket) {
                         .unwrap()
                         .remove(packet.bp.to_string().as_str())
                     {
-                        if let Err(_) = tx.send(Packet::SenderForBundleResponse(packet)) {
+                        if tx.send(Packet::SenderForBundleResponse(packet)).is_err() {
                             error!("sender_for_bundle response could not be passed to channel")
                         }
                     } else {
@@ -154,9 +154,7 @@ pub fn notify(notification: RoutingNotifcation) {
         RoutingNotifcation::SendingFailed(bid, cla_sender) => {
             Packet::SendingFailed(SendingFailed { bid, cla_sender })
         }
-        RoutingNotifcation::IncomingBundle(bndl) => {
-            Packet::IncomingBundle(IncomingBundle { bndl: bndl.clone() })
-        }
+        RoutingNotifcation::IncomingBundle(bndl) => Packet::IncomingBundle(IncomingBundle { bndl }),
         RoutingNotifcation::IncomingBundleWithoutPreviousNode(bid, node_name) => {
             Packet::IncomingBundleWithoutPreviousNode(IncomingBundleWithoutPreviousNode {
                 bid,
@@ -170,7 +168,7 @@ pub fn notify(notification: RoutingNotifcation) {
         }),
         RoutingNotifcation::DroppedPeer(eid) => Packet::DroppedPeer(DroppedPeer {
             name: eid.node().unwrap(),
-            eid: eid.clone(),
+            eid,
         }),
     };
 
@@ -216,7 +214,6 @@ pub async fn sender_for_bundle(bp: &BundlePack) -> (Vec<ClaSenderTask>, bool) {
 
         return (
             packet
-                .clone()
                 .clas
                 .iter()
                 .filter_map(|sender| {

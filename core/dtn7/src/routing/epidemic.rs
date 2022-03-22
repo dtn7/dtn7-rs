@@ -14,6 +14,12 @@ pub struct EpidemicRoutingAgent {
     tx: mpsc::Sender<super::RoutingCmd>,
 }
 
+impl Default for EpidemicRoutingAgent {
+    fn default() -> Self {
+        EpidemicRoutingAgent::new()
+    }
+}
+
 fn add(history: &mut HashMap<String, HashSet<String>>, bundle_id: String, node_name: String) {
     let entries = history.entry(bundle_id).or_insert_with(HashSet::new);
     entries.insert(node_name);
@@ -131,6 +137,7 @@ impl EpidemicRoutingAgent {
         EpidemicRoutingAgent { tx }
     }
 }
+
 impl std::fmt::Display for EpidemicRoutingAgent {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         write!(f, "EpidemicRoutingAgent")
@@ -140,6 +147,6 @@ impl std::fmt::Display for EpidemicRoutingAgent {
 #[async_trait]
 impl RoutingAgent for EpidemicRoutingAgent {
     fn channel(&self) -> Sender<RoutingCmd> {
-        return self.tx.clone();
+        self.tx.clone()
     }
 }

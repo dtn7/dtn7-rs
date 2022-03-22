@@ -10,6 +10,12 @@ pub struct ExternalRoutingAgent {
     tx: mpsc::Sender<super::RoutingCmd>,
 }
 
+impl Default for ExternalRoutingAgent {
+    fn default() -> Self {
+        ExternalRoutingAgent::new()
+    }
+}
+
 impl ExternalRoutingAgent {
     pub fn new() -> Self {
         let (tx, mut rx) = mpsc::channel(100);
@@ -38,7 +44,7 @@ impl ExternalRoutingAgent {
 #[async_trait]
 impl RoutingAgent for ExternalRoutingAgent {
     fn channel(&self) -> Sender<RoutingCmd> {
-        return self.tx.clone();
+        self.tx.clone()
     }
 }
 

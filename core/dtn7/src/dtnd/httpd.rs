@@ -164,7 +164,7 @@ async fn web_peers() -> Html<String> {
         |value: &serde_json::Value,
          output: &mut String|
          -> Result<(), tinytemplate::error::Error> {
-            write!(output, "{}", value.to_string())?;
+            write!(output, "{}", value)?;
             Ok(())
         },
     );
