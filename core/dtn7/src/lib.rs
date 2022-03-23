@@ -34,8 +34,6 @@ lazy_static! {
     pub static ref STATS: Mutex<DtnStatistics> = Mutex::new(DtnStatistics::new());
     pub static ref SENDERTASK: Mutex<Option<Sender<Bundle>>> = Mutex::new(None);
     pub static ref STORE: Mutex<BundleStoresEnum> = Mutex::new(InMemoryBundleStore::new().into());
-    /*pub static ref ROUTINGAGENT: Mutex<crate::routing::RoutingAgentsEnum> =
-        Mutex::new(crate::routing::epidemic::EpidemicRoutingAgent::new().into());*/
     pub static ref CLAS: Mutex<Vec<CLAEnum>> = Mutex::new(Vec::new());
 }
 
