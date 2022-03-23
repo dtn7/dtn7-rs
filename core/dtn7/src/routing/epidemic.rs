@@ -74,64 +74,68 @@ fn incoming_bundle(
     }
 }
 
-impl EpidemicRoutingAgent {
-    pub fn new() -> EpidemicRoutingAgent {
-        let (tx, mut rx) = mpsc::channel(100);
-        tokio::spawn(async move {
-            let mut history: HashMap<String, HashSet<String>> = HashMap::new();
+async fn sender_for_bundle(mut rx: mpsc::Receiver<RoutingCmd>) {
+    let mut history: HashMap<String, HashSet<String>> = HashMap::new();
 
-            while let Some(cmd) = rx.recv().await {
-                match cmd {
-                    super::RoutingCmd::SenderForBundle(bp, reply) => {
-                        let mut clas = Vec::new();
-                        let mut delete_afterwards = false;
-                        for (_, p) in (*PEERS.lock()).iter() {
-                            if !contains(&mut history, bp.id(), &p.node_name()) {
-                                if let Some(cla) = p.first_cla() {
-                                    add(&mut history, bp.id().to_string(), p.node_name().clone());
-                                    if bp.destination.node().unwrap() == p.node_name() {
-                                        // direct delivery possible
-                                        debug!(
-                                            "Attempting direct delivery of bundle {} to {}",
-                                            bp.id(),
-                                            p.node_name()
-                                        );
-                                        delete_afterwards = true;
-                                        clas.clear();
-                                        clas.push(cla);
-                                        break;
-                                    } else {
-                                        clas.push(cla);
-                                    }
-                                }
+    while let Some(cmd) = rx.recv().await {
+        match cmd {
+            super::RoutingCmd::SenderForBundle(bp, reply) => {
+                let mut clas = Vec::new();
+                let mut delete_afterwards = false;
+                for (_, p) in (*PEERS.lock()).iter() {
+                    if !contains(&mut history, bp.id(), &p.node_name()) {
+                        if let Some(cla) = p.first_cla() {
+                            add(&mut history, bp.id().to_string(), p.node_name().clone());
+                            if bp.destination.node().unwrap() == p.node_name() {
+                                // direct delivery possible
+                                debug!(
+                                    "Attempting direct delivery of bundle {} to {}",
+                                    bp.id(),
+                                    p.node_name()
+                                );
+                                delete_afterwards = true;
+                                clas.clear();
+                                clas.push(cla);
+                                break;
+                            } else {
+                                clas.push(cla);
                             }
                         }
-
-                        tokio::spawn(async move {
-                            reply.send((clas, delete_afterwards)).unwrap();
-                        });
                     }
-                    super::RoutingCmd::Shutdown => {
-                        break;
-                    }
-                    super::RoutingCmd::Notify(notification) => match notification {
-                        RoutingNotifcation::SendingFailed(bid, cla_sender) => {
-                            sending_failed(&mut history, bid.as_str(), cla_sender.as_str());
-                        }
-                        RoutingNotifcation::IncomingBundle(bndl) => {
-                            if let Some(eid) = bndl.previous_node() {
-                                if let Some(node_name) = eid.node() {
-                                    incoming_bundle(&mut history, &bndl.id(), &node_name);
-                                }
-                            };
-                        }
-                        RoutingNotifcation::IncomingBundleWithoutPreviousNode(bid, node_name) => {
-                            incoming_bundle(&mut history, bid.as_str(), node_name.as_str());
-                        }
-                        _ => {}
-                    },
                 }
+
+                tokio::spawn(async move {
+                    reply.send((clas, delete_afterwards)).unwrap();
+                });
             }
+            super::RoutingCmd::Shutdown => {
+                break;
+            }
+            super::RoutingCmd::Notify(notification) => match notification {
+                RoutingNotifcation::SendingFailed(bid, cla_sender) => {
+                    sending_failed(&mut history, bid.as_str(), cla_sender.as_str());
+                }
+                RoutingNotifcation::IncomingBundle(bndl) => {
+                    if let Some(eid) = bndl.previous_node() {
+                        if let Some(node_name) = eid.node() {
+                            incoming_bundle(&mut history, &bndl.id(), &node_name);
+                        }
+                    };
+                }
+                RoutingNotifcation::IncomingBundleWithoutPreviousNode(bid, node_name) => {
+                    incoming_bundle(&mut history, bid.as_str(), node_name.as_str());
+                }
+                _ => {}
+            },
+        }
+    }
+}
+
+impl EpidemicRoutingAgent {
+    pub fn new() -> EpidemicRoutingAgent {
+        let (tx, rx) = mpsc::channel(100);
+        tokio::spawn(async move {
+            sender_for_bundle(rx).await;
         });
 
         EpidemicRoutingAgent { tx }
