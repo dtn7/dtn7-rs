@@ -4,7 +4,7 @@ use crate::cla::ecla::ws_client::Command::SendPacket;
 use anyhow::bail;
 use futures::channel::mpsc::{unbounded, UnboundedReceiver, UnboundedSender};
 use futures_util::{future, pin_mut, SinkExt, StreamExt};
-use log::info;
+use log::{info, warn};
 use serde_json::Result;
 use std::str::FromStr;
 use tokio_tungstenite::{connect_async, tungstenite::protocol::Message};
@@ -87,8 +87,7 @@ impl Client {
                 name: self.module_name.to_string(),
                 enable_beacon: self.enable_beacon,
                 port: self.ecla_port,
-            })))
-            .expect("couldn't send Register");
+            })))?;
 
         // Pass rx to write
         let mut cmd_receiver = std::mem::replace(&mut self.cmd_receiver, unbounded().1);
@@ -97,10 +96,7 @@ impl Client {
                 match command {
                     Command::SendPacket(packet) => {
                         let data = serde_json::to_string(&packet);
-                        write
-                            .send(Message::Text(data.unwrap()))
-                            .await
-                            .expect("couldn't send packet");
+                        write.send(Message::Text(data.unwrap())).await?;
                     }
                     Command::Close => {
                         break;
@@ -126,26 +122,20 @@ impl Client {
                     match packet {
                         Packet::ForwardData(mut fwd) => {
                             fwd.src = self.id.clone();
-                            self.packet_out
-                                .unbounded_send(Packet::ForwardData(fwd))
-                                .expect("couldn't send ForwardData");
+                            self.packet_out.unbounded_send(Packet::ForwardData(fwd))?;
                         }
                         Packet::Beacon(mut pdp) => {
                             pdp.addr = self.id.clone();
-                            self.packet_out
-                                .unbounded_send(Packet::Beacon(pdp))
-                                .expect("couldn't send Beacon");
+                            self.packet_out.unbounded_send(Packet::Beacon(pdp))?;
                         }
                         Packet::Error(err) => {
                             info!("Error received: {}", err.reason);
 
-                            err_sender
-                                .clone()
-                                .send(err)
-                                .await
-                                .expect("couldn't send Error");
+                            err_sender.clone().send(err).await?;
                         }
-                        _ => {}
+                        _ => {
+                            warn!("Unexpected packet received!")
+                        }
                     }
                 }
             })
