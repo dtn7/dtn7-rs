@@ -6,7 +6,7 @@ First, you need to enable the external routing in dtnd. It's done by changing th
 dtnd -w 3000 -r external -n node1
 ```
 
-By default if external routing is selected the Websocket transport layer is running under the web port of dtnd as specified by ``-w``, ``--web-port``. In the example above the port would be 3000 (``-w 3000``).
+By default if external routing is selected the WebSocket transport layer is running under the web port of dtnd as specified by ``-w``, ``--web-port``. In the example above the port would be 3000 (``-w 3000``).
 
 # External Routing FAQ
 
@@ -16,7 +16,7 @@ There is no fallback routing so without a connected external router no bundles w
 
 ### What happens if an external router connects while another one is already connected?
 
-The websocket connection of the new external router will be closed. The already connected one stays connected. There can only be one connected router at a time!
+The WebSocket connection of the new external router will be closed. The already connected one stays connected. There can only be one connected router at a time!
 
 ### Is there an example implementation for external routing to look at?
 

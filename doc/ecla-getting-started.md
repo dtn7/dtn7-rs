@@ -6,7 +6,7 @@ First, you need to enable the ECLA in dtnd. It's done by adding the ``--ecla`` f
 dtnd -w 3000 -r epidemic -n node1 --ecla
 ```
 
-By default if ECLA is enabled the Websocket transport layer is running under the web port of dtnd as specified by ``-w``, ``--web-port``. In the example above the port would be 3000 (``-w 3000``).
+By default if ECLA is enabled the WebSocket transport layer is running under the web port of dtnd as specified by ``-w``, ``--web-port``. In the example above the port would be 3000 (``-w 3000``).
 
 # ECLA FAQ
 
