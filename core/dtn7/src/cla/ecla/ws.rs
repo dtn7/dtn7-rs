@@ -51,6 +51,7 @@ pub async fn handle_connection(ws: WebSocket) {
 
     let (outgoing, incoming) = ws.split();
 
+    // Process incoming messages from the websocket client
     let broadcast_incoming = incoming.try_for_each(|msg| {
         trace!(
             "Received a message from {}: {}",
@@ -80,8 +81,11 @@ pub async fn handle_connection(ws: WebSocket) {
         future::ok(())
     });
 
+    // Pass the received messages to the websocket client.
     let receive_from_others = rx.map(Ok).forward(outgoing);
 
+    // Wait for the broadcast incoming and outgoing channel to close or
+    // until a close command for this connection is received.
     pin_mut!(broadcast_incoming, receive_from_others, rx_close);
     future::select(
         broadcast_incoming,

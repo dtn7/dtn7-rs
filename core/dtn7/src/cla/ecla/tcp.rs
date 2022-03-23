@@ -27,7 +27,7 @@ lazy_static! {
     static ref PEER_MAP: PeerMap = PeerMap::new(Mutex::new(HashMap::new()));
 }
 
-// Handles the websocket connection.
+// Handles the TCP connection.
 async fn handle_connection(mut raw_stream: TcpStream, addr: SocketAddr) {
     info!("Incoming TCP connection from: {}", addr);
 
@@ -67,6 +67,8 @@ async fn handle_connection(mut raw_stream: TcpStream, addr: SocketAddr) {
         future::ready(())
     });
 
+    // Wait for the broadcast incoming and outgoing channel to close or
+    // until a close command for this connection is received.
     pin_mut!(broadcast_incoming, broadcast_outgoing, rx_close);
     future::select(
         rx_close,

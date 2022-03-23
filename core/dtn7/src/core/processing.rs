@@ -377,7 +377,7 @@ pub async fn forward(mut bp: BundlePack) -> Result<()> {
                     ))
                     .await
                     {
-                        info!("Error while sending failed notification: {}", err);
+                        error!("Error while sending failed notification: {}", err);
                     }
 
                     //debug!("current peers: {:?}", (*PEERS.lock()).keys());
