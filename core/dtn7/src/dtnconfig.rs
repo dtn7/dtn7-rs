@@ -181,6 +181,14 @@ impl From<PathBuf> for DtnConfig {
                 }
             }
         }
+        if let Ok(ecla) = s.get_table("ecla") {
+            if let Some(enabled) = ecla.get("enabled") {
+                dtncfg.ecla_enable = enabled.into_bool().unwrap_or(false);
+            }
+            if let Some(enabled) = ecla.get("tcp_port") {
+                dtncfg.ecla_tcp_port = enabled.into_int().unwrap_or(0) as u16;
+            }
+        }
         if let Ok(services) = s.get_table("services.service") {
             for (_k, v) in services.iter() {
                 let tab = v.clone().into_table().unwrap();
