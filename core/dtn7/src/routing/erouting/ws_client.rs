@@ -53,7 +53,7 @@ pub fn new(addr: &str, packet_out: UnboundedSender<Packet>) -> std::io::Result<C
 
 impl Client {
     /// Connects and starts to handle packets. Will block until a severe error is encountered or the client is closed.
-    pub async fn connect(&mut self) -> Result<()> {
+    pub async fn serve(&mut self) -> Result<()> {
         let (ws_stream, _) = connect_async(format!("ws://{}:{}/ws/erouting", self.ip, self.port))
             .await
             .expect("Failed to connect");

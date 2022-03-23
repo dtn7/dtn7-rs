@@ -136,7 +136,7 @@ async fn main() -> Result<()> {
                         .expect("couldn't pass packet to client command channel");
                     future::ready(())
                 });
-                let connecting = client.connect();
+                let connecting = client.serve();
 
                 pin_mut!(connecting, read);
                 future::select(connecting, read).await;
