@@ -194,7 +194,7 @@ async fn main() -> Result<()> {
                     );
                 }
             }
-            Packet::SenderForBundle(packet) => {
+            Packet::RequestSenderForBundle(packet) => {
                 info!("got bundle pack: {}", packet.bp);
 
                 let mut clas = Vec::new();

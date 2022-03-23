@@ -14,7 +14,7 @@ The WebSocket is accessible under the same port as defined by ``-w``, ``--web-po
 
 ## Connection Sequence
 
-Connecting is only possible if no other external router is already connected. If a connection is successful the ERouting will start by sending an initial ``PeerState`` and ``ServiceState`` packet. After that ``SenderForBundle`` and other Packets can be received or send.
+Connecting is only possible if no other external router is already connected. If a connection is successful the ERouting will start by sending an initial ``PeerState`` and ``ServiceState`` packet. After that ``RequestSenderForBundle`` and other Packets can be received or send.
 
 ![Connection](./graphics/erouting_conn.drawio.png)
 
@@ -26,18 +26,18 @@ All packets are JSON encoded and contain a field called ``type`` which specifies
 
 ### From dtdn
 
-#### Packet SenderForBundle
+#### Packet RequestSenderForBundle
 
 dtnd → external
 
-The ``SenderForBundle`` is the most important packet. It specifies that a bundle wants to be sent by ``dtnd`` and senders that it can be forwarded to are wanted from your router.
+The ``RequestSenderForBundle`` is the most important packet. It specifies that a bundle wants to be sent by ``dtnd`` and senders that it can be forwarded to are wanted from your router.
 
 - ``clas``: The registered clas at the time of the request
 - ``bp``: The bundle pack containing information about the bundle
 
 ```json
 {
-  "type": "SenderForBundle",
+  "type": "RequestSenderForBundle",
   "clas": ["mtcp", "lora"],
   "bp": { ... }
 }
@@ -180,7 +180,7 @@ The ``AddService`` packet can be sent to register a service.
 
 external → dtnd
 
-The ``SenderForBundleResponse`` as the name suggests is the response to a ``SenderForBundle`` packet by your router.
+The ``SenderForBundleResponse`` as the name suggests is the response to a ``RequestSenderForBundle`` packet by your router.
 
 - ``bp``: The original bundle pack of the request
 - ``clas``: List of applicable senders each containing:
@@ -256,7 +256,7 @@ def on_message(ws, raw):
   msg = json.loads(raw)
 
   switcher = {
-    "SenderForBundle": on_sender_for_bundle,
+    "RequestSenderForBundle": on_sender_for_bundle,
     "PeerState": on_peer_state,
     "PeerEncountered": on_peer_encountered,
     "PeerDropped": on_peer_dropped,
@@ -366,6 +366,6 @@ def on_sending_timeout(msg):
 #
 
 
-wsapp = websocket.WebSocketApp("ws://127.0.0.1:3002/ws/erouting", on_message=on_message, on_open=on_open)
+wsapp = websocket.WebSocketApp("ws://127.0.0.1:3000/ws/erouting", on_message=on_message, on_open=on_open)
 wsapp.run_forever()
 ```

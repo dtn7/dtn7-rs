@@ -34,7 +34,7 @@ def on_message(ws, raw):
     msg = json.loads(raw)
 
     switcher = {
-        "SenderForBundle": on_sender_for_bundle,
+        "RequestSenderForBundle": on_sender_for_bundle,
         "PeerState": on_peer_state,
         "PeerEncountered": on_peer_encountered,
         "PeerDropped": on_peer_dropped,
@@ -145,5 +145,5 @@ def on_sending_timeout(msg):
 #
 
 
-wsapp = websocket.WebSocketApp("ws://127.0.0.1:3002/ws/erouting", on_message=on_message, on_open=on_open)
+wsapp = websocket.WebSocketApp("ws://127.0.0.1:3000/ws/erouting", on_message=on_message, on_open=on_open)
 wsapp.run_forever()

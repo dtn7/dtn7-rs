@@ -15,12 +15,12 @@ pub mod ws_client;
 
 */
 
-/// The variant of Packets that can be send or received. The resulting JSON will have
+/// The variant of Packets that can be sent or received. The resulting JSON will have
 /// a field called type that encodes the selected variant.
 #[derive(Serialize, Deserialize, Clone)]
 #[serde(tag = "type")]
 pub enum Packet {
-    SenderForBundle(SenderForBundle),
+    RequestSenderForBundle(RequestSenderForBundle),
     SenderForBundleResponse(SenderForBundleResponse),
     Timeout(Timeout),
     SendingFailed(SendingFailed),
@@ -35,7 +35,7 @@ pub enum Packet {
 
 /// Packet that contains information about a bundle that should be send.
 #[derive(Serialize, Deserialize, Clone)]
-pub struct SenderForBundle {
+pub struct RequestSenderForBundle {
     pub clas: Vec<String>,
     pub bp: BundlePack,
 }

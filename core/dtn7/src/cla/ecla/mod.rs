@@ -38,7 +38,7 @@ mod base64 {
     }
 }
 
-/// The variant of Packets that can be send or received. The resulting JSON will have
+/// The variant of Packets that can be sent or received. The resulting JSON will have
 /// a field called type that encodes the selected variant.
 #[derive(Serialize, Deserialize, Clone)]
 #[serde(tag = "type")]

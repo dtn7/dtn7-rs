@@ -1,6 +1,6 @@
 use super::{
     DroppedPeer, EncounteredPeer, IncomingBundle, IncomingBundleWithoutPreviousNode, Packet,
-    PeerState, SenderForBundle, SendingFailed, ServiceState,
+    PeerState, RequestSenderForBundle, SendingFailed, ServiceState,
 };
 use crate::cla::ConvergenceLayerAgent;
 use crate::{
@@ -197,7 +197,7 @@ pub async fn sender_for_bundle(bp: &BundlePack) -> (Vec<ClaSenderTask>, bool) {
     create_response_channel(bp.to_string().as_str(), tx);
 
     // Send out the SenderForBundle packet
-    let packet: Packet = Packet::SenderForBundle(SenderForBundle {
+    let packet: Packet = Packet::RequestSenderForBundle(RequestSenderForBundle {
         clas: cla_names(),
         bp: bp.clone(),
     });
