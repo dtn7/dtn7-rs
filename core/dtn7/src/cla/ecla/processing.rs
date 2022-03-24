@@ -22,9 +22,9 @@ type ModuleMap = Arc<Mutex<HashMap<String, Module>>>;
 type LayerMap = Arc<Mutex<HashMap<String, TransportLayerEnum>>>;
 
 lazy_static! {
-    /// Tracks the registered modules.
+    /// Tracks the registered modules that are connected over an transportation layer.
     static ref MODULE_MAP: ModuleMap = ModuleMap::new(Mutex::new(HashMap::new()));
-    /// Tracks the registered transportation layers.
+    /// Tracks the registered transportation layers over which clients can connect to dtnd.
     static ref LAYER_MAP: LayerMap = LayerMap::new(Mutex::new(HashMap::new()));
 }
 
@@ -41,6 +41,7 @@ enum ModuleState {
 struct Module {
     state: ModuleState,
     name: String,
+    // Name of the layer which the model is connected through (e.g. WebSocket, TCP, ...)
     layer: String,
     enable_beacon: bool,
 }
@@ -80,14 +81,12 @@ async fn announcer() {
     loop {
         task.tick().await;
 
-        let mut layer_map = LAYER_MAP.lock().unwrap();
-        let module_map = MODULE_MAP.lock().unwrap();
-        module_map.iter().for_each(|(addr, value)| {
+        MODULE_MAP.lock().unwrap().iter().for_each(|(addr, value)| {
             if !value.enable_beacon {
                 return;
             }
 
-            if let Some(layer) = layer_map.get_mut(value.layer.as_str()) {
+            if let Some(layer) = LAYER_MAP.lock().unwrap().get_mut(value.layer.as_str()) {
                 debug!("Sending Beacon to {} ({})", addr, value.layer);
                 layer.send_packet(addr, &Packet::Beacon(generate_beacon()));
             }
