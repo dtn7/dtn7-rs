@@ -115,11 +115,12 @@ impl TransportLayer for TCPTransportLayer {
     fn send_packet(&self, dest: &str, packet: &Packet) -> bool {
         debug!("Sending Packet to {} ({})", dest, self.name());
 
-        let pmap = PEER_MAP.lock().unwrap();
-        let target = pmap.get(dest);
+        let peer_map = PEER_MAP.lock().unwrap();
+        let target = peer_map.get(dest);
         if target.is_some() {
+            // Build the packet frame [ len: u32 | frame payload (data) ]
             let mut data = serde_json::to_vec(&packet).unwrap();
-            let len = (data.len() as i32).to_be_bytes();
+            let len = (data.len() as u32).to_be_bytes();
             data.splice(0..0, len.iter().cloned());
 
             if let Some(target) = target {
