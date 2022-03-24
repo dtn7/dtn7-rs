@@ -76,17 +76,19 @@ pub fn rnd_peer() -> DtnPeer {
 /// ```
 pub fn parse_peer_url(peer_url: &str) -> DtnPeer {
     let u: Url;
-    let mut ex = false;
-    if peer_url.starts_with("ecla+") {
+    let is_external = if peer_url.starts_with("ecla+") {
         u = Url::parse(peer_url.strip_prefix("ecla+").unwrap())
             .expect("Static external peer url parsing error");
-        ex = true;
+
+        true
     } else {
         u = Url::parse(peer_url).expect("Static peer url parsing error");
-    }
+
+        false
+    };
 
     let scheme = u.scheme();
-    if !ex && scheme.parse::<CLAsAvailable>().is_err() {
+    if !is_external && scheme.parse::<CLAsAvailable>().is_err() {
         panic!("Unknown convergency layer selected: {}", scheme);
     }
     let ipaddr = u.host_str().expect("Host parsing error");
