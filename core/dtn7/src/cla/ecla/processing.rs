@@ -18,6 +18,9 @@ use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 use tokio::time::interval;
 
+// Specifies the maximum length for a name of ECLA modules.
+const ECLA_NAME_MAX_LEN: usize = 64;
+
 type ModuleMap = Arc<Mutex<HashMap<String, Module>>>;
 type LayerMap = Arc<Mutex<HashMap<String, TransportLayerEnum>>>;
 
@@ -117,7 +120,7 @@ pub fn handle_packet(layer_name: String, addr: String, packet: Packet) {
                     addr, layer_name, ident.name
                 );
 
-                if ident.name.is_empty() || ident.name.len() > 64 {
+                if ident.name.is_empty() || ident.name.len() > ECLA_NAME_MAX_LEN {
                     error!("Rejected ECLA because name was empty or too long");
 
                     layer.send_packet(
@@ -204,7 +207,7 @@ pub fn handle_packet(layer_name: String, addr: String, packet: Packet) {
                 if let Err(err) = cmd_channel.try_send(RoutingCmd::Notify(
                     RoutingNotifcation::EncounteredPeer(pdp.eid),
                 )) {
-                    error!("Failed to add peer: {}", err);
+                    error!("Failed to send encountered peer notification: {}", err);
                 }
             }
             _ => {}
