@@ -1,6 +1,6 @@
 # ECLA Getting Started
 
-First, you need to enable the ECLA in dtnd. It's done by adding the ``--ecla`` flag to the dtnd arguments. A Example would be:
+First, you need to enable the ECLA in dtnd. It's done by adding the ``--ecla`` flag to the dtnd arguments. An example would be:
 
 ```
 dtnd -w 3000 -r epidemic -n node1 --ecla
@@ -16,7 +16,7 @@ The registration process fails with a ``already registered`` error packet as a r
 
 ### Where does my WebSocket client needs to connect to?
 
-The WebSocket is accessible under the same port as defined by ``-w``, ``--web-port`` and the route ``/ws/ecla``. A Example for a web port 3000 would be ``127.0.0.1:3000/ws/ecla``.
+The WebSocket is accessible under the same port as defined by ``-w``, ``--web-port`` and the route ``/ws/ecla``. An example for a web port 3000 would be ``127.0.0.1:3000/ws/ecla``.
 
 ### Is there an example implementation for external CLAs to look at?
 

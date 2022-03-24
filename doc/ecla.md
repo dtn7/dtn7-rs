@@ -2,7 +2,7 @@
 
 ![ECLA Model](./graphics/ecla_overview.drawio.png)
 
-The External Convergence Layer Agent allows implementing Convergence Layer Agents externally (e.g. outside the dtn7-rs codebase). It works by exposing a realtime JSON API via WebSocket or TCP. With the help of the ECLA it is possible to easily implement new transmission layers in different language. All languages that can encode / decode JSON and communicate via WebSocket or TCP should in theory work. Additionally, the ECLA contains a optional and simple beacon system that can be used for peer discovery.
+The External Convergence Layer Agent allows implementing Convergence Layer Agents externally (e.g. outside the dtn7-rs codebase). It works by exposing a realtime JSON API via WebSocket or TCP. With the help of the ECLA it is possible to easily implement new transmission layers in different languages. All languages that can encode / decode JSON and communicate via WebSocket or TCP should in theory work. Additionally, the ECLA contains a optional and simple beacon system that can be used for peer discovery.
 
 
 A client that connects to the ECLA and implements a new transmission layer is called a External Convergence Layer Module (in short ECL-Module).
@@ -15,7 +15,7 @@ To enable the ECLA add the argument ``--ecla`` to dtnd.
 
 ### WebSocket
 
-The WebSocket is accessible under the same port as defined by ``-w``, ``--web-port`` and the route ``/ws/ecla``. A Example for a web port 3000 would be ``127.0.0.1:3000/ws/ecla``.
+The WebSocket is accessible under the same port as defined by ``-w``, ``--web-port`` and the route ``/ws/ecla``. An example for a web port 3000 would be ``127.0.0.1:3000/ws/ecla``.
 
 
 ### TCP
@@ -182,8 +182,8 @@ An implementation for a Rust WebSocket Client is included in the `ecla` module.
 
 ```rust
 use anyhow::Result;
-use dtn7::cla::ecla::ws_client::{new, Command};
-use dtn7::cla::ecla::{ForwardDataPacket, Packet};
+use dtn7::cla::ecla::ws_client::{Command};
+use dtn7::cla::ecla::{ForwardDataPacket, Packet, ws_client};
 use futures::channel::mpsc::unbounded;
 use futures_util::{future, pin_mut, StreamExt};
 use log::info;
@@ -196,7 +196,7 @@ async fn main() -> Result<()> {
     // Creating the client task
     let client = tokio::spawn(async move {
         let mut c =
-            new("myprotocol", "127.0.0.1:3002", "", tx, true).expect("couldn't create client");
+                ws_client::new("myprotocol", "127.0.0.1:3002", "", tx, true).expect("couldn't create client");
 
         // Get the command channel of the client
         let cmds = c.command_channel();

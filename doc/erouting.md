@@ -2,7 +2,7 @@
 
 ![External Routing](./graphics/erouting_overview.drawio.png)
 
-The External Routing allows implementing routing algorithms externally (e.g. outside the dtn7-rs codebase). It works by exposing a realtime JSON API via WebSocket. With the help of the erouting it is possible to easily implement new routing algorithms in different language. All languages that can encode / decode JSON and communicate via WebSocket should in theory work.
+The External Routing allows implementing routing algorithms externally (e.g. outside the dtn7-rs codebase). It works by exposing a realtime JSON API via WebSocket. With the help of the erouting it is possible to easily implement new routing algorithms in different languages. All languages that can encode / decode JSON and communicate via WebSocket should in theory work.
 
 ## Arguments
 
@@ -10,7 +10,7 @@ To enable the erouting use ``-r external`` as a routing algorithm.
 
 ## WebSocket Transport Layer
 
-The WebSocket is accessible under the same port as defined by ``-w``, ``--web-port`` and the route ``/ws/erouting``. A Example for a web port 3000 would be ``127.0.0.1:3000/ws/erouting``.
+The WebSocket is accessible under the same port as defined by ``-w``, ``--web-port`` and the route ``/ws/erouting``. An example for a web port 3000 would be ``127.0.0.1:3000/ws/erouting``.
 
 ## Connection Sequence
 
