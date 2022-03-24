@@ -43,37 +43,39 @@ mod base64 {
 #[derive(Serialize, Deserialize, Clone)]
 #[serde(tag = "type")]
 pub enum Packet {
+    /// Identification Packet that registers the Module Name.
     Register(Register),
+    /// Beacon is a device discovery packet. It can either be from the direct connection
+    /// to the dtnd or received over the transmission layer of the ECLA client.
     Beacon(Beacon),
+    /// Packet that forwards Bundle data.
     ForwardData(ForwardData),
+    /// Packet that contains information about the connected node (will be send if registration was successful).
     Registered(Registered),
+    /// Packet that contains a error message if a error happens.
     Error(Error),
 }
 
-/// Beacon is a device discovery packet. It can either be from the direct connection
-/// to the dtnd or received over the transmission layer of the ECLA client.
 #[derive(Serialize, Deserialize, Clone)]
 pub struct Beacon {
     pub eid: EndpointID,
+    /// Some addressable id in the transportation layer (e.g. IP Address, Bluetooth MAC, ...)
     pub addr: String,
     #[serde(with = "base64")]
     pub service_block: Vec<u8>,
 }
 
-/// Packet that contains information about the connected node (will be send if registration was successful).
 #[derive(Serialize, Deserialize, Clone)]
 pub struct Registered {
     pub eid: EndpointID,
     pub nodeid: String,
 }
 
-/// Packet that contains a error message if a error happens.
 #[derive(Serialize, Deserialize, Clone)]
 pub struct Error {
     pub reason: String,
 }
 
-/// Identification Packet that registers the Module Name.
 #[derive(Serialize, Deserialize, Clone)]
 pub struct Register {
     pub name: String,
@@ -81,10 +83,11 @@ pub struct Register {
     pub port: Option<u16>,
 }
 
-/// Packet that forwards Bundle data.
 #[derive(Serialize, Deserialize, Clone)]
 pub struct ForwardData {
+    /// Some addressable id in the transportation layer (e.g. IP Address, Bluetooth MAC, ...)
     pub src: String,
+    /// Some addressable id in the transportation layer (e.g. IP Address, Bluetooth MAC, ...)
     pub dst: String,
     pub bundle_id: String,
     #[serde(with = "base64")]
