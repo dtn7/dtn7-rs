@@ -1,8 +1,7 @@
 use anyhow::Result;
 use clap::{crate_authors, crate_version, App, Arg};
-use dtn7::cla::ecla::ws_client::new;
 use dtn7::cla::ecla::ws_client::Command::SendPacket;
-use dtn7::cla::ecla::Packet;
+use dtn7::cla::ecla::{ws_client, Packet};
 use futures::channel::mpsc::{unbounded, UnboundedSender};
 use futures_util::{future, pin_mut, StreamExt, TryStreamExt};
 use lazy_static::lazy_static;
@@ -163,8 +162,8 @@ async fn main() -> Result<()> {
         let tx = tx.clone();
         tokio::spawn(async move {
             let crx = crx;
-            let mut c =
-                new("jsonmtcp", addr.as_str(), "", tx, false).expect("couldn't create client");
+            let mut c = ws_client::new("jsonmtcp", addr.as_str(), "", tx, false)
+                .expect("couldn't create client");
 
             let cmd_chan = c.command_channel();
             let read = crx.for_each(|packet| {

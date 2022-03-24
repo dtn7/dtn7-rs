@@ -1,9 +1,8 @@
 use anyhow::Result;
 use bp7::Bundle;
 use clap::{crate_authors, crate_version, App, Arg};
-use dtn7::cla::ecla::ws_client::new;
 use dtn7::cla::ecla::ws_client::Command::SendPacket;
-use dtn7::cla::ecla::{ForwardData, Packet};
+use dtn7::cla::ecla::{ws_client, ForwardData, Packet};
 use dtn7::cla::mtcp::{MPDUCodec, MPDU};
 use futures::channel::mpsc::{unbounded, UnboundedSender};
 use futures_util::future::Either;
@@ -173,7 +172,8 @@ async fn main() -> Result<()> {
         let tx = tx.clone();
         tokio::spawn(async move {
             let crx = crx;
-            let mut c = new("mtcp", addr.as_str(), "", tx, false).expect("couldn't create client");
+            let mut c = ws_client::new("mtcp", addr.as_str(), "", tx, false)
+                .expect("couldn't create client");
             c.set_ecla_port(u16::from_str(matches.value_of("port").unwrap()).unwrap());
 
             let cmd_chan = c.command_channel();

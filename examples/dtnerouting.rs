@@ -1,7 +1,7 @@
 use anyhow::{bail, Result};
 use clap::{crate_authors, crate_version, App, Arg};
-use dtn7::routing::erouting::ws_client::{new, Command};
-use dtn7::routing::erouting::{Packet, Sender, SenderForBundleResponse};
+use dtn7::routing::erouting::ws_client::Command;
+use dtn7::routing::erouting::{ws_client, Packet, Sender, SenderForBundleResponse};
 use dtn7::DtnPeer;
 use futures::channel::mpsc::unbounded;
 use futures_util::{future, pin_mut, StreamExt};
@@ -121,7 +121,7 @@ async fn main() -> Result<()> {
     let (tx, rx) = unbounded::<Packet>();
     let (cmd_tx, cmd_rx) = unbounded::<Command>();
 
-    let client = new(matches.value_of("addr").unwrap(), tx);
+    let client = ws_client::new(matches.value_of("addr").unwrap(), tx);
 
     match client {
         Err(err) => {

@@ -1,9 +1,8 @@
 use anyhow::Result;
 use clap::{crate_authors, crate_version, App, Arg};
-use dtn7::cla::ecla::ws_client::new;
 use dtn7::cla::ecla::ws_client::Command::SendPacket;
-use dtn7::cla::ecla::Packet;
 use dtn7::cla::ecla::Packet::{Beacon, ForwardData};
+use dtn7::cla::ecla::{ws_client, Packet};
 use futures::channel::mpsc::{unbounded, UnboundedSender};
 use futures_util::{future, pin_mut, StreamExt};
 use log::info;
@@ -54,8 +53,9 @@ async fn main() -> Result<()> {
             let tx = tx.clone();
             tokio::spawn(async move {
                 let crx = crx;
-                let mut c = new("ConnectN", addr.as_str(), i.to_string().as_str(), tx, true)
-                    .expect("couldn't create client");
+                let mut c =
+                    ws_client::new("ConnectN", addr.as_str(), i.to_string().as_str(), tx, true)
+                        .expect("couldn't create client");
 
                 let cmd_chan = c.command_channel();
                 let read = crx.for_each(|packet| {
