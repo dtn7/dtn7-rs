@@ -1,13 +1,12 @@
 use crate::core::bundlepack::*;
 use crate::core::*;
 use crate::routing::RoutingNotifcation;
-use crate::store_add_bundle_if_unknown;
 use crate::store_push_bundle;
 use crate::store_remove;
 use crate::CONFIG;
 use crate::DTNCORE;
 use crate::{is_local_node_id, STATS};
-use crate::{routing_notify, RoutingCmd};
+use crate::{routing_notify, routing_sender_for_bundle, store_add_bundle_if_unknown};
 
 use bp7::administrative_record::*;
 use bp7::bundle::*;
@@ -23,7 +22,6 @@ use std::sync::Arc;
 use std::time::SystemTime;
 use std::time::UNIX_EPOCH;
 use tokio::sync::mpsc::channel;
-use tokio::sync::oneshot;
 
 // transmit an outbound bundle.
 pub async fn send_bundle(bndl: Bundle) {
@@ -309,19 +307,7 @@ pub async fn forward(mut bp: BundlePack) -> Result<()> {
 
     trace!("Check delivery");
 
-    let (reply_tx, reply_rx) = oneshot::channel();
-    let cmd = RoutingCmd::SenderForBundle(bp.clone(), reply_tx);
-    let cmd_channel = (*DTNCORE.lock()).routing_agent.channel();
-    if let Err(err) = cmd_channel.send(cmd).await {
-        bail!("Error while sending command to routing agent: {}", err);
-    }
-
-    let res = reply_rx.await;
-    if let Err(err) = res {
-        bail!("Error while waiting for SenderForBundle reply: {}", err);
-    }
-
-    let (nodes, delete_afterwards) = res.unwrap();
+    let (nodes, delete_afterwards) = routing_sender_for_bundle(bp.clone()).await?;
     if !nodes.is_empty() {
         debug!("Attempting forwarding of {} to nodes: {:?}", bp.id(), nodes);
     }

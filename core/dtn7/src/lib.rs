@@ -26,6 +26,7 @@ use lazy_static::*;
 use parking_lot::Mutex;
 use std::collections::HashMap;
 use tokio::sync::mpsc::Sender;
+use tokio::sync::oneshot;
 
 lazy_static! {
     pub static ref CONFIG: Mutex<DtnConfig> = Mutex::new(DtnConfig::new());
@@ -205,10 +206,30 @@ pub fn store_delete_expired() {
         store_remove(&bid);
     }
 }
+
 pub async fn routing_notify(notification: RoutingNotifcation) -> Result<()> {
     let chan = (*DTNCORE.lock()).routing_agent.channel();
     if let Err(err) = chan.send(RoutingCmd::Notify(notification)).await {
         bail!("Error while sending notification: {}", err);
     }
     Ok(())
+}
+
+pub async fn routing_sender_for_bundle(bp: BundlePack) -> Result<(Vec<ClaSenderTask>, bool)> {
+    let (reply_tx, reply_rx) = oneshot::channel();
+
+    let cmd_channel = (*DTNCORE.lock()).routing_agent.channel();
+    if let Err(err) = cmd_channel
+        .send(RoutingCmd::SenderForBundle(bp, reply_tx))
+        .await
+    {
+        bail!("Error while sending command to routing agent: {}", err);
+    }
+
+    let res = reply_rx.await;
+    if let Err(err) = res {
+        bail!("Error while waiting for SenderForBundle reply: {}", err);
+    }
+
+    Ok(res.unwrap())
 }

@@ -7,7 +7,6 @@ pub mod store;
 
 pub use crate::core::peer::{DtnPeer, PeerType};
 use crate::core::store::BundleStore;
-use crate::routing::RoutingAgent;
 use crate::routing::RoutingAgentsEnum;
 use crate::{routing_notify, store_get_bundle, store_get_metadata};
 pub use crate::{store_has_item, store_push_bundle};
