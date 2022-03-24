@@ -1,7 +1,9 @@
 use async_trait::async_trait;
 use bp7::EndpointID;
 use enum_dispatch::enum_dispatch;
+use futures::channel::mpsc::UnboundedSender;
 use serde::{Deserialize, Serialize};
+use tokio::sync::oneshot;
 
 use tcp::TCPTransportLayer;
 use ws::WebsocketTransportLayer;
@@ -95,6 +97,14 @@ pub struct ForwardData {
     pub bundle_id: String,
     #[serde(with = "base64")]
     pub data: Vec<u8>,
+}
+
+/// Connection represents the session of a connection with a Tx channel to send data
+/// and a oneshot channel to signal a closing of the session once. Can be used as generic
+/// session for transport layers.
+struct Connection<A> {
+    tx: UnboundedSender<A>,
+    close: Option<oneshot::Sender<()>>,
 }
 
 #[enum_dispatch]

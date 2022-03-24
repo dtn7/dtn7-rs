@@ -3,7 +3,7 @@ use crate::cla::ecla::processing::{handle_connect, handle_disconnect, handle_pac
 use crate::cla::ecla::Packet;
 use crate::lazy_static;
 use async_trait::async_trait;
-use futures::channel::mpsc::{unbounded, UnboundedSender};
+use futures::channel::mpsc::unbounded;
 use futures_util::{future, pin_mut, stream::TryStreamExt, StreamExt};
 use log::info;
 use log::{debug, error};
@@ -15,13 +15,8 @@ use tokio::sync::oneshot;
 use tokio_serde::formats::SymmetricalJson;
 use tokio_util::codec::{FramedRead, LengthDelimitedCodec};
 
-struct Connection {
-    tx: Tx,
-    close: Option<oneshot::Sender<()>>,
-}
-
-type Tx = UnboundedSender<Vec<u8>>;
-type PeerMap = Arc<Mutex<HashMap<String, Connection>>>;
+type TCPConnection = super::Connection<Vec<u8>>;
+type PeerMap = Arc<Mutex<HashMap<String, TCPConnection>>>;
 
 lazy_static! {
     static ref PEER_MAP: PeerMap = PeerMap::new(Mutex::new(HashMap::new()));
@@ -37,7 +32,7 @@ async fn handle_connection(mut raw_stream: TcpStream, addr: SocketAddr) {
     // Insert the write part of this peer to the peer map.
     PEER_MAP.lock().unwrap().insert(
         addr.to_string(),
-        Connection {
+        TCPConnection {
             tx,
             close: Some(tx_close),
         },

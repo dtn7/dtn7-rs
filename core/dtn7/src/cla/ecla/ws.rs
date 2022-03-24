@@ -4,7 +4,7 @@ use crate::cla::ecla::Packet;
 use crate::lazy_static;
 use async_trait::async_trait;
 use axum::extract::ws::{Message, WebSocket};
-use futures::channel::mpsc::{unbounded, UnboundedSender};
+use futures::channel::mpsc::unbounded;
 use futures_util::{future, pin_mut, stream::TryStreamExt, StreamExt};
 use log::info;
 use log::{debug, trace};
@@ -14,15 +14,8 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex};
 use tokio::sync::oneshot;
 
-/// Connection represents the session of a connection with a Tx channel to send data
-/// and a oneshot channel to signal a closing of the session once.
-struct Connection {
-    tx: Tx,
-    close: Option<oneshot::Sender<()>>,
-}
-
-type Tx = UnboundedSender<Message>;
-type PeerMap = Arc<Mutex<HashMap<String, Connection>>>;
+type WebSocketConnection = super::Connection<Message>;
+type PeerMap = Arc<Mutex<HashMap<String, WebSocketConnection>>>;
 
 lazy_static! {
     /// Tracks the connected peers (modules)
@@ -42,7 +35,7 @@ pub async fn handle_connection(ws: WebSocket) {
 
     PEER_MAP.lock().unwrap().insert(
         id.to_string(),
-        Connection {
+        WebSocketConnection {
             tx,
             close: Some(tx_close),
         },
