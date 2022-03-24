@@ -1,68 +1,257 @@
 use anyhow::{bail, Result};
 use clap::{crate_authors, crate_version, App, Arg};
+use dtn7::core::bundlepack::BundlePack;
 use dtn7::routing::erouting::ws_client::Command;
 use dtn7::routing::erouting::{ws_client, Packet, Sender, SenderForBundleResponse};
 use dtn7::DtnPeer;
 use futures::channel::mpsc::unbounded;
 use futures_util::{future, pin_mut, StreamExt};
+use lazy_static::lazy_static;
 use log::{debug, info};
 use std::collections::{HashMap, HashSet};
+use std::sync::Mutex;
 
-fn epi_add(history: &mut HashMap<String, HashSet<String>>, bundle_id: String, node_name: String) {
-    let entries = history.entry(bundle_id).or_insert_with(HashSet::new);
-    entries.insert(node_name);
+lazy_static! {
+    static ref PEERS: Mutex<HashMap<String, DtnPeer>> = Mutex::new(HashMap::new());
 }
 
-fn epi_contains(
-    history: &mut HashMap<String, HashSet<String>>,
-    bundle_id: &str,
-    node_name: &str,
-) -> bool {
-    if let Some(entries) = history.get(bundle_id) {
-        debug!(
-            "Contains: {} {} {}",
-            bundle_id,
-            node_name,
-            entries.contains(node_name)
-        );
-        return entries.contains(node_name);
-    }
-    false
+// The epidemic strategy is still fairly simple. It sends the bundles to each peer once.
+// It keeps track of sent bundles in its history.
+struct EpidemicStrategy {
+    history: HashMap<String, HashSet<String>>,
 }
 
-fn epi_sending_failed(
-    history: &mut HashMap<String, HashSet<String>>,
-    bundle_id: &str,
-    node_name: &str,
-) {
-    if let Some(entries) = history.get_mut(bundle_id) {
-        entries.remove(node_name);
-        debug!(
-            "removed {:?} from sent list for bundle {}",
-            node_name, bundle_id
-        );
+impl EpidemicStrategy {
+    fn new() -> EpidemicStrategy {
+        EpidemicStrategy {
+            history: HashMap::new(),
+        }
+    }
+
+    fn add(&mut self, bundle_id: String, node_name: String) {
+        let entries = self.history.entry(bundle_id).or_insert_with(HashSet::new);
+        entries.insert(node_name);
+    }
+
+    fn contains(&self, bundle_id: &str, node_name: &str) -> bool {
+        if let Some(entries) = self.history.get(bundle_id) {
+            debug!(
+                "Contains: {} {} {}",
+                bundle_id,
+                node_name,
+                entries.contains(node_name)
+            );
+            return entries.contains(node_name);
+        }
+        false
+    }
+
+    fn sending_failed(&mut self, bundle_id: &str, node_name: &str) {
+        if let Some(entries) = self.history.get_mut(bundle_id) {
+            entries.remove(node_name);
+            debug!(
+                "removed {:?} from sent list for bundle {}",
+                node_name, bundle_id
+            );
+        }
+    }
+
+    fn incoming_bundle(&mut self, bundle_id: &str, node_name: &str) {
+        if !node_name.is_empty() && !self.contains(bundle_id, node_name) {
+            self.add(bundle_id.to_string(), node_name.to_string());
+        }
+    }
+
+    fn sending_timeout(&mut self, bundle_id: &str) {
+        if let Some(entries) = self.history.get_mut(bundle_id) {
+            let before = entries.len();
+            entries.clear();
+            debug!(
+                "removed {} entries from sent list for bundle {}",
+                before, bundle_id
+            );
+        }
+    }
+
+    fn sender_for_bundle(&mut self, clas: Vec<String>, bp: BundlePack) -> (Vec<Sender>, bool) {
+        let mut selected_clas: Vec<Sender> = Vec::new();
+        let mut delete_afterwards = false;
+
+        for (_, p) in PEERS.lock().unwrap().iter() {
+            for c in p.cla_list.iter() {
+                if clas.contains(&c.0) && !self.contains(bp.id(), &p.node_name()) {
+                    self.add(bp.id().to_string(), p.node_name().clone());
+                    if bp.destination.node().unwrap() == p.node_name() {
+                        // direct delivery possible
+                        debug!(
+                            "Attempting direct delivery of bundle {} to {}",
+                            bp.id(),
+                            p.node_name()
+                        );
+
+                        delete_afterwards = true;
+                        selected_clas.clear();
+                        selected_clas.push(Sender {
+                            remote: p.addr.clone(),
+                            port: c.1,
+                            agent: c.0.clone(),
+                            next_hop: p.eid.clone(),
+                        });
+                        break;
+                    } else {
+                        debug!(
+                            "Attempting delivery of bundle {} to {}",
+                            bp.id(),
+                            p.node_name()
+                        );
+
+                        selected_clas.push(Sender {
+                            remote: p.addr.clone(),
+                            port: c.1,
+                            agent: c.0.clone(),
+                            next_hop: p.eid.clone(),
+                        });
+                    }
+                }
+            }
+        }
+
+        return (selected_clas, delete_afterwards);
     }
 }
 
-fn epi_incoming_bundle(
-    history: &mut HashMap<String, HashSet<String>>,
-    bundle_id: &str,
-    node_name: &str,
-) {
-    if !node_name.is_empty() && !epi_contains(history, bundle_id, node_name) {
-        epi_add(history, bundle_id.to_string(), node_name.to_string());
+// The flooding strategy is very simple. It sends the bundle to all available peers.
+fn flooding_strategy(clas: Vec<String>, _: BundlePack) -> (Vec<Sender>, bool) {
+    let mut selected_clas = Vec::new();
+    for (_, p) in PEERS.lock().unwrap().iter() {
+        for c in p.cla_list.iter() {
+            if clas.contains(&c.0) {
+                selected_clas.push(Sender {
+                    remote: p.addr.clone(),
+                    port: c.1,
+                    agent: c.0.clone(),
+                    next_hop: p.eid.clone(),
+                });
+            }
+        }
     }
+
+    (selected_clas, false)
 }
 
-fn epi_sending_timeout(history: &mut HashMap<String, HashSet<String>>, bundle_id: &str) {
-    if let Some(entries) = history.get_mut(bundle_id) {
-        let before = entries.len();
-        entries.clear();
-        debug!(
-            "removed {} entries from sent list for bundle {}",
-            before, bundle_id
-        );
+// Serve creates the connection to the external routing of dtnd and uses the given strategy.
+async fn serve(strategy: &str, addr: &str) -> Result<()> {
+    let (tx, rx) = unbounded::<Packet>();
+    let (cmd_tx, cmd_rx) = unbounded::<Command>();
+
+    // Create the WebSocket client.
+    let client = ws_client::new(addr, tx);
+    match client {
+        Err(err) => {
+            bail!("error while creating client: {}", err);
+        }
+        Ok(mut client) => {
+            // Spawn the task that handles the connecting to dtnd.
+            tokio::spawn(async move {
+                let cmd_chan = client.command_channel();
+                let read = cmd_rx.for_each(|cmd| {
+                    cmd_chan
+                        .unbounded_send(cmd)
+                        .expect("couldn't pass packet to client command channel");
+                    future::ready(())
+                });
+
+                let serving = client.serve();
+                pin_mut!(serving, read);
+                future::select(serving, read).await;
+            });
+        }
     }
+
+    let mut epidemic_router = EpidemicStrategy::new();
+
+    let read = rx.for_each(|packet| {
+        match packet {
+            // Overwrite own peer map with the initial state of dtnd.
+            Packet::PeerState(packet) => {
+                info!("Got information about {} peers", packet.peers.len());
+                (*PEERS.lock().unwrap()) = packet.peers;
+            }
+            // If a new peer is encountered add it to the peer list.
+            Packet::EncounteredPeer(packet) => {
+                PEERS
+                    .lock()
+                    .unwrap()
+                    .insert(packet.eid.node().unwrap(), packet.peer);
+                info!("Peer Encountered: {}", packet.eid.node().unwrap());
+            }
+            // If a peer is dropped remove it from the peer list.
+            Packet::DroppedPeer(packet) => {
+                PEERS
+                    .lock()
+                    .unwrap()
+                    .remove(packet.eid.node().unwrap().as_str());
+                info!("Peer Dropped: {}", packet.eid.node().unwrap());
+            }
+            Packet::SendingFailed(packet) => {
+                if strategy == "epidemic" {
+                    epidemic_router.sending_failed(packet.bid.as_str(), packet.cla_sender.as_str());
+                }
+            }
+            Packet::Timeout(packet) => {
+                if strategy == "epidemic" {
+                    epidemic_router.sending_timeout(packet.bp.id.as_str());
+                }
+            }
+            Packet::IncomingBundle(packet) => {
+                if strategy == "epidemic" {
+                    if let Some(eid) = packet.bndl.previous_node() {
+                        if let Some(node_name) = eid.node() {
+                            epidemic_router.incoming_bundle(&packet.bndl.id(), &node_name);
+                        }
+                    };
+                }
+            }
+            Packet::IncomingBundleWithoutPreviousNode(packet) => {
+                if strategy == "epidemic" {
+                    epidemic_router.incoming_bundle(packet.bid.as_str(), packet.node_name.as_str());
+                }
+            }
+            Packet::RequestSenderForBundle(packet) => {
+                info!("got bundle pack: {}", packet.bp);
+
+                let res: (Vec<Sender>, bool) = match strategy {
+                    "flooding" => flooding_strategy(packet.clas, packet.bp.clone()),
+                    "epidemic" => epidemic_router.sender_for_bundle(packet.clas, packet.bp.clone()),
+                    _ => (vec![], false),
+                };
+
+                if res.0.is_empty() {
+                    info!("no cla sender could be selected");
+                } else {
+                    info!("selected {} to {}", res.0[0].agent, res.0[0].remote);
+                }
+
+                let resp: Packet = Packet::SenderForBundleResponse(SenderForBundleResponse {
+                    bp: packet.bp,
+                    clas: res.0,
+                    delete_afterwards: res.1,
+                });
+
+                cmd_tx
+                    .unbounded_send(Command::SendPacket(Box::new(resp)))
+                    .expect("send packet failed");
+            }
+            _ => {}
+        }
+
+        future::ready(())
+    });
+
+    pin_mut!(read);
+    read.await;
+
+    Ok(())
 }
 
 #[tokio::main]
@@ -103,191 +292,21 @@ async fn main() -> Result<()> {
     }
 
     if !matches.is_present("type") || !matches.is_present("addr") {
-        bail!("please specify address and type");
+        bail!("please specify address and strategy type");
     }
 
-    let selected_type = routing_types.iter().find(|t| {
+    let strategy = routing_types.iter().find(|t| {
         return matches.value_of("type").unwrap().eq_ignore_ascii_case(t);
     });
 
-    if selected_type.is_none() {
-        bail!("please select a type from: {}", routing_types.join(", "));
+    if strategy.is_none() {
+        bail!(
+            "please select a strategy type from: {}",
+            routing_types.join(", ")
+        );
     }
 
-    let selected_type: &str = selected_type.unwrap();
-
-    info!("selected routing: {}", selected_type);
-
-    let (tx, rx) = unbounded::<Packet>();
-    let (cmd_tx, cmd_rx) = unbounded::<Command>();
-
-    let client = ws_client::new(matches.value_of("addr").unwrap(), tx);
-
-    match client {
-        Err(err) => {
-            bail!("error while creating client: {}", err);
-        }
-        Ok(mut client) => {
-            tokio::spawn(async move {
-                let cmd_chan = client.command_channel();
-                let read = cmd_rx.for_each(|cmd| {
-                    cmd_chan
-                        .unbounded_send(cmd)
-                        .expect("couldn't pass packet to client command channel");
-                    future::ready(())
-                });
-                let connecting = client.serve();
-
-                pin_mut!(connecting, read);
-                future::select(connecting, read).await;
-            });
-        }
-    }
-
-    let mut history: HashMap<String, HashSet<String>> = HashMap::new();
-    let mut peers: HashMap<String, DtnPeer> = HashMap::new();
-
-    let read = rx.for_each(|packet| {
-        match packet {
-            Packet::PeerState(packet) => {
-                peers = packet.peers;
-                info!("Peer State: {}", peers.len());
-            }
-            Packet::EncounteredPeer(packet) => {
-                peers.insert(packet.eid.node().unwrap(), packet.peer);
-                info!("Peer Encountered: {}", packet.eid.node().unwrap());
-            }
-            Packet::DroppedPeer(packet) => {
-                peers.remove(packet.eid.node().unwrap().as_str());
-                info!("Peer Dropped: {}", packet.eid.node().unwrap());
-            }
-            Packet::SendingFailed(packet) => {
-                if selected_type == "epidemic" {
-                    debug!("Node: {}", packet.cla_sender.as_str());
-                    epi_sending_failed(
-                        &mut history,
-                        packet.bid.as_str(),
-                        packet.cla_sender.as_str(),
-                    );
-                }
-            }
-            Packet::Timeout(packet) => {
-                if selected_type == "epidemic" {
-                    epi_sending_timeout(&mut history, packet.bp.id.as_str());
-                }
-            }
-            Packet::IncomingBundle(packet) => {
-                if selected_type == "epidemic" {
-                    if let Some(eid) = packet.bndl.previous_node() {
-                        if let Some(node_name) = eid.node() {
-                            epi_incoming_bundle(&mut history, &packet.bndl.id(), &node_name);
-                        }
-                    };
-                }
-            }
-            Packet::IncomingBundleWithoutPreviousNode(packet) => {
-                if selected_type == "epidemic" {
-                    epi_incoming_bundle(
-                        &mut history,
-                        packet.bid.as_str(),
-                        packet.node_name.as_str(),
-                    );
-                }
-            }
-            Packet::RequestSenderForBundle(packet) => {
-                info!("got bundle pack: {}", packet.bp);
-
-                let mut clas = Vec::new();
-                let mut delete_afterwards = false;
-
-                match selected_type {
-                    "flooding" => {
-                        for (_, p) in peers.iter() {
-                            for c in p.cla_list.iter() {
-                                if packet.clas.contains(&c.0) {
-                                    clas.push(Sender {
-                                        remote: p.addr.clone(),
-                                        port: c.1,
-                                        agent: c.0.clone(),
-                                        next_hop: p.eid.clone(),
-                                    });
-                                }
-                            }
-                        }
-                    }
-                    "epidemic" => {
-                        for (_, p) in peers.iter() {
-                            for c in p.cla_list.iter() {
-                                if packet.clas.contains(&c.0)
-                                    && !epi_contains(&mut history, packet.bp.id(), &p.node_name())
-                                {
-                                    epi_add(
-                                        &mut history,
-                                        packet.bp.id().to_string(),
-                                        p.node_name().clone(),
-                                    );
-                                    if packet.bp.destination.node().unwrap() == p.node_name() {
-                                        // direct delivery possible
-                                        debug!(
-                                            "Attempting direct delivery of bundle {} to {}",
-                                            packet.bp.id(),
-                                            p.node_name()
-                                        );
-
-                                        delete_afterwards = true;
-                                        clas.clear();
-                                        clas.push(Sender {
-                                            remote: p.addr.clone(),
-                                            port: c.1,
-                                            agent: c.0.clone(),
-                                            next_hop: p.eid.clone(),
-                                        });
-                                        break;
-                                    } else {
-                                        debug!(
-                                            "Attempting delivery of bundle {} to {}",
-                                            packet.bp.id(),
-                                            p.node_name()
-                                        );
-
-                                        clas.push(Sender {
-                                            remote: p.addr.clone(),
-                                            port: c.1,
-                                            agent: c.0.clone(),
-                                            next_hop: p.eid.clone(),
-                                        });
-                                    }
-                                }
-                            }
-                        }
-                    }
-                    _ => {}
-                }
-
-                if clas.is_empty() {
-                    info!("no cla sender could be selected");
-                } else {
-                    info!("selected {} to {}", clas[0].agent, clas[0].remote);
-                }
-
-                let resp: Packet = Packet::SenderForBundleResponse(SenderForBundleResponse {
-                    bp: packet.bp,
-                    clas,
-                    delete_afterwards,
-                });
-
-                cmd_tx
-                    .unbounded_send(Command::SendPacket(Box::new(resp)))
-                    .expect("send packet failed");
-            }
-            _ => {}
-        }
-
-        future::ready(())
-    });
-
-    pin_mut!(read);
-    read.await;
+    serve(strategy.unwrap(), matches.value_of("addr").unwrap()).await?;
 
     Ok(())
 }
