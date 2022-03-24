@@ -1,6 +1,6 @@
 use super::{
     DroppedPeer, EncounteredPeer, IncomingBundle, IncomingBundleWithoutPreviousNode, Packet,
-    PeerState, RequestSenderForBundle, SendingFailed, ServiceState,
+    PeerState, RequestSenderForBundle, SenderForBundleResponse, SendingFailed, ServiceState,
 };
 use crate::cla::ConvergenceLayerAgent;
 use crate::{
@@ -131,9 +131,7 @@ pub async fn handle_connection(ws: WebSocket) {
 }
 
 fn disconnect() {
-    if CONNECTION.lock().unwrap().is_some() {
-        (*CONNECTION.lock().unwrap()) = None;
-    }
+    (*CONNECTION.lock().unwrap()) = None;
 }
 
 /// Sends a JSON encoded packet to the connected router.
@@ -183,6 +181,37 @@ fn create_response_channel(id: &str, tx: oneshot::Sender<Packet>) {
     RESPONSES.lock().unwrap().insert(id.to_string(), tx);
 }
 
+// Builds a list of ClaSenderTask from the information contained in the SenderForBundleResponse packet.
+fn unpack_sender_for_bundle(packet: SenderForBundleResponse) -> (Vec<ClaSenderTask>, bool) {
+    (
+        packet
+            .clas
+            .iter()
+            .filter_map(|sender| {
+                for cla_instance in &(*CLAS.lock()) {
+                    // Search for the CLA from the packet by name.
+                    if sender.agent == cla_instance.name() {
+                        let dest = format!(
+                            "{}:{}",
+                            sender.remote,
+                            sender.port.unwrap_or_else(|| cla_instance.port())
+                        );
+
+                        return Some(ClaSenderTask {
+                            tx: cla_instance.channel(),
+                            dest,
+                            cla_name: cla_instance.name().into(),
+                            next_hop: sender.next_hop.clone(),
+                        });
+                    }
+                }
+                None
+            })
+            .collect(),
+        packet.delete_afterwards,
+    )
+}
+
 /// Tries to send a routing requests to the external router and waits for the response.
 /// The wait will be limited to a timeout of 250ms.
 pub async fn sender_for_bundle(bp: &BundlePack) -> (Vec<ClaSenderTask>, bool) {
@@ -212,32 +241,7 @@ pub async fn sender_for_bundle(bp: &BundlePack) -> (Vec<ClaSenderTask>, bool) {
             return (vec![], false);
         }
 
-        return (
-            packet
-                .clas
-                .iter()
-                .filter_map(|sender| {
-                    for cla_instance in &(*CLAS.lock()) {
-                        if sender.agent == cla_instance.name() {
-                            let dest = format!(
-                                "{}:{}",
-                                sender.remote,
-                                sender.port.unwrap_or_else(|| cla_instance.port())
-                            );
-
-                            return Some(ClaSenderTask {
-                                tx: cla_instance.channel(),
-                                dest,
-                                cla_name: cla_instance.name().into(),
-                                next_hop: sender.next_hop.clone(),
-                            });
-                        }
-                    }
-                    None
-                })
-                .collect(),
-            packet.delete_afterwards,
-        );
+        return unpack_sender_for_bundle(packet);
     }
 
     // Signal to the external router that the timeout was reached and no SenderForBundleResponse was processed.
