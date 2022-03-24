@@ -43,7 +43,7 @@ mod base64 {
 #[derive(Serialize, Deserialize, Clone)]
 #[serde(tag = "type")]
 pub enum Packet {
-    /// Identification Packet that registers the Module Name.
+    /// Identification Packet that registers the Module with name and options.
     Register(Register),
     /// Beacon is a device discovery packet. It can either be from the direct connection
     /// to the dtnd or received over the transmission layer of the ECLA client.
@@ -78,8 +78,11 @@ pub struct Error {
 
 #[derive(Serialize, Deserialize, Clone)]
 pub struct Register {
+    // The name should refer to the type of transportation layer used in the ECLA (e.g. MTCP, LoRa, BLE, ...)
     pub name: String,
     pub enable_beacon: bool,
+    // If the ECLA uses some kind of IP and port based protocol it needs to be known so that dtnd can use
+    // the port in the destination format generation.
     pub port: Option<u16>,
 }
 
