@@ -134,7 +134,7 @@ async fn main() -> Result<(), std::io::Error> {
         .arg(
             Arg::new("ecla")
                 .long("ecla")
-                .help("Enable ECLA")
+                .help("Enable ECLA (WebSocket transport layer enabled by default)")
                 .takes_value(false),
         )
         .arg(
