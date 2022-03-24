@@ -1,7 +1,11 @@
 import websocket
 import json
+import sys
 
 # Minimal example for external routing with a first contact routing strategy.
+#
+# You can specify an address to connect to as first argument:
+# > dtnerouting_firstcontact.py 127.0.0.1:3002
 #
 # Requirements:
 # pip3 install websocket-client
@@ -145,5 +149,9 @@ def on_sending_timeout(msg):
 #
 
 
-wsapp = websocket.WebSocketApp("ws://127.0.0.1:3000/ws/erouting", on_message=on_message, on_open=on_open)
-wsapp.run_forever()
+addr = "ws://127.0.0.1:3000/ws/erouting" if len(sys.argv) < 2 else "ws://" + sys.argv[1] + "/ws/erouting"
+print("Connecting to", addr)
+
+wsapp = websocket.WebSocketApp(addr, on_message=on_message, on_open=on_open)
+if wsapp.run_forever():
+    print("Closed!")
