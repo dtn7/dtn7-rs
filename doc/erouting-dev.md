@@ -1,8 +1,12 @@
 # External Routing Developer
 
-# Adding Notifications
+# Notifications
 
-The External Routing needs to pass all ``enum RoutingNotifcation<'a>`` from rust to the connected router. If a new Notification is added it also needs to be added to the external routing.
+``dtnd`` is using a general message bus through channels to deliver routing notifications. The sending is done by the ``routing_notify`` (``dtn7/src/lib.rs``) function. The External Routing needs to pass all received ``enum RoutingNotifcation`` from rust to the connected router. This is done by transforming them to JSON encode-able data structures before sending.
+
+## Adding Notifications
+
+If a new Notification is added it also needs to be added to the external routing.
 
 ### 1. New Notification was added
 
@@ -23,7 +27,7 @@ pub enum RoutingNotifcation {
 
 ### 2. Add it to Packet enum
 
-``erouting/mod.rs``
+``dtn7/src/routing/erouting/mod.rs``
 
 In order for the new notification to be available in the external routing we need to define a struct that will contain the data from the enum and then add it to the ``Packet`` enum.
 
@@ -57,7 +61,7 @@ pub struct NewNotification {
 
 ### 3. Register in Notify
 
-``erouting/processing.rs``
+``dtn7/src/routing/erouting/processing.rs``
 
 Now that the ``Packet`` enum contains the new notification we need to add the conversion from the ``RoutingNotifcation`` to ``Packet`` in the ``notify`` function. We need to add a new match in the function.
 
@@ -69,7 +73,7 @@ pub fn notify(notification: RoutingNotifcation) {
         // Our new notification
         RoutingNotifcation::NewNotification(some_text, some_number) => Packet::NewNotification(NewNotification {
             some_text: some_text,
-            some_number:some_number,
+            some_number: some_number,
         }),
     };
 
