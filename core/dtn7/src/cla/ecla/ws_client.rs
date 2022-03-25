@@ -73,9 +73,8 @@ pub fn new(
 impl Client {
     /// Connects and starts to handle packets. Will block until a severe error is encountered or the client is closed.
     pub async fn serve(&mut self) -> anyhow::Result<()> {
-        let (ws_stream, _) = connect_async(format!("ws://{}:{}/ws/ecla", self.ip, self.port))
-            .await
-            .expect("Failed to connect");
+        let (ws_stream, _) =
+            connect_async(format!("ws://{}:{}/ws/ecla", self.ip, self.port)).await?;
 
         info!("WebSocket handshake has been successfully completed");
 

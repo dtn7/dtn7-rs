@@ -1,7 +1,7 @@
 use super::Packet;
 use futures::channel::mpsc::{unbounded, UnboundedReceiver, UnboundedSender};
 use futures_util::{future, pin_mut, SinkExt, StreamExt};
-use log::info;
+use log::{error, info};
 use serde_json::Result;
 use std::str::FromStr;
 use tokio_tungstenite::connect_async;
@@ -53,10 +53,9 @@ pub fn new(addr: &str, packet_out: UnboundedSender<Packet>) -> std::io::Result<C
 
 impl Client {
     /// Connects and starts to handle packets. Will block until a severe error is encountered or the client is closed.
-    pub async fn serve(&mut self) -> Result<()> {
-        let (ws_stream, _) = connect_async(format!("ws://{}:{}/ws/erouting", self.ip, self.port))
-            .await
-            .expect("Failed to connect");
+    pub async fn serve(&mut self) -> anyhow::Result<()> {
+        let (ws_stream, _) =
+            connect_async(format!("ws://{}:{}/ws/erouting", self.ip, self.port)).await?;
 
         info!("WebSocket handshake has been successfully completed");
 
@@ -69,10 +68,9 @@ impl Client {
                 match command {
                     Command::SendPacket(packet) => {
                         let data = serde_json::to_string(&packet);
-                        write
-                            .send(Message::Text(data.unwrap()))
-                            .await
-                            .expect("couldn't send packet");
+                        if write.send(Message::Text(data.unwrap())).await.is_err() {
+                            error!("Error while sending packet");
+                        }
                     }
                     Command::Close => {
                         break;
@@ -93,9 +91,9 @@ impl Client {
 
                 let packet: Result<Packet> = serde_json::from_str(data.unwrap().as_str());
                 if let Ok(packet) = packet {
-                    self.packet_out
-                        .unbounded_send(packet)
-                        .expect("couldn't send packet");
+                    if let Err(err) = self.packet_out.unbounded_send(packet) {
+                        error!("Error while sending packet to channel: {}", err);
+                    }
                 }
             })
         };
