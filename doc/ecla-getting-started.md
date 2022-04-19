@@ -8,6 +8,32 @@ dtnd -w 3000 -r epidemic -n node1 --ecla
 
 By default if ECLA is enabled the WebSocket transport layer is running under the web port of dtnd as specified by ``-w``, ``--web-port``. In the example above the port would be 3000 (``-w 3000``).
 
+## Example Config File
+
+```toml
+nodeid = "node1"
+debug = false
+beacon-period = true
+generate-status-reports = false
+parallel-bundle-processing = false
+routing = "epidemic"
+webport = 3000
+workdir = "/tmp/dtn7"
+db = "mem"
+
+[core]
+janitor = "10s"
+
+[discovery]
+interval = "2s"
+peer-timeout = "20s"
+
+[ecla]
+enabled  = true
+tcp_port = 0
+```
+
+
 # ECLA FAQ
 
 ### What happens if a ECLA connects with a name that is already present in the dtnd as CLA?

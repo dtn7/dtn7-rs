@@ -28,6 +28,17 @@ If the TCP Transport Layer is used the packets use a big-endian length delimited
 +----------+--------------------------------+
 ```
 
+
+## Config File
+
+Configuration can also happen via a config file.
+
+```toml
+[ecla]
+enabled  = true
+tcp_port = 0
+```
+
 ## Static Peers
 
 Normally dntd won't accept static peers for CLAs that are not present at startup. In case of ECLAs where a CLA will be registered at a later time it is still possible to add peers with a different notation. A ``ecla+`` will indicate dtnd that the peer is intended for a ECLA and added without the CLA presence check.

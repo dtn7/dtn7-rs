@@ -8,6 +8,14 @@ The External Routing allows implementing routing algorithms externally (e.g. out
 
 To enable the erouting use ``-r external`` as a routing algorithm.
 
+## Config File
+
+Configuration can also happen via a config file by setting the routing to ``external``.
+
+```toml
+routing = "external"
+```
+
 ## WebSocket Transport Layer
 
 The WebSocket is accessible under the same port as defined by ``-w``, ``--web-port`` and the route ``/ws/erouting``. An example for a web port 3000 would be ``127.0.0.1:3000/ws/erouting``.
