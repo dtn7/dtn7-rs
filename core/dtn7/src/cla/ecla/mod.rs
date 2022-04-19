@@ -29,6 +29,8 @@ mod base64 {
     use serde::{Deserialize, Serialize};
     use serde::{Deserializer, Serializer};
 
+    // TODO: Uses a extra allocation at the moment. Might be worth investigating a allocation-less solution in the future.
+
     pub fn serialize<S: Serializer>(v: &[u8], s: S) -> Result<S::Ok, S::Error> {
         let base64 = encode(v);
         String::serialize(&base64, s)
@@ -47,8 +49,9 @@ mod base64 {
 pub enum Packet {
     /// Identification Packet that registers the Module with name and options.
     Register(Register),
-    /// Beacon is a device discovery packet. It can either be from the direct connection
-    /// to the dtnd or received over the transmission layer of the ECLA client.
+    /// Beacon is a device discovery packet. This packet will either be send from
+    /// dtnd to the ECLA Modules to advertise itself or received from a ECLA Module,
+    /// containing a new discovered peer from the transmission layer.
     Beacon(Beacon),
     /// Packet that forwards Bundle data.
     ForwardData(ForwardData),
@@ -80,11 +83,11 @@ pub struct Error {
 
 #[derive(Serialize, Deserialize, Clone)]
 pub struct Register {
-    // The name should refer to the type of transportation layer used in the ECLA (e.g. MTCP, LoRa, BLE, ...)
+    /// The name should refer to the type of transportation layer used in the ECLA (e.g. MTCP, LoRa, BLE, ...)
     pub name: String,
     pub enable_beacon: bool,
-    // If the ECLA uses some kind of IP and port based protocol it needs to be known so that dtnd can use
-    // the port in the destination format generation.
+    /// If the ECLA uses some kind of IP and port based protocol it needs to be known so that dtnd can use
+    /// the port in the destination format generation.
     pub port: Option<u16>,
 }
 
