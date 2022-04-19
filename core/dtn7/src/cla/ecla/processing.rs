@@ -18,7 +18,7 @@ use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 use tokio::time::interval;
 
-// Specifies the maximum length for a name of ECLA modules.
+/// Specifies the maximum length for a name of ECLA modules.
 const ECLA_NAME_MAX_LEN: usize = 64;
 
 type ModuleMap = Arc<Mutex<HashMap<String, Module>>>;
