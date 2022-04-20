@@ -85,6 +85,8 @@ pub struct Error {
 pub struct Register {
     /// The name should refer to the type of transportation layer used in the ECLA (e.g. MTCP, LoRa, BLE, ...)
     pub name: String,
+    /// Enables the optional service discovery. If enabled beacon packets will be periodically sent to the
+    /// ECLA Module.
     pub enable_beacon: bool,
     /// If the ECLA uses some kind of IP and port based protocol it needs to be known so that dtnd can use
     /// the port in the destination format generation.
