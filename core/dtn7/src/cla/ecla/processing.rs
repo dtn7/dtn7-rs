@@ -25,10 +25,10 @@ type ModuleMap = Arc<Mutex<HashMap<String, Module>>>;
 type LayerMap = Arc<Mutex<HashMap<String, TransportLayerEnum>>>;
 
 lazy_static! {
+    /// Tracks the registered transportation layers over which clients can connect to dtnd (e.g. WebSocket or TCP).
+    static ref LAYER_MAP: LayerMap = LayerMap::new(Mutex::new(HashMap::new()));
     /// Tracks the registered modules that are connected over an transportation layer.
     static ref MODULE_MAP: ModuleMap = ModuleMap::new(Mutex::new(HashMap::new()));
-    /// Tracks the registered transportation layers over which clients can connect to dtnd.
-    static ref LAYER_MAP: LayerMap = LayerMap::new(Mutex::new(HashMap::new()));
 }
 
 /// Represents in which state the Module connection is.
@@ -43,9 +43,11 @@ enum ModuleState {
 /// the layer over which it's connected and if the optional service discovery via periodically sent beacons is enabled.
 struct Module {
     state: ModuleState,
+    /// Name of the Module should be the externally implemented CLA name (e.g. BLE, MTCP, LoRa, ...)
     name: String,
-    // Name of the layer which the model is connected through (e.g. WebSocket, TCP, ...)
+    /// Name of the layer which the model is connected through (e.g. WebSocket, TCP, ...)
     layer: String,
+    /// Specifies if the Module requested the optional service discovery to be enabled.
     enable_beacon: bool,
 }
 
