@@ -4,14 +4,14 @@ use crate::cla::ecla::Packet;
 use crate::lazy_static;
 use async_trait::async_trait;
 use axum::extract::ws::{Message, WebSocket};
-use futures::channel::mpsc::unbounded;
-use futures_util::{future, pin_mut, stream::TryStreamExt, StreamExt};
-use log::info;
+use futures_util::{future, pin_mut, stream::TryStreamExt, SinkExt, StreamExt};
 use log::{debug, trace};
+use log::{error, info};
 use serde_json::Result;
 use std::collections::HashMap;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex};
+use tokio::sync::mpsc;
 use tokio::sync::oneshot;
 
 type WebSocketConnection = super::Connection<Message>;
@@ -30,7 +30,7 @@ pub async fn handle_connection(ws: WebSocket) {
     // We can't get a remote address from ws so we create own monotonic increasing id's
     let id = ID_COUNTER.fetch_add(1, Ordering::SeqCst);
 
-    let (tx, rx) = unbounded();
+    let (tx, mut rx) = mpsc::channel(100);
     let (tx_close, rx_close) = oneshot::channel();
 
     PEER_MAP.lock().unwrap().insert(
@@ -42,7 +42,7 @@ pub async fn handle_connection(ws: WebSocket) {
     );
     handle_connect(LAYER_NAME.to_string(), id.to_string());
 
-    let (outgoing, incoming) = ws.split();
+    let (mut outgoing, incoming) = ws.split();
 
     // Process incoming messages from the websocket client
     let broadcast_incoming = incoming.try_for_each(|msg| {
@@ -75,7 +75,13 @@ pub async fn handle_connection(ws: WebSocket) {
     });
 
     // Pass the received messages to the websocket client.
-    let receive_from_others = rx.map(Ok).forward(outgoing);
+    let receive_from_others = tokio::spawn(async move {
+        while let Some(cmd) = rx.recv().await {
+            if let Err(err) = outgoing.send(cmd).await {
+                error!("err while sending to outgoing channel: {}", err);
+            }
+        }
+    });
 
     // Wait for the broadcast incoming and outgoing channel to close or
     // until a close command for this connection is received.
@@ -116,10 +122,7 @@ impl TransportLayer for WebsocketTransportLayer {
         let peer_map = PEER_MAP.lock().unwrap();
         if let Some(target) = peer_map.get(dest) {
             let data = serde_json::to_string(&packet);
-            return target
-                .tx
-                .unbounded_send(Message::Text(data.unwrap()))
-                .is_ok();
+            return target.tx.try_send(Message::Text(data.unwrap())).is_ok();
         }
 
         false

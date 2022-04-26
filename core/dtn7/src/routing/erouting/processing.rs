@@ -8,18 +8,19 @@ use crate::{
     RoutingNotifcation, CLAS, CONFIG, DTNCORE, PEERS,
 };
 use axum::extract::ws::{Message, WebSocket};
-use futures::channel::mpsc::{unbounded, UnboundedSender};
-use futures_util::{future, pin_mut, StreamExt, TryStreamExt};
+use futures_util::{future, pin_mut, SinkExt, StreamExt, TryStreamExt};
 use log::{error, info, trace};
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 use std::time;
+use tokio::sync::mpsc;
+use tokio::sync::mpsc::Sender;
 use tokio::sync::oneshot;
 use tokio::time::timeout;
 
 /// Holds the channel to send messages to the connected router.
 struct Connection {
-    tx: UnboundedSender<Message>,
+    tx: Sender<Message>,
 }
 
 type ResponseMap = Arc<Mutex<HashMap<String, oneshot::Sender<Packet>>>>;
@@ -54,7 +55,7 @@ pub async fn handle_connection(ws: WebSocket) {
         return;
     }
 
-    let (tx, rx) = unbounded();
+    let (tx, mut rx) = mpsc::channel(100);
 
     if CONNECTION.lock().unwrap().is_some() {
         info!("Websocket connection closed because external routing agent is already connected");
@@ -70,7 +71,7 @@ pub async fn handle_connection(ws: WebSocket) {
     send_peer_state();
     send_service_state();
 
-    let (outgoing, incoming) = ws.split();
+    let (mut outgoing, incoming) = ws.split();
 
     let broadcast_incoming = incoming.try_for_each(|msg| {
         trace!(
@@ -121,7 +122,13 @@ pub async fn handle_connection(ws: WebSocket) {
         future::ok(())
     });
 
-    let receive_from_others = rx.map(Ok).forward(outgoing);
+    let receive_from_others = tokio::spawn(async move {
+        while let Some(cmd) = rx.recv().await {
+            if let Err(err) = outgoing.send(cmd).await {
+                error!("err while sending to outgoing channel: {}", err);
+            }
+        }
+    });
 
     pin_mut!(broadcast_incoming, receive_from_others);
     future::select(broadcast_incoming, receive_from_others).await;
@@ -139,7 +146,7 @@ fn send_packet(p: &Packet) {
     if let Ok(data) = serde_json::to_string(p) {
         if let Some(con) = CONNECTION.lock().unwrap().as_ref() {
             con.tx
-                .unbounded_send(Message::Text(data))
+                .try_send(Message::Text(data))
                 .expect("error while sending to tx");
         }
     }

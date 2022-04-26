@@ -3,14 +3,14 @@ use crate::cla::ecla::processing::{handle_connect, handle_disconnect, handle_pac
 use crate::cla::ecla::Packet;
 use crate::lazy_static;
 use async_trait::async_trait;
-use futures::channel::mpsc::unbounded;
-use futures_util::{future, pin_mut, stream::TryStreamExt, StreamExt};
+use futures_util::{future, pin_mut, stream::TryStreamExt};
 use log::info;
 use log::{debug, error};
 use std::collections::HashMap;
 use std::net::SocketAddr;
 use std::sync::{Arc, Mutex};
 use tokio::net::{TcpListener, TcpStream};
+use tokio::sync::mpsc;
 use tokio::sync::oneshot;
 use tokio_serde::formats::SymmetricalJson;
 use tokio_util::codec::{FramedRead, LengthDelimitedCodec};
@@ -23,10 +23,10 @@ lazy_static! {
 }
 
 // Handles the TCP connection.
-async fn handle_connection(mut raw_stream: TcpStream, addr: SocketAddr) {
+async fn handle_connection(raw_stream: TcpStream, addr: SocketAddr) {
     info!("Incoming TCP connection from: {}", addr);
 
-    let (tx, rx) = unbounded();
+    let (tx, mut rx) = mpsc::channel(100);
     let (tx_close, rx_close) = oneshot::channel();
 
     // Insert the write part of this peer to the peer map.
@@ -39,7 +39,7 @@ async fn handle_connection(mut raw_stream: TcpStream, addr: SocketAddr) {
     );
     handle_connect("TCP".to_string(), addr.to_string());
 
-    let (incoming, outgoing) = raw_stream.split();
+    let (incoming, outgoing) = raw_stream.into_split();
 
     // Delimit frames using a length header
     let length_delimited = FramedRead::new(incoming, LengthDelimitedCodec::new());
@@ -55,11 +55,12 @@ async fn handle_connection(mut raw_stream: TcpStream, addr: SocketAddr) {
         future::ok(())
     });
 
-    let broadcast_outgoing = rx.for_each(|packet| {
-        if let Err(err) = outgoing.try_write(packet.as_slice()) {
-            error!("error while sending packet ({})", err);
+    let broadcast_outgoing = tokio::spawn(async move {
+        while let Some(cmd) = rx.recv().await {
+            if let Err(err) = outgoing.try_write(cmd.as_slice()) {
+                error!("err while sending to outgoing channel: {}", err);
+            }
         }
-        future::ready(())
     });
 
     // Wait for the broadcast incoming and outgoing channel to close or
@@ -124,9 +125,7 @@ impl TransportLayer for TCPTransportLayer {
             data.splice(0..0, len.iter().cloned());
 
             if let Some(target) = target {
-                if let Ok(()) = target.tx.unbounded_send(data) {
-                    return true;
-                }
+                return target.tx.try_send(data).is_ok();
             }
         }
 

@@ -1,8 +1,8 @@
 use async_trait::async_trait;
 use bp7::EndpointID;
 use enum_dispatch::enum_dispatch;
-use futures::channel::mpsc::UnboundedSender;
 use serde::{Deserialize, Serialize};
+use tokio::sync::mpsc::Sender;
 use tokio::sync::oneshot;
 
 use tcp::TCPTransportLayer;
@@ -108,7 +108,7 @@ pub struct ForwardData {
 /// and a oneshot channel to signal a closing of the session once. Can be used as generic
 /// session for transport layers.
 struct Connection<A> {
-    tx: UnboundedSender<A>,
+    tx: Sender<A>,
     close: Option<oneshot::Sender<()>>,
 }
 
