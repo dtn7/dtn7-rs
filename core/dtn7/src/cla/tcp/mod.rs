@@ -875,8 +875,8 @@ impl ConvergenceLayerAgent for TcpConvergenceLayer {
 impl Clone for TcpConvergenceLayer {
     fn clone(&self) -> Self {
         Self {
-            local_port: self.local_port.clone(),
-            refuse_existing_bundles: self.refuse_existing_bundles.clone(),
+            local_port: self.local_port,
+            refuse_existing_bundles: self.refuse_existing_bundles,
             tx: self.tx.clone(),
             receiver_stream: None,
         }
