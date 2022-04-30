@@ -37,7 +37,7 @@ pub fn init_cla_subsystem(_item: TokenStream) -> TokenStream {
 
     let cla_enum = quote! {
         #[enum_dispatch]
-        #[derive(Debug, Display)]
+        #[derive(Debug, Display, Clone)]
         pub enum CLAEnum {
             #(#cla_subsystem),*
         }

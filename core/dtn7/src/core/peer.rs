@@ -153,9 +153,8 @@ impl DtnPeer {
                         cla.1.unwrap_or_else(|| cla_instance.port())
                     );
                     return Some(ClaSenderTask {
-                        tx: cla_instance.channel(),
+                        cla: cla_instance.clone(),
                         dest,
-                        cla_name: cla_instance.name().into(),
                         next_hop: self.eid.clone(),
                     });
                 }

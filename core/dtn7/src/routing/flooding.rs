@@ -32,9 +32,8 @@ impl RoutingAgent for FloodingRoutingAgent {
                             p.addr().to_string()
                         };
                         let cla = ClaSenderTask {
-                            cla_name: p2.0.to_string(),
+                            cla: c.clone(),
                             dest,
-                            tx: c.channel(),
                             next_hop: p.eid.clone(),
                         };
                         clas.push(cla);

@@ -816,6 +816,17 @@ impl ConvergenceLayerAgent for TcpConvergenceLayer {
     }
 }
 
+impl Clone for TcpConvergenceLayer {
+    fn clone(&self) -> Self {
+        Self {
+            local_port: self.local_port.clone(),
+            refuse_existing_bundles: self.refuse_existing_bundles.clone(),
+            tx: self.tx.clone(),
+            receiver_stream: None,
+        }
+    }
+}
+
 impl HelpStr for TcpConvergenceLayer {
     fn local_help_str() -> &'static str {
         "port=4556:refuse-existing-bundles=true|false"

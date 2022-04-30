@@ -1,3 +1,4 @@
+use crate::cla::ConvergenceLayerAgent;
 use crate::core::bundlepack::*;
 use crate::core::*;
 use crate::routing::RoutingNotifcation;
@@ -342,16 +343,21 @@ pub async fn forward(mut bp: BundlePack) -> Result<()> {
                 let now = Instant::now();
                 debug!(
                     "Sending bundle to a CLA: {} {} {}",
-                    &bpid, n.dest, n.cla_name
+                    &bpid,
+                    n.dest,
+                    n.cla.name()
                 );
                 if let Err(err) = n.transfer(bd).await {
                     info!(
                         "Sending bundle {} via {} to {} ({}) failed",
-                        &bpid, n.cla_name, n.dest, n.next_hop
+                        &bpid,
+                        n.cla.name(),
+                        n.dest,
+                        n.next_hop
                     );
                     debug!("Error while transferring bundle {}: {}", &bpid, err);
                     debug!("TIME BUNDLE FAILED {:?}", now.elapsed());
-                    let mut failed_peer = None;
+
                     (*DTNCORE.lock())
                         .routing_agent
                         .notify(RoutingNotifcation::SendingFailed(
@@ -359,23 +365,7 @@ pub async fn forward(mut bp: BundlePack) -> Result<()> {
                             &n.next_hop.node().unwrap(),
                         ));
                     //debug!("current peers: {:?}", (*PEERS.lock()).keys());
-                    if let Some(peer_entry) = (*PEERS.lock()).get_mut(&n.next_hop.node().unwrap()) {
-                        debug!(
-                            "Reporting failed sending to peer: {}",
-                            &n.next_hop.node().unwrap()
-                        );
-                        peer_entry.report_fail();
-                        if peer_entry.failed_too_much() && peer_entry.con_type == PeerType::Dynamic
-                        {
-                            failed_peer = Some(peer_entry.node_name());
-                        }
-                    }
-                    if let Some(peer) = failed_peer {
-                        let peers_before = (*PEERS.lock()).len();
-                        (*PEERS.lock()).remove(&peer);
-                        let peers_after = (*PEERS.lock()).len();
-                        debug!("Removing peer {} from list of neighbors due to too many failed transmissions ({}/{})", peer, peers_before, peers_after);
-                    }
+
                     // TODO: send status report?
                     // if (*CONFIG.lock()).generate_service_reports {
                     //    send_status_report(&bp2, FORWARDED_BUNDLE, TRANSMISSION_CANCELED);
@@ -383,7 +373,9 @@ pub async fn forward(mut bp: BundlePack) -> Result<()> {
                 } else {
                     info!(
                         "Sending bundle succeeded: {} {} {}",
-                        &bpid, n.dest, n.cla_name
+                        &bpid,
+                        n.dest,
+                        n.cla.name()
                     );
                     debug!("TIME BUNDLE SENDING {:?}", now.elapsed());
                     bundle_sent.store(true, Ordering::Relaxed);
