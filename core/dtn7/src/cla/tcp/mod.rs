@@ -8,11 +8,11 @@ use super::tcp::proto::*;
 use super::{ClaCmd, ConvergenceLayerAgent, HelpStr, TransferResult};
 use crate::core::store::BundleStore;
 use crate::core::PeerType;
-use crate::{peers_add, peers_known, STORE};
+use crate::{peers_add, peers_known, PEERS, STORE};
 use crate::{DtnPeer, CONFIG};
 use anyhow::bail;
 use async_trait::async_trait;
-use bp7::{Bundle, EndpointID};
+use bp7::{Bundle, ByteBuffer, EndpointID};
 use buffer_flush::StreamCustomExt;
 use bytes::Bytes;
 use dtn7_codegen::cla;
@@ -655,9 +655,11 @@ async fn tcp_send_bundles(
     bundle: Bytes,
     refuse_existing_bundles: bool,
     reply: Sender<TransferResult>,
+    report_peer_failure: Option<EndpointID>,
 ) -> anyhow::Result<()> {
     let now = Instant::now();
     let addr: SocketAddr = dest.parse().unwrap();
+    let mut new_conn = false;
 
     let (sender, receiver) = {
         let mut lock = TCP_CONNECTIONS.lock();
@@ -671,16 +673,44 @@ async fn tcp_send_bundles(
                 let (tx_session_queue, rx_session_queue) =
                     mpsc::channel::<(Bytes, oneshot::Sender<TransferResult>)>(2);
                 (*lock).insert(addr, tx_session_queue.clone());
+                new_conn = true;
                 (tx_session_queue, Some(rx_session_queue))
             }
         } else {
             let (tx_session_queue, rx_session_queue) =
                 mpsc::channel::<(Bytes, oneshot::Sender<TransferResult>)>(2);
             (*lock).insert(addr, tx_session_queue.clone());
+            new_conn = true;
             (tx_session_queue, Some(rx_session_queue))
         }
         // lock is dropped here
     };
+
+    if let Some(next_hop) = report_peer_failure {
+        if new_conn {
+            let tx_clone = sender.clone();
+            tokio::spawn(async move {
+                tx_clone.closed().await;
+                let mut failed_peer = None;
+                if let Some(peer_entry) = (*PEERS.lock()).get_mut(&next_hop.node().unwrap()) {
+                    debug!(
+                        "Reporting failed sending to peer: {}",
+                        &next_hop.node().unwrap()
+                    );
+                    peer_entry.report_fail();
+                    if peer_entry.failed_too_much() && peer_entry.con_type == PeerType::Dynamic {
+                        failed_peer = Some(peer_entry.node_name());
+                    }
+                }
+                if let Some(peer) = failed_peer {
+                    let peers_before = (*PEERS.lock()).len();
+                    (*PEERS.lock()).remove(&peer);
+                    let peers_after = (*PEERS.lock()).len();
+                    debug!("Removing peer {} from list of neighbors due to too many failed transmissions ({}/{})", peer, peers_before, peers_after);
+                }
+            });
+        }
+    }
 
     // channel is inserted first into hashmap, even if connection is not yet established
     // connection is created here
@@ -791,6 +821,7 @@ impl ConvergenceLayerAgent for TcpConvergenceLayer {
                                 Bytes::from(data),
                                 refuse_existing_bundles,
                                 reply,
+                                None,
                             )
                             .await
                             {
@@ -813,6 +844,31 @@ impl ConvergenceLayerAgent for TcpConvergenceLayer {
 
     fn channel(&self) -> tokio::sync::mpsc::Sender<super::ClaCmd> {
         self.tx.clone()
+    }
+
+    async fn send(
+        &self,
+        node: String,
+        ready: ByteBuffer,
+        next_hop: EndpointID,
+    ) -> anyhow::Result<()> {
+        let (reply_tx, reply_rx) = oneshot::channel();
+        if let Err(e) = tcp_send_bundles(
+            node.clone(),
+            Bytes::from(ready),
+            self.refuse_existing_bundles,
+            reply_tx,
+            Some(next_hop),
+        )
+        .await
+        {
+            error!("Failed to send data to {}: {}", node, e);
+        }
+
+        if reply_rx.await? == TransferResult::Failure {
+            return Err(anyhow::anyhow!("CLA {} failed to send bundle", self.name()));
+        }
+        Ok(())
     }
 }
 
