@@ -2,11 +2,12 @@ use super::{Packet, Register};
 use crate::cla::ecla;
 use crate::cla::ecla::ws_client::Command::SendPacket;
 use anyhow::bail;
-use futures::channel::mpsc::{unbounded, UnboundedReceiver, UnboundedSender};
+use futures::channel::mpsc::unbounded;
 use futures_util::{future, pin_mut, SinkExt, StreamExt};
 use log::{error, info, warn};
 use serde_json::Result;
 use std::str::FromStr;
+use tokio::sync::mpsc;
 use tokio_tungstenite::{connect_async, tungstenite::protocol::Message};
 
 pub enum Command {
@@ -24,9 +25,9 @@ pub struct Client {
     id: String,
     port: i16,
     ecla_port: Option<u16>,
-    cmd_receiver: UnboundedReceiver<Command>,
-    cmd_sender: UnboundedSender<Command>,
-    packet_out: UnboundedSender<Packet>,
+    cmd_receiver: mpsc::Receiver<Command>,
+    cmd_sender: mpsc::Sender<Command>,
+    packet_out: mpsc::Sender<Packet>,
 }
 
 /// Creates a new ecla client.
@@ -43,7 +44,7 @@ pub fn new(
     module_name: &str,
     addr: &str,
     current_id: &str,
-    packet_out: UnboundedSender<Packet>,
+    packet_out: mpsc::Sender<Packet>,
     enable_beacon: bool,
 ) -> std::io::Result<Client> {
     let parts: Vec<&str> = addr.split(':').collect();
@@ -55,7 +56,7 @@ pub fn new(
         ));
     }
 
-    let (cmd_sender, cmd_receiver) = unbounded::<Command>();
+    let (cmd_sender, cmd_receiver) = mpsc::channel(100);
 
     Ok(Client {
         module_name: module_name.to_string(),
@@ -81,17 +82,22 @@ impl Client {
         let (mut write, read) = ws_stream.split();
 
         // Queue initial RegisterPacket
-        self.cmd_sender
-            .unbounded_send(SendPacket(Packet::Register(Register {
+        if let Err(err) = self
+            .cmd_sender
+            .send(SendPacket(Packet::Register(Register {
                 name: self.module_name.to_string(),
                 enable_beacon: self.enable_beacon,
                 port: self.ecla_port,
-            })))?;
+            })))
+            .await
+        {
+            bail!("error while sending registration packet: {}", err);
+        }
 
         // Pass rx to write
-        let mut cmd_receiver = std::mem::replace(&mut self.cmd_receiver, unbounded().1);
+        let mut cmd_receiver = std::mem::replace(&mut self.cmd_receiver, mpsc::channel(1).1);
         let to_ws = tokio::spawn(async move {
-            while let Some(command) = cmd_receiver.next().await {
+            while let Some(command) = cmd_receiver.recv().await {
                 match command {
                     Command::SendPacket(packet) => {
                         let data = serde_json::to_string(&packet);
@@ -124,16 +130,14 @@ impl Client {
                         Packet::ForwardData(mut fwd) => {
                             fwd.src = self.id.clone();
 
-                            if let Err(err) =
-                                self.packet_out.unbounded_send(Packet::ForwardData(fwd))
-                            {
+                            if let Err(err) = self.packet_out.send(Packet::ForwardData(fwd)).await {
                                 error!("Error while sending ForwardData to channel: {}", err);
                             }
                         }
                         Packet::Beacon(mut pdp) => {
                             pdp.addr = self.id.clone();
 
-                            if let Err(err) = self.packet_out.unbounded_send(Packet::Beacon(pdp)) {
+                            if let Err(err) = self.packet_out.send(Packet::Beacon(pdp)).await {
                                 error!("Error while sending ForwardData to channel: {}", err);
                             }
                         }
@@ -170,7 +174,7 @@ impl Client {
         self.id = id.to_string();
     }
 
-    pub fn command_channel(&self) -> UnboundedSender<Command> {
+    pub fn command_channel(&self) -> mpsc::Sender<Command> {
         self.cmd_sender.clone()
     }
 }

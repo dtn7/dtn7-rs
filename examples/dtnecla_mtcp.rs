@@ -4,7 +4,6 @@ use clap::{crate_authors, crate_version, App, Arg};
 use dtn7::cla::ecla::ws_client::Command::SendPacket;
 use dtn7::cla::ecla::{ws_client, ForwardData, Packet};
 use dtn7::cla::mtcp::{MPDUCodec, MPDU};
-use futures::channel::mpsc::{unbounded, UnboundedSender};
 use futures_util::future::Either;
 use futures_util::{future, pin_mut, StreamExt};
 use lazy_static::lazy_static;
@@ -18,6 +17,7 @@ use std::net::TcpStream;
 use std::str::FromStr;
 use tokio::io;
 use tokio::net::TcpListener;
+use tokio::sync::mpsc;
 use tokio_util::codec::FramedRead;
 
 lazy_static! {
@@ -27,7 +27,7 @@ lazy_static! {
 async fn handle_connection(
     mut socket: tokio::net::TcpStream,
     addr: String,
-    tx: UnboundedSender<Packet>,
+    tx: mpsc::Sender<Packet>,
 ) -> anyhow::Result<()> {
     let (incoming, _) = socket.split();
 
@@ -41,12 +41,15 @@ async fn handle_connection(
                 if let Ok(mut bndl) = Bundle::try_from(frame) {
                     info!("Received bundle: {} from {}", bndl.id(), addr);
                     {
-                        if let Err(err) = tx.unbounded_send(Packet::ForwardData(ForwardData {
-                            src: "".to_string(),
-                            dst: addr.clone(),
-                            bundle_id: bndl.id(),
-                            data: bndl.to_cbor(),
-                        })) {
+                        if let Err(err) = tx
+                            .send(Packet::ForwardData(ForwardData {
+                                src: "".to_string(),
+                                dst: addr.clone(),
+                                bundle_id: bndl.id(),
+                                data: bndl.to_cbor(),
+                            }))
+                            .await
+                        {
                             info!("Error sending bundle to channel {}", err);
                         }
                     }
@@ -69,7 +72,7 @@ async fn handle_connection(
     Ok(())
 }
 
-async fn listener(port: u16, tx: UnboundedSender<Packet>) -> Result<(), io::Error> {
+async fn listener(port: u16, tx: mpsc::Sender<Packet>) -> Result<(), io::Error> {
     let port = port;
     let addr: SocketAddrV4 = format!("0.0.0.0:{}", port).parse().unwrap();
     let listener = TcpListener::bind(&addr)
@@ -155,8 +158,8 @@ async fn main() -> Result<()> {
         pretty_env_logger::init_timed();
     }
 
-    let (tx, rx) = unbounded::<Packet>();
-    let (ctx, crx) = unbounded::<Packet>();
+    let (tx, mut rx) = mpsc::channel::<Packet>(100);
+    let (ctx, crx) = mpsc::channel::<Packet>(100);
 
     tokio::spawn(listener(
         u16::from_str(matches.value_of("port").expect("no port given"))
@@ -171,17 +174,18 @@ async fn main() -> Result<()> {
         let addr = addr.to_string();
         let tx = tx.clone();
         tokio::spawn(async move {
-            let crx = crx;
+            let mut crx = crx;
             let mut c = ws_client::new("mtcp", addr.as_str(), "", tx, false)
                 .expect("couldn't create client");
             c.set_ecla_port(u16::from_str(matches.value_of("port").unwrap()).unwrap());
 
             let cmd_chan = c.command_channel();
-            let read = crx.for_each(|packet| {
-                cmd_chan
-                    .unbounded_send(SendPacket(packet))
-                    .expect("couldn't pass packet to client command channel");
-                future::ready(())
+            let read = tokio::spawn(async move {
+                while let Some(packet) = crx.recv().await {
+                    if let Err(err) = cmd_chan.send(SendPacket(packet)).await {
+                        error!("couldn't pass packet to client command channel: {}", err);
+                    }
+                }
             });
             let connecting = c.serve();
 
@@ -201,31 +205,34 @@ async fn main() -> Result<()> {
     }
 
     // Read from Packet Stream
-    let read = rx.for_each(|packet| {
-        match packet {
-            Packet::ForwardData(fwd) => {
-                info!("Got ForwardData {} -> {}", fwd.src, fwd.dst);
+    let read = tokio::spawn(async move {
+        while let Some(packet) = rx.recv().await {
+            match packet {
+                Packet::ForwardData(fwd) => {
+                    info!("Got ForwardData {} -> {}", fwd.src, fwd.dst);
 
-                if let Ok(bndl) = Bundle::try_from(fwd.data) {
-                    let mpdu = MPDU::new(&bndl);
-                    if let Ok(buf) = serde_cbor::to_vec(&mpdu) {
-                        send_bundle(fwd.dst, buf);
-                    } else {
-                        error!("MPDU encoding error!");
+                    if let Ok(bndl) = Bundle::try_from(fwd.data) {
+                        let mpdu = MPDU::new(&bndl);
+                        if let Ok(buf) = serde_cbor::to_vec(&mpdu) {
+                            send_bundle(fwd.dst, buf);
+                        } else {
+                            error!("MPDU encoding error!");
+                        }
                     }
                 }
+                Packet::Beacon(_) => {
+                    // Beacon is not needed with MTCP
+                }
+                _ => {}
             }
-            Packet::Beacon(_) => {
-                // Beacon is not needed with MTCP
-            }
-            _ => {}
         }
-
-        future::ready(())
     });
 
     pin_mut!(read);
-    read.await;
+
+    if let Err(err) = read.await {
+        error!("error while joining {}", err);
+    }
 
     Ok(())
 }
