@@ -193,68 +193,71 @@ An implementation for a Rust WebSocket Client is included in the `ecla` module.
 
 ```rust
 use anyhow::Result;
-use dtn7::cla::ecla::ws_client::{Command};
-use dtn7::cla::ecla::{ForwardDataPacket, Packet, ws_client};
-use futures::channel::mpsc::unbounded;
-use futures_util::{future, pin_mut, StreamExt};
-use log::info;
+use dtn7::cla::ecla::ws_client::Command::SendPacket;
+use dtn7::cla::ecla::{ws_client, Packet};
+use futures_util::{future, pin_mut};
+use log::{error, info};
+use tokio::sync::mpsc;
 
 #[tokio::main]
 async fn main() -> Result<()> {
-    let (tx, rx) = unbounded::<Packet>(); // Packets from the client
-    let (ctx, crx) = unbounded::<Command>(); // Commands to the client
+  let (tx, mut rx) = mpsc::channel::<Packet>(100);
+  let (ctx, mut crx) = mpsc::channel::<Packet>(100);
 
-    // Creating the client task
-    let client = tokio::spawn(async move {
-        let mut c =
-                ws_client::new("myprotocol", "127.0.0.1:3002", "", tx, true).expect("couldn't create client");
+  // Creating the client task
+  tokio::spawn(async move {
+    let mut c = ws_client::new("myprotocol", "127.0.0.1:3002", "", tx, true)
+            .expect("couldn't create client");
 
-        // Get the command channel of the client
-        let cmds = c.command_channel();
+    // Get the command channel of the client
+    let cmd_chan = c.command_channel();
 
-        // Pass the new commands to the clients command channel
-        let read = crx.for_each(|cmd| {
-            cmds.unbounded_send(cmd)
-                .expect("couldn't pass command to client channel");
-            future::ready(())
-        });
-        let connecting = c.connect();
-
-        // Wait for finish
-        pin_mut!(connecting, read);
-        future::select(connecting, read).await;
-    });
-
-    // Read from incoming packets
-    let read = rx.for_each(|packet| {
-        match packet {
-            Packet::ForwardDataPacket(packet) => {
-                info!("Got ForwardDataPacket {} -> {}", packet.src, packet.dst);
-
-                // Send the ForwardDataPacket to the dst via your transmission layer
-            }
-            Packet::Beacon(packet) => {
-                info!("Got Beacon {}", packet.eid);
-
-                // Send the beacon somewhere via your transmission layer
-            }
-            _ => {}
+    // Pass the new commands to the clients command channel
+    let read = tokio::spawn(async move {
+      while let Some(packet) = crx.recv().await {
+        if let Err(err) = cmd_chan.send(SendPacket(packet)).await {
+          error!("couldn't pass packet to client command channel: {}", err);
         }
-
-        future::ready(())
+      }
     });
-    
-    // Implement your transmission layer somewhere, receive ForwardDataPacket
-    // and optionally Beacon packets. Pass them to the ECLA Client via the
-    // ctx command channel (see 'Sending Packets' below).
+    let connecting = c.serve();
 
     // Wait for finish
-    pin_mut!(read, client);
-    future::select(client, read).await;
+    pin_mut!(connecting, read);
+    future::select(connecting, read).await;
+  });
 
-    info!("done");
+  // Read from incoming packets
+  let read = tokio::spawn(async move {
+    while let Some(packet) = rx.recv().await {
+      match packet {
+        Packet::ForwardData(packet) => {
+          info!("Got ForwardDataPacket {} -> {}", packet.src, packet.dst);
 
-    Ok(())
+          // Send the ForwardDataPacket to the dst via your transmission layer
+        }
+        Packet::Beacon(packet) => {
+          info!("Got Beacon {}", packet.eid);
+
+          // Send the beacon somewhere via your transmission layer
+        }
+        _ => {}
+      }
+    }
+  });
+
+  // Implement your transmission layer somewhere, receive ForwardDataPacket
+  // and optionally Beacon packets. Pass them to the ECLA Client via the
+  // ctx command channel (see 'Sending Packets' below).
+
+  // Wait for finish
+  pin_mut!(read);
+
+  if let Err(err) = read.await {
+    error!("error while joining {}", err);
+  }
+
+  Ok(())
 }
 ```
 
@@ -263,19 +266,22 @@ async fn main() -> Result<()> {
 Sending packet to the client if you received it from the transmission layer
 
 ```rust
-ctx.unbounded_send(Command::SendPacket(Packet::ForwardDataPacket(
+if let Err(err) = ctx.send(Command::SendPacket(Packet::ForwardDataPacket(
     ForwardDataPacket {
         data: vec![],
         dst: "dst".to_string(),
         src: "src".to_string(),
         bundle_id: "id".to_string(),
     },
-))).expect("couldn't send packet");
+))).await {
+    error!("couldn't send packet");
+}
 ```
 
 ### Closing the Client
 
 ```rust
-ctx.unbounded_send(Command::Close)
-    .expect("couldn't send close command");
+if let Err(err) = ctx.send(Command::Close).await {
+    error!("couldn't send close command");
+}
 ```
