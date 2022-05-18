@@ -1,9 +1,9 @@
 use super::Packet;
-use futures::channel::mpsc::{unbounded, UnboundedReceiver, UnboundedSender};
 use futures_util::{future, pin_mut, SinkExt, StreamExt};
 use log::{error, info};
 use serde_json::Result;
 use std::str::FromStr;
+use tokio::sync::mpsc;
 use tokio_tungstenite::connect_async;
 use tokio_tungstenite::tungstenite::Message;
 
@@ -18,9 +18,9 @@ pub enum Command {
 pub struct Client {
     ip: String,
     port: i16,
-    cmd_receiver: UnboundedReceiver<Command>,
-    cmd_sender: UnboundedSender<Command>,
-    packet_out: UnboundedSender<Packet>,
+    cmd_receiver: mpsc::Receiver<Command>,
+    cmd_sender: mpsc::Sender<Command>,
+    packet_out: mpsc::Sender<Packet>,
 }
 
 /// Creates a new extern router client.
@@ -30,7 +30,7 @@ pub struct Client {
 /// * `addr` - Address to connect to in format ip:port without any websocket url parts.
 /// * `packet_our` - Channel to which received packets will be passed
 ///
-pub fn new(addr: &str, packet_out: UnboundedSender<Packet>) -> std::io::Result<Client> {
+pub fn new(addr: &str, packet_out: mpsc::Sender<Packet>) -> std::io::Result<Client> {
     let parts: Vec<&str> = addr.split(':').collect();
 
     if parts.len() != 2 {
@@ -40,7 +40,7 @@ pub fn new(addr: &str, packet_out: UnboundedSender<Packet>) -> std::io::Result<C
         ));
     }
 
-    let (cmd_sender, cmd_receiver) = unbounded::<Command>();
+    let (cmd_sender, cmd_receiver) = mpsc::channel(100);
 
     Ok(Client {
         ip: parts[0].to_string(),
@@ -62,9 +62,9 @@ impl Client {
         let (mut write, read) = ws_stream.split();
 
         // Pass rx to write
-        let mut cmd_receiver = std::mem::replace(&mut self.cmd_receiver, unbounded().1);
+        let mut cmd_receiver = std::mem::replace(&mut self.cmd_receiver, mpsc::channel(1).1);
         let to_ws = tokio::spawn(async move {
-            while let Some(command) = cmd_receiver.next().await {
+            while let Some(command) = cmd_receiver.recv().await {
                 match command {
                     Command::SendPacket(packet) => {
                         let data = serde_json::to_string(&packet);
@@ -91,7 +91,7 @@ impl Client {
 
                 let packet: Result<Packet> = serde_json::from_str(data.unwrap().as_str());
                 if let Ok(packet) = packet {
-                    if let Err(err) = self.packet_out.unbounded_send(packet) {
+                    if let Err(err) = self.packet_out.send(packet).await {
                         error!("Error while sending packet to channel: {}", err);
                     }
                 }
@@ -104,7 +104,7 @@ impl Client {
         Ok(())
     }
 
-    pub fn command_channel(&self) -> UnboundedSender<Command> {
+    pub fn command_channel(&self) -> mpsc::Sender<Command> {
         self.cmd_sender.clone()
     }
 }
