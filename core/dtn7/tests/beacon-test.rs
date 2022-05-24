@@ -37,11 +37,11 @@ pub fn bsn_overflow() {
     (*CONFIG.lock())
         .discovery_destinations
         .insert("Node1".to_string(), u32::MAX - 1);
-    assert_eq!(get_sequence(&"Node1".to_string()), u32::MAX - 1);
-    (*CONFIG.lock()).update_beacon_sequence_number(&"Node1".to_string());
-    assert_eq!(get_sequence(&"Node1".to_string()), u32::MAX);
-    (*CONFIG.lock()).update_beacon_sequence_number(&"Node1".to_string());
-    assert_eq!(get_sequence(&"Node1".to_string()), 0);
+    assert_eq!(get_sequence("Node1"), u32::MAX - 1);
+    (*CONFIG.lock()).update_beacon_sequence_number("Node1");
+    assert_eq!(get_sequence("Node1"), u32::MAX);
+    (*CONFIG.lock()).update_beacon_sequence_number("Node1");
+    assert_eq!(get_sequence("Node1"), 0);
 }
 
 /// Serializes a Beacon without ServiceBlock & BeaconPeriod

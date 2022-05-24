@@ -27,40 +27,40 @@ serde_cbor = "0.11"
 serde_json = "1.0"
 serde_bytes = "0.11"
 url = "2.2.2"
-rand = "0.8.3"
-tokio = { version = "1.16.1", features = ["net", "rt-multi-thread", "macros", "time", "tracing"]}
-console-subscriber = { version = "0.1.2", features = ["parking_lot"], optional = true }
-tokio-util = { version = "0.6.7", features = ["codec"] }
-futures = "0.3.5"
-futures-util = "0.3.5"
+rand = "0.8.5"
+tokio = { version = "1.18.2", features = ["net", "rt-multi-thread", "macros", "time", "tracing"]}
+console-subscriber = { version = "0.1.6", features = ["parking_lot"], optional = true }
+tokio-util = { version = "0.7.2", features = ["codec"] }
+futures = "0.3.21"
+futures-util = "0.3.21"
 pretty_env_logger = "0.4.0"
 log = "0.4"
 socket2 = "0.4.1"
 bytes = "1.1.0"
-clap = { version = "3.0.13", features = ["cargo", "derive"] }
+clap = { version = "3.1.18", features = ["cargo", "derive"] }
 config = {version = "0.11.0", default-features = false, features = ["toml"] }
 lazy_static = "1.4.0"
 anyhow = "1.0.32"
 parking_lot = "0.12.0"
-async-trait = "0.1.40"
-attohttpc = { version = "0.18", default-features = false }
+async-trait = "0.1.53"
+attohttpc = { version = "0.19.1", default-features = false }
 tinytemplate = "1.1.0"
-humantime = "2.0.1"
-tempfile = "3.1.0"
-humansize = "1.1.0"
-sled = "0.34.4"
-enum_dispatch = "0.3.7"
-derive_more = "0.99.14"
+humantime = "2.1.0"
+tempfile = "3.3.0"
+humansize = "1.1.1"
+sled = "0.34.7"
+enum_dispatch = "0.3.8"
+derive_more = "0.99.17"
 axum = { version = "0.4.2", features = ["ws"] }
-http = "0.2.4"
+http = "0.2.7"
 #tower = "0.4.8"
-hyper = {version ="0.14.11", features = ["client"]}
+hyper = {version ="0.14.18", features = ["client"]}
 tungstenite = "0.16.0"
 #measure_time = "0.7.0"
 bitflags = "1.3.2"
 num-derive = "0.3.3"
-num-traits = "0.2.14"
-thiserror = "1.0.23"
+num-traits = "0.2.15"
+thiserror = "1.0.31"
 dtn7-codegen = { path = "../codegen", version = "0.1.0"}
 byteorder = "1.4.3"
 
