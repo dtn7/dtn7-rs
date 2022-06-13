@@ -596,7 +596,7 @@ async fn download_hex(
 }
 
 pub async fn spawn_httpd() -> Result<()> {
-    let app_local_only = Router::new()
+    let mut app_local_only = Router::new()
         .route("/send", post(send_post))
         .route("/register", get(register))
         .route("/unregister", get(unregister))
@@ -608,21 +608,27 @@ pub async fn spawn_httpd() -> Result<()> {
             "/ws",
             get(|ws: WebSocketUpgrade| async move { ws.on_upgrade(super::ws::handle_socket) }),
         )
-        .route(
-            "/ws/ecla",
-            get(|ws: WebSocketUpgrade| async move {
-                ws.on_upgrade(crate::cla::ecla::ws::handle_connection)
-            }),
-        )
-        .route(
+        .route("/debug/rnd_bundle", get(debug_rnd_bundle))
+        .route("/debug/rnd_peer", get(debug_rnd_peer))
+        .layer(extractor_middleware::<RequireLocalhost>());
+
+    if CONFIG.lock().routing == "external" {
+        app_local_only = app_local_only.route(
             "/ws/erouting",
             get(|ws: WebSocketUpgrade| async move {
                 ws.on_upgrade(crate::routing::erouting::processing::handle_connection)
             }),
         )
-        .route("/debug/rnd_bundle", get(debug_rnd_bundle))
-        .route("/debug/rnd_peer", get(debug_rnd_peer))
-        .layer(extractor_middleware::<RequireLocalhost>());
+    }
+
+    if CONFIG.lock().ecla_enable {
+        app_local_only = app_local_only.route(
+            "/ws/ecla",
+            get(|ws: WebSocketUpgrade| async move {
+                ws.on_upgrade(crate::cla::ecla::ws::handle_connection)
+            }),
+        )
+    }
 
     let app = app_local_only
         .route("/", get(index))

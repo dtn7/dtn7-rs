@@ -5,7 +5,7 @@ use super::{
 use crate::cla::ConvergenceLayerAgent;
 use crate::{
     cla_names, lazy_static, peers_get_for_node, service_add, BundlePack, ClaSenderTask,
-    RoutingNotifcation, CLAS, CONFIG, DTNCORE, PEERS,
+    RoutingNotifcation, CLAS, DTNCORE, PEERS,
 };
 use axum::extract::ws::{Message, WebSocket};
 use futures_util::{future, pin_mut, SinkExt, StreamExt, TryStreamExt};
@@ -50,14 +50,6 @@ fn send_service_state() {
 }
 
 pub async fn handle_connection(ws: WebSocket) {
-    if CONFIG.lock().routing != "external" {
-        info!("Websocket connection closed because external routing is not enabled");
-        if let Err(err) = ws.close().await {
-            info!("Error while closing websocket: {}", err);
-        }
-        return;
-    }
-
     let (tx, mut rx) = mpsc::channel(100);
 
     if CONNECTION.lock().unwrap().is_some() {
