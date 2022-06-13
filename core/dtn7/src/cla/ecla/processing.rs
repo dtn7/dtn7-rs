@@ -117,7 +117,7 @@ pub fn handle_packet(layer_name: String, addr: String, packet: Packet) {
         // If we are still in WaitingForIdent we only wait for RegisterPackets to register the Module name.
         ModuleState::WaitingForIdent => {
             if let Packet::Register(ident) = packet {
-                debug!(
+                info!(
                     "Received RegisterPacket from {} ({}): {}",
                     addr, layer_name, ident.name
                 );
@@ -177,7 +177,7 @@ pub fn handle_packet(layer_name: String, addr: String, packet: Packet) {
             // We got a new Bundle Packet that needs to be parsed and processed.
             Packet::ForwardData(fwd) => {
                 if let Ok(bndl) = Bundle::try_from(fwd.data) {
-                    debug!("Received bundle: {} from {}", bndl.id(), me.name);
+                    info!("Received bundle: {} from {}", bndl.id(), me.name);
                     {
                         tokio::spawn(async move {
                             if let Err(err) = crate::core::processing::receive(bndl).await {
@@ -191,7 +191,7 @@ pub fn handle_packet(layer_name: String, addr: String, packet: Packet) {
             // will typically be from the other side of the transmission Protocol that the connected
             // client implements.
             Packet::Beacon(pdp) => {
-                debug!("Received beacon: {} {} {}", me.name, pdp.eid, pdp.addr);
+                info!("Received beacon: {} {} {}", me.name, pdp.eid, pdp.addr);
 
                 let service_block: ServiceBlock =
                     serde_cbor::from_slice(pdp.service_block.as_slice()).unwrap();

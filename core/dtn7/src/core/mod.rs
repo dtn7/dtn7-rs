@@ -141,7 +141,7 @@ pub async fn process_peers() {
 
     for eid in dropped {
         if let Err(err) = routing_notify(RoutingNotifcation::DroppedPeer(eid)).await {
-            info!("Error while dropping peer: {}", err);
+            error!("Error while dropping peer: {}", err);
         }
     }
 }

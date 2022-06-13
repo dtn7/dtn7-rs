@@ -187,7 +187,7 @@ pub async fn dispatch(bp: BundlePack) -> Result<()> {
     ))
     .await
     {
-        info!("Error while sending incoming bundle notification: {}", err);
+        error!("Error while sending incoming bundle notification: {}", err);
     }
 
     if (*DTNCORE.lock()).is_in_endpoints(&bp.destination)
