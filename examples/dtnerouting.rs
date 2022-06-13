@@ -163,7 +163,7 @@ async fn serve(strategy: String, addr: &str) -> Result<()> {
                 });
 
                 let serving = client.serve();
-                pin_mut!(serving, read);
+                pin_mut!(serving);
                 future::select(serving, read).await;
             });
         }
@@ -254,8 +254,6 @@ async fn serve(strategy: String, addr: &str) -> Result<()> {
             }
         }
     });
-
-    pin_mut!(read);
 
     if let Err(err) = read.await {
         error!("error while joining {}", err);

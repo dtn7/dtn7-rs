@@ -98,7 +98,9 @@ impl Client {
             })
         };
 
-        pin_mut!(to_ws, from_ws);
+        // from_ws uses the for_each method that requires it to be pinned to
+        // the stacked in order to work.
+        pin_mut!(from_ws);
         future::select(to_ws, from_ws).await;
 
         Ok(())

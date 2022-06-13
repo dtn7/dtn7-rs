@@ -8,7 +8,7 @@ use crate::{
     RoutingNotifcation, CLAS, DTNCORE, PEERS,
 };
 use axum::extract::ws::{Message, WebSocket};
-use futures_util::{future, pin_mut, SinkExt, StreamExt, TryStreamExt};
+use futures_util::{future, SinkExt, StreamExt, TryStreamExt};
 use log::{error, info, trace};
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
@@ -125,7 +125,6 @@ pub async fn handle_connection(ws: WebSocket) {
         }
     });
 
-    pin_mut!(broadcast_incoming, receive_from_others);
     future::select(broadcast_incoming, receive_from_others).await;
 
     info!("External routing disconnected");

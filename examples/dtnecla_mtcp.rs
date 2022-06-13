@@ -187,9 +187,10 @@ async fn main() -> Result<()> {
                     }
                 }
             });
-            let connecting = c.serve();
 
-            pin_mut!(connecting, read);
+            let connecting = c.serve();
+            pin_mut!(connecting);
+
             let res = future::select(connecting, read).await;
             if let Either::Left((con_res, _)) = res {
                 if let Err(err) = con_res {
@@ -227,8 +228,6 @@ async fn main() -> Result<()> {
             }
         }
     });
-
-    pin_mut!(read);
 
     if let Err(err) = read.await {
         error!("error while joining {}", err);

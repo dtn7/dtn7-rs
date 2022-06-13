@@ -3,7 +3,7 @@ use crate::cla::ecla::processing::{handle_connect, handle_disconnect, handle_pac
 use crate::cla::ecla::Packet;
 use crate::lazy_static;
 use async_trait::async_trait;
-use futures_util::{future, pin_mut, stream::TryStreamExt};
+use futures_util::{future, stream::TryStreamExt};
 use log::info;
 use log::{debug, error};
 use std::collections::HashMap;
@@ -50,12 +50,12 @@ async fn handle_connection(raw_stream: TcpStream, addr: SocketAddr) {
         SymmetricalJson::<Packet>::default(),
     );
 
-    let broadcast_incoming = deserialized.try_for_each(|packet| {
+    let incoming = deserialized.try_for_each(|packet| {
         handle_packet("TCP".to_string(), addr.to_string(), packet);
         future::ok(())
     });
 
-    let broadcast_outgoing = tokio::spawn(async move {
+    let outgoing = tokio::spawn(async move {
         while let Some(cmd) = rx.recv().await {
             if let Err(err) = outgoing.try_write(cmd.as_slice()) {
                 error!("err while sending to outgoing channel: {}", err);
@@ -63,14 +63,9 @@ async fn handle_connection(raw_stream: TcpStream, addr: SocketAddr) {
         }
     });
 
-    // Wait for the broadcast incoming and outgoing channel to close or
+    // Wait for the incoming and outgoing channel to close or
     // until a close command for this connection is received.
-    pin_mut!(broadcast_incoming, broadcast_outgoing, rx_close);
-    future::select(
-        rx_close,
-        future::select(broadcast_incoming, broadcast_outgoing),
-    )
-    .await;
+    future::select(rx_close, future::select(incoming, outgoing)).await;
 
     if PEER_MAP.lock().unwrap().remove(&addr.to_string()).is_some() {
         info!("{} disconnected", &addr);

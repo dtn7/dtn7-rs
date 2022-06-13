@@ -173,9 +173,10 @@ async fn main() -> Result<()> {
                     }
                 }
             });
-            let connecting = c.serve();
 
-            pin_mut!(connecting, read);
+            let connecting = c.serve();
+            pin_mut!(connecting);
+
             future::select(connecting, read).await;
         });
     } else {
@@ -203,8 +204,6 @@ async fn main() -> Result<()> {
             }
         }
     });
-
-    pin_mut!(read);
 
     if let Err(err) = read.await {
         error!("error while joining {}", err);

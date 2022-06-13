@@ -4,7 +4,7 @@ use crate::cla::ecla::Packet;
 use crate::lazy_static;
 use async_trait::async_trait;
 use axum::extract::ws::{Message, WebSocket};
-use futures_util::{future, pin_mut, stream::TryStreamExt, SinkExt, StreamExt};
+use futures_util::{future, stream::TryStreamExt, SinkExt, StreamExt};
 use log::{debug, trace};
 use log::{error, info};
 use serde_json::Result;
@@ -85,7 +85,6 @@ pub async fn handle_connection(ws: WebSocket) {
 
     // Wait for the broadcast incoming and outgoing channel to close or
     // until a close command for this connection is received.
-    pin_mut!(broadcast_incoming, receive_from_others, rx_close);
     future::select(
         broadcast_incoming,
         future::select(receive_from_others, rx_close),
