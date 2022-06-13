@@ -18,6 +18,9 @@ use tokio::sync::mpsc::Sender;
 use tokio::sync::oneshot;
 use tokio::time::timeout;
 
+/// Maximum timeout for a sender_for_bundle response packet.
+const EROUTING_RESPONSE_TIMEOUT_MS: u64 = 250;
+
 /// Holds the channel to send messages to the connected router.
 struct Connection {
     tx: Sender<Message>,
@@ -239,7 +242,11 @@ pub async fn sender_for_bundle(bp: &BundlePack) -> (Vec<ClaSenderTask>, bool) {
     });
     send_packet(&packet);
 
-    let res = timeout(time::Duration::from_millis(250), rx).await;
+    let res = timeout(
+        time::Duration::from_millis(EROUTING_RESPONSE_TIMEOUT_MS),
+        rx,
+    )
+    .await;
     if let Ok(Ok(Packet::SenderForBundleResponse(packet))) = res {
         remove_response_channel(bp.to_string().as_str());
 
