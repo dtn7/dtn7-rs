@@ -36,7 +36,7 @@ In order for the new notification to be available in the external routing we nee
 #[serde(tag = "type")]
 pub enum Packet {
     SenderForBundle(SenderForBundle),
-    SenderForBundleResponse(SenderForBundleResponse),
+    ResponseSenderForBundle(ResponseSenderForBundle),
     SendingFailed(SendingFailed),
     IncomingBundle(IncomingBundle),
     IncomingBundleWithoutPreviousNode(IncomingBundleWithoutPreviousNode),

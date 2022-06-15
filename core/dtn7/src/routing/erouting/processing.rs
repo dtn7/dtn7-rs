@@ -1,4 +1,4 @@
-use super::{Packet, PeerState, RequestSenderForBundle, SenderForBundleResponse, ServiceState};
+use super::{Packet, PeerState, RequestSenderForBundle, ResponseSenderForBundle, ServiceState};
 use crate::cla::ConvergenceLayerAgent;
 use crate::routing::erouting::Error;
 use crate::{
@@ -84,9 +84,9 @@ pub async fn handle_connection(ws: WebSocket) {
 
         match packet {
             Ok(packet) => match packet {
-                // When a SenderForBundleResponse is received we check if a response channel for that
+                // When a ResponseSenderForBundle is received we check if a response channel for that
                 // bundle id exists and send the response on that channel.
-                Packet::SenderForBundleResponse(packet) => {
+                Packet::ResponseSenderForBundle(packet) => {
                     trace!(
                         "sender_for_bundle response: {}",
                         msg.to_text().unwrap().trim()
@@ -97,7 +97,7 @@ pub async fn handle_connection(ws: WebSocket) {
                         .unwrap()
                         .remove(packet.bp.to_string().as_str())
                     {
-                        if tx.send(Packet::SenderForBundleResponse(packet)).is_err() {
+                        if tx.send(Packet::ResponseSenderForBundle(packet)).is_err() {
                             error!("sender_for_bundle response could not be passed to channel")
                         }
                     } else {
@@ -166,8 +166,8 @@ fn create_response_channel(id: &str, tx: oneshot::Sender<Packet>) {
     RESPONSES.lock().unwrap().insert(id.to_string(), tx);
 }
 
-// Builds a list of ClaSenderTask from the information contained in the SenderForBundleResponse packet.
-fn unpack_sender_for_bundle(packet: SenderForBundleResponse) -> (Vec<ClaSenderTask>, bool) {
+// Builds a list of ClaSenderTask from the information contained in the ResponseSenderForBundle packet.
+fn unpack_sender_for_bundle(packet: ResponseSenderForBundle) -> (Vec<ClaSenderTask>, bool) {
     (
         packet
             .clas
@@ -222,7 +222,7 @@ pub async fn sender_for_bundle(bp: &BundlePack) -> (Vec<ClaSenderTask>, bool) {
         rx,
     )
     .await;
-    if let Ok(Ok(Packet::SenderForBundleResponse(packet))) = res {
+    if let Ok(Ok(Packet::ResponseSenderForBundle(packet))) = res {
         remove_response_channel(bp.to_string().as_str());
 
         if packet.bp.to_string() != bp.to_string() {
@@ -233,7 +233,7 @@ pub async fn sender_for_bundle(bp: &BundlePack) -> (Vec<ClaSenderTask>, bool) {
         return unpack_sender_for_bundle(packet);
     }
 
-    // Signal to the external router that the timeout was reached and no SenderForBundleResponse was processed.
+    // Signal to the external router that the timeout was reached and no ResponseSenderForBundle was processed.
     // This is needed in case that the response arrived later than the timeout and the connected router thinks
     // it successfully send its response. Otherwise there is no way for the router to know if its response has
     // failed.

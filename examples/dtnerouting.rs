@@ -2,7 +2,7 @@ use anyhow::{bail, Result};
 use clap::{crate_authors, crate_version, App, Arg};
 use dtn7::core::bundlepack::BundlePack;
 use dtn7::routing::erouting::ws_client::Command;
-use dtn7::routing::erouting::{ws_client, Packet, Sender, SenderForBundleResponse};
+use dtn7::routing::erouting::{ws_client, Packet, ResponseSenderForBundle, Sender};
 use dtn7::DtnPeer;
 use futures_util::{future, pin_mut};
 use lazy_static::lazy_static;
@@ -243,7 +243,7 @@ async fn serve(strategy: String, addr: &str) -> Result<()> {
                         info!("selected {} to {}", res.0[0].agent, res.0[0].remote);
                     }
 
-                    let resp: Packet = Packet::SenderForBundleResponse(SenderForBundleResponse {
+                    let resp: Packet = Packet::ResponseSenderForBundle(ResponseSenderForBundle {
                         bp: packet.bp,
                         clas: res.0,
                         delete_afterwards: res.1,

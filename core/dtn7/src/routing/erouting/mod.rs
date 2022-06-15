@@ -22,12 +22,12 @@ pub mod ws_client;
 pub enum Packet {
     /// Packet that contains information about a bundle that should be send.
     RequestSenderForBundle(RequestSenderForBundle),
-    /// Packet response to a SenderForBundle packet. Contains the original
+    /// Packet response to a RequestSenderForBundle packet. Contains the original
     /// bundle pack and a list of senders where the packet should be forwarded to.
-    SenderForBundleResponse(SenderForBundleResponse),
+    ResponseSenderForBundle(ResponseSenderForBundle),
     /// Packet that contains information about a occurred error.
     Error(Error),
-    /// If no SenderForBundleResponse was received in a certain timeframe a
+    /// If no ResponseSenderForBundle was received in a certain timeframe a
     /// Timeout packet will be emitted.
     Timeout(Timeout),
     /// Packet that signals that the sending failed.
@@ -98,7 +98,7 @@ pub struct Error {
 }
 
 #[derive(Serialize, Deserialize, Clone)]
-pub struct SenderForBundleResponse {
+pub struct ResponseSenderForBundle {
     pub bp: BundlePack,
     pub clas: Vec<Sender>,
     pub delete_afterwards: bool,

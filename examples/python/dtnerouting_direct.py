@@ -87,7 +87,7 @@ def on_sender_for_bundle(msg):
 
         # Build and send response
         resp = {
-            "type": "SenderForBundleResponse",
+            "type": "ResponseSenderForBundle",
             "bp": msg["bp"],
             "clas": target_clas,
             "delete_afterwards": True

@@ -197,11 +197,11 @@ The ``AddService`` packet can be sent to register a service.
 }
 ```
 
-#### Packet SenderForBundleResponse
+#### Packet ResponseSenderForBundle
 
 external → dtnd
 
-The ``SenderForBundleResponse`` as the name suggests is the response to a ``RequestSenderForBundle`` packet by your router.
+The ``ResponseSenderForBundle`` as the name suggests is the response to a ``RequestSenderForBundle`` packet by your router.
 
 - ``bp``: The original bundle pack of the request
 - ``clas``: List of applicable senders each containing:
@@ -212,7 +212,7 @@ The ``SenderForBundleResponse`` as the name suggests is the response to a ``Requ
 
 ```json
 {
-  "type": "SenderForBundleResponse",
+  "type": "ResponseSenderForBundle",
   "bp": { ... },
   "clas": [
     {
@@ -234,7 +234,7 @@ In order to implement a basic routing strategy you most likely want to do the fo
   - Saving the initial ``PeerState``
   - Adding peer if ``PeerEncountered`` packet is received
   - Removing peer ``PeerDropped`` packet is received
-- Responding to ``SenderForBundle`` packet with a ``SenderForBundleResponse`` packet based on some kind of strategy and most likely involving the available peers.
+- Responding to ``SenderForBundle`` packet with a ``ResponseSenderForBundle`` packet based on some kind of strategy and most likely involving the available peers.
 
 ## Python Example: Direct Routing
 
@@ -326,7 +326,7 @@ def on_sender_for_bundle(msg):
 
     # Build and send response
     resp = {
-      "type": "SenderForBundleResponse",
+      "type": "ResponseSenderForBundle",
       "bp": msg["bp"],
       "clas": target_clas,
       "delete_afterwards": True
