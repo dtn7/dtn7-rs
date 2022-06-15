@@ -46,7 +46,6 @@ async fn handle_connection(
                     error!("error while passing received packet to channel ({})", err);
                 }
             } else {
-                // TODO: is None => Disconnect?
                 break;
             }
         }
