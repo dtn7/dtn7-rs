@@ -1,12 +1,9 @@
-use super::{
-    DroppedPeer, EncounteredPeer, IncomingBundle, IncomingBundleWithoutPreviousNode, Packet,
-    PeerState, RequestSenderForBundle, SenderForBundleResponse, SendingFailed, ServiceState,
-};
+use super::{Packet, PeerState, RequestSenderForBundle, SenderForBundleResponse, ServiceState};
 use crate::cla::ConvergenceLayerAgent;
 use crate::routing::erouting::Error;
 use crate::{
-    cla_names, lazy_static, peers_get_for_node, service_add, BundlePack, ClaSenderTask,
-    RoutingNotifcation, CLAS, DTNCORE, PEERS,
+    cla_names, lazy_static, service_add, BundlePack, ClaSenderTask, RoutingNotifcation, CLAS,
+    DTNCORE, PEERS,
 };
 use axum::extract::ws::{Message, WebSocket};
 use futures_util::{future, SinkExt, StreamExt, TryStreamExt};
@@ -158,29 +155,7 @@ fn send_packet(p: &Packet) {
 /// Takes the RoutingNotification's, encodes them to serializable structs and then sends them
 /// to the external router if one is connected.
 pub fn notify(notification: RoutingNotifcation) {
-    let packet: Packet = match notification {
-        RoutingNotifcation::SendingFailed(bid, cla_sender) => {
-            Packet::SendingFailed(SendingFailed { bid, cla_sender })
-        }
-        RoutingNotifcation::IncomingBundle(bndl) => Packet::IncomingBundle(IncomingBundle { bndl }),
-        RoutingNotifcation::IncomingBundleWithoutPreviousNode(bid, node_name) => {
-            Packet::IncomingBundleWithoutPreviousNode(IncomingBundleWithoutPreviousNode {
-                bid,
-                node_name,
-            })
-        }
-        RoutingNotifcation::EncounteredPeer(eid) => Packet::EncounteredPeer(EncounteredPeer {
-            name: eid.node().unwrap(),
-            eid: eid.clone(),
-            peer: peers_get_for_node(&eid).unwrap(),
-        }),
-        RoutingNotifcation::DroppedPeer(eid) => Packet::DroppedPeer(DroppedPeer {
-            name: eid.node().unwrap(),
-            eid,
-        }),
-    };
-
-    send_packet(&packet);
+    send_packet(&notification.into());
 }
 
 fn remove_response_channel(id: &str) {

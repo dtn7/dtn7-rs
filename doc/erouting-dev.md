@@ -1,4 +1,4 @@
-# External Routing Developer
+# External Routing Developer Guide
 
 # Notifications
 
@@ -59,24 +59,24 @@ pub struct NewNotification {
 
 ```
 
-### 3. Register in Notify
+### 3. Add to ``From<RoutingNotifiaction>`` Trait
 
-``dtn7/src/routing/erouting/processing.rs``
+``dtn7/src/routing/erouting/mod.rs``
 
-Now that the ``Packet`` enum contains the new notification we need to add the conversion from the ``RoutingNotifcation`` to ``Packet`` in the ``notify`` function. We need to add a new match in the function.
+Now that the ``Packet`` enum contains the new notification we need to add the conversion from the ``RoutingNotifcation`` to ``Packet`` in the ``from`` function. We need to add a new match in the function.
 
 ```rust
-pub fn notify(notification: RoutingNotifcation) {
-    let packet: Packet = match notification {
-        // ... other matches ...
-        
-        // Our new notification
-        RoutingNotifcation::NewNotification(some_text, some_number) => Packet::NewNotification(NewNotification {
-            some_text: some_text,
-            some_number: some_number,
-        }),
-    };
+impl From<RoutingNotifcation> for Packet {
+    fn from(notification: RoutingNotifcation) -> Self {
+        match notification {
+            // ... other matches ...
 
-    send_packet(&packet);
+            // Our new notification
+            RoutingNotifcation::NewNotification(some_text, some_number) => Packet::NewNotification(NewNotification {
+                some_text: some_text,
+                some_number: some_number,
+            }),
+        }
+    }
 }
 ```

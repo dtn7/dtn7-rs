@@ -1,4 +1,4 @@
-use crate::{BundlePack, DtnPeer, PeerAddress};
+use crate::{peers_get_for_node, BundlePack, DtnPeer, PeerAddress, RoutingNotifcation};
 use bp7::{Bundle, EndpointID};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -46,6 +46,34 @@ pub enum Packet {
     ServiceState(ServiceState),
     /// Packet that contains the full initial service state of dtnd at the point of connection.
     ServiceAdd(AddService),
+}
+
+impl From<RoutingNotifcation> for Packet {
+    fn from(notification: RoutingNotifcation) -> Self {
+        match notification {
+            RoutingNotifcation::SendingFailed(bid, cla_sender) => {
+                Packet::SendingFailed(SendingFailed { bid, cla_sender })
+            }
+            RoutingNotifcation::IncomingBundle(bndl) => {
+                Packet::IncomingBundle(IncomingBundle { bndl })
+            }
+            RoutingNotifcation::IncomingBundleWithoutPreviousNode(bid, node_name) => {
+                Packet::IncomingBundleWithoutPreviousNode(IncomingBundleWithoutPreviousNode {
+                    bid,
+                    node_name,
+                })
+            }
+            RoutingNotifcation::EncounteredPeer(eid) => Packet::EncounteredPeer(EncounteredPeer {
+                name: eid.node().unwrap(),
+                eid: eid.clone(),
+                peer: peers_get_for_node(&eid).unwrap(),
+            }),
+            RoutingNotifcation::DroppedPeer(eid) => Packet::DroppedPeer(DroppedPeer {
+                name: eid.node().unwrap(),
+                eid,
+            }),
+        }
+    }
 }
 
 /// Sender is a selected sender for bundle delivery.
