@@ -85,8 +85,8 @@ pub struct Error {
 pub struct Register {
     /// The name should refer to the type of transportation layer used in the ECLA (e.g. MTCP, LoRa, BLE, ...)
     pub name: String,
-    /// Enables the optional service discovery. If enabled beacon packets will be periodically sent to the
-    /// ECLA Module.
+    /// Enables the optional neighborhood discovery. If enabled beacon packets will be periodically sent to the
+    /// ECLA Module. Detailed information can be found in the ECLA docs (Found under '/doc/ecla.md' in repository).
     pub enable_beacon: bool,
     /// If the ECLA uses some kind of IP and port based protocol it needs to be known so that dtnd can use
     /// the port in the destination format generation.
@@ -95,9 +95,11 @@ pub struct Register {
 
 #[derive(Serialize, Deserialize, Clone)]
 pub struct ForwardData {
-    /// Some addressable id in the transportation layer (e.g. IP Address, Bluetooth MAC, ...)
+    /// Some addressable id of the source in the transportation layer (e.g. IP Address, Bluetooth MAC, ...).
+    /// The content is free to choose and it's the responsibility of the ECLA to interpret them.
     pub src: String,
-    /// Some addressable id in the transportation layer (e.g. IP Address, Bluetooth MAC, ...)
+    /// Some addressable id of the destination in the transportation layer (e.g. IP Address, Bluetooth MAC, ...).
+    /// The content is free to choose and it's the responsibility of the ECLA to interpret them.
     pub dst: String,
     pub bundle_id: String,
     #[serde(with = "base64")]
