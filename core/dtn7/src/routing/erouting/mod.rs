@@ -25,6 +25,8 @@ pub enum Packet {
     /// Packet response to a SenderForBundle packet. Contains the original
     /// bundle pack and a list of senders where the packet should be forwarded to.
     SenderForBundleResponse(SenderForBundleResponse),
+    /// Packet that contains information about a occurred error.
+    Error(Error),
     /// If no SenderForBundleResponse was received in a certain timeframe a
     /// Timeout packet will be emitted.
     Timeout(Timeout),
@@ -60,6 +62,11 @@ pub struct Sender {
 pub struct RequestSenderForBundle {
     pub clas: Vec<String>,
     pub bp: BundlePack,
+}
+
+#[derive(Serialize, Deserialize, Clone)]
+pub struct Error {
+    pub reason: String,
 }
 
 #[derive(Serialize, Deserialize, Clone)]

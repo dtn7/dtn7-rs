@@ -203,6 +203,9 @@ async fn serve(strategy: String, addr: &str) -> Result<()> {
                             .sending_failed(packet.bid.as_str(), packet.cla_sender.as_str());
                     }
                 }
+                Packet::Error(error) => {
+                    error!("Error received: {}", error.reason);
+                }
                 Packet::Timeout(packet) => {
                     if strategy == "epidemic" {
                         epidemic_router.sending_timeout(packet.bp.id.as_str());

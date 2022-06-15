@@ -65,6 +65,19 @@ The ``SendingFailed`` is emitted when the sending of a bundle failed.
 }
 ```
 
+#### Packet Error
+
+dtnd → external
+
+The ``Error`` is emitted when an error occurs. At the Moment the only emitted error is when an external router is already connected. In that case the error will be sent and the connection closed.
+
+```json
+{
+  "type": "Error",
+  "reason": "Error reason"
+}
+```
+
 #### Packet Timeout
 
 dtnd → external

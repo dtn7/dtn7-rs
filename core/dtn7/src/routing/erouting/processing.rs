@@ -3,6 +3,7 @@ use super::{
     PeerState, RequestSenderForBundle, SenderForBundleResponse, SendingFailed, ServiceState,
 };
 use crate::cla::ConvergenceLayerAgent;
+use crate::routing::erouting::Error;
 use crate::{
     cla_names, lazy_static, peers_get_for_node, service_add, BundlePack, ClaSenderTask,
     RoutingNotifcation, CLAS, DTNCORE, PEERS,
@@ -51,11 +52,21 @@ fn send_service_state() {
 
 pub async fn handle_connection(ws: WebSocket) {
     let (tx, mut rx) = mpsc::channel(100);
+    let (mut outgoing, incoming) = ws.split();
 
     if CONNECTION.lock().unwrap().is_some() {
         info!("Websocket connection closed because external routing agent is already connected");
-        if let Err(err) = ws.close().await {
-            info!("Error while closing websocket: {}", err);
+
+        if let Ok(data) = serde_json::to_string(&Packet::Error(Error {
+            reason: String::from("external routing agent already registered"),
+        })) {
+            if let Err(err) = outgoing.send(Message::Text(data)).await {
+                error!("Error while sending closing reason: {}", err);
+            }
+        }
+
+        if let Err(err) = outgoing.close().await {
+            error!("Error while closing websocket: {}", err);
         }
         return;
     }
@@ -65,8 +76,6 @@ pub async fn handle_connection(ws: WebSocket) {
     // Send initial states to the router
     send_peer_state();
     send_service_state();
-
-    let (mut outgoing, incoming) = ws.split();
 
     let broadcast_incoming = incoming.try_for_each(|msg| {
         trace!(
