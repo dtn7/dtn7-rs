@@ -10,7 +10,7 @@ use tokio_tungstenite::tungstenite::Message;
 pub enum Command {
     /// Requests a send of the given packet.
     SendPacket(Box<Packet>),
-    /// Requests the closure of the client.
+    /// Requests the shutdown of the client.
     Close,
 }
 

@@ -13,7 +13,7 @@ use tokio_tungstenite::{connect_async, tungstenite::protocol::Message};
 pub enum Command {
     /// Requests a send of the given packet.
     SendPacket(Packet),
-    /// Requests the closure of the client.
+    /// Requests the shutdown of the client.
     Close,
 }
 
