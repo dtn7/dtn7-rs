@@ -94,8 +94,8 @@ impl DtnCore {
     pub fn bundle_count(&self) -> usize {
         (*STORE.lock()).count() as usize
     }
-    pub fn bundle_names(&self) -> Vec<String> {
-        (*STORE.lock()).all_ids()
+    pub fn bundle_full_meta(&self) -> Vec<String> {
+        (*STORE.lock()).src_dst_ts()
     }
     pub fn is_in_endpoints(&self, eid: &EndpointID) -> bool {
         for aa in self.endpoints.iter() {
