@@ -51,6 +51,9 @@ fn spawn_core_daemon(rx: Receiver<DtnCmd>) {
     }
 }*/
 
+// this function is only called once during startup
+// therefore it should be safe to hold the lock
+#[allow(clippy::await_holding_lock)]
 async fn start_convergencylayers() {
     info!("Starting convergency layers");
 

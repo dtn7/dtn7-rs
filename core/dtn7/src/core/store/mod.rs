@@ -40,6 +40,27 @@ pub trait BundleStore: Debug {
     fn bundles_status(&self) -> Vec<String> {
         self.bundles().iter().map(|bp| bp.to_string()).collect()
     }
+    fn src_dst_ts(&self) -> Vec<String> {
+        self.bundles()
+            .iter()
+            .map(|bp| {
+                format!(
+                    "{} {} {} {}",
+                    bp.source, bp.destination, bp.creation_time, bp.size
+                )
+            })
+            .collect()
+    }
+    fn filter_addr(&self, criteria: &str) -> Vec<String> {
+        self.bundles()
+            .iter()
+            .filter(|bp| {
+                bp.source.to_string().contains(criteria)
+                    || bp.destination.to_string().contains(criteria)
+            })
+            .map(|bp| bp.id.clone())
+            .collect()
+    }
     fn get_bundle(&self, bpid: &str) -> Option<Bundle>;
     fn get_metadata(&self, bpid: &str) -> Option<BundlePack>;
 }
