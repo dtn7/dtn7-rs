@@ -339,14 +339,19 @@ pub async fn forward(mut bp: BundlePack) -> Result<()> {
             let bundle_sent = std::sync::Arc::clone(&bundle_sent);
             let n = n.clone();
             let task_handle = tokio::spawn(async move {
+                let start_time = Instant::now();
                 debug!(
                     "Sending bundle to a CLA: {} {} {}",
                     &bpid, n.dest, n.cla_name
                 );
                 if let Err(err) = n.transfer(bd).await {
                     info!(
-                        "Sending bundle {} via {} to {} ({}) failed",
-                        &bpid, n.cla_name, n.dest, n.next_hop
+                        "Sending bundle {} via {} to {} ({}) failed after {:?}",
+                        &bpid,
+                        n.cla_name,
+                        n.dest,
+                        n.next_hop,
+                        start_time.elapsed()
                     );
                     debug!("Error while transferring bundle {}: {}", &bpid, err);
                     let mut failed_peer = None;
@@ -380,8 +385,11 @@ pub async fn forward(mut bp: BundlePack) -> Result<()> {
                     // }
                 } else {
                     info!(
-                        "Sending bundle succeeded: {} {} {}",
-                        &bpid, n.dest, n.cla_name
+                        "Sending bundle succeeded: {} {} {} in {:?}",
+                        &bpid,
+                        n.dest,
+                        n.cla_name,
+                        start_time.elapsed()
                     );
                     bundle_sent.store(true, Ordering::Relaxed);
                 }
