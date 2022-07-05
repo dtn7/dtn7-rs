@@ -9,7 +9,6 @@ use bp7::{Bundle, ByteBuffer, EndpointID};
 //use futures_util::stream::StreamExt;
 use dtn7_codegen::cla;
 use log::{debug, error, info, trace, warn};
-use parking_lot::Mutex;
 use std::collections::HashMap;
 use std::convert::TryFrom;
 use std::net::SocketAddr;
@@ -19,6 +18,8 @@ use tokio::net::tcp::{OwnedReadHalf, OwnedWriteHalf};
 use tokio::sync::mpsc;
 use tokio::sync::mpsc::error::SendError;
 use tokio::sync::oneshot::{self, Sender};
+use tokio::sync::Mutex;
+use tokio::task;
 use tokio::time::{self};
 //use std::net::TcpStream;
 use super::tcp::proto::*;
@@ -53,7 +54,7 @@ type SessionMap = HashMap<SocketAddr, mpsc::Sender<(ByteBuffer, oneshot::Sender<
 const KEEPALIVE: u16 = 30;
 const SEGMENT_MRU: u64 = 64000;
 const TRANSFER_MRU: u64 = 64000;
-const INTERNAL_CHANNEL_BUFFER: usize = 50;
+const INTERNAL_CHANNEL_BUFFER: usize = 200;
 
 lazy_static! {
     pub static ref TCP_CONNECTIONS: Mutex<SessionMap> = Mutex::new(HashMap::new());
@@ -617,7 +618,7 @@ impl Listener {
                         mpsc::channel::<(ByteBuffer, oneshot::Sender<TransferResult>)>(
                             INTERNAL_CHANNEL_BUFFER,
                         );
-                    (*TCP_CONNECTIONS.lock()).insert(addr, tx_session_queue);
+                    (*TCP_CONNECTIONS.lock().await).insert(addr, tx_session_queue);
                     tokio::spawn(async move {
                         if let Err(err) = connection.connect(rx_session_queue, false).await {
                             error!("Failed to establish TCP session with {}: {}", addr, err);
@@ -640,8 +641,10 @@ async fn tcp_send_bundles(
 ) -> anyhow::Result<()> {
     let addr: SocketAddr = dest.parse().unwrap();
 
+    debug!("Locking connection for {}", addr);
     let (sender, receiver) = {
-        let mut lock = TCP_CONNECTIONS.lock();
+        let mut lock = TCP_CONNECTIONS.lock().await;
+
         if let Some(value) = lock.get(&addr) {
             if !value.is_closed() {
                 (value.clone(), None)
@@ -665,6 +668,7 @@ async fn tcp_send_bundles(
         // lock is dropped here
     };
 
+    debug!("Connecting to {}", addr);
     // channel is inserted first into hashmap, even if connection is not yet established
     // connection is created here
     if let Some(rx_session_queue) = receiver {
@@ -695,6 +699,7 @@ async fn tcp_send_bundles(
         }
     }
 
+    debug!("Sending bundle to {}", addr);
     // then push bundles to channel
     sender.send((bundle, reply)).await?;
     Ok(())
