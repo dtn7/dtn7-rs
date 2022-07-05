@@ -85,7 +85,7 @@ impl TcpClPacket {
                 writer.write_u8(msg_reject_data.header).await?;
             }
             TcpClPacket::ContactHeader(flags) => {
-                writer.write(b"dtn!").await?;
+                writer.write_all(b"dtn!").await?;
                 writer.write_u8(4).await?;
                 writer.write_u8(flags.bits()).await?;
             }
