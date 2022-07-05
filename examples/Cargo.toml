@@ -9,11 +9,11 @@ edition = "2018"
 [dev-dependencies]
 bp7 = {version = "0.10.5", default-features = false }
 dtn7-plus = {version = "0.6.2", default-features = false, features = ["client"] }
-clap = { version = "3.0.13", features = ["cargo"] }
-anyhow = "1.0.32"
+clap = { version = "3.1.18", features = ["cargo", "derive"] }
+anyhow = "1.0.57"
 serde_cbor = "0.11"
-humantime = "2.0.1"
-rand = "0.8.3"
+humantime = "2.1.0"
+rand = "0.8.5"
 dtn7 = { path = "../core/dtn7" }
 tokio = { version = "1.16.1", features = ["net", "rt-multi-thread", "macros", "time"] }
 tokio-util = { version = "0.6.7", features = ["codec"] }

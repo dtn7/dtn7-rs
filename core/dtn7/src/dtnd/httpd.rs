@@ -14,6 +14,7 @@ use crate::{DtnConfig, PeerAddress};
 use anyhow::Result;
 use async_trait::async_trait;
 use axum::extract::ws::WebSocketUpgrade;
+use axum::extract::Query;
 use axum::response::Html;
 use axum::{
     extract::{self, connect_info::ConnectInfo, extractor_middleware, RequestParts},
@@ -249,9 +250,20 @@ async fn status_bundles() -> String {
         .collect();
     serde_json::to_string_pretty(&bids).unwrap()
 }
-//#[get("/status/bundles_dest")]
-async fn status_bundles_dest() -> String {
-    serde_json::to_string_pretty(&(*DTNCORE.lock()).bundle_names()).unwrap()
+async fn status_bundles_filtered(
+    Query(params): Query<HashMap<String, String>>,
+) -> Result<String, (StatusCode, &'static str)> {
+    if let Some(criteria) = params.get("addr") {
+        let bids = (*STORE.lock()).filter_addr(criteria);
+        Ok(serde_json::to_string_pretty(&bids).unwrap())
+    } else {
+        //anyhow::bail!("missing filter criteria");
+        Err((StatusCode::BAD_REQUEST, "missing filter criteria"))
+    }
+}
+//#[get("/status/bundles/verbose")]
+async fn status_bundles_verbose() -> String {
+    serde_json::to_string_pretty(&(*DTNCORE.lock()).bundle_full_meta()).unwrap()
 }
 //#[get("/status/store", guard = "fn_guard_localhost")]
 async fn status_store() -> String {
@@ -640,7 +652,8 @@ pub async fn spawn_httpd() -> Result<()> {
         .route("/status/nodeid", get(status_node_id))
         .route("/status/eids", get(status_eids))
         .route("/status/bundles", get(status_bundles))
-        .route("/status/bundles_dest", get(status_bundles_dest))
+        .route("/status/bundles/filtered", get(status_bundles_filtered))
+        .route("/status/bundles/verbose", get(status_bundles_verbose))
         .route("/status/store", get(status_store))
         .route("/status/peers", get(status_peers))
         .route("/status/info", get(status_info));

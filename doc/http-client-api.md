@@ -195,9 +195,29 @@ $ curl http://127.0.0.1:3000/status/bundles
 ]
 ```
 
-### **GET** `/status/bundles_dest`
+### **GET** `/status/bundles/verbose`
 
-n/a
+Get a list of all bundles at the local *dtnd* instance including source and destination EID, creation timestamp and bundle size.
+
+```
+$ curl "http://127.0.0.1:3000/status/bundles/verbose"             
+[
+  "dtn://node1/ dtn://node3/incoming 710077652064 105",
+  "dtn://node29/123456 dtn://node50/123456 710077677209 99",
+  "dtn://node14/files dtn://node32/~news 710077688966 96"
+]
+```
+
+### **GET** `/status/bundles/filtered?addr=<address_part_criteria>`
+
+Get a list of BIDs from the local *dtnd* instance which contain the filter criteria.
+
+```
+$ curl "http://127.0.0.1:3002/status/bundles/filtered?addr=node50"
+[
+  "dtn://node29/123456-710077677209-0"
+]
+```
 
 ### **GET** `/status/store`
 

@@ -37,6 +37,7 @@ pub async fn send_bundle(bndl: Bundle) {
 }
 
 pub fn send_through_task(bndl: Bundle) {
+    let rt = tokio::runtime::Handle::current();
     let mut stask = crate::SENDERTASK.lock();
     if stask.is_none() {
         let (tx, rx) = channel(50);
@@ -45,19 +46,19 @@ pub fn send_through_task(bndl: Bundle) {
     }
     let tx = stask.as_ref().unwrap().clone();
     //let mut rt = tokio::runtime::Runtime::new().unwrap();
-    let rt = tokio::runtime::Handle::current();
     rt.spawn(async move { tx.send(bndl).await });
 }
 
 pub async fn send_through_task_async(bndl: Bundle) {
-    let mut stask = crate::SENDERTASK.lock();
-    if stask.is_none() {
-        let (tx, rx) = channel(50);
-        tokio::spawn(sender_task(rx));
-        *stask = Some(tx);
-    }
-    let tx = stask.as_ref().unwrap().clone();
-
+    let tx = {
+        let mut stask = crate::SENDERTASK.lock();
+        if stask.is_none() {
+            let (tx, rx) = channel(50);
+            tokio::spawn(sender_task(rx));
+            *stask = Some(tx);
+        }
+        stask.as_ref().unwrap().clone()
+    };
     if let Err(err) = tx.send(bndl).await {
         warn!("Transmission failed: {}", err);
     }

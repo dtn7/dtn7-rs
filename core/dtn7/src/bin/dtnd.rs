@@ -1,6 +1,6 @@
 #![recursion_limit = "256"]
 
-use clap::{crate_authors, crate_version, App, Arg};
+use clap::{crate_authors, crate_version, Arg, Command};
 use dtn7::cla::CLAsAvailable;
 use dtn7::dtnd::daemon::*;
 use dtn7::DtnConfig;
@@ -49,7 +49,7 @@ async fn main() -> Result<(), std::io::Error> {
         }));
     }
 
-    let matches = App::new("dtn7-rs")
+    let matches = Command::new("dtn7-rs")
         .version(crate_version!())
         .author(crate_authors!())
         .about("A simple Bundle Protocol 7 Daemon for Delay Tolerant Networking")
