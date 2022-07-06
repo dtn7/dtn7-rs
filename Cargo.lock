@@ -684,7 +684,7 @@ dependencies = [
  "serde_json",
  "tokio",
  "tokio-serde",
- "tokio-util 0.6.9",
+ "tokio-util 0.7.2",
  "tungstenite 0.16.0",
 ]
 
