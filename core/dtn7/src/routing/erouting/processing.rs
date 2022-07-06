@@ -145,9 +145,9 @@ fn disconnect() {
 fn send_packet(p: &Packet) {
     if let Ok(data) = serde_json::to_string(p) {
         if let Some(con) = CONNECTION.lock().unwrap().as_ref() {
-            con.tx
-                .try_send(Message::Text(data))
-                .expect("error while sending to tx");
+            if let Err(err) = con.tx.try_send(Message::Text(data)) {
+                error!("couldn't send packet {}", err)
+            }
         }
     }
 }

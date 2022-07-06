@@ -58,11 +58,19 @@ pub fn new(
 
     let (cmd_sender, cmd_receiver) = mpsc::channel(100);
 
+    let port = i16::from_str(parts[1]);
+    if port.is_err() {
+        return Err(std::io::Error::new(
+            std::io::ErrorKind::InvalidInput,
+            "couldn't parse port",
+        ));
+    }
+
     Ok(Client {
         module_name: module_name.to_string(),
         ip: parts[0].to_string(),
         id: current_id.to_string(),
-        port: i16::from_str(parts[1]).expect("could not parse port"),
+        port: port.unwrap(),
         ecla_port: None,
         enable_beacon,
         cmd_receiver,
