@@ -1,7 +1,6 @@
 use anyhow::{bail, Result};
-use clap::{crate_authors, crate_version, App, Arg};
+use clap::{crate_authors, crate_version, Arg, Command};
 use dtn7::core::bundlepack::BundlePack;
-use dtn7::routing::erouting::ws_client::Command;
 use dtn7::routing::erouting::{ws_client, Packet, ResponseSenderForBundle, Sender};
 use dtn7::DtnPeer;
 use futures_util::{future, pin_mut};
@@ -142,7 +141,7 @@ fn flooding_strategy(clas: Vec<String>, _: BundlePack) -> (Vec<Sender>, bool) {
 // Serve creates the connection to the external routing of dtnd and uses the given strategy.
 async fn serve(strategy: String, addr: &str) -> Result<()> {
     let (tx, mut rx) = mpsc::channel(100);
-    let (cmd_tx, mut cmd_rx) = mpsc::channel::<Command>(100);
+    let (cmd_tx, mut cmd_rx) = mpsc::channel::<ws_client::Command>(100);
 
     // Create the WebSocket client.
     let client = ws_client::new(addr, tx);
@@ -249,7 +248,10 @@ async fn serve(strategy: String, addr: &str) -> Result<()> {
                         delete_afterwards: res.1,
                     });
 
-                    if let Err(err) = cmd_tx.send(Command::SendPacket(Box::new(resp))).await {
+                    if let Err(err) = cmd_tx
+                        .send(ws_client::Command::SendPacket(Box::new(resp)))
+                        .await
+                    {
                         error!("send packet failed: {}", err);
                     }
                 }
@@ -267,7 +269,7 @@ async fn serve(strategy: String, addr: &str) -> Result<()> {
 
 #[tokio::main]
 async fn main() -> Result<()> {
-    let matches = App::new("dtn external routing example")
+    let matches = Command::new("dtn external routing example")
         .version(crate_version!())
         .author(crate_authors!())
         .about("A simple external routing example")

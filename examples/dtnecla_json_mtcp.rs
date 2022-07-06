@@ -1,5 +1,5 @@
 use anyhow::Result;
-use clap::{crate_authors, crate_version, App, Arg};
+use clap::{crate_authors, crate_version, Arg, Command};
 use dtn7::cla::ecla::ws_client::Command::SendPacket;
 use dtn7::cla::ecla::{ws_client, Packet};
 use futures_util::{future, pin_mut, TryStreamExt};
@@ -110,7 +110,7 @@ pub fn send_bundles(addr: String, data: Vec<u8>) -> bool {
 
 #[tokio::main]
 async fn main() -> Result<()> {
-    let matches = App::new("dtnecla json mtcp layer")
+    let matches = Command::new("dtnecla json mtcp layer")
         .version(crate_version!())
         .author(crate_authors!())
         .about("A simple ecla example that transmits data via tcp json encoded")

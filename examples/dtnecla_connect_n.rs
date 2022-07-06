@@ -1,5 +1,5 @@
 use anyhow::Result;
-use clap::{crate_authors, crate_version, App, Arg};
+use clap::{crate_authors, crate_version, Arg, Command};
 use dtn7::cla::ecla::ws_client::Command::SendPacket;
 use dtn7::cla::ecla::Packet::{Beacon, ForwardData};
 use dtn7::cla::ecla::{ws_client, Packet};
@@ -10,7 +10,7 @@ use tokio::sync::mpsc;
 
 #[tokio::main]
 async fn main() -> Result<()> {
-    let matches = App::new("dtnecla connect N")
+    let matches = Command::new("dtnecla connect N")
         .version(crate_version!())
         .author(crate_authors!())
         .about("A simple ecla example that connects N dtnd instances")

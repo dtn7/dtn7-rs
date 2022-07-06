@@ -1,6 +1,6 @@
 use anyhow::Result;
 use bp7::Bundle;
-use clap::{crate_authors, crate_version, App, Arg};
+use clap::{crate_authors, crate_version, Arg, Command};
 use dtn7::cla::ecla::ws_client::Command::SendPacket;
 use dtn7::cla::ecla::{ws_client, ForwardData, Packet};
 use dtn7::cla::mtcp::{MPDUCodec, MPDU};
@@ -124,7 +124,7 @@ pub fn send_bundle(addr: String, data: Vec<u8>) -> bool {
 
 #[tokio::main]
 async fn main() -> Result<()> {
-    let matches = App::new("dtnecla mtcp layer")
+    let matches = Command::new("dtnecla mtcp layer")
         .version(crate_version!())
         .author(crate_authors!())
         .about("A simple ecla example that transmits data via tcp cbor encoded")
