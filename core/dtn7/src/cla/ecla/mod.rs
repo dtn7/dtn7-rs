@@ -92,6 +92,8 @@ pub struct Register {
     /// the port in the destination format (<addr>:<port>) generation in the peers.
     ///
     /// See [DtnPeer.first_cla()](crate::DtnPeer#method.first_cla) method source for information.
+    ///
+    /// Example: For mtcp this would be the listening port on which it accepts connections and data.
     pub port: Option<u16>,
 }
 
