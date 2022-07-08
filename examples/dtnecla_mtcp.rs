@@ -161,11 +161,10 @@ async fn main() -> Result<()> {
     let (tx, mut rx) = mpsc::channel::<Packet>(100);
     let (ctx, crx) = mpsc::channel::<Packet>(100);
 
-    tokio::spawn(listener(
-        u16::from_str(matches.value_of("port").expect("no port given"))
-            .expect("port wasn't a number"),
-        ctx.clone(),
-    ));
+    let port = u16::from_str(matches.value_of("port").expect("no port given"))
+        .expect("port wasn't a number");
+
+    tokio::spawn(listener(port, ctx.clone()));
 
     // initialize Clients
     if let Some(addr) = matches.value_of("addr") {
@@ -177,7 +176,7 @@ async fn main() -> Result<()> {
             let mut crx = crx;
             let mut c = ws_client::new("mtcp", addr.as_str(), "", tx, false)
                 .expect("couldn't create client");
-            c.set_ecla_port(u16::from_str(matches.value_of("port").unwrap()).unwrap());
+            c.set_ecla_port(port);
 
             let cmd_chan = c.command_channel();
             let read = tokio::spawn(async move {

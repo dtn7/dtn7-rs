@@ -147,11 +147,10 @@ async fn main() -> Result<()> {
     let (tx, mut rx) = mpsc::channel::<Packet>(100);
     let (ctx, crx) = mpsc::channel::<Packet>(100);
 
-    tokio::spawn(listener(
-        u16::from_str(matches.value_of("port").expect("no port given"))
-            .expect("port wasn't a number"),
-        ctx.clone(),
-    ));
+    let port = u16::from_str(matches.value_of("port").expect("no port given"))
+        .expect("port wasn't a number");
+
+    tokio::spawn(listener(port, ctx.clone()));
 
     // initialize Clients
     if let Some(addr) = matches.value_of("addr") {
