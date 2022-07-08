@@ -101,17 +101,22 @@ async fn announcer() {
 
 /// Handles packets from a transport layer
 pub fn handle_packet(layer_name: String, addr: String, packet: Packet) {
-    // Get own peer
     let mut module_map = MODULE_MAP.lock().unwrap();
-    let mut layer_map = LAYER_MAP.lock().unwrap();
 
+    // Check if the module exists.
     let mod_opt = module_map.get_mut(&addr);
-    let layer_opt = layer_map.get_mut(&layer_name);
-    if mod_opt.is_none() || layer_opt.is_none() {
+    if mod_opt.is_none() {
         return;
     }
 
-    let layer = layer_opt.unwrap();
+    // Check if the corresponding layer exists without holding the lock for the whole function.
+    {
+        let layer_map = LAYER_MAP.lock().unwrap();
+        if layer_map.get(&layer_name).is_none() {
+            return;
+        }
+    }
+
     let me = mod_opt.unwrap();
     match me.state {
         // If we are still in WaitingForIdent we only wait for RegisterPackets to register the Module name.
@@ -121,6 +126,9 @@ pub fn handle_packet(layer_name: String, addr: String, packet: Packet) {
                     "Received RegisterPacket from {} ({}): {}",
                     addr, layer_name, ident.name
                 );
+
+                let mut layer_map = LAYER_MAP.lock().unwrap();
+                let layer = layer_map.get_mut(&layer_name).unwrap();
 
                 if ident.name.is_empty() || ident.name.len() > ECLA_NAME_MAX_LEN {
                     error!("Rejected ECLA because name was empty or too long");
