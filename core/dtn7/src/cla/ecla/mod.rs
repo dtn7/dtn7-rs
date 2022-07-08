@@ -89,7 +89,9 @@ pub struct Register {
     /// ECLA Module. Detailed information can be found in the ECLA docs (Found under '/doc/ecla.md' in repository).
     pub enable_beacon: bool,
     /// If the ECLA uses some kind of IP and port based protocol it needs to be known so that dtnd can use
-    /// the port in the destination format generation.
+    /// the port in the destination format (<addr>:<port>) generation in the peers.
+    ///
+    /// See [DtnPeer.first_cla()](crate::DtnPeer#method.first_cla) method source for information.
     pub port: Option<u16>,
 }
 
