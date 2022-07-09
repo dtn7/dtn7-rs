@@ -109,3 +109,25 @@ pub fn parse_peer_url(peer_url: &str) -> DtnPeer {
         HashMap::new(),
     )
 }
+
+/// check node names for validity
+/// pattern similar to hostnames
+/// - must start with a letter (or all digits for IPN)
+/// - must contain only letters, digits, and .-_
+/// - must end with a letter or digit
+pub fn is_valid_node_name(name: &str) -> bool {
+    let mut chars = name.chars();
+    let valid_dtn = chars.next().unwrap().is_alphabetic()
+        && chars.all(|c| c.is_ascii_alphanumeric() || c == '_' || c == '-' || c == '.')
+        && name.chars().last().unwrap().is_ascii_alphanumeric();
+    let valid_ipn = name.chars().all(|c| c.is_ascii_digit());
+
+    valid_dtn || valid_ipn
+}
+
+// TODO: check in more detail with ~ and / positions
+pub fn is_valid_service_name(name: &str) -> bool {
+    name.chars().all(|c| {
+        c.is_ascii_alphanumeric() || c == '/' || c == '-' || c == '_' || c == '.' || c == '~'
+    })
+}
