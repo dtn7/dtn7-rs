@@ -1,4 +1,5 @@
 use crate::cla::CLAsAvailable;
+use crate::core::helpers::is_valid_node_name;
 use crate::core::DtnPeer;
 use bp7::EndpointID;
 use config::{Config, File};
@@ -73,7 +74,7 @@ impl From<PathBuf> for DtnConfig {
         debug!("announcing period: {:?}", dtncfg.enable_period);
         debug!("debug: {:?}", dtncfg.debug);
         let nodeid = s.get_str("nodeid").unwrap_or_else(|_| rnd_node_name());
-        if nodeid.chars().all(char::is_alphanumeric) {
+        if is_valid_node_name(&nodeid) {
             dtncfg.host_eid = if let Ok(number) = nodeid.parse::<u64>() {
                 format!("ipn:{}.0", number).try_into().unwrap()
             } else {

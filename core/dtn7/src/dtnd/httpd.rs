@@ -1,6 +1,7 @@
 use crate::core::application_agent::ApplicationAgent;
 use crate::core::application_agent::SimpleApplicationAgent;
 use crate::core::bundlepack::Constraint;
+use crate::core::helpers::is_valid_service_name;
 use crate::core::helpers::rnd_peer;
 use crate::core::peer::PeerType;
 use crate::core::store::BundleStore;
@@ -428,7 +429,7 @@ async fn register(
         return Err((StatusCode::BAD_REQUEST, "missing query parameter"));
     }
     let path = query.unwrap();
-    if path.chars().all(char::is_alphanumeric) {
+    if is_valid_service_name(&path) {
         // without url scheme assume a local DTN service name
         let host_eid = (*CONFIG.lock()).host_eid.clone();
         let eid = host_eid
@@ -458,7 +459,7 @@ async fn unregister(
         return Err((StatusCode::BAD_REQUEST, "missing query parameter"));
     }
     let path = query.unwrap();
-    if path.chars().all(char::is_alphanumeric) {
+    if is_valid_service_name(&path) {
         let host_eid = (*CONFIG.lock()).host_eid.clone();
         let eid = host_eid
             .new_endpoint(&path)
@@ -487,7 +488,7 @@ async fn endpoint(
         return Err((StatusCode::BAD_REQUEST, "missing query parameter"));
     }
     let path = query.unwrap();
-    if path.chars().all(char::is_alphanumeric) {
+    if is_valid_service_name(&path) {
         let host_eid = (*CONFIG.lock()).host_eid.clone();
         let eid = host_eid
             .new_endpoint(&path)
@@ -529,7 +530,7 @@ async fn endpoint_hex(
         return Err((StatusCode::BAD_REQUEST, "missing query parameter"));
     }
     let path = query.unwrap();
-    if path.chars().all(char::is_alphanumeric) {
+    if is_valid_service_name(&path) {
         let host_eid = (*CONFIG.lock()).host_eid.clone();
         let eid = host_eid
             .new_endpoint(&path)

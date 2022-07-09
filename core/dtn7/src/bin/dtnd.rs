@@ -2,6 +2,7 @@
 
 use clap::{crate_authors, crate_version, Arg, Command};
 use dtn7::cla::CLAsAvailable;
+use dtn7::core::helpers::is_valid_node_name;
 use dtn7::dtnd::daemon::*;
 use dtn7::DtnConfig;
 use log::info;
@@ -275,7 +276,7 @@ Tag 255 takes 5 arguments and is interpreted as address. Usage: -S 255:'Samplest
     }
 
     if let Some(nodeid) = matches.value_of("nodeid") {
-        if nodeid.chars().all(char::is_alphanumeric) {
+        if is_valid_node_name(nodeid) {
             cfg.host_eid = if let Ok(number) = nodeid.parse::<u64>() {
                 format!("ipn:{}.0", number).try_into().unwrap()
             } else {
