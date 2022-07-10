@@ -1,4 +1,4 @@
-use super::TransportLayer;
+use super::Connector;
 use crate::cla::ecla::processing::{handle_connect, handle_disconnect, handle_packet};
 use crate::cla::ecla::Packet;
 use crate::lazy_static;
@@ -97,16 +97,16 @@ pub async fn handle_connection(ws: WebSocket) {
 }
 
 #[derive(Clone, Default)]
-pub struct WebsocketTransportLayer {}
+pub struct WebsocketConnector {}
 
-impl WebsocketTransportLayer {
-    pub fn new() -> WebsocketTransportLayer {
-        WebsocketTransportLayer {}
+impl WebsocketConnector {
+    pub fn new() -> WebsocketConnector {
+        WebsocketConnector {}
     }
 }
 
 #[async_trait]
-impl TransportLayer for WebsocketTransportLayer {
+impl Connector for WebsocketConnector {
     async fn setup(&mut self) {
         // Because we use the server in httpd we don't have any setup
     }

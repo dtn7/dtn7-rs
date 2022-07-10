@@ -1,7 +1,7 @@
-use super::{Beacon, ForwardData, Packet, TransportLayer};
-use crate::cla::ecla::tcp::TCPTransportLayer;
-use crate::cla::ecla::ws::WebsocketTransportLayer;
-use crate::cla::ecla::{Error, Registered, TransportLayerEnum};
+use super::{Beacon, Connector, ForwardData, Packet};
+use crate::cla::ecla::tcp::TCPConnector;
+use crate::cla::ecla::ws::WebsocketConnector;
+use crate::cla::ecla::{ConnectorEnum, Error, Registered};
 use crate::cla::external::ExternalConvergenceLayer;
 use crate::cla::{ConvergenceLayerAgent, TransferResult};
 use crate::core::PeerType;
@@ -22,12 +22,12 @@ use tokio::time::interval;
 const ECLA_NAME_MAX_LEN: usize = 64;
 
 type ModuleMap = Arc<Mutex<HashMap<String, Module>>>;
-type LayerMap = Arc<Mutex<HashMap<String, TransportLayerEnum>>>;
+type LayerMap = Arc<Mutex<HashMap<String, ConnectorEnum>>>;
 
 lazy_static! {
-    /// Tracks the registered transportation layers over which clients can connect to dtnd (e.g. WebSocket or TCP).
-    static ref LAYER_MAP: LayerMap = LayerMap::new(Mutex::new(HashMap::new()));
-    /// Tracks the registered modules that are connected over an transportation layer.
+    /// Tracks the registered connectors over which clients can connect to dtnd (e.g. WebSocket or TCP).
+    static ref CONNECTORS_MAP: LayerMap = LayerMap::new(Mutex::new(HashMap::new()));
+    /// Tracks the registered modules that are connected over an connector.
     static ref MODULE_MAP: ModuleMap = ModuleMap::new(Mutex::new(HashMap::new()));
 }
 
@@ -40,13 +40,13 @@ enum ModuleState {
 }
 
 /// Represents the Module. A module holds it's connection state, it's name (typically name of the used transmission protocol),
-/// the layer over which it's connected and if the optional service discovery via periodically sent beacons is enabled.
+/// the connector over which it's connected and if the optional service discovery via periodically sent beacons is enabled.
 struct Module {
     state: ModuleState,
     /// Name of the Module should be the externally implemented CLA name (e.g. BLE, MTCP, LoRa, ...)
     name: String,
-    /// Name of the layer which the model is connected through (e.g. WebSocket, TCP, ...)
-    layer: String,
+    /// Name of the connector which the model is connected through (e.g. WebSocket, TCP, ...)
+    connector: String,
     /// Specifies if the Module requested the optional service discovery to be enabled.
     enable_beacon: bool,
 }
@@ -91,16 +91,20 @@ async fn announcer() {
                 return;
             }
 
-            if let Some(layer) = LAYER_MAP.lock().unwrap().get_mut(value.layer.as_str()) {
-                debug!("Sending Beacon to {} ({})", addr, value.layer);
-                layer.send_packet(addr, &Packet::Beacon(generate_beacon()));
+            if let Some(connector) = CONNECTORS_MAP
+                .lock()
+                .unwrap()
+                .get_mut(value.connector.as_str())
+            {
+                debug!("Sending Beacon to {} ({})", addr, value.connector);
+                connector.send_packet(addr, &Packet::Beacon(generate_beacon()));
             }
         });
     }
 }
 
-/// Handles packets from a transport layer
-pub fn handle_packet(layer_name: String, addr: String, packet: Packet) {
+/// Handles packets from a connector
+pub fn handle_packet(connector_name: String, addr: String, packet: Packet) {
     let mut module_map = MODULE_MAP.lock().unwrap();
 
     // Check if the module exists.
@@ -111,8 +115,8 @@ pub fn handle_packet(layer_name: String, addr: String, packet: Packet) {
 
     // Check if the corresponding layer exists without holding the lock for the whole function.
     {
-        let layer_map = LAYER_MAP.lock().unwrap();
-        if layer_map.get(&layer_name).is_none() {
+        let connectors_map = CONNECTORS_MAP.lock().unwrap();
+        if connectors_map.get(&connector_name).is_none() {
             return;
         }
     }
@@ -124,22 +128,22 @@ pub fn handle_packet(layer_name: String, addr: String, packet: Packet) {
             if let Packet::Register(ident) = packet {
                 info!(
                     "Received RegisterPacket from {} ({}): {}",
-                    addr, layer_name, ident.name
+                    addr, connector_name, ident.name
                 );
 
-                let mut layer_map = LAYER_MAP.lock().unwrap();
-                let layer = layer_map.get_mut(&layer_name).unwrap();
+                let mut connectors_map = CONNECTORS_MAP.lock().unwrap();
+                let connector = connectors_map.get_mut(&connector_name).unwrap();
 
                 if ident.name.is_empty() || ident.name.len() > ECLA_NAME_MAX_LEN {
                     error!("Rejected ECLA because name was empty or too long");
 
-                    layer.send_packet(
+                    connector.send_packet(
                         addr.as_str(),
                         &Packet::Error(Error {
                             reason: "invalid name".to_string(),
                         }),
                     );
-                    layer.close(addr.as_str());
+                    connector.close(addr.as_str());
                 } else if !cla_names().contains(&ident.name) {
                     me.name = ident.name;
                     me.state = ModuleState::Active;
@@ -158,25 +162,25 @@ pub fn handle_packet(layer_name: String, addr: String, packet: Packet) {
                     // Send registered packet
                     let eid = (*CONFIG.lock()).host_eid.clone();
                     let nodeid = (*CONFIG.lock()).nodeid.clone();
-                    layer.send_packet(
+                    connector.send_packet(
                         addr.as_str(),
                         &Packet::Registered(Registered { eid, nodeid }),
                     );
 
                     // Send initial beacon
                     if me.enable_beacon {
-                        layer.send_packet(addr.as_str(), &Packet::Beacon(generate_beacon()));
+                        connector.send_packet(addr.as_str(), &Packet::Beacon(generate_beacon()));
                     }
                 } else {
                     error!("Rejected ECLA because '{}' CLA is already present", me.name);
 
-                    layer.send_packet(
+                    connector.send_packet(
                         addr.as_str(),
                         &Packet::Error(Error {
                             reason: "already registered".to_string(),
                         }),
                     );
-                    layer.close(addr.as_str());
+                    connector.close(addr.as_str());
                 }
             }
         }
@@ -225,21 +229,21 @@ pub fn handle_packet(layer_name: String, addr: String, packet: Packet) {
     }
 }
 
-/// When a module connects in a transport layer this function should be called. It will initialize
+/// When a module connects in a connector this function should be called. It will initialize
 /// the information about the new module.
-pub fn handle_connect(layer_name: String, from: String) {
+pub fn handle_connect(connector_name: String, from: String) {
     MODULE_MAP.lock().unwrap().insert(
         from,
         Module {
             state: ModuleState::WaitingForIdent,
             name: "".to_string(),
-            layer: layer_name,
+            connector: connector_name,
             enable_beacon: true,
         },
     );
 }
 
-/// When a module disconnects in a transport layer this function should be called. It will remove the
+/// When a module disconnects in a connector this function should be called. It will remove the
 /// client from the internal module registry and remove the CLA if the module was already fully registered.
 pub fn handle_disconnect(addr: String) {
     info!("{} disconnected", &addr);
@@ -261,7 +265,7 @@ pub fn scheduled_submission(name: String, dest: String, ready: &ByteBuffer) -> T
         );
 
     let mut was_sent = TransferResult::Failure;
-    let mut layer_map = LAYER_MAP.lock().unwrap();
+    let mut connectors_map = CONNECTORS_MAP.lock().unwrap();
     let module_map = MODULE_MAP.lock().unwrap();
     module_map.iter().for_each(|(addr, value)| {
         if value.name == name {
@@ -273,8 +277,8 @@ pub fn scheduled_submission(name: String, dest: String, ready: &ByteBuffer) -> T
                     data: ready.to_vec(),
                 });
 
-                if let Some(layer) = layer_map.get_mut(value.layer.as_str()) {
-                    layer.send_packet(addr, &packet);
+                if let Some(connector) = connectors_map.get_mut(value.connector.as_str()) {
+                    connector.send_packet(addr, &packet);
                     was_sent = TransferResult::Successful;
                 }
             }
@@ -284,26 +288,26 @@ pub fn scheduled_submission(name: String, dest: String, ready: &ByteBuffer) -> T
     was_sent
 }
 
-/// Adds a transportation layer to the registered layers.
-pub fn add_layer(layer: TransportLayerEnum) {
-    LAYER_MAP
+/// Adds a connector to the registered connectors.
+pub fn add_connector(connector: ConnectorEnum) {
+    CONNECTORS_MAP
         .lock()
         .unwrap()
-        .insert(layer.name().to_string(), layer);
+        .insert(connector.name().to_string(), connector);
 }
 
-/// Starts the websocket transport layer and the tcp transport layer when the tcp_port > 0.
+/// Starts the websocket connector by default and the tcp connector when the tcp_port > 0.
 pub async fn start_ecla(tcp_port: u16) {
     debug!("Setup External Convergence Layer");
 
-    // Create the WS Transport Layer
-    add_layer(WebsocketTransportLayer::new().into());
+    // Create the websocket connector
+    add_connector(WebsocketConnector::new().into());
 
-    // Create the TCP Transport Layer
+    // Create the tcp connector
     if tcp_port > 0 {
-        let mut tcp_layer = TCPTransportLayer::new(tcp_port);
+        let mut tcp_layer = TCPConnector::new(tcp_port);
         tcp_layer.setup().await;
-        add_layer(tcp_layer.into());
+        add_connector(tcp_layer.into());
     }
 
     tokio::spawn(announcer());

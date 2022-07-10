@@ -2,16 +2,16 @@
 
 ![ECLA Model](./graphics/ecla_overview.drawio.png)
 
-The External Convergence Layer Agent allows implementing Convergence Layer Agents externally (e.g. outside the dtn7-rs codebase). It works by exposing a realtime JSON API via WebSocket or TCP. With the help of the ECLA it is possible to easily implement new transmission layers in different languages. All languages that can encode / decode JSON and communicate via WebSocket or TCP should in theory work. Additionally, the ECLA contains a optional and simple beacon system that can be used for peer discovery.
+The External Convergence Layer Agent allows implementing Convergence Layer Agents externally (e.g. outside the dtn7-rs codebase). It works by exposing a realtime JSON API via WebSocket or TCP. With the help of the ECLA it is possible to easily implement new transmission layers in different languages. All languages that can encode / decode JSON and communicate via WebSocket or TCP should in theory work. Additionally, the ECLA contains an optional and simple beacon system that can be used for peer discovery.
 
 
-A client that connects to the ECLA and implements a new transmission layer is called a External Convergence Layer Module (in short ECL-Module).
+A client that connects to the ECLA and implements a new transmission layer is called an External Convergence Layer Module (in short ECL-Module).
 
 ## Arguments
 
 To enable the ECLA add the argument ``--ecla`` to dtnd.
 
-## Transport Layer Agents
+## Implemented Connectors
 
 ### WebSocket
 

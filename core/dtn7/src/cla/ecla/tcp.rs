@@ -1,4 +1,4 @@
-use super::TransportLayer;
+use super::Connector;
 use crate::cla::ecla::processing::{handle_connect, handle_disconnect, handle_packet};
 use crate::cla::ecla::Packet;
 use crate::lazy_static;
@@ -74,18 +74,18 @@ async fn handle_connection(raw_stream: TcpStream, addr: SocketAddr) {
 }
 
 #[derive(Clone, Default)]
-pub struct TCPTransportLayer {
+pub struct TCPConnector {
     port: u16,
 }
 
-impl TCPTransportLayer {
-    pub fn new(port: u16) -> TCPTransportLayer {
-        TCPTransportLayer { port }
+impl TCPConnector {
+    pub fn new(port: u16) -> TCPConnector {
+        TCPConnector { port }
     }
 }
 
 #[async_trait]
-impl TransportLayer for TCPTransportLayer {
+impl Connector for TCPConnector {
     async fn setup(&mut self) {
         let port = self.port;
 

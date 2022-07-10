@@ -5,8 +5,8 @@ use serde::{Deserialize, Serialize};
 use tokio::sync::mpsc::Sender;
 use tokio::sync::oneshot;
 
-use tcp::TCPTransportLayer;
-use ws::WebsocketTransportLayer;
+use tcp::TCPConnector;
+use ws::WebsocketConnector;
 
 pub mod processing;
 pub mod tcp;
@@ -112,22 +112,22 @@ pub struct ForwardData {
 
 /// Connection represents the session of a connection with a Tx channel to send data
 /// and a oneshot channel to signal a closing of the session once. Can be used as generic
-/// session for transport layers.
+/// session for connectors.
 struct Connection<A> {
     tx: Sender<A>,
     close: Option<oneshot::Sender<()>>,
 }
 
 #[enum_dispatch]
-pub enum TransportLayerEnum {
-    WebsocketTransportLayer,
-    TCPTransportLayer,
+pub enum ConnectorEnum {
+    WebsocketConnector,
+    TCPConnector,
 }
 
 #[async_trait]
-#[enum_dispatch(TransportLayerEnum)]
-/// Trait to implement transport layer (e.g. WebSocket, TCP, ...) over which ecla modules can connect to.
-pub trait TransportLayer {
+#[enum_dispatch(ConnectorEnum)]
+/// Trait to implement transport connector (e.g. WebSocket, TCP, ...) over which ecla modules can connect to.
+pub trait Connector {
     async fn setup(&mut self);
     fn name(&self) -> &str;
     fn send_packet(&self, dest: &str, packet: &Packet) -> bool;
