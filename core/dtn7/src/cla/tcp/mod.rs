@@ -702,6 +702,10 @@ async fn tcp_send_bundles(
 
 impl TcpConvergenceLayer {
     pub fn new(local_settings: Option<&HashMap<String, String>>) -> TcpConvergenceLayer {
+        let local_addr: String = local_settings
+            .and_then(|settings| settings.get("bind"))
+            .map(|s| s.to_string())
+            .unwrap_or_else(|| "0.0.0.0".to_string());
         let port = local_settings
             .and_then(|settings| settings.get("port"))
             .and_then(|port_str| port_str.parse::<u16>().ok())
@@ -752,6 +756,7 @@ impl TcpConvergenceLayer {
             }
         });
         TcpConvergenceLayer {
+            local_addr,
             local_port: port,
             refuse_existing_bundles,
             tx,
@@ -762,6 +767,7 @@ impl TcpConvergenceLayer {
 #[cla(tcp)]
 #[derive(Debug)]
 pub struct TcpConvergenceLayer {
+    local_addr: String,
     local_port: u16,
     refuse_existing_bundles: bool,
     tx: mpsc::Sender<super::ClaCmd>,
@@ -770,7 +776,7 @@ pub struct TcpConvergenceLayer {
 #[async_trait]
 impl ConvergenceLayerAgent for TcpConvergenceLayer {
     async fn setup(&mut self) {
-        let tcp_listener = TcpListener::bind(("0.0.0.0", self.local_port))
+        let tcp_listener = TcpListener::bind((self.local_addr.as_str(), self.local_port))
             .await
             .expect("Couldn't create TCP listener");
         let listener = Listener {
@@ -795,7 +801,7 @@ impl ConvergenceLayerAgent for TcpConvergenceLayer {
 
 impl HelpStr for TcpConvergenceLayer {
     fn local_help_str() -> &'static str {
-        "port=4556:refuse-existing-bundles=true|false"
+        "port=4556:refuse-existing-bundles=true|false:bind=0.0.0.0"
     }
 
     fn global_help_str() -> &'static str {
@@ -805,7 +811,7 @@ impl HelpStr for TcpConvergenceLayer {
 
 impl std::fmt::Display for TcpConvergenceLayer {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "tcp")
+        write!(f, "tcp:{}:{}", self.local_addr, self.local_port)
     }
 }
 

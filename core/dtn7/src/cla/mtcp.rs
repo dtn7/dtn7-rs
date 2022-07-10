@@ -197,8 +197,8 @@ impl Decoder for MPDUCodec {
         Ok(None)
     }
 }
-async fn mtcp_listener(port: u16) -> Result<(), io::Error> {
-    let addr: SocketAddrV4 = format!("0.0.0.0:{}", port).parse().unwrap();
+async fn mtcp_listener(addr: String, port: u16) -> Result<(), io::Error> {
+    let addr: SocketAddrV4 = format!("{}:{}", addr, port).parse().unwrap();
     let listener = TcpListener::bind(&addr)
         .await
         .expect("failed to bind tcp port");
@@ -264,12 +264,17 @@ pub fn mtcp_send_bundles(addr: SocketAddr, bundles: Vec<ByteBuffer>) -> Transfer
 #[cla(mtcp)]
 #[derive(Debug, Clone)]
 pub struct MtcpConvergenceLayer {
+    local_addr: String,
     local_port: u16,
     tx: mpsc::Sender<super::ClaCmd>,
 }
 
 impl MtcpConvergenceLayer {
     pub fn new(local_settings: Option<&HashMap<String, String>>) -> MtcpConvergenceLayer {
+        let addr: String = local_settings
+            .and_then(|settings| settings.get("bind"))
+            .map(|s| s.to_string())
+            .unwrap_or_else(|| "0.0.0.0".to_string());
         let port = local_settings
             .and_then(|settings| settings.get("port"))
             .and_then(|port_str| port_str.parse::<u16>().ok())
@@ -302,6 +307,7 @@ impl MtcpConvergenceLayer {
             }
         });
         MtcpConvergenceLayer {
+            local_addr: addr,
             local_port: port,
             tx,
         }
@@ -339,7 +345,7 @@ impl MtcpConvergenceLayer {
 
     pub async fn spawn_listener(&self) -> std::io::Result<()> {
         // TODO: bubble up errors from run
-        tokio::spawn(mtcp_listener(self.local_port)); /*.await.unwrap()*/
+        tokio::spawn(mtcp_listener(self.local_addr.clone(), self.local_port)); /*.await.unwrap()*/
         Ok(())
     }
     pub fn send_bundles(&self, addr: SocketAddr, bundles: Vec<ByteBuffer>) -> bool {
@@ -412,10 +418,13 @@ impl ConvergenceLayerAgent for MtcpConvergenceLayer {
     }
 }
 
-impl HelpStr for MtcpConvergenceLayer {}
-
+impl HelpStr for MtcpConvergenceLayer {
+    fn local_help_str() -> &'static str {
+        "port=16162:bind=0.0.0.0"
+    }
+}
 impl std::fmt::Display for MtcpConvergenceLayer {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "mtcp:{}", self.local_port)
+        write!(f, "mtcp:{}:{}", self.local_addr, self.local_port)
     }
 }
