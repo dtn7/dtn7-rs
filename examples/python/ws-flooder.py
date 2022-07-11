@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-# More or less minimal example of a dtn7 echo service using websockets
+# A simple flooding script to benchmark the WS client interface
 #
 # Requirements:
 # pip3 install websocket-client
@@ -11,6 +11,9 @@ import urllib.request
 import websocket
 from cbor2 import dumps, loads
 
+# how many bundles to send
+flood_len = 1000
+
 # transfer all bundles in bulk and wait for ack afterwards or send bundles one by one and wait for acks
 bulk_transfer = True
 
@@ -20,7 +23,7 @@ recv_data = False
 # Get the local node ID
 local_node = urllib.request.urlopen(
     "http://127.0.0.1:3000/status/nodeid").read().decode("utf-8")
-print("Running echo service on " + local_node)
+print("Running dummy service on " + local_node)
 
 # Define service endpoint, "echo" for 'dtn' nodes and '7' for 'ipn' nodes
 service = "dummy"
@@ -32,7 +35,6 @@ register = urllib.request.urlopen(
     "http://127.0.0.1:3000/register?"+service).read()
 print(register)
 
-flood_len = 1000
 counter = 0
 
 
@@ -48,7 +50,7 @@ def on_open(ws):
 def send_pkt(ws):
     global counter
     out = {}
-    out["src"] = 'dtn://node1/dummy'
+    out["src"] = local_node
     out["dst"] = "dtn://echo.dtn/dummy"
     out["delivery_notification"] = False
     out["lifetime"] = 3600*1000
