@@ -421,7 +421,10 @@ impl WsAASession {
                                 format!("200 Sent payload with {} bytes", b_len)
                             );
                         } else {
-                            ws_reply_text!(socket, "400 Unexpected binary");
+                            ws_reply_text!(
+                                socket,
+                                &format!("400 Unexpected binary: {:?}", send_data)
+                            );
                         }
                     }
                 }
