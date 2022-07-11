@@ -408,6 +408,7 @@ impl WsAASession {
                                 bndl.id(),
                                 bndl.primary.destination
                             );
+                            let bid = bndl.id();
                             //let mut rt = tokio::runtime::Runtime::new().unwrap();
                             //rt.block_on(async { crate::core::processing::send_bundle(bndl).await });
                             let rt = tokio::runtime::Handle::current();
@@ -418,7 +419,7 @@ impl WsAASession {
                             //crate::core::processing::send_through_task(bndl);
                             ws_reply_text!(
                                 socket,
-                                format!("200 Sent payload with {} bytes", b_len)
+                                format!("200 Sent bundle {} with {} bytes", bid, b_len)
                             );
                         } else {
                             ws_reply_text!(
