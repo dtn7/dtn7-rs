@@ -17,6 +17,9 @@ flood_len = 1000
 # transfer all bundles in bulk and wait for ack afterwards or send bundles one by one and wait for acks
 bulk_transfer = True
 
+# how big should the payload be
+payload_size = 200
+
 # Ready to receive data?
 recv_data = False
 
@@ -47,6 +50,10 @@ def on_open(ws):
     ws.send("/data")
 
 
+# preencode the payload
+payload = ("A" * payload_size).encode()
+
+
 def send_pkt(ws):
     global counter
     out = {}
@@ -54,7 +61,7 @@ def send_pkt(ws):
     out["dst"] = "dtn://echo.dtn/dummy"
     out["delivery_notification"] = False
     out["lifetime"] = 3600*1000
-    out["data"] = "Hello World".encode()
+    out["data"] = payload
     #[print(key,':',value) for key, value in out.items()]
 
     # encode the response as a CBOR byte string
