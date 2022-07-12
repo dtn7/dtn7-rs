@@ -23,7 +23,7 @@ pub struct Client {
     enable_beacon: bool,
     ip: String,
     id: String,
-    port: i16,
+    port: u16,
     ecla_port: Option<u16>,
     cmd_receiver: mpsc::Receiver<Command>,
     cmd_sender: mpsc::Sender<Command>,
@@ -58,7 +58,7 @@ pub fn new(
 
     let (cmd_sender, cmd_receiver) = mpsc::channel(100);
 
-    let port = i16::from_str(parts[1]);
+    let port = u16::from_str(parts[1]);
     if port.is_err() {
         return Err(std::io::Error::new(
             std::io::ErrorKind::InvalidInput,

@@ -17,7 +17,7 @@ pub enum Command {
 /// Represents the client session of a external router.
 pub struct Client {
     ip: String,
-    port: i16,
+    port: u16,
     cmd_receiver: mpsc::Receiver<Command>,
     cmd_sender: mpsc::Sender<Command>,
     packet_out: mpsc::Sender<Packet>,
@@ -44,7 +44,7 @@ pub fn new(addr: &str, packet_out: mpsc::Sender<Packet>) -> std::io::Result<Clie
 
     Ok(Client {
         ip: parts[0].to_string(),
-        port: i16::from_str(parts[1]).expect("could not parse port"),
+        port: u16::from_str(parts[1]).expect("could not parse port"),
         cmd_receiver,
         cmd_sender,
         packet_out,
