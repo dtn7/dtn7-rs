@@ -374,6 +374,7 @@ impl WsAASession {
                                 return Ok(());
                             }
                             let src2 = src.unwrap();
+
                             let pblock = bp7::primary::PrimaryBlockBuilder::default()
                                 .bundle_control_flags(bcf.bits())
                                 .destination(dst.unwrap())
@@ -386,29 +387,20 @@ impl WsAASession {
 
                             let b_len = send_req.data.len();
                             debug!("Received via WS for sending: {:?} bytes", b_len);
-                            let mut bndl = bp7::bundle::BundleBuilder::default()
-                                .primary(pblock)
-                                .canonicals(vec![
-                                    bp7::canonical::new_payload_block(
-                                        BlockControlFlags::empty(),
-                                        send_req.data.to_owned(),
-                                    ),
-                                    bp7::canonical::new_hop_count_block(
-                                        2,
-                                        BlockControlFlags::empty(),
-                                        32,
-                                    ),
-                                ])
-                                .build()
-                                .unwrap();
-                            bndl.set_crc(bp7::crc::CRC_NO);
+                            let mut bndl = bp7::Bundle {
+                                primary: pblock,
+                                canonicals: vec![bp7::canonical::new_payload_block(
+                                    BlockControlFlags::empty(),
+                                    send_req.data.to_owned(),
+                                )],
+                            };
 
+                            bndl.set_crc(bp7::crc::CRC_NO);
+                            let bid = bndl.id();
                             debug!(
                                 "Sending bundle {} from data frame to {} from WS",
-                                bndl.id(),
-                                bndl.primary.destination
+                                bid, bndl.primary.destination
                             );
-                            let bid = bndl.id();
                             //let mut rt = tokio::runtime::Runtime::new().unwrap();
                             //rt.block_on(async { crate::core::processing::send_bundle(bndl).await });
                             let rt = tokio::runtime::Handle::current();
