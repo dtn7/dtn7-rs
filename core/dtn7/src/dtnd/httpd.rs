@@ -5,13 +5,13 @@ use crate::core::helpers::is_valid_service_name;
 use crate::core::helpers::rnd_peer;
 use crate::core::peer::PeerType;
 use crate::core::store::BundleStore;
-use crate::peers_count;
-use crate::DtnConfig;
 use crate::CONFIG;
 use crate::DTNCORE;
 use crate::PEERS;
 use crate::STATS;
 use crate::STORE;
+use crate::{cla_names, peers_count};
+use crate::{DtnConfig, PeerAddress};
 use anyhow::Result;
 use async_trait::async_trait;
 use axum::extract::ws::WebSocketUpgrade;
@@ -35,6 +35,7 @@ use log::{debug, warn};
 use serde::Serialize;
 use std::collections::HashMap;
 use std::convert::{TryFrom, TryInto};
+use std::fmt::Write;
 use std::net::SocketAddr;
 use std::time::Instant;
 use tinytemplate::TinyTemplate;
@@ -91,6 +92,7 @@ struct IndexContext<'a> {
     timeout: String,
     num_peers: usize,
     num_bundles: usize,
+    clas: Vec<String>,
 }
 
 #[derive(Serialize)]
@@ -102,6 +104,7 @@ struct PeersContext<'a> {
 struct PeerEntry {
     name: String,
     con_type: PeerType,
+    addr: PeerAddress,
     last: String,
 }
 
@@ -136,6 +139,7 @@ async fn index() -> Html<String> {
         humantime::format_duration((*CONFIG.lock()).announcement_interval).to_string();
     let janitor = humantime::format_duration((*CONFIG.lock()).janitor_interval).to_string();
     let timeout = humantime::format_duration((*CONFIG.lock()).peer_timeout).to_string();
+    let clas = cla_names();
     let context = IndexContext {
         config: &(*CONFIG.lock()),
         announcement,
@@ -143,6 +147,7 @@ async fn index() -> Html<String> {
         timeout,
         num_peers: peers_count(),
         num_bundles: (*DTNCORE.lock()).bundle_count(),
+        clas,
     };
 
     let rendered = tt
@@ -156,6 +161,15 @@ async fn web_peers() -> Html<String> {
     // "dtn7 ctrl interface"
     let template_str = include_str!("../../webroot/peers.html");
     let mut tt = TinyTemplate::new();
+    tt.add_formatter(
+        "dump_json",
+        |value: &serde_json::Value,
+         output: &mut String|
+         -> Result<(), tinytemplate::error::Error> {
+            write!(output, "{}", value)?;
+            Ok(())
+        },
+    );
     tt.add_template("peers", template_str)
         .expect("error adding template");
     let now = std::time::SystemTime::now()
@@ -174,6 +188,7 @@ async fn web_peers() -> Html<String> {
             PeerEntry {
                 name: p.eid.to_string(),
                 con_type: p.con_type,
+                addr: p.addr.clone(),
                 last: time_since,
             }
         })
@@ -594,7 +609,7 @@ async fn download_hex(
 }
 
 pub async fn spawn_httpd() -> Result<()> {
-    let app_local_only = Router::new()
+    let mut app_local_only = Router::new()
         .route("/send", post(send_post))
         .route("/register", get(register))
         .route("/unregister", get(unregister))
@@ -609,6 +624,25 @@ pub async fn spawn_httpd() -> Result<()> {
         .route("/debug/rnd_bundle", get(debug_rnd_bundle))
         .route("/debug/rnd_peer", get(debug_rnd_peer))
         .layer(extractor_middleware::<RequireLocalhost>());
+
+    if CONFIG.lock().routing == "external" {
+        app_local_only = app_local_only.route(
+            "/ws/erouting",
+            get(|ws: WebSocketUpgrade| async move {
+                ws.on_upgrade(crate::routing::erouting::processing::handle_connection)
+            }),
+        )
+    }
+
+    if CONFIG.lock().ecla_enable {
+        app_local_only = app_local_only.route(
+            "/ws/ecla",
+            get(|ws: WebSocketUpgrade| async move {
+                ws.on_upgrade(crate::cla::ecla::ws::handle_connection)
+            }),
+        )
+    }
+
     let app = app_local_only
         .route("/", get(index))
         .route("/peers", get(web_peers))

@@ -75,9 +75,20 @@ pub fn rnd_peer() -> DtnPeer {
 /// parse_peer_url("mtcp://192.168.2.1");
 /// ```
 pub fn parse_peer_url(peer_url: &str) -> DtnPeer {
-    let u = Url::parse(peer_url).expect("Static peer url parsing error");
+    let u: Url;
+    let is_external = if peer_url.starts_with("ecla+") {
+        u = Url::parse(peer_url.strip_prefix("ecla+").unwrap())
+            .expect("Static external peer url parsing error");
+
+        true
+    } else {
+        u = Url::parse(peer_url).expect("Static peer url parsing error");
+
+        false
+    };
+
     let scheme = u.scheme();
-    if scheme.parse::<CLAsAvailable>().is_err() {
+    if !is_external && scheme.parse::<CLAsAvailable>().is_err() {
         panic!("Unknown convergency layer selected: {}", scheme);
     }
     let ipaddr = u.host_str().expect("Host parsing error");
@@ -92,6 +103,7 @@ pub fn parse_peer_url(peer_url: &str) -> DtnPeer {
     if nodeid == "/" || nodeid.is_empty() {
         panic!("Missing node id");
     }
+
     let addr = if let Ok(ip) = ipaddr.parse::<IpAddr>() {
         PeerAddress::Ip(ip)
     } else {

@@ -25,6 +25,7 @@ pub struct DtnConfig {
     pub host_eid: EndpointID,
     pub webport: u16,
     pub announcement_interval: Duration,
+    pub disable_neighbour_discovery: bool,
     pub discovery_destinations: HashMap<String, u32>,
     pub janitor_interval: Duration,
     pub endpoints: Vec<String>,
@@ -37,6 +38,8 @@ pub struct DtnConfig {
     pub workdir: PathBuf,
     pub db: String,
     pub generate_status_reports: bool,
+    pub ecla_tcp_port: u16,
+    pub ecla_enable: bool,
     pub parallel_bundle_processing: bool,
 }
 
@@ -179,6 +182,14 @@ impl From<PathBuf> for DtnConfig {
                 }
             }
         }
+        if let Ok(ecla) = s.get_table("ecla") {
+            if let Some(enabled) = ecla.get("enabled") {
+                dtncfg.ecla_enable = enabled.clone().into_bool().unwrap_or(false);
+            }
+            if let Some(tcp_port) = ecla.get("tcp_port") {
+                dtncfg.ecla_tcp_port = tcp_port.clone().into_int().unwrap_or(0) as u16;
+            }
+        }
         if let Ok(services) = s.get_table("services.service") {
             for (_k, v) in services.iter() {
                 let tab = v.clone().into_table().unwrap();
@@ -232,6 +243,7 @@ impl DtnConfig {
             nodeid: local_node_id.to_string(),
             host_eid: local_node_id,
             announcement_interval: "2s".parse::<humantime::Duration>().unwrap().into(),
+            disable_neighbour_discovery: false,
             discovery_destinations: HashMap::new(),
             webport: 3000,
             janitor_interval: "10s".parse::<humantime::Duration>().unwrap().into(),
@@ -245,6 +257,8 @@ impl DtnConfig {
             workdir: std::env::current_dir().unwrap(),
             db: String::from("mem"),
             generate_status_reports: false,
+            ecla_enable: false,
+            ecla_tcp_port: 0,
             parallel_bundle_processing: false,
         }
     }
@@ -259,6 +273,7 @@ impl DtnConfig {
         self.host_eid = cfg.host_eid;
         self.webport = cfg.webport;
         self.announcement_interval = cfg.announcement_interval;
+        self.disable_neighbour_discovery = cfg.disable_neighbour_discovery;
         self.discovery_destinations = cfg.discovery_destinations;
         self.janitor_interval = cfg.janitor_interval;
         self.endpoints = cfg.endpoints;
@@ -271,6 +286,8 @@ impl DtnConfig {
         self.workdir = cfg.workdir;
         self.db = cfg.db;
         self.generate_status_reports = cfg.generate_status_reports;
+        self.ecla_enable = cfg.ecla_enable;
+        self.ecla_tcp_port = cfg.ecla_tcp_port;
         self.parallel_bundle_processing = cfg.parallel_bundle_processing;
     }
 

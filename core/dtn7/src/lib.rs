@@ -5,10 +5,11 @@ pub mod dtnd;
 pub mod ipnd;
 pub mod routing;
 
+use crate::cla::CLAsAvailable;
 use crate::core::bundlepack::BundlePack;
 use crate::core::store::{BundleStore, InMemoryBundleStore};
 use crate::core::DtnStatistics;
-use crate::routing::RoutingAgent;
+use crate::routing::{RoutingAgent, RoutingCmd};
 use bp7::{Bundle, EndpointID};
 use cla::{CLAEnum, ClaSenderTask};
 pub use dtnconfig::DtnConfig;
@@ -17,13 +18,15 @@ use log::{error, info};
 pub use crate::core::{DtnCore, DtnPeer};
 pub use crate::routing::RoutingNotifcation;
 
+use crate::cla::ConvergenceLayerAgent;
 use crate::core::peer::PeerAddress;
 use crate::core::store::BundleStoresEnum;
-use anyhow::{Context, Result};
+use anyhow::{bail, Context, Result};
 use lazy_static::*;
 use parking_lot::Mutex;
 use std::collections::HashMap;
 use tokio::sync::mpsc::Sender;
+use tokio::sync::oneshot;
 
 lazy_static! {
     pub static ref CONFIG: Mutex<DtnConfig> = Mutex::new(DtnConfig::new());
@@ -37,6 +40,51 @@ lazy_static! {
 
 pub fn cla_add(cla: CLAEnum) {
     (*CLAS.lock()).push(cla);
+}
+pub fn cla_remove(name: String) {
+    (*CLAS.lock()).retain(|value| {
+        return value.name() != name;
+    })
+}
+pub fn cla_is_external(name: String) -> bool {
+    return (*CLAS.lock()).iter().any(|p| match p {
+        CLAEnum::ExternalConvergenceLayer(e) => {
+            return e.name() == name;
+        }
+        _ => false,
+    });
+}
+pub fn cla_parse(name: &str) -> CLAsAvailable {
+    if cla_is_external(name.to_string()) {
+        return CLAsAvailable::ExternalConvergenceLayer;
+    }
+
+    name.parse::<CLAsAvailable>().unwrap()
+}
+pub fn cla_settings(name: String) -> Option<HashMap<String, String>> {
+    let res: Vec<Option<HashMap<String, String>>> = (*CLAS.lock())
+        .iter()
+        .filter(|p| {
+            return p.name() == name;
+        })
+        .map(|p| p.local_settings())
+        .collect();
+
+    if res.is_empty() || res[0].is_none() {
+        return None;
+    }
+
+    return Some(res[0].as_ref().unwrap().clone());
+}
+pub fn cla_names() -> Vec<String> {
+    let names: Vec<String> = (*CLAS.lock())
+        .iter()
+        .map(|val| {
+            return String::from(val.name());
+        })
+        .collect();
+
+    names
 }
 pub fn service_add(tag: u8, service: String) {
     (*DTNCORE.lock()).service_list.insert(tag, service);
@@ -158,6 +206,30 @@ pub fn store_delete_expired() {
         store_remove(&bid);
     }
 }
-pub fn routing_notify(notification: RoutingNotifcation) {
-    (*DTNCORE.lock()).routing_agent.notify(notification);
+
+pub async fn routing_notify(notification: RoutingNotifcation) -> Result<()> {
+    let chan = (*DTNCORE.lock()).routing_agent.channel();
+    if let Err(err) = chan.send(RoutingCmd::Notify(notification)).await {
+        bail!("Error while sending notification: {}", err);
+    }
+    Ok(())
+}
+
+pub async fn routing_sender_for_bundle(bp: BundlePack) -> Result<(Vec<ClaSenderTask>, bool)> {
+    let (reply_tx, reply_rx) = oneshot::channel();
+
+    let cmd_channel = (*DTNCORE.lock()).routing_agent.channel();
+    if let Err(err) = cmd_channel
+        .send(RoutingCmd::SenderForBundle(bp, reply_tx))
+        .await
+    {
+        bail!("Error while sending command to routing agent: {}", err);
+    }
+
+    let res = reply_rx.await;
+    if let Err(err) = res {
+        bail!("Error while waiting for SenderForBundle reply: {}", err);
+    }
+
+    Ok(res.unwrap())
 }

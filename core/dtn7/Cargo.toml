@@ -27,11 +27,14 @@ serde_cbor = "0.11"
 serde_json = "1.0"
 serde_bytes = "0.11"
 url = "2.2.2"
-rand = "0.8.5"
+rand = "0.8.3"
 tokio = { version = "1.18.2", features = ["net", "rt-multi-thread", "macros", "time", "tracing"]}
 console-subscriber = { version = "0.1.6", features = ["parking_lot"], optional = true }
 tokio-util = { version = "0.7.2", features = ["codec"] }
+tokio-tungstenite = "0.15.0"
+tokio-serde = { version = "0.8", features = ["json"] }
 futures = "0.3.21"
+base64 = "0.13.0"
 futures-util = "0.3.21"
 pretty_env_logger = "0.4.0"
 log = "0.4"
@@ -67,4 +70,3 @@ byteorder = "1.4.3"
 [lib]
 name = "dtn7"
 path = "src/lib.rs"
-
