@@ -1,4 +1,6 @@
 pub mod dummy;
+pub mod ecla;
+pub mod external;
 pub mod http;
 pub mod mtcp;
 pub mod tcp;
@@ -11,6 +13,7 @@ use derive_more::*;
 use dtn7_codegen::init_cla_subsystem;
 use dummy::DummyConvergenceLayer;
 use enum_dispatch::enum_dispatch;
+use external::ExternalConvergenceLayer;
 use mtcp::MtcpConvergenceLayer;
 use serde::{Deserialize, Serialize};
 use std::str::FromStr;
@@ -69,7 +72,10 @@ impl ClaSenderTask {
 pub trait ConvergenceLayerAgent: Debug + Display {
     async fn setup(&mut self);
     fn port(&self) -> u16;
-    fn name(&self) -> &'static str;
+    fn name(&self) -> &str;
+    fn local_settings(&self) -> Option<HashMap<String, String>> {
+        None
+    }
     fn channel(&self) -> mpsc::Sender<ClaCmd>;
 }
 

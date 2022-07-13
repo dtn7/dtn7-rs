@@ -108,7 +108,7 @@ impl ConvergenceLayerAgent for HttpConvergenceLayer {
     fn port(&self) -> u16 {
         self.local_port
     }
-    fn name(&self) -> &'static str {
+    fn name(&self) -> &str {
         "http"
     }
     fn channel(&self) -> tokio::sync::mpsc::Sender<super::ClaCmd> {

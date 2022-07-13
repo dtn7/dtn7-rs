@@ -36,6 +36,7 @@ impl DummyConvergenceLayer {
         DummyConvergenceLayer { tx }
     }
 }
+
 #[async_trait]
 impl ConvergenceLayerAgent for DummyConvergenceLayer {
     async fn setup(&mut self) {}
@@ -43,7 +44,8 @@ impl ConvergenceLayerAgent for DummyConvergenceLayer {
     fn port(&self) -> u16 {
         0
     }
-    fn name(&self) -> &'static str {
+
+    fn name(&self) -> &str {
         // my_name() is generated from cla proc macro attribute
         self.my_name()
     }
