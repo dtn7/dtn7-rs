@@ -14,7 +14,18 @@ anyhow = "1.0.57"
 serde_cbor = "0.11"
 humantime = "2.1.0"
 rand = "0.8.5"
+dtn7 = { path = "../core/dtn7", version = "0.17.3" }
+tokio = { version = "1.16.1", features = ["net", "rt-multi-thread", "macros", "time"] }
+tokio-util = { version = "0.7.2", features = ["codec"] }
+tokio-serde = { version = "0.8", features = ["json"] }
+parking_lot = { version = "0.12.0", features = ["send_guard"] }
+futures-util = "0.3.5"
+pretty_env_logger = "0.4.0"
+serde_json = "1.0"
+futures = "0.3.5"
+lazy_static = "1.4.0"
 tungstenite = "0.16.0"
+log = "0.4"
 
 [[example]]
 name = "dtnping"
@@ -23,3 +34,19 @@ path = "dtnping.rs"
 [[example]]
 name = "dtnecho2"
 path = "dtnecho2.rs"
+
+[[example]]
+name = "dtnerouting"
+path = "dtnerouting.rs"
+
+[[example]]
+name = "dtnecla_connect_n"
+path = "dtnecla_connect_n.rs"
+
+[[example]]
+name = "dtnecla_json_mtcp"
+path = "dtnecla_json_mtcp.rs"
+
+[[example]]
+name = "dtnecla_mtcp"
+path = "dtnecla_mtcp.rs"

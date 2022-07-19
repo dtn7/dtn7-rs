@@ -1,16 +1,50 @@
 use super::RoutingAgent;
-use crate::cla::{ClaSenderTask, ConvergenceLayerAgent};
-use crate::core::bundlepack::BundlePack;
-use crate::{CLAS, PEERS};
+use crate::routing::RoutingCmd;
+use crate::PEERS;
+use async_trait::async_trait;
+use tokio::sync::mpsc;
+use tokio::sync::mpsc::Sender;
 
 /// Simple flooding-basic routing.
 /// All bundles are sent to all known peers again and again.
-#[derive(Default, Debug)]
-pub struct FloodingRoutingAgent {}
+#[derive(Debug)]
+pub struct FloodingRoutingAgent {
+    tx: mpsc::Sender<super::RoutingCmd>,
+}
+
+impl Default for FloodingRoutingAgent {
+    fn default() -> Self {
+        FloodingRoutingAgent::new()
+    }
+}
 
 impl FloodingRoutingAgent {
     pub fn new() -> FloodingRoutingAgent {
-        FloodingRoutingAgent {}
+        let (tx, mut rx) = mpsc::channel(100);
+        tokio::spawn(async move {
+            while let Some(cmd) = rx.recv().await {
+                match cmd {
+                    super::RoutingCmd::SenderForBundle(_bp, reply) => {
+                        let mut clas = Vec::new();
+                        for (_, p) in (*PEERS.lock()).iter() {
+                            if let Some(cla) = p.first_cla() {
+                                clas.push(cla);
+                            }
+                        }
+
+                        tokio::spawn(async move {
+                            reply.send((clas, false)).unwrap();
+                        });
+                    }
+                    super::RoutingCmd::Shutdown => {
+                        break;
+                    }
+                    super::RoutingCmd::Notify(_) => {}
+                }
+            }
+        });
+
+        FloodingRoutingAgent { tx }
     }
 }
 impl std::fmt::Display for FloodingRoutingAgent {
@@ -19,29 +53,9 @@ impl std::fmt::Display for FloodingRoutingAgent {
     }
 }
 
+#[async_trait]
 impl RoutingAgent for FloodingRoutingAgent {
-    fn sender_for_bundle(&mut self, _bp: &BundlePack) -> (Vec<ClaSenderTask>, bool) {
-        let mut clas = Vec::new();
-        for (_, p) in (*PEERS.lock()).iter() {
-            for p2 in &p.cla_list {
-                for c in (*CLAS.lock()).iter() {
-                    if c.name() == p2.0 {
-                        let dest = if let Some(port) = p2.1 {
-                            format!("{}:{}", p.addr(), port)
-                        } else {
-                            p.addr().to_string()
-                        };
-                        let cla = ClaSenderTask {
-                            cla_name: p2.0.to_string(),
-                            dest,
-                            tx: c.channel(),
-                            next_hop: p.eid.clone(),
-                        };
-                        clas.push(cla);
-                    }
-                }
-            }
-        }
-        (clas, false)
+    fn channel(&self) -> Sender<RoutingCmd> {
+        self.tx.clone()
     }
 }

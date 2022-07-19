@@ -1,13 +1,13 @@
 use std::convert::TryFrom;
 
 use super::{httpd, janitor};
+use crate::cla::ecla::processing::start_ecla;
 use crate::cla::ConvergenceLayerAgent;
 use crate::core::application_agent::SimpleApplicationAgent;
 use crate::dtnconfig::DtnConfig;
 use crate::ipnd::neighbour_discovery;
-use crate::peers_add;
-use crate::{cla_add, CLAS};
-use crate::{CONFIG, DTNCORE, STORE};
+use crate::{cla_add, peers_add};
+use crate::{CLAS, CONFIG, DTNCORE, STORE};
 use bp7::EndpointID;
 use log::{error, info};
 
@@ -103,7 +103,7 @@ pub async fn start_dtnd(cfg: DtnConfig) -> anyhow::Result<()> {
     let routing = (*CONFIG.lock()).routing.clone();
     (*DTNCORE.lock()).routing_agent = crate::routing::new(&routing);
 
-    info!("RoutingAgent: {}", (*DTNCORE.lock()).routing_agent);
+    info!("RoutingAgent: {}", routing);
 
     let clas = (*CONFIG.lock()).clas.clone();
     for (cla, local_settings) in &clas {
@@ -112,16 +112,10 @@ pub async fn start_dtnd(cfg: DtnConfig) -> anyhow::Result<()> {
     }
 
     for s in &(*CONFIG.lock()).statics {
-        let port_str = if s.cla_list[0].1.is_some() {
-            format!(":{}", s.cla_list[0].1.unwrap())
-        } else {
-            "".into()
-        };
         info!(
-            "Adding static peer: {}://{}{}/{}",
+            "Adding static peer: {}://{}/{}",
             s.cla_list[0].0,
             s.addr,
-            port_str,
             s.eid.node().unwrap()
         );
         peers_add(s.clone());
@@ -146,11 +140,20 @@ pub async fn start_dtnd(cfg: DtnConfig) -> anyhow::Result<()> {
     if CONFIG.lock().janitor_interval.as_micros() != 0 {
         janitor::spawn_janitor();
     }
-    if CONFIG.lock().announcement_interval.as_micros() != 0 {
+
+    let dn = CONFIG.lock().disable_neighbour_discovery;
+    let interval = CONFIG.lock().announcement_interval.as_micros();
+    if !dn && interval != 0 {
         if let Err(errmsg) = neighbour_discovery::spawn_neighbour_discovery().await {
             error!("Error spawning service discovery: {:?}", errmsg);
         }
     }
+
+    if (*CONFIG.lock()).ecla_enable {
+        let ecla_port = (*CONFIG.lock()).ecla_tcp_port;
+        start_ecla(ecla_port).await;
+    }
+
     httpd::spawn_httpd().await?;
     Ok(())
 }

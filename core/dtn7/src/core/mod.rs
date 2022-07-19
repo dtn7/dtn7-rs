@@ -7,11 +7,10 @@ pub mod store;
 
 pub use crate::core::peer::{DtnPeer, PeerType};
 use crate::core::store::BundleStore;
-use crate::routing::RoutingAgent;
 use crate::routing::RoutingAgentsEnum;
-use crate::CONFIG;
-use crate::{store_get_bundle, store_get_metadata};
+use crate::{routing_notify, store_get_bundle, store_get_metadata};
 pub use crate::{store_has_item, store_push_bundle};
+use crate::{RoutingNotifcation, CONFIG};
 use crate::{PEERS, STORE};
 use application_agent::ApplicationAgent;
 use bp7::EndpointID;
@@ -124,7 +123,9 @@ impl DtnCore {
 }
 
 /// Removes peers from global peer list that haven't been seen in a while.
-pub fn process_peers() {
+pub async fn process_peers() {
+    let mut dropped: Vec<EndpointID> = Vec::new();
+
     (*PEERS.lock()).retain(|_k, v| {
         let val = v.still_valid();
         if !val {
@@ -132,9 +133,17 @@ pub fn process_peers() {
                 "Have not seen {} @ {} in a while, removing it from list of known peers",
                 v.eid, v.addr
             );
+
+            dropped.push(v.eid.clone());
         }
         v.con_type == PeerType::Static || val
     });
+
+    for eid in dropped {
+        if let Err(err) = routing_notify(RoutingNotifcation::DroppedPeer(eid)).await {
+            error!("Error while dropping peer: {}", err);
+        }
+    }
 }
 
 /// Reprocess bundles in store

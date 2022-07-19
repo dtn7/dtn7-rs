@@ -143,6 +143,7 @@ impl DtnPeer {
     pub fn node_name(&self) -> String {
         self.eid.node().unwrap_or_default()
     }
+
     pub fn first_cla(&self) -> Option<ClaSenderTask> {
         for cla in &self.cla_list {
             for cla_instance in &(*CLAS.lock()) {
@@ -163,6 +164,7 @@ impl DtnPeer {
         }
         None
     }
+
     pub fn addr(&self) -> &PeerAddress {
         &self.addr
     }

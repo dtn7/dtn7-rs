@@ -104,3 +104,10 @@ local.0 = "incoming"
 local.1 = "null"
 
 group.0 = "dtn://hometown/~weather" # atm ignored
+
+# External CLA settings
+[ecla]
+# If ECLA should be enabled
+enabled  = false
+# If the TCP Port is not 0 ECLA clients can also connect via TCP to that port
+tcp_port = 0

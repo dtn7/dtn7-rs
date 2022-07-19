@@ -17,3 +17,6 @@
 
 tests/clab/*/results-*
 experiment.log
+
+bin/
+results*-*/
