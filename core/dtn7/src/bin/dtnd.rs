@@ -2,6 +2,7 @@
 
 use clap::{crate_authors, crate_version, Arg, Command};
 use dtn7::cla::CLAsAvailable;
+use dtn7::core::helpers::is_valid_node_name;
 use dtn7::dtnd::daemon::*;
 use dtn7::DtnConfig;
 use log::info;
@@ -94,6 +95,12 @@ async fn main() -> Result<(), std::io::Error> {
                 .takes_value(true),
         )
         .arg(
+            Arg::new("disable_nd")
+                .long("disable_nd")
+                .help("Explicitly disables the neighbour discovery")
+                .takes_value(false),
+        )
+        .arg(
             Arg::new("janitor")
                 .short('j')
                 .long("janitor")
@@ -117,6 +124,19 @@ async fn main() -> Result<(), std::io::Error> {
                 .value_name("PORT")
                 .help("Sets web interface port (default = 3000)")
                 .takes_value(true),
+        )
+        .arg(
+            Arg::new("eclatcpport")
+                .long("ecla-tcp")
+                .value_name("PORT")
+                .help("Sets ECLA tcp port (disabled by default)")
+                .takes_value(true),
+        )
+        .arg(
+            Arg::new("ecla")
+                .long("ecla")
+                .help("Enable ECLA (WebSocket transport layer enabled by default)")
+                .takes_value(false),
         )
         .arg(
             Arg::new("peertimeout")
@@ -261,6 +281,12 @@ Tag 255 takes 5 arguments and is interpreted as address. Usage: -S 255:'Samplest
     cfg.generate_status_reports =
         matches.is_present("generate-status-reports") || cfg.generate_status_reports;
 
+    cfg.ecla_enable = matches.is_present("ecla");
+    if let Some(ecla_tcp_port) = matches.value_of("eclatcpport") {
+        cfg.ecla_tcp_port = ecla_tcp_port
+            .parse()
+            .expect("Could not parse ECLA tcp port paramter!");
+    }
     cfg.parallel_bundle_processing =
         matches.is_present("parallel-bundle-processing") || cfg.parallel_bundle_processing;
 
@@ -275,7 +301,7 @@ Tag 255 takes 5 arguments and is interpreted as address. Usage: -S 255:'Samplest
     }
 
     if let Some(nodeid) = matches.value_of("nodeid") {
-        if nodeid.chars().all(char::is_alphanumeric) {
+        if is_valid_node_name(nodeid) {
             cfg.host_eid = if let Ok(number) = nodeid.parse::<u64>() {
                 format!("ipn:{}.0", number).try_into().unwrap()
             } else {
@@ -289,6 +315,7 @@ Tag 255 takes 5 arguments and is interpreted as address. Usage: -S 255:'Samplest
         }
     }
 
+    cfg.disable_neighbour_discovery = matches.is_present("disable_nd");
     if let Some(i) = matches.value_of("interval") {
         if i == "0" {
             cfg.announcement_interval = std::time::Duration::new(0, 0);

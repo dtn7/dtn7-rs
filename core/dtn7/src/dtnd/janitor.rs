@@ -4,7 +4,7 @@ async fn janitor() {
     debug!("running janitor");
 
     debug!("cleaning up peers");
-    crate::core::process_peers();
+    crate::core::process_peers().await;
 
     // handled in forwarding
     //debug!("cleaning up store");

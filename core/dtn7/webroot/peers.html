@@ -21,12 +21,14 @@
                 <tr>
                     <th width="40%" align="left">Name</th>
                     <th width="10%" align="left">Type</th>
+                    <th width="10%" align="left">Addr</th>
                     <th width="20%" align="left">Last Seen</th>
                 </tr>
                 {{for p in peers}}
                 <tr>
                     <td>{p.name}</td>
                     <td>{p.con_type}</td>
+                    <td>{p.addr | dump_json}</td>
                     <td>{p.last}</td>
                 </tr>
                 {{ endfor }}

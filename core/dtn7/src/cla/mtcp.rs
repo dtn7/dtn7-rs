@@ -404,7 +404,7 @@ impl ConvergenceLayerAgent for MtcpConvergenceLayer {
     fn port(&self) -> u16 {
         self.local_port
     }
-    fn name(&self) -> &'static str {
+    fn name(&self) -> &str {
         "mtcp"
     }
     fn channel(&self) -> tokio::sync::mpsc::Sender<super::ClaCmd> {

@@ -75,9 +75,20 @@ pub fn rnd_peer() -> DtnPeer {
 /// parse_peer_url("mtcp://192.168.2.1");
 /// ```
 pub fn parse_peer_url(peer_url: &str) -> DtnPeer {
-    let u = Url::parse(peer_url).expect("Static peer url parsing error");
+    let u: Url;
+    let is_external = if peer_url.starts_with("ecla+") {
+        u = Url::parse(peer_url.strip_prefix("ecla+").unwrap())
+            .expect("Static external peer url parsing error");
+
+        true
+    } else {
+        u = Url::parse(peer_url).expect("Static peer url parsing error");
+
+        false
+    };
+
     let scheme = u.scheme();
-    if scheme.parse::<CLAsAvailable>().is_err() {
+    if !is_external && scheme.parse::<CLAsAvailable>().is_err() {
         panic!("Unknown convergency layer selected: {}", scheme);
     }
     let ipaddr = u.host_str().expect("Host parsing error");
@@ -92,6 +103,7 @@ pub fn parse_peer_url(peer_url: &str) -> DtnPeer {
     if nodeid == "/" || nodeid.is_empty() {
         panic!("Missing node id");
     }
+
     let addr = if let Ok(ip) = ipaddr.parse::<IpAddr>() {
         PeerAddress::Ip(ip)
     } else {
@@ -108,4 +120,26 @@ pub fn parse_peer_url(peer_url: &str) -> DtnPeer {
         vec![(scheme.into(), port)],
         HashMap::new(),
     )
+}
+
+/// check node names for validity
+/// pattern similar to hostnames
+/// - must start with a letter (or all digits for IPN)
+/// - must contain only letters, digits, and .-_
+/// - must end with a letter or digit
+pub fn is_valid_node_name(name: &str) -> bool {
+    let mut chars = name.chars();
+    let valid_dtn = chars.next().unwrap().is_alphabetic()
+        && chars.all(|c| c.is_ascii_alphanumeric() || c == '_' || c == '-' || c == '.')
+        && name.chars().last().unwrap().is_ascii_alphanumeric();
+    let valid_ipn = name.chars().all(|c| c.is_ascii_digit());
+
+    valid_dtn || valid_ipn
+}
+
+// TODO: check in more detail with ~ and / positions
+pub fn is_valid_service_name(name: &str) -> bool {
+    name.chars().all(|c| {
+        c.is_ascii_alphanumeric() || c == '/' || c == '-' || c == '_' || c == '.' || c == '~'
+    })
 }

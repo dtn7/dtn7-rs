@@ -2,8 +2,8 @@ use crate::cla::ConvergenceLayerAgent;
 use crate::core::{DtnPeer, PeerType};
 use crate::ipnd::{beacon::Beacon, services::*};
 use crate::routing::RoutingNotifcation;
-use crate::{peers_add, peers_touch, routing_notify, CONFIG};
-use crate::{CLAS, DTNCORE};
+use crate::{peers_add, routing_notify, CLAS, CONFIG};
+use crate::{peers_touch, DTNCORE};
 use anyhow::Result;
 use log::{debug, error, info, trace};
 use socket2::{Domain, Socket, Type};
@@ -55,7 +55,13 @@ async fn receiver(socket: UdpSocket) -> Result<(), io::Error> {
                 }
             }
             trace!("{}", deserialized);
-            routing_notify(RoutingNotifcation::EncounteredPeer(deserialized.eid()))
+            if let Err(err) = routing_notify(RoutingNotifcation::EncounteredPeer(
+                deserialized.eid().clone(),
+            ))
+            .await
+            {
+                info!("Error while encountered peer notification: {}", err);
+            }
         }
     }
 }
