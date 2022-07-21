@@ -18,7 +18,8 @@ use axum::extract::ws::WebSocketUpgrade;
 use axum::extract::Query;
 use axum::response::Html;
 use axum::{
-    extract::{self, connect_info::ConnectInfo, extractor_middleware, RequestParts},
+    extract::{self, connect_info::ConnectInfo, RequestParts},
+    middleware::from_extractor,
     routing::{get, post},
     Router,
 };
@@ -63,16 +64,14 @@ where
         if (*CONFIG.lock()).unsafe_httpd {
             return Ok(Self);
         }
-        if let Some(ext) = conn.extensions() {
-            if let Some(ConnectInfo(addr)) = ext.get::<ConnectInfo<SocketAddr>>() {
-                if addr.ip().is_loopback() {
-                    return Ok(Self);
-                } else if let std::net::IpAddr::V6(ipv6) = addr.ip() {
-                    // workaround for bug in std when handling IPv4 in IPv6 addresses
-                    if let Some(ipv4) = ipv6.to_ipv4() {
-                        if ipv4.is_loopback() {
-                            return Ok(Self);
-                        }
+        if let Some(ConnectInfo(addr)) = conn.extensions().get::<ConnectInfo<SocketAddr>>() {
+            if addr.ip().is_loopback() {
+                return Ok(Self);
+            } else if let std::net::IpAddr::V6(ipv6) = addr.ip() {
+                // workaround for bug in std when handling IPv4 in IPv6 addresses
+                if let Some(ipv4) = ipv6.to_ipv4() {
+                    if ipv4.is_loopback() {
+                        return Ok(Self);
                     }
                 }
             }
@@ -623,7 +622,7 @@ pub async fn spawn_httpd() -> Result<()> {
         )
         .route("/debug/rnd_bundle", get(debug_rnd_bundle))
         .route("/debug/rnd_peer", get(debug_rnd_peer))
-        .layer(extractor_middleware::<RequireLocalhost>());
+        .layer(from_extractor::<RequireLocalhost>());
 
     if CONFIG.lock().routing == "external" {
         app_local_only = app_local_only.route(
@@ -671,7 +670,7 @@ pub async fn spawn_httpd() -> Result<()> {
     } else {
         hyper::Server::bind(&format!("[::]:{}", port).parse()?)
     }
-    .serve(app.into_make_service_with_connect_info::<SocketAddr, _>());
+    .serve(app.into_make_service_with_connect_info::<SocketAddr>());
     server.await?;
     Ok(())
 }

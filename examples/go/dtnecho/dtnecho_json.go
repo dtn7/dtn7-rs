@@ -29,10 +29,12 @@ func registerService(service string) string {
 
 // WsRecvData dtn7-rs websocket receiving data structure
 type WsRecvData struct {
-	Bid  string `json:"bid"`
-	Src  string `json:"src"`
-	Dst  string `json:"dst"`
-	Data string `json:"data"`
+	Bid      string `json:"bid"`
+	Src      string `json:"src"`
+	Dst      string `json:"dst"`
+	CTS      []uint `json:"cts"`
+	Lifetime uint64 `json:"lifetime"`
+	Data     string `json:"data"`
 }
 
 // WsSendData dtn7-rs websocket sending data structure
@@ -104,10 +106,10 @@ func main() {
 			var data WsRecvData
 			err = json.Unmarshal(message, &data)
 			checkErr(err)
-			log.Printf("[<] %s", data.Bid)
 			//payload, _ := base64.StdEncoding.DecodeString(data.Data)
 			//log.Printf("[<] data: %v", payload)
 
+			log.Printf("[<] %v", data.CTS)
 			response := WsSendData{
 				Src:                  data.Dst,
 				Dst:                  data.Src,

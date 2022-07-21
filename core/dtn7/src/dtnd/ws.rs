@@ -182,6 +182,8 @@ impl WsAASession {
                     bid: bndl.id(),
                     src: bndl.primary.source.to_string(),
                     dst: bndl.primary.destination.to_string(),
+                    cts: bndl.primary.creation_timestamp.clone(),
+                    lifetime: bndl.primary.lifetime.as_millis() as u64,
                     data: bndl.payload().unwrap().to_vec(),
                 };
                 match format {
@@ -461,6 +463,8 @@ impl WsAASession {
                                     bid: bundle.id(),
                                     src: bundle.primary.source.to_string(),
                                     dst: bundle.primary.destination.to_string(),
+                                    cts: bundle.primary.creation_timestamp.clone(),
+                                    lifetime: bundle.primary.lifetime.as_millis() as u64,
                                     data: bundle.payload().unwrap().to_vec(),
                                 };
                                 match format {

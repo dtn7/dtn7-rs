@@ -37,10 +37,12 @@ func registerService(service string) string {
 
 // WsRecvData dtn7-rs websocket receiving data structure
 type WsRecvData struct {
-	Bid  string `json:"bid"`
-	Src  string `json:"src"`
-	Dst  string `json:"dst"`
-	Data []byte `json:"data"`
+	Bid      string `json:"bid"`
+	Src      string `json:"src"`
+	Dst      string `json:"dst"`
+	CTS      []uint `json:"cts"`
+	Lifetime uint64 `json:"lifetime"`
+	Data     []byte `json:"data"`
 }
 
 // WsSendData dtn7-rs websocket sending data structure
