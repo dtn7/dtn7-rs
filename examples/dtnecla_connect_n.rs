@@ -1,8 +1,8 @@
 use anyhow::Result;
 use clap::{crate_authors, crate_version, Arg, Command};
-use dtn7::cla::ecla::ws_client::Command::SendPacket;
-use dtn7::cla::ecla::Packet::{Beacon, ForwardData};
-use dtn7::cla::ecla::{ws_client, Packet};
+use dtn7::client::ecla::ws_client::Command::SendPacket;
+use dtn7::client::ecla::Packet::{Beacon, ForwardData};
+use dtn7::client::ecla::{ws_client, Packet};
 use futures_util::{future, pin_mut};
 use log::{error, info};
 use std::str::FromStr;
