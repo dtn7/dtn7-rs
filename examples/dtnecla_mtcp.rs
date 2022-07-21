@@ -191,6 +191,7 @@ async fn main() -> Result<()> {
             pin_mut!(connecting);
 
             let res = future::select(connecting, read).await;
+            #[allow(clippy::collapsible_match)]
             if let Either::Left((con_res, _)) = res {
                 if let Err(err) = con_res {
                     error!("error {}", err);

@@ -115,7 +115,7 @@ impl EpidemicStrategy {
             }
         }
 
-        return (selected_clas, delete_afterwards);
+        (selected_clas, delete_afterwards)
     }
 }
 
