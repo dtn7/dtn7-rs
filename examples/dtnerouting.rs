@@ -1,8 +1,7 @@
 use anyhow::{bail, Result};
-use clap::{crate_authors, crate_version, Arg, Command};
-use dtn7::core::bundlepack::BundlePack;
-use dtn7::routing::erouting::{ws_client, Packet, ResponseSenderForBundle, Sender};
-use dtn7::DtnPeer;
+use clap::{crate_authors, crate_version, Arg};
+use dtn7::client::data::{BundlePack, DtnPeer};
+use dtn7::client::erouting::{ws_client, Packet, ResponseSenderForBundle, Sender};
 use futures_util::{future, pin_mut};
 use lazy_static::lazy_static;
 use log::{debug, error, info};
@@ -269,7 +268,7 @@ async fn serve(strategy: String, addr: &str) -> Result<()> {
 
 #[tokio::main]
 async fn main() -> Result<()> {
-    let matches = Command::new("dtn external routing example")
+    let matches = clap::Command::new("dtn external routing example")
         .version(crate_version!())
         .author(crate_authors!())
         .about("A simple external routing example")

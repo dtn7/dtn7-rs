@@ -1,9 +1,8 @@
 use anyhow::Result;
 use bp7::Bundle;
-use clap::{crate_authors, crate_version, Arg, Command};
-use dtn7::cla::ecla::ws_client::Command::SendPacket;
-use dtn7::cla::ecla::{ws_client, ForwardData, Packet};
+use clap::{crate_authors, crate_version, Arg, Command as ClapCommand};
 use dtn7::cla::mtcp::{MPDUCodec, MPDU};
+use dtn7::client::ecla::{ws_client, Command, ForwardData, Packet};
 use futures_util::future::Either;
 use futures_util::{future, pin_mut, StreamExt};
 use lazy_static::lazy_static;
@@ -124,7 +123,7 @@ pub fn send_bundle(addr: String, data: Vec<u8>) -> bool {
 
 #[tokio::main]
 async fn main() -> Result<()> {
-    let matches = Command::new("dtnecla mtcp layer")
+    let matches = ClapCommand::new("dtnecla mtcp layer")
         .version(crate_version!())
         .author(crate_authors!())
         .about("A simple ecla example that transmits data via tcp cbor encoded")
@@ -181,7 +180,7 @@ async fn main() -> Result<()> {
             let cmd_chan = c.command_channel();
             let read = tokio::spawn(async move {
                 while let Some(packet) = crx.recv().await {
-                    if let Err(err) = cmd_chan.send(SendPacket(packet)).await {
+                    if let Err(err) = cmd_chan.send(Command::SendPacket(packet)).await {
                         error!("couldn't pass packet to client command channel: {}", err);
                     }
                 }

@@ -1,7 +1,6 @@
 use anyhow::Result;
 use clap::{crate_authors, crate_version, Arg, Command};
-use dtn7::cla::ecla::ws_client::Command::SendPacket;
-use dtn7::cla::ecla::{ws_client, Packet};
+use dtn7::client::ecla::{ws_client, Command::SendPacket, Packet};
 use futures_util::{future, pin_mut, TryStreamExt};
 use lazy_static::lazy_static;
 use log::{debug, error, info};

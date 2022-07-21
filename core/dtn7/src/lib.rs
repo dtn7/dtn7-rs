@@ -1,4 +1,5 @@
 pub mod cla;
+pub mod client;
 pub mod core;
 pub mod dtnconfig;
 pub mod dtnd;
