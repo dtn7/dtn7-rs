@@ -79,7 +79,7 @@ async fn main() -> Result<()> {
         while let Some(packet) = rx.recv().await {
             match packet {
                 Packet::ForwardData(fwd) => {
-                    let dst: Vec<&str> = fwd.dst.split(":").collect();
+                    let dst: Vec<&str> = fwd.dst.split(':').collect();
                     info!("Got ForwardData {} -> {}", fwd.src, dst[0]);
 
                     let id = usize::from_str(dst[0]).unwrap_or(conns.len());
