@@ -9,9 +9,9 @@ function prepare_test() {
     fi
 
     if [ $TARGET = "debug" ]; then
-        cargo build --bins
+        cargo build --bins --examples
     else
-        cargo build --release --bins
+        cargo build --release --bins --examples
     fi
 
     if [ $? -ne 0 ]; then
