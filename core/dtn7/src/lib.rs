@@ -25,14 +25,14 @@ use crate::core::store::BundleStoresEnum;
 use anyhow::{bail, Context, Result};
 use lazy_static::*;
 use parking_lot::Mutex;
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap};
 use tokio::sync::mpsc::Sender;
 use tokio::sync::oneshot;
 
 lazy_static! {
     pub static ref CONFIG: Mutex<DtnConfig> = Mutex::new(DtnConfig::new());
     pub static ref DTNCORE: Mutex<DtnCore> = Mutex::new(DtnCore::new());
-    pub static ref PEERS: Mutex<HashMap<String, DtnPeer>> = Mutex::new(HashMap::new());
+    pub static ref PEERS: Mutex<BTreeMap<String, DtnPeer>> = Mutex::new(BTreeMap::new());
     pub static ref STATS: Mutex<DtnStatistics> = Mutex::new(DtnStatistics::new());
     pub static ref SENDERTASK: Mutex<Option<Sender<Bundle>>> = Mutex::new(None);
     pub static ref STORE: Mutex<BundleStoresEnum> = Mutex::new(InMemoryBundleStore::new().into());
