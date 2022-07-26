@@ -75,7 +75,7 @@ impl EpidemicRoutingAgentCore {
     }
 }
 
-async fn sender_for_bundle(mut rx: mpsc::Receiver<RoutingCmd>) {
+async fn handle_routing_cmd(mut rx: mpsc::Receiver<RoutingCmd>) {
     let mut core: EpidemicRoutingAgentCore = EpidemicRoutingAgentCore::new();
 
     while let Some(cmd) = rx.recv().await {
@@ -136,7 +136,7 @@ impl EpidemicRoutingAgent {
     pub fn new() -> EpidemicRoutingAgent {
         let (tx, rx) = mpsc::channel(100);
         tokio::spawn(async move {
-            sender_for_bundle(rx).await;
+            handle_routing_cmd(rx).await;
         });
 
         EpidemicRoutingAgent { tx }
