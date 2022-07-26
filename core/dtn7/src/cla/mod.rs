@@ -77,6 +77,9 @@ pub trait ConvergenceLayerAgent: Debug + Display {
         None
     }
     fn channel(&self) -> mpsc::Sender<ClaCmd>;
+    fn accepting(&self) -> bool {
+        true
+    }
 }
 
 pub trait HelpStr {

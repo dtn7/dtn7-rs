@@ -14,6 +14,7 @@ pub struct ExternalConvergenceLayer {
     tx: mpsc::Sender<super::ClaCmd>,
     name: String,
     port: u16,
+    discovery_only: bool,
 }
 
 impl ExternalConvergenceLayer {
@@ -24,6 +25,10 @@ impl ExternalConvergenceLayer {
         if let Some(setting_port) = settings.get("port") {
             port = u16::from_str(setting_port.as_str()).unwrap();
         }
+        let mut discovery_only: bool = false;
+        if let Some(discovery_only_str) = settings.get("discovery_only") {
+            discovery_only = bool::from_str(discovery_only_str.as_str()).unwrap();
+        }
 
         let name = settings.get("name").expect("name missing").to_string();
         let task_name = name.clone();
@@ -32,12 +37,16 @@ impl ExternalConvergenceLayer {
             while let Some(cmd) = rx.recv().await {
                 match cmd {
                     super::ClaCmd::Transfer(dest, ready, reply) => {
-                        let name = task_name.clone();
-                        tokio::spawn(async move {
-                            reply
-                                .send(scheduled_submission(name, dest, &ready))
-                                .unwrap();
-                        });
+                        if !discovery_only {
+                            let name = task_name.clone();
+                            tokio::spawn(async move {
+                                reply
+                                    .send(scheduled_submission(name, dest, &ready))
+                                    .unwrap();
+                            });
+                        } else {
+                            reply.send(super::TransferResult::Failure).unwrap();
+                        }
                     }
                     super::ClaCmd::Shutdown => {
                         break;
@@ -46,7 +55,12 @@ impl ExternalConvergenceLayer {
             }
         });
 
-        ExternalConvergenceLayer { tx, name, port }
+        ExternalConvergenceLayer {
+            tx,
+            name,
+            port,
+            discovery_only,
+        }
     }
 }
 
@@ -67,9 +81,16 @@ impl ConvergenceLayerAgent for ExternalConvergenceLayer {
     fn channel(&self) -> Sender<ClaCmd> {
         self.tx.clone()
     }
+    fn accepting(&self) -> bool {
+        !self.discovery_only
+    }
 }
 
-impl HelpStr for ExternalConvergenceLayer {}
+impl HelpStr for ExternalConvergenceLayer {
+    fn local_help_str() -> &'static str {
+        "port=1234:discovery_only=false"
+    }
+}
 
 impl std::fmt::Display for ExternalConvergenceLayer {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
