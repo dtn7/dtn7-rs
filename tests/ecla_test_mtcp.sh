@@ -55,6 +55,7 @@ echo
 echo "Testing if 'already registered' is emitted"
 
 start_task dtnecla_mtcp examples/dtnecla_mtcp -a 127.0.0.1:$PORT_NODE3 -p 2433
+PID_ECLA_2=$(echo $PIDS | awk '{print $NF}')
 
 sleep 1
 

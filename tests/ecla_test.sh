@@ -18,7 +18,7 @@ start_dtnd -d -j5s -e incoming -r epidemic -n node3 --interval 1s --ecla --disab
 sleep 2
 
 # Start ECLA Connector
-start_task dtnecla_connect_n examples/dtnecla_connect_n -a 127.0.0.1:$PORT_NODE1 -a 127.0.0.1:$PORT_NODE2 -a 127.0.0.1:$PORT_NODE3
+start_task dtnecla_connect_n examples/dtnecla_connect_n -a 127.0.0.1:$PORT_NODE1 -a 127.0.0.1:$PORT_NODE2 -a 127.0.0.1:$PORT_NODE3 -d
 sleep 1
 
 echo
