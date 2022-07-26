@@ -22,4 +22,5 @@ cargo test $TARGET_OPT &&
     ./tests/ecla_test_json_mtcp.sh &&
     ./tests/erouting_epidemic.sh &&
     ./tests/ecla_erouting_test_mtcp.sh &&
+    ./tests/routing_saw.sh &&
     echo "SUCCESS"

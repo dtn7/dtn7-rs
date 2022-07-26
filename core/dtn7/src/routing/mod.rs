@@ -3,6 +3,7 @@ pub mod erouting;
 pub mod external;
 pub mod flooding;
 pub mod sink;
+pub mod sprayandwait;
 
 use crate::cla::ClaSenderTask;
 use crate::core::bundlepack::BundlePack;
@@ -15,6 +16,7 @@ use epidemic::EpidemicRoutingAgent;
 use external::ExternalRoutingAgent;
 use flooding::FloodingRoutingAgent;
 use sink::SinkRoutingAgent;
+use sprayandwait::SprayAndWaitRoutingAgent;
 use std::fmt::Debug;
 use std::fmt::Display;
 use tokio::sync::{mpsc, oneshot};
@@ -34,6 +36,7 @@ pub enum RoutingAgentsEnum {
     FloodingRoutingAgent,
     SinkRoutingAgent,
     ExternalRoutingAgent,
+    SprayAndWaitRoutingAgent,
 }
 
 pub enum RoutingCmd {
@@ -57,7 +60,7 @@ pub trait RoutingAgent: Debug + Display {
 }
 
 pub fn routing_algorithms() -> Vec<&'static str> {
-    vec!["epidemic", "flooding", "sink", "external"]
+    vec!["epidemic", "flooding", "sink", "external", "sprayandwait"]
 }
 
 pub fn new(routingagent: &str) -> RoutingAgentsEnum {
@@ -66,6 +69,7 @@ pub fn new(routingagent: &str) -> RoutingAgentsEnum {
         "epidemic" => EpidemicRoutingAgent::new().into(),
         "sink" => SinkRoutingAgent::new().into(),
         "external" => ExternalRoutingAgent::new().into(),
+        "sprayandwait" => SprayAndWaitRoutingAgent::new().into(),
         _ => panic!("Unknown routing agent {}", routingagent),
     }
 }
