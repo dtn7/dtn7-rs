@@ -147,7 +147,7 @@ impl DtnPeer {
     pub fn first_cla(&self) -> Option<ClaSenderTask> {
         for cla in &self.cla_list {
             for cla_instance in &(*CLAS.lock()) {
-                if cla.0 == cla_instance.name() {
+                if cla.0 == cla_instance.name() && cla_instance.accepting() {
                     let dest = format!(
                         "{}:{}",
                         self.addr,
