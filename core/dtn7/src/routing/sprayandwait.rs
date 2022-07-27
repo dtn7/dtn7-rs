@@ -4,9 +4,9 @@ use super::RoutingAgent;
 use crate::cla::ClaSenderTask;
 use crate::core::bundlepack::BundlePack;
 use crate::routing::RoutingCmd;
-use crate::{RoutingNotifcation, PEERS};
+use crate::{RoutingNotifcation, CONFIG, PEERS};
 use async_trait::async_trait;
-use log::{debug, warn};
+use log::{debug, info, warn};
 use tokio::sync::mpsc;
 use tokio::sync::mpsc::Sender;
 
@@ -175,7 +175,20 @@ async fn handle_sender_for_bundle(
     });
 }
 async fn handle_routing_cmd(mut rx: mpsc::Receiver<RoutingCmd>) {
-    let mut core: SprayAndWaitRoutingAgentCore = SprayAndWaitRoutingAgentCore::new(MAX_COPIES);
+    let settings = (*CONFIG.lock()).routing_settings.clone();
+
+    let max_copies = if let Some(settings) = settings.get("sprayandwait") {
+        settings
+            .get("num_copies")
+            .unwrap_or(&format!("{}", MAX_COPIES))
+            .parse::<usize>()
+            .unwrap()
+    } else {
+        MAX_COPIES
+    };
+    info!("configured to allow {} copies", max_copies);
+
+    let mut core: SprayAndWaitRoutingAgentCore = SprayAndWaitRoutingAgentCore::new(max_copies);
     while let Some(cmd) = rx.recv().await {
         match cmd {
             super::RoutingCmd::SenderForBundle(bp, reply) => {

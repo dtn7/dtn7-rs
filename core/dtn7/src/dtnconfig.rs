@@ -7,7 +7,7 @@ use log::{debug, error};
 use rand::distributions::Alphanumeric;
 use rand::{thread_rng, Rng};
 use serde::Serialize;
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap};
 use std::net::SocketAddr;
 use std::path::PathBuf;
 use std::str::FromStr;
@@ -26,13 +26,14 @@ pub struct DtnConfig {
     pub webport: u16,
     pub announcement_interval: Duration,
     pub disable_neighbour_discovery: bool,
-    pub discovery_destinations: HashMap<String, u32>,
+    pub discovery_destinations: BTreeMap<String, u32>,
     pub janitor_interval: Duration,
     pub endpoints: Vec<String>,
     pub clas: Vec<(CLAsAvailable, HashMap<String, String>)>,
     pub cla_global_settings: HashMap<CLAsAvailable, HashMap<String, String>>,
-    pub services: HashMap<u8, String>,
+    pub services: BTreeMap<u8, String>,
     pub routing: String,
+    pub routing_settings: BTreeMap<String, HashMap<String, String>>,
     pub peer_timeout: Duration,
     pub statics: Vec<DtnPeer>,
     pub workdir: PathBuf,
@@ -92,8 +93,21 @@ impl From<PathBuf> for DtnConfig {
         debug!("nodeid: {:?}", dtncfg.host_eid);
         dtncfg.nodeid = dtncfg.host_eid.to_string();
 
-        dtncfg.routing = s.get_str("routing").unwrap_or(dtncfg.routing);
+        dtncfg.routing = s.get_str("routing.strategy").unwrap_or(dtncfg.routing);
         debug!("routing: {:?}", dtncfg.routing);
+        if let Ok(routing_settings) = s.get_table("routing.settings") {
+            for (k, v) in routing_settings.iter() {
+                let tab = v.clone().into_table().unwrap();
+                let mut routing_settings = HashMap::new();
+                for (k, v) in tab {
+                    routing_settings.insert(k, v.into_str().unwrap());
+                }
+                dtncfg
+                    .routing_settings
+                    .insert(k.to_string(), routing_settings);
+            }
+        }
+        debug!("routing options: {:?}", dtncfg.routing_settings);
 
         dtncfg.workdir = if let Ok(wd) = s.get_str("workdir") {
             PathBuf::from(wd)
@@ -244,14 +258,15 @@ impl DtnConfig {
             host_eid: local_node_id,
             announcement_interval: "2s".parse::<humantime::Duration>().unwrap().into(),
             disable_neighbour_discovery: false,
-            discovery_destinations: HashMap::new(),
+            discovery_destinations: BTreeMap::new(),
             webport: 3000,
             janitor_interval: "10s".parse::<humantime::Duration>().unwrap().into(),
             endpoints: Vec::new(),
             clas: Vec::new(),
             cla_global_settings: HashMap::new(),
-            services: HashMap::new(),
+            services: BTreeMap::new(),
             routing: "epidemic".into(),
+            routing_settings: BTreeMap::new(),
             peer_timeout: "20s".parse::<humantime::Duration>().unwrap().into(),
             statics: Vec::new(),
             workdir: std::env::current_dir().unwrap(),
@@ -281,6 +296,7 @@ impl DtnConfig {
         self.cla_global_settings = cfg.cla_global_settings;
         self.services = cfg.services;
         self.routing = cfg.routing;
+        self.routing_settings = cfg.routing_settings;
         self.peer_timeout = cfg.peer_timeout;
         self.statics = cfg.statics;
         self.workdir = cfg.workdir;

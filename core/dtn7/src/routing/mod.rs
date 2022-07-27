@@ -63,6 +63,10 @@ pub fn routing_algorithms() -> Vec<&'static str> {
     vec!["epidemic", "flooding", "sink", "external", "sprayandwait"]
 }
 
+pub fn routing_options() -> Vec<&'static str> {
+    vec!["sprayandwait.num_copies=<int>"]
+}
+
 pub fn new(routingagent: &str) -> RoutingAgentsEnum {
     match routingagent {
         "flooding" => FloodingRoutingAgent::new().into(),

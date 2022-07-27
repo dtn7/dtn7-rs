@@ -22,9 +22,6 @@ generate-status-reports = false
 # sequential is the default
 parallel-bundle-processing = false
 
-# the routing algorithm to use, e.g., flooding, epidemic, sink, etc.
-routing = "epidemic"
-
 # the port on which the web interface listens
 # this provides:
 # - a simple web interface with status information
@@ -38,6 +35,13 @@ workdir = "/tmp/dtn7"
 # the database to use for storing bundles, e.g., mem, sled, sneakers, etc.
 db = "mem"
 
+[routing]
+# the routing algorithm to use, e.g., flooding, epidemic, sink, sprayandwait, etc.
+strategy = "epidemic"
+
+# additional parameters for the routing strategy can be set here
+settings.sprayandwait.num_copies = 7
+
 [core]
 # the janitor is responsible for cleaning the bundle buffer
 # and schedule resubmissions.
@@ -49,6 +53,7 @@ janitor = "10s"
 # interval of 0 deactives discovery service
 interval = "2s"
 peer-timeout = "20s"
+
 
 [convergencylayers]
 global.tcp.refuse-existing-bundles = true

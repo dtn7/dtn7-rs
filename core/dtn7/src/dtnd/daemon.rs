@@ -105,6 +105,9 @@ pub async fn start_dtnd(cfg: DtnConfig) -> anyhow::Result<()> {
 
     info!("RoutingAgent: {}", routing);
 
+    let routing_options = (*CONFIG.lock()).routing_settings.clone();
+    info!("RoutingOptions: {:?}", routing_options);
+
     let clas = (*CONFIG.lock()).clas.clone();
     for (cla, local_settings) in &clas {
         info!("Adding CLA: {:?}", cla);
