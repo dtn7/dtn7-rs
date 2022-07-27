@@ -5,7 +5,7 @@
 prepare_test
 
 PORT_NODE1=$(get_current_port)
-start_dtnd -d -j5s -i0 -C tcp:port=2342 -e incoming -r sprayandwait -n node1 -s tcp://127.0.0.1:4223/node2 -s tcp://127.0.0.1:4224/node4 -s tcp://127.0.0.1:4225/node5
+start_dtnd -d -j5s -i0 -C tcp:port=2342 -e incoming -r sprayandwait -R sprayandwait.num_copies=3 -n node1 -s tcp://127.0.0.1:4223/node2 -s tcp://127.0.0.1:4224/node4 -s tcp://127.0.0.1:4225/node5
 
 PORT_NODE2=$(get_current_port)
 start_dtnd -d -j5s -i0 -C tcp:port=4223 -e incoming -r sprayandwait -n node2 -s tcp://127.0.0.1:2342/node1 -s tcp://127.0.0.1:2432/node3
