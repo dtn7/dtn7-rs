@@ -2,14 +2,27 @@
 
 filter_output() {
     printf '==> %-40s' "$(basename $1)"
-    OUT=$($1 2>&1)
-    RET=$?
-    if [ $RET -ne 0 ]; then
-        echo "fail: $RET"
-        echo "$OUT"
-        exit 1
+    if [ -z "$VERBOSE" ]; then
+        OUT=$($1 2>&1)
+        RET=$?
+        if [ $RET -ne 0 ]; then
+            echo "fail: $RET"
+            echo "$OUT"
+            exit 1
+        else
+            echo "ok"
+        fi
     else
-        echo "ok"
+        echo
+        $1
+        RET=$?
+        if [ $RET -ne 0 ]; then
+            echo "===> fail: $RET"
+            echo "$OUT"
+            exit 1
+        else
+            echo "===> ok"
+        fi
     fi
 }
 # check if variable TARGET is set
