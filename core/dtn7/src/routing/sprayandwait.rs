@@ -10,24 +10,30 @@ use log::{debug, info, warn};
 use tokio::sync::mpsc;
 use tokio::sync::mpsc::Sender;
 
-/// Simple flooding-basic routing.
-/// All bundles are sent to all known peers again and again.
+/// Simple implementation of basic spray and wait routing.
+/// For each bundle only l copies are spread after which we enter a wait phase.
+/// Then only direct delivery is possible.
 #[derive(Debug)]
 pub struct SprayAndWaitRoutingAgent {
     tx: mpsc::Sender<super::RoutingCmd>,
 }
 
 pub struct SaWBundleData {
+    /// the number of copies we have left to spread
     remaining_copies: usize,
+    /// the list of nodes that have already received the bundle
     nodes: Vec<String>,
 }
 
-const MAX_COPIES: usize = 3;
+/// The default number of copies that are can be sent to peers.
+const MAX_COPIES: usize = 7;
 
 struct SprayAndWaitRoutingAgentCore {
-    /// the number of copies remaining
+    /// the number of copies we have left to spread
     l: usize,
+    /// for each bundle ID we store the number of copies we have left and the already nodes that already received a copy
     history: HashMap<String, SaWBundleData>,
+    /// our local node ID to identify our own bundles
     local_node: String,
 }
 
@@ -39,8 +45,10 @@ impl SprayAndWaitRoutingAgentCore {
             local_node: (*crate::CONFIG.lock()).host_eid.node_id().unwrap(),
         }
     }
+    /// Prepare new bundles for spreading.
     pub fn handle_new_bundle(&mut self, bundle_id: String) {
         if bundle_id.starts_with(&self.local_node) {
+            // this is our own bundle, thus, we have l copies to spread
             let meta = SaWBundleData {
                 remaining_copies: self.l,
                 nodes: Vec::new(),
@@ -48,6 +56,7 @@ impl SprayAndWaitRoutingAgentCore {
             debug!("Adding new bundle {} from this host", &bundle_id);
             self.history.insert(bundle_id, meta);
         } else {
+            // this is a bundle from another host, thus, we have only one copy
             let meta = SaWBundleData {
                 remaining_copies: 1,
                 nodes: Vec::new(),
@@ -90,7 +99,8 @@ impl RoutingAgent for SprayAndWaitRoutingAgent {
 fn handle_notification(core: &mut SprayAndWaitRoutingAgentCore, notification: RoutingNotifcation) {
     match notification {
         RoutingNotifcation::SendingFailed(bid, next_hop_node_name) => {
-            // nothing yet
+            // If a transmission fails we have to remove the node from the list of already received nodes
+            // and increase the number of remaining copies again.
             if let Some(meta) = core.history.get_mut(&bid) {
                 let old_size = meta.nodes.len();
                 meta.nodes
@@ -106,10 +116,6 @@ fn handle_notification(core: &mut SprayAndWaitRoutingAgentCore, notification: Ro
             }
         }
         RoutingNotifcation::IncomingBundle(bndl) => {
-            /*if let Some(eid) = bndl.previous_node() {
-                if let Some(node_name) = eid.node() {
-                }
-            };*/
             core.handle_new_bundle(bndl.id());
         }
         RoutingNotifcation::IncomingBundleWithoutPreviousNode(bid, _node_name) => {
