@@ -16,18 +16,18 @@ Plus:
 * Convenient command line tools to interact with the daemon
 * A simple web interface for status information about `dtnd` 
 * A [web-socket interface](doc/http-client-api.md) for application agents
+* Interfaces for external processes to provide [routing strategies](doc/erouting.md) and [convergence layers](doc/ecla.md)
 
 The actual BP7 implementation (encoding/decoding) is available as a separate [project](https://github.com/dtn7/bp7-rs).
 
 Additional dtn extensions and a client library are also [available](https://crates.io/crates/dtn7-plus).
 
-Currently, a service discovery based on IPND but adapted to CBOR and BPv7, TCP, MTCP & HTTP CLs, flooding/epidemic/sink-routing and restful/ws command interfaces are implemented. 
+Currently, a service discovery based on IPND but adapted to CBOR and BPv7, TCP, MTCP & HTTP CLs, sprayandwait/flooding/epidemic/sink-routing and restful/websocket command interfaces are implemented. 
 Both addressing schemes, *dtn* as well as *ipn* are supported. 
 Furthermore, some CLI tools are provided to easily integrate *dtn7* into shell scripts.
 
 **Beware: This code is still under development and thus might change frequently.**
 
-I consider this code to be work-in-progress and not finished yet. 
 
 ## Installation
 
@@ -48,50 +48,9 @@ There is also a more in-depth [getting started guide](doc/getting-started.md) av
 
 ### Daemon
 
-```
-$ dtnd -h
-dtn7-rs 0.17.1
-Lars Baumgaertner <baumgaertner@cs.tu-darmstadt.de>
-A simple Bundle Protocol 7 Daemon for Delay Tolerant Networking
-
-USAGE:
-    dtnd [FLAGS] [OPTIONS]
-
-FLAGS:
-    -b, --beacon-period              Enables the advertisement of the beacon sending interval to inform neighbors about
-                                     when to expect new beacons
-    -d, --debug                      Set log level to debug
-    -g, --generate-status-reports    Generate status report bundles, can lead to a lot of traffic (default: deactivated)
-    -h, --help                       Prints help information
-    -4, --ipv4                       Use IPv4
-    -6, --ipv6                       Use IPv6
-    -U, --unsafe-httpd               Allow httpd RPC calls from anyhwere
-    -V, --version                    Prints version information
-
-OPTIONS:
-    -C, --cla <CLA[:local_port]>...               Add convergence layer agent: dummy, mtcp, http, tcp
-    -c, --config <FILE>                           Sets a custom config file
-    -D, --db <STORE>                              Set bundle store: mem, sled, sneakers
-    -E, --discovery-destination <DD[:port]>...
-            Sets destination beacons shall be sent to for discovery purposes (default IPv4 = 224.0.0.26:3003, IPv6 =
-            [FF02::300]:3003
-    -e, --endpoint <ENDPOINT>...
-            Registers an application agent for a node local endpoint (e.g. 'incoming' listens on 'dtn://node1/incoming')
-
-    -i, --interval <humantime>
-            Sets service discovery interval (0 = deactive, 2s = 2 seconds, 3m = 3 minutes, etc.) Refers to the discovery
-            interval that is advertised when flag -b is set
-    -j, --janitor <humantime>
-            Sets janitor interval (0 = deactive, 2s = 2 seconds, 3m = 3 minutes, etc.)
-
-    -n, --nodeid <NODEID>                         Sets local node name (e.g. 'dtn://node1')
-    -p, --peer-timeout <humantime>                Sets timeout to remove peer (default = 20s)
-    -r, --routing <ROUTING>                       Set routing algorithm: epidemic, flooding, sink
-    -S, --service <TAG:payload>...                Add a self defined service.
-    -s, --static-peer <PEER>...                   Adds a static peer (e.g. mtcp://192.168.2.1:2342/node2)
-    -w, --web-port <PORT>                         Sets web interface port (default = 3000)
-    -W, --workdir <PATH>                          Sets the working directory (e.g. '/tmp/node1', default '.')
-```
+The main *Bundle Protocol Agent* `dtnd` can be configured either through the CLI (`dtnd --help`) or by providing a [configuration file](examples/dtn7.toml.example).
+Command line options override configuration file settings if both are mixed. 
+The daemon does not fork into background but can be easily started as a background service by invoking it with the `nohup` command and `&`.
 
 Example usage for *node1* with *epidemic* routing, *mtcp* convergence layer and the default endpoint *'incoming'*:
 ```
@@ -108,106 +67,10 @@ For an example take a look at [examples/dtn7.toml.example](examples/dtn7.toml.ex
 
 ### Helpers
 
-Querying information from `dtnd`:
-```
-$ dtnquery -h
-dtnquery 0.17.1
-Lars Baumgaertner <baumgaertner@cs.tu-darmstadt.de>
-A simple Bundle Protocol 7 Query Utility for Delay Tolerant Networking
-
-USAGE:
-    dtnquery [FLAGS] [OPTIONS] [SUBCOMMAND]
-
-FLAGS:
-    -h, --help       Prints help information
-    -6, --ipv6       Use IPv6
-    -V, --version    Prints version information
-
-OPTIONS:
-    -p, --port <PORT>    Local web port (default = 3000)
-
-SUBCOMMANDS:
-    bundles    list bundles in node
-    eids       list registered endpoint IDs
-    help       Prints this message or the help of the given subcommand(s)
-    info       General dtnd info
-    nodeid     Local node id
-    peers      list known peers
-    store      list bundles status in store
-```
-
-Receiving bundles: 
-```
-$ dtnrecv -h
-dtnrecv 0.17.1
-Lars Baumgaertner <baumgaertner@cs.tu-darmstadt.de>
-A simple Bundle Protocol 7 Receive Utility for Delay Tolerant Networking
-
-USAGE:
-    dtnrecv [FLAGS] [OPTIONS] --endpoint <ENDPOINT>
-
-FLAGS:
-    -h, --help       Prints help information
-    -x, --hex        hex output
-    -6, --ipv6       Use IPv6
-    -V, --version    Prints version information
-    -v, --verbose    verbose output
-
-OPTIONS:
-    -b, --bundle-id <BID>        Download any bundle by ID
-    -e, --endpoint <ENDPOINT>    Specify local endpoint, e.g. '/incoming', or a group endpoint 'dtn://helpers/~incoming'
-    -o, --output <FILE>          Write bundle payload to file instead of stdout
-    -p, --port <PORT>            Local web port (default = 3000)
-```
-
-Sending bundles:
-```
-$ dtnsend -h
-dtnsend 0.17.0
-Lars Baumgaertner <baumgaertner@cs.tu-darmstadt.de>
-A simple Bundle Protocol 7 Send Utility for Delay Tolerant Networking
-
-USAGE:
-    dtnsend [FLAGS] [OPTIONS] --receiver <RECEIVER> [infile]
-
-FLAGS:
-    -D, --dry-run    Don't actually send packet, just dump the encoded one.
-    -h, --help       Prints help information
-    -6, --ipv6       Use IPv6
-    -V, --version    Prints version information
-    -v, --verbose    verbose output
-
-OPTIONS:
-    -l, --lifetime <SECONDS>     Bundle lifetime in seconds (default = 3600)
-    -p, --port <PORT>            Local web port (default = 3000)
-    -r, --receiver <RECEIVER>    Receiver EID (e.g. 'dtn://node2/incoming')
-    -s, --sender <SENDER>        Sets sender name (e.g. 'dtn://node1')
-
-ARGS:
-    <infile>    File to send, if omitted data is read from stdin till EOF
-```
-
-Automatic triggering of external binaries for incoming bundles:
-```
-$ dtntrigger -h
-dtntrigger 0.17.1
-Lars Baumgaertner <baumgaertner@cs.tu-darmstadt.de>
-A simple Bundle Protocol 7 Incoming Trigger Utility for Delay Tolerant Networking
-
-USAGE:
-    dtntrigger [FLAGS] [OPTIONS] --command <CMD>
-
-FLAGS:
-    -h, --help       Prints help information
-    -6, --ipv6       Use IPv6
-    -V, --version    Prints version information
-    -v, --verbose    verbose output
-
-OPTIONS:
-    -c, --command <CMD>          Command to execute for incoming bundles, param1 = source, param2 = payload file
-    -e, --endpoint <ENDPOINT>    Specify local endpoint, e.g. '/incoming', or a group endpoint 'dtn://helpers/~incoming'
-    -p, --port <PORT>            Local web port (default = 3000)
-```
+- `dtnquery`: Querying information from `dtnd` such as *peers*, *bundles*, *nodeid*, etc.
+- `dtnrecv`: A simple tool to check for new bundles on a specific endpoint, can be used for scripting.
+- `dtnsend`: A simple tool to send a bundle from a provided file or pipe, can be used for scripting.
+- `dtntrigger`: Automatic triggering of external binaries for incoming bundles, useful for advanced scripting.
 
 ### Example Applications
 
@@ -217,27 +80,6 @@ This service automatically registers its endpoint and listens for any incoming b
 Each bundle is sent back to its source with the same payload and lifetime, no delivery report is requested. 
 
 This service can be used together with `examples/dtnping.rs` for connectivity tests.
-```
-dtnping 0.17.1
-Lars Baumgaertner <baumgaertner@cs.tu-darmstadt.de>
-A simple Bundle Protocol 7 Ping Tool for Delay Tolerant Networking
-
-USAGE:
-    dtnping [FLAGS] [OPTIONS] --destination <destination>
-
-FLAGS:
-    -h, --help       Prints help information
-    -6, --ipv6       Use IPv6
-    -V, --version    Prints version information
-    -v, --verbose    verbose output
-
-OPTIONS:
-    -c, --count <count>                Number of pings to send
-    -d, --destination <destination>    Destination to ping
-    -s, --size <payloadsize>           Payload size
-    -p, --port <PORT>                  Local web port (default = 3000)
-    -t, --timeout <timeout>            Time to wait for reply (10s, 30m, 2h, ...)
-```
 
 ### Example Use-Cases
 
