@@ -14,7 +14,7 @@ fn config_test() {
 
     println!("debug: {:?}", s.get_bool("debug").unwrap_or(false));
     println!("nodeid: {:?}", s.get_str("nodeid").unwrap());
-    println!("routing: {:?}", s.get_str("routing").unwrap());
+    println!("routing: {:?}", s.get_str("routing.strategy").unwrap());
     println!("janitor: {:?}", s.get_str("core.janitor").unwrap());
     println!("workdir: {:?}", s.get_str("workdir").unwrap());
     println!("db: {:?}", s.get_str("db").unwrap());

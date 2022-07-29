@@ -156,6 +156,18 @@ async fn main() -> Result<(), std::io::Error> {
                     dtn7::routing::routing_algorithms().join(", ")
                 ).as_str())
                 .takes_value(true),
+        )
+        .arg(
+            Arg::new("routing_options")
+                .short('R')
+                .long("routing-options")
+                .value_name("ROUTING-OPTIONS")
+                .help(format!(
+                    "Set routing options: \n{}",
+                    dtn7::routing::routing_options().join("\n")
+                ).as_str())
+                .takes_value(true)
+                .multiple_occurrences(true),
         ).arg(
             Arg::new("db")
                 .short('D')
@@ -351,6 +363,30 @@ Tag 255 takes 5 arguments and is interpreted as address. Usage: -S 255:'Samplest
         if dtn7::routing::routing_algorithms().contains(&r) {
             cfg.routing = r.into();
         }
+    }
+    if let Some(r_opts) = matches.values_of("routing_options") {
+        for r_opt in r_opts {
+            let parts: Vec<&str> = r_opt.split('=').collect();
+            if parts.len() != 2 {
+                panic!("Invalid routing option: {}", r_opt);
+            }
+            let key = parts[0];
+            let value = parts[1];
+            let key_parts: Vec<&str> = key.split('.').collect();
+            if key_parts.len() != 2 {
+                panic!("Invalid routing option: {}", r_opt);
+            }
+            let r_algo = key_parts[0];
+            let r_opt = key_parts[1];
+            if !cfg.routing_settings.contains_key(r_algo) {
+                cfg.routing_settings.insert(r_algo.into(), HashMap::new());
+            }
+            cfg.routing_settings
+                .get_mut(r_algo)
+                .unwrap()
+                .insert(r_opt.to_string(), value.to_string());
+        }
+        //cfg.routing_options = r_opts.map(|s| s.to_string()).collect();
     }
 
     if let Some(db) = matches.value_of("db") {

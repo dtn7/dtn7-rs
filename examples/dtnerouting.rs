@@ -5,12 +5,12 @@ use dtn7::client::erouting::{ws_client, Packet, ResponseSenderForBundle, Sender}
 use futures_util::{future, pin_mut};
 use lazy_static::lazy_static;
 use log::{debug, error, info};
-use std::collections::{HashMap, HashSet};
+use std::collections::{BTreeMap, HashMap, HashSet};
 use std::sync::Mutex;
 use tokio::sync::mpsc;
 
 lazy_static! {
-    static ref PEERS: Mutex<HashMap<String, DtnPeer>> = Mutex::new(HashMap::new());
+    static ref PEERS: Mutex<BTreeMap<String, DtnPeer>> = Mutex::new(BTreeMap::new());
 }
 
 // The epidemic strategy is still fairly simple. It sends the bundles to each peer once.
