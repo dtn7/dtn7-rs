@@ -1,7 +1,7 @@
 use crate::{peers_get_for_node, BundlePack, DtnPeer, PeerAddress, RoutingNotifcation};
 use bp7::{Bundle, EndpointID};
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap};
 
 pub mod processing;
 pub mod ws_client;
@@ -141,7 +141,7 @@ pub struct DroppedPeer {
 
 #[derive(Serialize, Deserialize, Clone)]
 pub struct PeerState {
-    pub peers: HashMap<String, DtnPeer>,
+    pub peers: BTreeMap<String, DtnPeer>,
 }
 
 #[derive(Serialize, Deserialize, Clone)]

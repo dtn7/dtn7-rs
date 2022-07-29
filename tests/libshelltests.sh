@@ -56,7 +56,7 @@ function start_task {
     NAME=$1
     shift
     OUT_TASK=$(mktemp /tmp/$NAME.XXXXXX)
-    "$BINS/$@" 2>&1 &>>$OUT_TASK &
+    "$BINS/$@" 2>&1 &>$OUT_TASK &
     PID_TASK=$!
     echo $NAME pid: $PID_TASK
     echo $NAME out: $OUT_TASK
