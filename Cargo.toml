@@ -1,5 +1,6 @@
 [profile.release]
-debug = true
+#debug = true
+strip = true  # Automatically strip symbols from the binary.
 
 [workspace]
 
