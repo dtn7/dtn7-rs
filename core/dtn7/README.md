@@ -5,7 +5,7 @@
 [![Build status](https://api.travis-ci.org/dtn7/dtn7-rs.svg?branch=master)](https://travis-ci.org/dtn7/dtn7-rs)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE-MIT)
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE-APACHE)
-[![Chat](https://img.shields.io/matrix/dtn7:matrix.org)](https://img.shields.io/matrix/dtn7:matrix.org)
+[![Chat](https://img.shields.io/matrix/dtn7:matrix.org)](https://matrix.to/#/#dtn7:matrix.org)
 
 Rust implementation of a disruption-tolerant networking (DTN) daemon for the [Bundle Protocol version 7 - RFC9171](https://datatracker.ietf.org/doc/rfc9171/).
 
