@@ -105,20 +105,10 @@ impl DtnCore {
         false
     }
     pub fn get_endpoint_mut(&mut self, eid: &EndpointID) -> Option<&mut ApplicationAgentEnum> {
-        for aa in self.endpoints.iter_mut() {
-            if eid == aa.eid() {
-                return Some(aa);
-            }
-        }
-        None
+        self.endpoints.iter_mut().find(|aa| eid == aa.eid())
     }
     pub fn get_endpoint(&self, eid: &EndpointID) -> Option<&ApplicationAgentEnum> {
-        for aa in self.endpoints.iter() {
-            if eid == aa.eid() {
-                return Some(aa);
-            }
-        }
-        None
+        self.endpoints.iter().find(|&aa| eid == aa.eid())
     }
 }
 

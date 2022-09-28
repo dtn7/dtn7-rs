@@ -32,7 +32,7 @@ use tokio::sync::{mpsc, oneshot};
 // global_help()
 init_cla_subsystem!();
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum TransferResult {
     Successful,
     Failure,

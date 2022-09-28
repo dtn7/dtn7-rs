@@ -14,7 +14,7 @@ use std::fmt::Debug;
 /// one reserved for ConvergencyLayerAgents
 ///
 /// and one for user defined services
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ServiceBlock {
     clas: Vec<(String, Option<u16>)>,
     services: HashMap<u8, Vec<u8>>,
