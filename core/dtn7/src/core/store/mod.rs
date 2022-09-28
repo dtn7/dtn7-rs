@@ -54,6 +54,7 @@ pub trait BundleStore: Debug {
     fn filter_addr(&self, criteria: &str) -> Vec<String> {
         self.bundles()
             .iter()
+            .filter(|bp| !bp.has_constraint(Constraint::Deleted))
             .filter(|bp| {
                 bp.source.to_string().contains(criteria)
                     || bp.destination.to_string().contains(criteria)
