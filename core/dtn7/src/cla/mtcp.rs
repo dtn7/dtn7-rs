@@ -102,7 +102,7 @@ fn cbor_parse_byte_string_len(input: &[u8]) -> u64 {
 
 /// MPDU represents a MTCP Data Unit, which will be decoded as a CBOR
 /// array of the serialized bundle's length and the serialized bundle.
-#[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Default)]
+#[derive(Debug, Serialize, Deserialize, Clone, Default)]
 pub struct MPDU(#[serde(with = "serde_bytes")] ByteBuffer);
 
 impl MPDU {

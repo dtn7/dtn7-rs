@@ -355,7 +355,7 @@ impl TcpSession {
                     if ack_data.tid != self.last_tid {
                         return Err(TcpSessionError::Protocol(packet).into());
                     }
-                    return Ok((receive_state, self.send_bundle(data, response).await?));
+                    Ok((receive_state, self.send_bundle(data, response).await?))
                 }
                 SendState::Sending(len, response) => {
                     if ack_data.tid != self.last_tid {

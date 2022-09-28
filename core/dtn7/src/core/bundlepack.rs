@@ -41,7 +41,7 @@ impl fmt::Display for Constraint {
 
 /// BundlePack is a set of a bundle, it's creation or reception time stamp and
 /// a set of constraints used in the process of delivering this bundle.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct BundlePack {
     pub source: EndpointID,
     pub destination: EndpointID,

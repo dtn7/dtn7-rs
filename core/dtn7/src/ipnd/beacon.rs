@@ -31,7 +31,7 @@ pub const RESERVED_BITS: BeaconFlags = 0b1111_1000;
 /// The struct representing the messages sent from a node to advertise itself in an unknown neighbourhood
 ///
 /// Based on RFC5050 with changes to the encoding. Old encoding was based on SDNV, new encoding uses CBOR
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Beacon {
     /// Mandatory, 8-bit field describing the version of the IPND service that constructed this beacon, draft version = 0x04, this version = 0x07
     version: u8,
