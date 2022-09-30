@@ -15,6 +15,7 @@ use tokio::time::interval;
 
 async fn receiver(socket: UdpSocket) -> Result<(), io::Error> {
     let mut buf: Vec<u8> = vec![0; 1024 * 64];
+    let nodeid = CONFIG.lock().host_eid.clone();
     loop {
         if let Ok((size, peer)) = socket.recv_from(&mut buf).await {
             trace!("received {} bytes", size);
@@ -35,6 +36,10 @@ async fn receiver(socket: UdpSocket) -> Result<(), io::Error> {
                 deserialized.service_block().clas().clone(),
                 deserialized.service_block().convert_services(),
             );
+            if dtnpeer.eid == nodeid {
+                debug!("Received beacon from myself, ignoring");
+                continue;
+            }
             if peers_add(dtnpeer) {
                 info!(
                     "New peer discovered: {} @ {} (len={})",
