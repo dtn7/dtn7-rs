@@ -15,6 +15,7 @@ use tokio::time::interval;
 
 async fn receiver(socket: UdpSocket) -> Result<(), io::Error> {
     let mut buf: Vec<u8> = vec![0; 1024 * 64];
+    let nodeid = CONFIG.lock().host_eid.clone();
     loop {
         if let Ok((size, peer)) = socket.recv_from(&mut buf).await {
             trace!("received {} bytes", size);
@@ -35,6 +36,10 @@ async fn receiver(socket: UdpSocket) -> Result<(), io::Error> {
                 deserialized.service_block().clas().clone(),
                 deserialized.service_block().convert_services(),
             );
+            if dtnpeer.eid == nodeid {
+                debug!("Received beacon from myself, ignoring");
+                continue;
+            }
             if peers_add(dtnpeer) {
                 info!(
                     "New peer discovered: {} @ {} (len={})",
@@ -146,15 +151,19 @@ pub async fn spawn_neighbour_discovery() -> Result<()> {
         socket
             .set_multicast_loop_v4(false)
             .expect("error activating multicast loop v4");
+        socket.set_broadcast(true)?;
         for address in (*CONFIG.lock()).discovery_destinations.keys() {
             let addr: SocketAddr = address.parse().expect("Error parsing discovery address");
-            if addr.is_ipv4() && addr.ip().is_multicast() {
-                socket
-                    .join_multicast_v4(
-                        &addr.ip().to_string().parse()?,
-                        &std::net::Ipv4Addr::new(0, 0, 0, 0),
-                    )
-                    .expect("error joining multicast v4 group");
+            if addr.is_ipv4() {
+                if addr.ip().is_multicast() {
+                    socket
+                        .join_multicast_v4(
+                            &addr.ip().to_string().parse()?,
+                            &std::net::Ipv4Addr::new(0, 0, 0, 0),
+                        )
+                        .expect("error joining multicast v4 group");
+                }
+                info!("Configured discovery destination: {}", addr.ip());
             }
         }
         /*
@@ -188,12 +197,17 @@ pub async fn spawn_neighbour_discovery() -> Result<()> {
             .set_multicast_loop_v6(false)
             .expect("error activating multicast loop v6");
 
+        socket.set_broadcast(true)?;
+
         for address in (*CONFIG.lock()).discovery_destinations.keys() {
             let addr: SocketAddr = address.parse().expect("Error while parsing IPv6 address");
-            if addr.is_ipv6() && addr.ip().is_multicast() {
-                socket
-                    .join_multicast_v6(&addr.ip().to_string().parse()?, 0)
-                    .expect("Error joining multicast v6 group");
+            if addr.is_ipv6() {
+                if addr.ip().is_multicast() {
+                    socket
+                        .join_multicast_v6(&addr.ip().to_string().parse()?, 0)
+                        .expect("Error joining multicast v6 group");
+                }
+                info!("Configured discovery destination: {}", addr.ip());
             }
         }
         /*
