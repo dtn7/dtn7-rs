@@ -9,7 +9,7 @@ use crate::ipnd::neighbour_discovery;
 use crate::{cla_add, peers_add};
 use crate::{CLAS, CONFIG, DTNCORE, STORE};
 use bp7::EndpointID;
-use log::{error, info};
+use log::{error, info, warn};
 
 /*
 use crate::core::core::DtnCore;
@@ -112,6 +112,9 @@ pub async fn start_dtnd(cfg: DtnConfig) -> anyhow::Result<()> {
     for (cla, local_settings) in &clas {
         info!("Adding CLA: {:?}", cla);
         cla_add(crate::cla::new(cla, Some(local_settings)));
+    }
+    if clas.is_empty() {
+        warn!("No CLAs configured!");
     }
 
     for s in &(*CONFIG.lock()).statics {
