@@ -63,7 +63,7 @@ struct Args {
     #[clap(short, long)]
     verbose: bool,
 
-    /// Specify local endpoint, e.g. '/incoming', or a group endpoint 'dtn://helpers/~incoming'
+    /// Specify local endpoint, e.g. 'incoming', or a group endpoint 'dtn://helpers/~incoming'
     #[clap(short, long)]
     endpoint: String,
 
