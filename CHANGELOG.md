@@ -1,6 +1,41 @@
 # Changelog
 All notable changes to this project will be documented in this file.
 
+## [0.18.1] - 2022-10-09
+
+### Bug Fixes
+
+- Fixed minor shell scripting bugs in test scripts
+- Removed debug symbols from release profile and enabled stripping binaries
+- Filtering bundles from store by address no longer returns deleted BIDs (#40)
+- Ignore beacons from self for broadcast IPND packets
+
+### Documentation
+
+- Updated README, removed tool help output and described recent feature additions.
+- Added badge with link to dtn7 matrix space to README
+- Changed help output regarding local endpoints in dtnrecv and dtntrigger tools
+
+### Features
+
+- CLAs can now indicate if the are accepting new bundles, e.g., useful for discovery only CLAs
+- Support for sprayandwait routing strategy (#29)
+- Added support for broadcast sockets
+- Added warning if no CLA is configured
+
+### Miscellaneous Tasks
+
+- Bumped minimum ubuntu version in cd.yml to 20.04
+- Pleased clippy of rust 1.64
+
+### Refactor
+
+- Reexport all external client relevant pieces of code to dtn7::client
+
+### Testing
+
+- Added clab scenario with two subnets
+
 ## [0.18.0] - 2022-07-21
 
 ### Bug Fixes
