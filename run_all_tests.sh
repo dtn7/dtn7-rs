@@ -40,6 +40,7 @@ cargo test $TARGET_OPT &&
     filter_output ./tests/local_ping_echo.sh &&
     filter_output ./tests/local_group_test.sh &&
     filter_output ./tests/local_trigger_test.sh &&
+    filter_output ./tests/lifetime.sh &&
     filter_output ./tests/cla_chain_test.sh &&
     filter_output ./tests/ecla_test.sh &&
     filter_output ./tests/ecla_test_chain.sh &&

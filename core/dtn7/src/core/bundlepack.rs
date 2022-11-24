@@ -49,6 +49,7 @@ pub struct BundlePack {
     pub received_time: u64,
     /// time at which bundle was created in dtntime
     pub creation_time: u64,
+    pub lifetime: u64,
     pub id: String,
     pub administrative: bool,
     pub size: usize,
@@ -68,6 +69,7 @@ impl From<Bundle> for BundlePack {
         let size = bundle.to_cbor().len();
         let source = bundle.primary.source.clone();
         let destination = bundle.primary.destination.clone();
+        let lifetime = bundle.primary.lifetime.as_millis() as u64;
         BundlePack {
             source,
             destination,
@@ -76,6 +78,7 @@ impl From<Bundle> for BundlePack {
                 .expect("Time went backwards")
                 .as_millis() as u64,
             creation_time: bundle.primary.creation_timestamp.dtntime(),
+            lifetime,
             id: bid,
             administrative: bundle.is_administrative_record(),
             size,
@@ -90,6 +93,8 @@ impl From<&Bundle> for BundlePack {
         let size = bundle.clone().to_cbor().len();
         let source = bundle.primary.source.clone();
         let destination = bundle.primary.destination.clone();
+        let lifetime = bundle.primary.lifetime.as_millis() as u64;
+
         BundlePack {
             source,
             destination,
@@ -98,6 +103,7 @@ impl From<&Bundle> for BundlePack {
                 .expect("Time went backwards")
                 .as_millis() as u64,
             creation_time: bundle.primary.creation_timestamp.dtntime(),
+            lifetime,
             id: bid,
             administrative: bundle.is_administrative_record(),
             size,
@@ -119,6 +125,15 @@ impl BundlePack {
             store_update_metadata(self)?;
         }
         Ok(())
+    }
+    /// check if lifetime is expired
+    /// if lifetime is set to zero, ignore this check
+    pub fn has_expired(&self) -> bool {
+        if self.lifetime == 0 {
+            return false;
+        }
+        let now = bp7::CreationTimestamp::now().dtntime();
+        (self.creation_time + self.lifetime) < now
     }
     pub fn has_receiver(&self) -> bool {
         self.destination != EndpointID::none()

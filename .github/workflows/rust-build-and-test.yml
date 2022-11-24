@@ -104,7 +104,10 @@ jobs:
         run: STATUS_REPORTS="-g" ./tests/local_nodes_dtn.sh
       
       - name: Run local nodes ipn test
-        run: ./tests/local_nodes_dtn.sh
+        run: ./tests/local_nodes_ipn.sh
+      
+      - name: Run lifetime test
+        run: ./tests/lifetime.sh
       
       - name: Run local group dtn test
         run: ./tests/local_group_test.sh
