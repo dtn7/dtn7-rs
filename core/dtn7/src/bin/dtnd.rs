@@ -70,7 +70,7 @@ async fn main() -> Result<(), std::io::Error> {
                 .value_name("NODEID")
                 .help("Sets local node name (e.g. 'dtn://node1')")
                 .value_parser(value_parser!(String))
-                .action(ArgAction::Set),        
+                .action(ArgAction::Set),
             )
         .arg(
             Arg::new("workdir")
