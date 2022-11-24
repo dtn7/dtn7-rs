@@ -34,7 +34,8 @@ pub fn beacon_with_config() {
 
 #[test]
 pub fn bsn_overflow() {
-    (*CONFIG.lock())
+    CONFIG
+        .lock()
         .discovery_destinations
         .insert("Node1".to_string(), u32::MAX - 1);
     assert_eq!(get_sequence("Node1"), u32::MAX - 1);
@@ -328,8 +329,8 @@ pub fn peer_validity_with_default_period() {
 pub fn peer_validity_with_custom() {
     let mut peer = helpers::rnd_peer();
     peer.period = Some(Duration::from_secs(5));
-    (*CONFIG.lock()).custom_timeout = true;
-    (*CONFIG.lock()).peer_timeout = Duration::from_secs(15);
+    CONFIG.lock().custom_timeout = true;
+    CONFIG.lock().peer_timeout = Duration::from_secs(15);
     assert!(peer.still_valid());
     thread::sleep(Duration::from_secs(11));
     assert!(peer.still_valid());

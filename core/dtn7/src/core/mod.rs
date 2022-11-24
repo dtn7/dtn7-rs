@@ -158,13 +158,12 @@ pub async fn process_bundles() {
         meta.add_constraint(Constraint::Deleted);
     }
     forwarding_bundles.retain(|bp| !bp.has_constraint(Constraint::Deleted));
-
     // process them in chronological order
     forwarding_bundles.sort_unstable_by(|a, b| a.creation_time.cmp(&b.creation_time));
 
     let num_bundles = forwarding_bundles.len();
 
-    if (*CONFIG.lock()).parallel_bundle_processing {
+    if CONFIG.lock().parallel_bundle_processing {
         let mut tasks = Vec::new();
         for bp in forwarding_bundles {
             let bpid = bp.id().to_string();

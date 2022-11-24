@@ -61,7 +61,7 @@ where
     type Rejection = StatusCode;
 
     async fn from_request(conn: &mut RequestParts<B>) -> Result<Self, Self::Rejection> {
-        if (*CONFIG.lock()).unsafe_httpd {
+        if CONFIG.lock().unsafe_httpd {
             return Ok(Self);
         }
         if let Some(ConnectInfo(addr)) = conn.extensions().get::<ConnectInfo<SocketAddr>>() {
@@ -134,13 +134,12 @@ async fn index() -> Html<String> {
     let mut tt = TinyTemplate::new();
     tt.add_template("index", template_str)
         .expect("error adding template");
-    let announcement =
-        humantime::format_duration((*CONFIG.lock()).announcement_interval).to_string();
-    let janitor = humantime::format_duration((*CONFIG.lock()).janitor_interval).to_string();
-    let timeout = humantime::format_duration((*CONFIG.lock()).peer_timeout).to_string();
+    let announcement = humantime::format_duration(CONFIG.lock().announcement_interval).to_string();
+    let janitor = humantime::format_duration(CONFIG.lock().janitor_interval).to_string();
+    let timeout = humantime::format_duration(CONFIG.lock().peer_timeout).to_string();
     let clas = cla_names();
     let context = IndexContext {
-        config: &(*CONFIG.lock()),
+        config: &CONFIG.lock(),
         announcement,
         janitor,
         timeout,
@@ -194,7 +193,7 @@ async fn web_peers() -> Html<String> {
         .collect();
 
     let context = PeersContext {
-        config: &(*CONFIG.lock()),
+        config: &CONFIG.lock(),
         peers: peers_vec.as_slice(),
     };
     //let peers_vec: Vec<&DtnPeer> = (*PEERS.lock()).values().collect();
@@ -221,7 +220,7 @@ async fn web_bundles() -> Html<String> {
         })
         .collect();
     let context = BundlesContext {
-        config: &(*CONFIG.lock()),
+        config: &CONFIG.lock(),
         bundles: bundles_vec.as_slice(),
     };
     //let peers_vec: Vec<&DtnPeer> = (*PEERS.lock()).values().collect();
@@ -233,7 +232,7 @@ async fn web_bundles() -> Html<String> {
 
 //#[get("/status/nodeid")]
 async fn status_node_id() -> String {
-    (*CONFIG.lock()).host_eid.to_string()
+    CONFIG.lock().host_eid.to_string()
 }
 
 //#[get("/status/eids")]
@@ -373,7 +372,7 @@ async fn send_post(
     if dst == EndpointID::none() {
         return Err((StatusCode::BAD_REQUEST, "Missing destination endpoint id!"));
     }
-    let src = (*CONFIG.lock()).host_eid.clone();
+    let src = CONFIG.lock().host_eid.clone();
     let flags = BundleControlFlags::BUNDLE_MUST_NOT_FRAGMENTED
         | BundleControlFlags::BUNDLE_STATUS_REQUEST_DELIVERY;
     let pblock = bp7::primary::PrimaryBlockBuilder::default()
@@ -445,7 +444,7 @@ async fn register(
     let path = query.unwrap();
     if is_valid_service_name(&path) {
         // without url scheme assume a local DTN service name
-        let host_eid = (*CONFIG.lock()).host_eid.clone();
+        let host_eid = CONFIG.lock().host_eid.clone();
         let eid = host_eid
             .new_endpoint(&path)
             .expect("Error constructing new endpoint");
@@ -474,7 +473,7 @@ async fn unregister(
     }
     let path = query.unwrap();
     if is_valid_service_name(&path) {
-        let host_eid = (*CONFIG.lock()).host_eid.clone();
+        let host_eid = CONFIG.lock().host_eid.clone();
         let eid = host_eid
             .new_endpoint(&path)
             .expect("Error constructing new endpoint");
@@ -503,7 +502,7 @@ async fn endpoint(
     }
     let path = query.unwrap();
     if is_valid_service_name(&path) {
-        let host_eid = (*CONFIG.lock()).host_eid.clone();
+        let host_eid = CONFIG.lock().host_eid.clone();
         let eid = host_eid
             .new_endpoint(&path)
             .expect("Error constructing new endpoint"); // TODO: support non-node-specific EIDs
@@ -545,7 +544,7 @@ async fn endpoint_hex(
     }
     let path = query.unwrap();
     if is_valid_service_name(&path) {
-        let host_eid = (*CONFIG.lock()).host_eid.clone();
+        let host_eid = CONFIG.lock().host_eid.clone();
         let eid = host_eid
             .new_endpoint(&path)
             .expect("Error constructing new endpoint");
@@ -658,10 +657,10 @@ pub async fn spawn_httpd() -> Result<()> {
         .route("/status/peers", get(status_peers))
         .route("/status/info", get(status_info));
 
-    let port = (*CONFIG.lock()).webport;
+    let port = CONFIG.lock().webport;
 
-    let v4 = (*CONFIG.lock()).v4;
-    let v6 = (*CONFIG.lock()).v6;
+    let v4 = CONFIG.lock().v4;
+    let v6 = CONFIG.lock().v6;
     //debug!("starting webserver");
     let server = if v4 && !v6 {
         hyper::Server::bind(&format!("0.0.0.0:{}", port).parse()?)

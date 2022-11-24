@@ -141,7 +141,7 @@ impl BundleStore for SledBundleStore {
 
 impl SledBundleStore {
     pub fn new() -> SledBundleStore {
-        let mut wd = (*CONFIG.lock()).workdir.clone();
+        let mut wd = CONFIG.lock().workdir.clone();
         wd.push("store.db");
         let db = sled::open(wd).expect("open sled bundle store");
         SledBundleStore {

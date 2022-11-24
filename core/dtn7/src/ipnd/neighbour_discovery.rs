@@ -77,7 +77,7 @@ async fn announcer(socket: UdpSocket, _v6: bool) {
         task.tick().await;
 
         // Start to build beacon announcement
-        let eid = (*CONFIG.lock()).host_eid.clone();
+        let eid = CONFIG.lock().host_eid.clone();
         let beacon_period = if !crate::CONFIG.lock().enable_period {
             None
         } else {
@@ -89,7 +89,8 @@ async fn announcer(socket: UdpSocket, _v6: bool) {
             .iter()
             .for_each(|cla| pkt.add_cla(cla.name(), &Some(cla.port())));
         // Get all available services
-        (*DTNCORE.lock())
+        DTNCORE
+            .lock()
             .service_list
             .iter()
             .for_each(|(tag, payload)| pkt.add_custom_service(*tag, payload.clone()));
@@ -98,7 +99,8 @@ async fn announcer(socket: UdpSocket, _v6: bool) {
         //let addr = "127.0.0.1:3003".parse().unwrap();
 
         let mut destinations: HashMap<SocketAddr, u32> = HashMap::new();
-        (*CONFIG.lock())
+        CONFIG
+            .lock()
             .discovery_destinations
             .iter()
             .for_each(|(key, value)| {
@@ -134,8 +136,8 @@ async fn announcer(socket: UdpSocket, _v6: bool) {
     }
 }
 pub async fn spawn_neighbour_discovery() -> Result<()> {
-    let v4 = (*CONFIG.lock()).v4;
-    let v6 = (*CONFIG.lock()).v6;
+    let v4 = CONFIG.lock().v4;
+    let v6 = CONFIG.lock().v6;
     let port = 3003;
     if v4 {
         let addr: SocketAddr = format!("0.0.0.0:{}", port).parse()?;
@@ -152,7 +154,7 @@ pub async fn spawn_neighbour_discovery() -> Result<()> {
             .set_multicast_loop_v4(false)
             .expect("error activating multicast loop v4");
         socket.set_broadcast(true)?;
-        for address in (*CONFIG.lock()).discovery_destinations.keys() {
+        for address in CONFIG.lock().discovery_destinations.keys() {
             let addr: SocketAddr = address.parse().expect("Error parsing discovery address");
             if addr.is_ipv4() {
                 if addr.ip().is_multicast() {
@@ -199,7 +201,7 @@ pub async fn spawn_neighbour_discovery() -> Result<()> {
 
         socket.set_broadcast(true)?;
 
-        for address in (*CONFIG.lock()).discovery_destinations.keys() {
+        for address in CONFIG.lock().discovery_destinations.keys() {
             let addr: SocketAddr = address.parse().expect("Error while parsing IPv6 address");
             if addr.is_ipv6() {
                 if addr.ip().is_multicast() {

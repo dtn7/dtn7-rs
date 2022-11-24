@@ -489,7 +489,7 @@ impl TcpSession {
 impl TcpConnection {
     /// Session parameter negotiation
     async fn negotiate_session(&mut self) -> anyhow::Result<(SessInitData, SessInitData)> {
-        let node_id = (*CONFIG.lock()).host_eid.node_id().unwrap();
+        let node_id = CONFIG.lock().host_eid.node_id().unwrap();
         let mut sess_init_data = SessInitData {
             keepalive: KEEPALIVE,
             segment_mru: SEGMENT_MRU,
@@ -717,7 +717,8 @@ impl TcpConvergenceLayer {
         let local_refuse_existing_bundles = local_settings
             .and_then(|settings| settings.get("refuse-existing-bundles"))
             .and_then(|val| val.parse::<bool>().ok());
-        let global_refuse_existing_bundles = (*CONFIG.lock())
+        let global_refuse_existing_bundles = CONFIG
+            .lock()
             .cla_global_settings
             .get(&super::CLAsAvailable::TcpConvergenceLayer)
             .and_then(|settings| settings.get("refuse-existing-bundles"))
@@ -727,7 +728,7 @@ impl TcpConvergenceLayer {
             local_refuse_existing_bundles.unwrap_or(global_refuse_existing_bundles);
         debug!(
             "Extension settings: {:?}",
-            (*CONFIG.lock()).cla_global_settings
+            CONFIG.lock().cla_global_settings
         );
         let (tx, mut rx) = mpsc::channel(INTERNAL_CHANNEL_BUFFER);
 

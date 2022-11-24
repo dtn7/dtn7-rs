@@ -217,7 +217,7 @@ impl WsAASession {
                         "/node" => {
                             ws_reply_text!(
                                 socket,
-                                &format!("200 node: {}", (*CONFIG.lock()).host_eid)
+                                &format!("200 node: {}", CONFIG.lock().host_eid)
                             );
                         }
                         "/bundle" => {
@@ -279,7 +279,7 @@ impl WsAASession {
                                         ws_reply_text!(socket, "404 unknown endpoint");
                                     }
                                 } else {
-                                    let this_host: EndpointID = (*CONFIG.lock()).host_eid.clone();
+                                    let this_host: EndpointID = CONFIG.lock().host_eid.clone();
                                     if let Ok(eid) = this_host.new_endpoint(v[1]) {
                                         if (*DTNCORE.lock()).get_endpoint(&eid).is_none() {
                                             debug!(

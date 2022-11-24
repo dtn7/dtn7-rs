@@ -153,7 +153,7 @@ impl BundleStore for SneakersBundleStore {
 
 impl SneakersBundleStore {
     pub fn new() -> SneakersBundleStore {
-        let wd = (*CONFIG.lock()).workdir.clone();
+        let wd = CONFIG.lock().workdir.clone();
         let store =
             SneakerWorld::open(wd.to_string_lossy().as_ref()).expect("open sneaker bundle store");
         debug!("syncing store fs/db");

@@ -121,8 +121,8 @@ impl DtnPeer {
         // If a custom peer timeout was specified force remove all peers after specified amount of time
         // Or if no custom peer timeout was specified force remove all peers after default peer timeout
         // that didn't advertise a BeaconPeriod
-        let timeout = (*CONFIG.lock()).peer_timeout.as_secs();
-        let custom = (*CONFIG.lock()).custom_timeout;
+        let timeout = CONFIG.lock().peer_timeout.as_secs();
+        let custom = CONFIG.lock().custom_timeout;
         if (custom && timeout > 0) || self.period.is_none() {
             let now = SystemTime::now()
                 .duration_since(UNIX_EPOCH)

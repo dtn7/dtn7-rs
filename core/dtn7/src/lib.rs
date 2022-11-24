@@ -88,21 +88,22 @@ pub fn cla_names() -> Vec<String> {
     names
 }
 pub fn service_add(tag: u8, service: String) {
-    (*DTNCORE.lock()).service_list.insert(tag, service);
+    DTNCORE.lock().service_list.insert(tag, service);
 }
 pub fn add_discovery_destination(destination: &str) {
-    (*CONFIG.lock())
+    CONFIG
+        .lock()
         .discovery_destinations
         .insert(destination.to_string(), 0);
 }
 
 pub fn reset_sequence(destination: &str) {
-    if let Some(sequence) = (*CONFIG.lock()).discovery_destinations.get_mut(destination) {
+    if let Some(sequence) = CONFIG.lock().discovery_destinations.get_mut(destination) {
         *sequence = 0;
     }
 }
 pub fn get_sequence(destination: &str) -> u32 {
-    if let Some(sequence) = (*CONFIG.lock()).discovery_destinations.get(destination) {
+    if let Some(sequence) = CONFIG.lock().discovery_destinations.get(destination) {
         *sequence
     } else {
         0
@@ -141,7 +142,7 @@ pub fn peers_get_for_node(eid: &EndpointID) -> Option<DtnPeer> {
     None
 }
 pub fn is_local_node_id(eid: &EndpointID) -> bool {
-    eid.node_id() == (*CONFIG.lock()).host_eid.node_id()
+    eid.node_id() == CONFIG.lock().host_eid.node_id()
 }
 pub fn peers_cla_for_node(eid: &EndpointID) -> Option<ClaSenderTask> {
     if let Some(peer) = peers_get_for_node(eid) {
@@ -210,7 +211,7 @@ pub fn store_delete_expired() {
 }
 
 pub async fn routing_notify(notification: RoutingNotifcation) -> Result<()> {
-    let chan = (*DTNCORE.lock()).routing_agent.channel();
+    let chan = DTNCORE.lock().routing_agent.channel();
     if let Err(err) = chan.send(RoutingCmd::Notify(notification)).await {
         bail!("Error while sending notification: {}", err);
     }
@@ -220,7 +221,7 @@ pub async fn routing_notify(notification: RoutingNotifcation) -> Result<()> {
 pub async fn routing_sender_for_bundle(bp: BundlePack) -> Result<(Vec<ClaSenderTask>, bool)> {
     let (reply_tx, reply_rx) = oneshot::channel();
 
-    let cmd_channel = (*DTNCORE.lock()).routing_agent.channel();
+    let cmd_channel = DTNCORE.lock().routing_agent.channel();
     if let Err(err) = cmd_channel
         .send(RoutingCmd::SenderForBundle(bp, reply_tx))
         .await

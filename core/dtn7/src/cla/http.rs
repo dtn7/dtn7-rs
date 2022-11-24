@@ -96,7 +96,7 @@ impl HttpConvergenceLayer {
             }
         });
         HttpConvergenceLayer {
-            local_port: (*CONFIG.lock()).webport,
+            local_port: CONFIG.lock().webport,
             tx,
         }
     }

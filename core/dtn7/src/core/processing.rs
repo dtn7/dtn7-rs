@@ -117,7 +117,7 @@ pub async fn receive(mut bndl: Bundle) -> Result<()> {
         .bundle_control_flags
         .contains(BundleControlFlags::BUNDLE_STATUS_REQUEST_RECEPTION)
         && !bndl.is_administrative_record()
-        && (*CONFIG.lock()).generate_status_reports
+        && CONFIG.lock().generate_status_reports
     {
         send_status_report(&bp, RECEIVED_BUNDLE, NO_INFORMATION).await;
     }
@@ -140,7 +140,7 @@ pub async fn receive(mut bndl: Bundle) -> Result<()> {
                 bp.id(),
                 cb.block_type
             );
-            if (*CONFIG.lock()).generate_status_reports {
+            if CONFIG.lock().generate_status_reports {
                 send_status_report(&bp, RECEIVED_BUNDLE, BLOCK_UNINTELLIGIBLE).await;
             } else {
                 info!("Generation of status reports disabled, ignoring request");
@@ -277,7 +277,7 @@ async fn handle_previous_node_block(mut bundle: Bundle) -> Result<Bundle> {
             .previous_node_get()
             .expect("no previoud node EID found!")
             .clone();
-        let local_eid = (*CONFIG.lock()).host_eid.clone();
+        let local_eid = CONFIG.lock().host_eid.clone();
         pnb.previous_node_update(local_eid.clone());
         debug!(
             "Previous Node Block was updated: {} {} {}",
@@ -287,7 +287,7 @@ async fn handle_previous_node_block(mut bundle: Bundle) -> Result<Bundle> {
         );
     } else {
         // according to rfc always add a previous node block
-        let local_eid = (*CONFIG.lock()).host_eid.clone();
+        let local_eid = CONFIG.lock().host_eid.clone();
         let pnb = bp7::canonical::new_previous_node_block(0, BlockControlFlags::empty(), local_eid);
         bundle.add_canonical_block(pnb);
     }
@@ -428,7 +428,7 @@ pub async fn forward(mut bp: BundlePack) -> Result<()> {
                 .bundle_control_flags
                 .contains(BundleControlFlags::BUNDLE_STATUS_REQUEST_FORWARD)
                 && !bndl.is_administrative_record()
-                && (*CONFIG.lock()).generate_status_reports
+                && CONFIG.lock().generate_status_reports
             {
                 send_status_report(&bp, FORWARDED_BUNDLE, NO_INFORMATION).await;
             }
@@ -467,7 +467,7 @@ pub async fn local_delivery(mut bp: BundlePack) -> Result<()> {
     if let Some(aa) = (*DTNCORE.lock()).get_endpoint_mut(&bp.destination) {
         info!("Delivering {}", bp.id());
         aa.push(&bndl);
-        (*STATS.lock()).delivered += 1;
+        STATS.lock().delivered += 1;
     }
     if is_local_node_id(&bp.destination) {
         if bndl
@@ -475,7 +475,7 @@ pub async fn local_delivery(mut bp: BundlePack) -> Result<()> {
             .bundle_control_flags
             .contains(BundleControlFlags::BUNDLE_STATUS_REQUEST_DELIVERY)
             && !bndl.is_administrative_record()
-            && (*CONFIG.lock()).generate_status_reports
+            && CONFIG.lock().generate_status_reports
         {
             send_status_report(&bp, DELIVERED_BUNDLE, NO_INFORMATION).await;
         }
@@ -509,7 +509,7 @@ pub async fn delete(mut bp: BundlePack, reason: StatusReportReason) -> Result<()
         .bundle_control_flags
         .contains(BundleControlFlags::BUNDLE_STATUS_REQUEST_DELETION)
         && !bndl.is_administrative_record()
-        && (*CONFIG.lock()).generate_status_reports
+        && CONFIG.lock().generate_status_reports
     {
         send_status_report(&bp, DELETED_BUNDLE, reason).await;
     }
@@ -652,7 +652,7 @@ async fn send_status_report(
 
     let out_bndl = new_status_report_bundle(
         &bndl,
-        (*CONFIG.lock()).host_eid.clone(),
+        CONFIG.lock().host_eid.clone(),
         bndl.primary.crc.to_code(),
         status,
         reason,

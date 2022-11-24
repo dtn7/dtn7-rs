@@ -42,7 +42,7 @@ impl SprayAndWaitRoutingAgentCore {
         SprayAndWaitRoutingAgentCore {
             l: starting_copies,
             history: HashMap::new(),
-            local_node: (*crate::CONFIG.lock()).host_eid.node_id().unwrap(),
+            local_node: crate::CONFIG.lock().host_eid.node_id().unwrap(),
         }
     }
     /// Prepare new bundles for spreading.
@@ -181,7 +181,7 @@ async fn handle_sender_for_bundle(
     });
 }
 async fn handle_routing_cmd(mut rx: mpsc::Receiver<RoutingCmd>) {
-    let settings = (*CONFIG.lock()).routing_settings.clone();
+    let settings = CONFIG.lock().routing_settings.clone();
 
     let max_copies = if let Some(settings) = settings.get("sprayandwait") {
         settings
