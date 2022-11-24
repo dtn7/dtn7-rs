@@ -1,5 +1,5 @@
 use anyhow::{bail, Result};
-use clap::{crate_authors, crate_version, Arg};
+use clap::{crate_authors, crate_version, value_parser, Arg, ArgAction};
 use dtn7::client::data::{BundlePack, DtnPeer};
 use dtn7::client::erouting::{ws_client, Packet, ResponseSenderForBundle, Sender};
 use futures_util::{future, pin_mut};
@@ -278,37 +278,42 @@ async fn main() -> Result<()> {
                 .long("addr")
                 .value_name("ip:erouting_port")
                 .help("specify external routing address and port")
-                .takes_value(true),
+                .value_parser(value_parser!(String))
+                .action(ArgAction::Set),
         )
         .arg(
             Arg::new("type")
                 .short('t')
                 .long("type")
                 .help("specify routing type")
-                .takes_value(true),
+                .value_parser(value_parser!(String))
+                .action(ArgAction::Set),
         )
         .arg(
             Arg::new("debug")
                 .short('d')
                 .long("debug")
                 .help("Set log level to debug")
-                .takes_value(false),
+                .action(ArgAction::SetTrue),
         )
         .get_matches();
 
     let routing_types = vec!["flooding", "epidemic"];
 
-    if matches.is_present("debug") {
+    if matches.contains_id("debug") {
         std::env::set_var("RUST_LOG", "debug");
         pretty_env_logger::init_timed();
     }
 
-    if !matches.is_present("type") || !matches.is_present("addr") {
+    if !matches.contains_id("type") || !matches.contains_id("addr") {
         bail!("please specify address and strategy type");
     }
 
     let strategy = routing_types.iter().find(|t| {
-        return matches.value_of("type").unwrap().eq_ignore_ascii_case(t);
+        return matches
+            .get_one::<String>("type")
+            .unwrap()
+            .eq_ignore_ascii_case(t);
     });
 
     if strategy.is_none() {
@@ -320,7 +325,7 @@ async fn main() -> Result<()> {
 
     serve(
         strategy.unwrap().to_string(),
-        matches.value_of("addr").unwrap(),
+        matches.get_one::<String>("addr").unwrap(),
     )
     .await?;
 

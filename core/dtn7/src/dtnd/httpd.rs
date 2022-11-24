@@ -29,7 +29,8 @@ use bp7::flags::BundleControlFlags;
 use bp7::helpers::rnd_bundle;
 use bp7::EndpointID;
 use http::StatusCode;
-use humansize::{file_size_opts, FileSize};
+use humansize::format_size;
+use humansize::DECIMAL;
 use log::info;
 use log::trace;
 use log::{debug, warn};
@@ -216,7 +217,7 @@ async fn web_bundles() -> Html<String> {
         .filter(|bp| !bp.has_constraint(Constraint::Deleted))
         .map(|bp| BundleInfo {
             id: bp.id.to_string(),
-            size: bp.size.file_size(file_size_opts::DECIMAL).unwrap(),
+            size: format_size(bp.size, DECIMAL),
         })
         .collect();
     let context = BundlesContext {

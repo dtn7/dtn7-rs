@@ -39,17 +39,17 @@ pretty_env_logger = "0.4.0"
 log = "0.4"
 socket2 = "0.4.1"
 bytes = "1.1.0"
-clap = { version = "3.1.18", features = ["cargo", "derive"] }
+clap = { version = "4.0.27", features = ["cargo", "derive"] }
 config = {version = "0.11.0", default-features = false, features = ["toml"] }
 lazy_static = "1.4.0"
 anyhow = "1.0.32"
 parking_lot = "0.12.0"
 async-trait = "0.1.53"
-attohttpc = { version = "0.19.1", default-features = false }
+attohttpc = { version = "0.24.0", default-features = false }
 tinytemplate = "1.1.0"
 humantime = "2.1.0"
 tempfile = "3.3.0"
-humansize = "1.1.1"
+humansize = "2.1.2"
 sled = "0.34.7"
 enum_dispatch = "0.3.8"
 derive_more = "0.99.17"

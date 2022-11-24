@@ -68,7 +68,7 @@ struct Args {
     endpoint: String,
 
     /// Command to execute for incoming bundles, param1 = source, param2 = payload file
-    #[clap(short, long, forbid_empty_values = true)]
+    #[clap(short, long, required = true)]
     command: String,
 }
 fn main() -> anyhow::Result<()> {
