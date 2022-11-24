@@ -1,6 +1,6 @@
 use anyhow::Result;
 use bp7::Bundle;
-use clap::{crate_authors, crate_version, Arg, Command as ClapCommand};
+use clap::{crate_authors, crate_version, value_parser, Arg, ArgAction, Command as ClapCommand};
 use dtn7::cla::mtcp::{MPDUCodec, MPDU};
 use dtn7::client::ecla::{ws_client, Command, ForwardData, Packet};
 use futures_util::future::Either;
@@ -13,7 +13,6 @@ use std::convert::TryFrom;
 use std::io::Write;
 use std::net::SocketAddrV4;
 use std::net::TcpStream;
-use std::str::FromStr;
 use tokio::io;
 use tokio::net::TcpListener;
 use tokio::sync::mpsc;
@@ -133,26 +132,27 @@ async fn main() -> Result<()> {
                 .long("addr")
                 .value_name("ip:ecla_port")
                 .help("specify ecla address and port")
-                .multiple_values(false),
+                .value_parser(value_parser!(String))
+                .action(ArgAction::Set),
         )
         .arg(
             Arg::new("port")
                 .short('p')
                 .long("port")
                 .help("tcp listening port")
-                .multiple_values(false)
-                .takes_value(true),
+                .value_parser(value_parser!(u16))
+                .action(ArgAction::Set),
         )
         .arg(
             Arg::new("debug")
                 .short('d')
                 .long("debug")
                 .help("Set log level to debug")
-                .takes_value(false),
+                .action(ArgAction::SetTrue),
         )
         .get_matches();
 
-    if matches.is_present("debug") {
+    if matches.get_flag("debug") {
         std::env::set_var("RUST_LOG", "debug");
         pretty_env_logger::init_timed();
     }
@@ -160,13 +160,12 @@ async fn main() -> Result<()> {
     let (tx, mut rx) = mpsc::channel::<Packet>(100);
     let (ctx, crx) = mpsc::channel::<Packet>(100);
 
-    let port = u16::from_str(matches.value_of("port").expect("no port given"))
-        .expect("port wasn't a number");
+    let port = *matches.get_one::<u16>("port").expect("no port given");
 
     tokio::spawn(listener(port, ctx.clone()));
 
     // initialize Clients
-    if let Some(addr) = matches.value_of("addr") {
+    if let Some(addr) = matches.get_one::<String>("addr") {
         info!("Connecting to {}", addr);
 
         let addr = addr.to_string();

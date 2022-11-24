@@ -1,6 +1,6 @@
 #![recursion_limit = "256"]
 
-use clap::{crate_authors, crate_version, Arg, Command};
+use clap::{crate_authors, crate_version, value_parser, Arg, ArgAction, Command};
 use dtn7::cla::CLAsAvailable;
 use dtn7::core::helpers::is_valid_node_name;
 use dtn7::dtnd::daemon::*;
@@ -60,7 +60,8 @@ async fn main() -> Result<(), std::io::Error> {
                 .long("config")
                 .value_name("FILE")
                 .help("Sets a custom config file")
-                .takes_value(true),
+                .value_parser(value_parser!(String))
+                .action(ArgAction::Set),
         )
         .arg(
             Arg::new("nodeid")
@@ -68,23 +69,25 @@ async fn main() -> Result<(), std::io::Error> {
                 .long("nodeid")
                 .value_name("NODEID")
                 .help("Sets local node name (e.g. 'dtn://node1')")
-                .takes_value(true),
-        )
+                .value_parser(value_parser!(String))
+                .action(ArgAction::Set),        
+            )
         .arg(
             Arg::new("workdir")
                 .short('W')
                 .long("workdir")
                 .value_name("PATH")
                 .help("Sets the working directory (e.g. '/tmp/node1', default '.')")
-                .takes_value(true),
+                .value_parser(value_parser!(String))
+                .action(ArgAction::Set),
         ).arg(
             Arg::new("endpoint")
                 .short('e')
                 .long("endpoint")
                 .value_name("ENDPOINT")
                 .help("Registers an application agent for a node local endpoint (e.g. 'incoming' listens on 'dtn://node1/incoming')")
-                .multiple_occurrences(true)
-                .takes_value(true),
+                .value_parser(value_parser!(String))
+                .action(ArgAction::Append),
         )
         .arg(
             Arg::new("interval")
@@ -92,13 +95,14 @@ async fn main() -> Result<(), std::io::Error> {
                 .long("interval")
                 .value_name("humantime")
                 .help("Sets service discovery interval (0 = deactive, 2s = 2 seconds, 3m = 3 minutes, etc.) Refers to the discovery interval that is advertised when flag -b is set")
-                .takes_value(true),
+                .value_parser(value_parser!(String))
+                .action(ArgAction::Set),
         )
         .arg(
             Arg::new("disable_nd")
                 .long("disable_nd")
                 .help("Explicitly disables the neighbour discovery")
-                .takes_value(false),
+                .action(ArgAction::SetTrue),
         )
         .arg(
             Arg::new("janitor")
@@ -106,7 +110,8 @@ async fn main() -> Result<(), std::io::Error> {
                 .long("janitor")
                 .value_name("humantime")
                 .help("Sets janitor interval (0 = deactive, 2s = 2 seconds, 3m = 3 minutes, etc.)")
-                .takes_value(true),
+                .value_parser(value_parser!(String))
+                .action(ArgAction::Set),
         )
         .arg(
             Arg::new("discoverydestination")
@@ -114,8 +119,8 @@ async fn main() -> Result<(), std::io::Error> {
                 .long("discovery-destination")
                 .value_name("DD[:port]")
                 .help("Sets destination beacons shall be sent to for discovery purposes (default IPv4 = 224.0.0.26:3003, IPv6 = [FF02::300]:3003")
-                .multiple_occurrences(true)
-                .takes_value(true),
+                .value_parser(value_parser!(String))
+                .action(ArgAction::Append),
         )
         .arg(
             Arg::new("webport")
@@ -123,20 +128,22 @@ async fn main() -> Result<(), std::io::Error> {
                 .long("web-port")
                 .value_name("PORT")
                 .help("Sets web interface port (default = 3000)")
-                .takes_value(true),
+                .value_parser(value_parser!(u16))
+                .action(ArgAction::Set),
         )
         .arg(
             Arg::new("eclatcpport")
                 .long("ecla-tcp")
                 .value_name("PORT")
                 .help("Sets ECLA tcp port (disabled by default)")
-                .takes_value(true),
+                .value_parser(value_parser!(u16))
+                .action(ArgAction::Set),
         )
         .arg(
             Arg::new("ecla")
                 .long("ecla")
                 .help("Enable ECLA (WebSocket transport layer enabled by default)")
-                .takes_value(false),
+                .action(ArgAction::SetTrue),
         )
         .arg(
             Arg::new("peertimeout")
@@ -144,7 +151,8 @@ async fn main() -> Result<(), std::io::Error> {
                 .long("peer-timeout")
                 .value_name("humantime")
                 .help("Sets timeout to remove peer (default = 20s)")
-                .takes_value(true),
+                .value_parser(value_parser!(String))
+                .action(ArgAction::Set),
         )
         .arg(
             Arg::new("routing")
@@ -154,8 +162,9 @@ async fn main() -> Result<(), std::io::Error> {
                 .help(format!(
                     "Set routing algorithm: {}",
                     dtn7::routing::routing_algorithms().join(", ")
-                ).as_str())
-                .takes_value(true),
+                ))
+                .value_parser(value_parser!(String)) // TODO: check if routing algorithm exists
+                .action(ArgAction::Set),
         )
         .arg(
             Arg::new("routing_options")
@@ -165,9 +174,9 @@ async fn main() -> Result<(), std::io::Error> {
                 .help(format!(
                     "Set routing options: \n{}",
                     dtn7::routing::routing_options().join("\n")
-                ).as_str())
-                .takes_value(true)
-                .multiple_occurrences(true),
+                ))
+                .value_parser(value_parser!(String))
+                .action(ArgAction::Append),
         ).arg(
             Arg::new("db")
                 .short('D')
@@ -176,8 +185,9 @@ async fn main() -> Result<(), std::io::Error> {
                 .help(format!(
                     "Set bundle store: {}",
                     dtn7::core::store::bundle_stores().join(", ")
-                ).as_str())
-                .takes_value(true),
+                ))
+                .value_parser(value_parser!(String)) // TODO: check if database exists
+                .action(ArgAction::Set),
         )
         .arg(
             Arg::new("cla")
@@ -187,10 +197,10 @@ async fn main() -> Result<(), std::io::Error> {
                 .help(format!(
                     "Add convergence layer agent: {}",
                     dtn7::cla::convergence_layer_agents().join(", ")
-                ).as_str())
-                .long_help(format!("Available options: \n{}", dtn7::cla::local_help().join("\n")).as_str())
-                .multiple_occurrences(true)
-                .takes_value(true),
+                ))
+                .long_help(format!("Available options: \n{}", dtn7::cla::local_help().join("\n")))
+                .value_parser(value_parser!(String))
+                .action(ArgAction::Append),
         )
         .arg(
             Arg::new("global")
@@ -201,9 +211,9 @@ async fn main() -> Result<(), std::io::Error> {
             .long_help(format!(
                "Available options: \n{}",
                 dtn7::cla::global_help().join("\n")
-            ).as_str())
-            .multiple_occurrences(true)
-            .takes_value(true),
+            ))
+            .value_parser(value_parser!(String))
+            .action(ArgAction::Append),
         )
         .arg(
             Arg::new("service")
@@ -215,8 +225,8 @@ async fn main() -> Result<(), std::io::Error> {
 Tag 127 takes 2 floats and is interpreted as latitude/longitude. Usage: -S 127:'52.32 24.42'
 Tag 191 takes 1 integer and is interpreted as battery level in %. Usage: -S 191:71
 Tag 255 takes 5 arguments and is interpreted as address. Usage: -S 255:'Samplestreet 42 12345 SampleCity SC'")
-                .multiple_occurrences(true)
-                .takes_value(true),
+.value_parser(value_parser!(String))
+.action(ArgAction::Append),
         )
         .arg(
             Arg::new("staticpeer")
@@ -224,60 +234,60 @@ Tag 255 takes 5 arguments and is interpreted as address. Usage: -S 255:'Samplest
                 .long("static-peer")
                 .value_name("PEER")
                 .help("Adds a static peer (e.g. mtcp://192.168.2.1:2342/node2)")
-                .multiple_occurrences(true)
-                .takes_value(true),
+                .value_parser(value_parser!(String))
+                .action(ArgAction::Append),
         )
         .arg(
             Arg::new("beacon-period")
                 .short('b')
                 .long("beacon-period")
                 .help("Enables the advertisement of the beacon sending interval to inform neighbors about when to expect new beacons")
-                .takes_value(false),
+                .action(ArgAction::SetTrue),
         )
         .arg(
             Arg::new("debug")
                 .short('d')
                 .long("debug")
                 .help("Set log level to debug")
-                .takes_value(false),
+                .action(ArgAction::SetTrue),
         )
         .arg(
             Arg::new("generate-status-reports")
                 .short('g')
                 .long("generate-status-reports")
                 .help("Generate status report bundles, can lead to a lot of traffic (default: deactivated)")
-                .takes_value(false),
+                .action(ArgAction::SetTrue),
         ).arg(
             Arg::new("parallel-bundle-processing")                
                 .long("parallel-bundle-processing")
                 .help("(Re-)Process bundles in parallel, can cause congestion but might be faster (default: deactivated)")
-                .takes_value(false),
+                .action(ArgAction::SetTrue),
         )
         .arg(
             Arg::new("unsafe_httpd")
                 .short('U')
                 .long("unsafe-httpd")
                 .help("Allow httpd RPC calls from anyhwere")
-                .takes_value(false),
+                .action(ArgAction::SetTrue),
         )
         .arg(
             Arg::new("ipv4")
                 .short('4')
                 .long("ipv4")
                 .help("Use IPv4")
-                .takes_value(false),
+                .action(ArgAction::SetTrue),
         )
         .arg(
             Arg::new("ipv6")
                 .short('6')
                 .long("ipv6")
                 .help("Use IPv6")
-                .takes_value(false),
+                .action(ArgAction::SetTrue),
         )
         .get_matches();
 
     if std::env::var("RUST_LOG").is_err() {
-        if matches.is_present("debug") || cfg.debug {
+        if matches.get_flag("debug") || cfg.debug {
             std::env::set_var("RUST_LOG", "dtn7=debug,dtnd=debug");
         } else {
             std::env::set_var("RUST_LOG", "dtn7=info,dtnd=info");
@@ -285,34 +295,32 @@ Tag 255 takes 5 arguments and is interpreted as address. Usage: -S 255:'Samplest
     }
     pretty_env_logger::init_timed();
 
-    if matches.is_present("ipv6") {
+    if matches.get_flag("ipv6") {
         cfg.v6 = true;
         cfg.v4 = false;
     }
-    cfg.v4 = matches.is_present("ipv4") || cfg.v4;
+    cfg.v4 = matches.get_flag("ipv4") || cfg.v4;
     cfg.generate_status_reports =
-        matches.is_present("generate-status-reports") || cfg.generate_status_reports;
+        matches.get_flag("generate-status-reports") || cfg.generate_status_reports;
 
-    cfg.ecla_enable = matches.is_present("ecla");
-    if let Some(ecla_tcp_port) = matches.value_of("eclatcpport") {
-        cfg.ecla_tcp_port = ecla_tcp_port
-            .parse()
-            .expect("Could not parse ECLA tcp port paramter!");
+    cfg.ecla_enable = matches.get_flag("ecla");
+    if let Some(ecla_tcp_port) = matches.get_one::<u16>("eclatcpport") {
+        cfg.ecla_tcp_port = *ecla_tcp_port;
     }
     cfg.parallel_bundle_processing =
-        matches.is_present("parallel-bundle-processing") || cfg.parallel_bundle_processing;
+        matches.get_flag("parallel-bundle-processing") || cfg.parallel_bundle_processing;
 
-    cfg.unsafe_httpd = matches.is_present("unsafe_httpd") || cfg.unsafe_httpd;
-    cfg.enable_period = matches.is_present("beacon-period");
-    if let Some(cfgfile) = matches.value_of("config") {
+    cfg.unsafe_httpd = matches.get_flag("unsafe_httpd") || cfg.unsafe_httpd;
+    cfg.enable_period = matches.get_flag("beacon-period");
+    if let Some(cfgfile) = matches.get_one::<String>("config") {
         cfg = DtnConfig::from(std::path::PathBuf::from(cfgfile));
     }
 
-    if let Some(workdir) = matches.value_of("workdir") {
+    if let Some(workdir) = matches.get_one::<String>("workdir") {
         cfg.workdir = std::path::PathBuf::from(workdir);
     }
 
-    if let Some(nodeid) = matches.value_of("nodeid") {
+    if let Some(nodeid) = matches.get_one::<String>("nodeid") {
         if is_valid_node_name(nodeid) {
             cfg.host_eid = if let Ok(number) = nodeid.parse::<u64>() {
                 format!("ipn:{}.0", number).try_into().unwrap()
@@ -320,15 +328,15 @@ Tag 255 takes 5 arguments and is interpreted as address. Usage: -S 255:'Samplest
                 format!("dtn://{}/", nodeid).try_into().unwrap()
             };
         } else {
-            cfg.host_eid = nodeid.try_into().unwrap();
+            cfg.host_eid = nodeid.as_str().try_into().unwrap();
             if !cfg.host_eid.is_node_id() {
                 panic!("Invalid node id!");
             }
         }
     }
 
-    cfg.disable_neighbour_discovery = matches.is_present("disable_nd");
-    if let Some(i) = matches.value_of("interval") {
+    cfg.disable_neighbour_discovery = matches.get_flag("disable_nd");
+    if let Some(i) = matches.get_one::<String>("interval") {
         if i == "0" {
             cfg.announcement_interval = std::time::Duration::new(0, 0);
         } else {
@@ -336,13 +344,11 @@ Tag 255 takes 5 arguments and is interpreted as address. Usage: -S 255:'Samplest
                 humantime::parse_duration(i).expect("Could not parse interval parameter!");
         }
     }
-    if let Some(i) = matches.value_of("webport") {
-        cfg.webport = i
-            .parse::<u16>()
-            .expect("Could not parse web port parameter!");
+    if let Some(i) = matches.get_one::<u16>("webport") {
+        cfg.webport = *i;
     }
 
-    if let Some(i) = matches.value_of("janitor") {
+    if let Some(i) = matches.get_one::<String>("janitor") {
         if i == "0" {
             cfg.janitor_interval = std::time::Duration::new(0, 0);
         } else {
@@ -350,7 +356,7 @@ Tag 255 takes 5 arguments and is interpreted as address. Usage: -S 255:'Samplest
                 humantime::parse_duration(i).expect("Could not parse janitor parameter!");
         }
     }
-    if let Some(i) = matches.value_of("peertimeout") {
+    if let Some(i) = matches.get_one::<String>("peertimeout") {
         if i == "0" {
             cfg.peer_timeout = std::time::Duration::new(0, 0);
         } else {
@@ -359,12 +365,12 @@ Tag 255 takes 5 arguments and is interpreted as address. Usage: -S 255:'Samplest
         }
     }
 
-    if let Some(r) = matches.value_of("routing") {
-        if dtn7::routing::routing_algorithms().contains(&r) {
+    if let Some(r) = matches.get_one::<String>("routing") {
+        if dtn7::routing::routing_algorithms().contains(&r.as_str()) {
             cfg.routing = r.into();
         }
     }
-    if let Some(r_opts) = matches.values_of("routing_options") {
+    if let Some(r_opts) = matches.get_many::<String>("routing_options") {
         for r_opt in r_opts {
             let parts: Vec<&str> = r_opt.split('=').collect();
             if parts.len() != 2 {
@@ -389,13 +395,13 @@ Tag 255 takes 5 arguments and is interpreted as address. Usage: -S 255:'Samplest
         //cfg.routing_options = r_opts.map(|s| s.to_string()).collect();
     }
 
-    if let Some(db) = matches.value_of("db") {
-        if dtn7::core::store::bundle_stores().contains(&db) {
+    if let Some(db) = matches.get_one::<String>("db") {
+        if dtn7::core::store::bundle_stores().contains(&db.as_str()) {
             cfg.db = db.into();
         }
     }
 
-    if let Some(clas) = matches.values_of("cla") {
+    if let Some(clas) = matches.get_many::<String>("cla") {
         for cla in clas {
             let mut cla_split: Vec<&str> = cla.split(':').collect();
             let id_str = cla_split.remove(0);
@@ -410,7 +416,7 @@ Tag 255 takes 5 arguments and is interpreted as address. Usage: -S 255:'Samplest
         }
     }
 
-    if let Some(extensions) = matches.values_of("global") {
+    if let Some(extensions) = matches.get_many::<String>("global") {
         for ext in extensions {
             let mut ext_split: Vec<&str> = ext.split(':').collect();
             let id_str = ext_split.remove(0);
@@ -430,7 +436,7 @@ Tag 255 takes 5 arguments and is interpreted as address. Usage: -S 255:'Samplest
         }
     }
 
-    if let Some(services) = matches.values_of("service") {
+    if let Some(services) = matches.get_many::<String>("service") {
         for service in services {
             let service_split: Vec<&str> = service.split(':').collect();
             let tag: u8 = service_split[0]
@@ -449,7 +455,7 @@ Tag 255 takes 5 arguments and is interpreted as address. Usage: -S 255:'Samplest
             cfg.services.insert(tag, payload);
         }
     }
-    if let Some(destinations) = matches.values_of("discoverydestination") {
+    if let Some(destinations) = matches.get_many::<String>("discoverydestination") {
         for destination in destinations {
             cfg.add_destination(String::from(destination))
                 .expect("Encountered an error while parsing discovery address to config");
@@ -457,13 +463,13 @@ Tag 255 takes 5 arguments and is interpreted as address. Usage: -S 255:'Samplest
     }
     cfg.check_destinations()
         .expect("Encountered an error while checking for the existence of discovery addresses");
-    if let Some(statics) = matches.values_of("staticpeer") {
+    if let Some(statics) = matches.get_many::<String>("staticpeer") {
         for s in statics {
             cfg.statics.push(dtn7::core::helpers::parse_peer_url(s));
         }
     }
 
-    if let Some(in_v) = matches.values_of("endpoint") {
+    if let Some(in_v) = matches.get_many::<String>("endpoint") {
         for in_endpoint in in_v {
             cfg.endpoints.push(in_endpoint.to_string());
         }

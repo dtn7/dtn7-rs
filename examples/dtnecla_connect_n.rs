@@ -1,5 +1,5 @@
 use anyhow::Result;
-use clap::{crate_authors, crate_version, Arg, Command};
+use clap::{crate_authors, crate_version, Arg, ArgAction, Command};
 use dtn7::client::ecla::ws_client::Command::SendPacket;
 use dtn7::client::ecla::Packet::{Beacon, ForwardData};
 use dtn7::client::ecla::{ws_client, Packet};
@@ -20,19 +20,18 @@ async fn main() -> Result<()> {
                 .long("addr")
                 .value_name("ip:ecla_port")
                 .help("specify ecla address and port")
-                .multiple_occurrences(true)
-                .takes_value(true),
+                .action(ArgAction::Append),
         )
         .arg(
             Arg::new("debug")
                 .short('d')
                 .long("debug")
                 .help("Set log level to debug")
-                .takes_value(false),
+                .action(clap::ArgAction::SetTrue),
         )
         .get_matches();
 
-    if matches.is_present("debug") {
+    if matches.get_flag("debug") {
         std::env::set_var("RUST_LOG", "debug");
         pretty_env_logger::init_timed();
     }
@@ -41,7 +40,7 @@ async fn main() -> Result<()> {
 
     // initialize Clients
     let mut conns: Vec<mpsc::Sender<Packet>> = vec![];
-    if let Some(addrs) = matches.values_of("addr") {
+    if let Some(addrs) = matches.get_many::<String>("addr") {
         for (i, addr) in addrs.enumerate() {
             info!("Connecting to {}", addr);
 
