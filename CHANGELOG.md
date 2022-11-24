@@ -1,6 +1,18 @@
 # Changelog
 All notable changes to this project will be documented in this file.
 
+## [0.18.2] - 2022-11-24
+
+### Bug Fixes
+
+- Added lifetime expiration functionality in process_bundles, prior to actual forwarding
+- Localendpoint bundles now also expire if not consumed by an application
+
+### Miscellaneous Tasks
+
+- Fixed autodef for global locks as suggested by clippy
+- Updated to most recent version of clap and attohttpc
+
 ## [0.18.1] - 2022-10-09
 
 ### Bug Fixes
