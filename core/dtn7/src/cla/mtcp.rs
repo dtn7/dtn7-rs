@@ -229,7 +229,7 @@ pub fn mtcp_send_bundles(addr: SocketAddr, bundles: Vec<ByteBuffer>) -> Transfer
     #[allow(clippy::map_entry)]
     if !MTCP_CONNECTIONS.lock().contains_key(&addr) {
         debug!("Connecting to {}", addr);
-        if let Ok(stream) = TcpStream::connect(&addr) {
+        if let Ok(stream) = TcpStream::connect(addr) {
             MTCP_CONNECTIONS.lock().insert(addr, stream);
         } else {
             error!("Error connecting to remote {}", addr);
@@ -367,7 +367,7 @@ impl MtcpConvergenceLayer {
         #[allow(clippy::map_entry)]
         if !MTCP_CONNECTIONS.lock().contains_key(&addr) {
             debug!("Connecting to {}", addr);
-            if let Ok(stream) = TcpStream::connect(&addr) {
+            if let Ok(stream) = TcpStream::connect(addr) {
                 MTCP_CONNECTIONS.lock().insert(addr, stream);
             } else {
                 error!("Error connecting to remote {}", addr);

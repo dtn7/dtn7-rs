@@ -55,7 +55,7 @@ struct Module {
 pub fn generate_beacon() -> Beacon {
     let mut service_block = ServiceBlock::new();
     let mut beacon = Beacon {
-        eid: (*CONFIG.lock()).host_eid.clone(),
+        eid: CONFIG.lock().host_eid.clone(),
         addr: "".to_string(),
         service_block: vec![],
     };
@@ -66,7 +66,8 @@ pub fn generate_beacon() -> Beacon {
         .for_each(|cla| service_block.add_cla(cla.name(), &Some(cla.port())));
 
     // Get all available services
-    (*DTNCORE.lock())
+    DTNCORE
+        .lock()
         .service_list
         .iter()
         .for_each(|(tag, service)| {
@@ -160,8 +161,8 @@ pub fn handle_packet(connector_name: String, addr: String, packet: Packet) {
                     cla_add(ExternalConvergenceLayer::new(Option::Some(&settings)).into());
 
                     // Send registered packet
-                    let eid = (*CONFIG.lock()).host_eid.clone();
-                    let nodeid = (*CONFIG.lock()).nodeid.clone();
+                    let eid = CONFIG.lock().host_eid.clone();
+                    let nodeid = CONFIG.lock().nodeid.clone();
                     connector.send_packet(
                         addr.as_str(),
                         &Packet::Registered(Registered { eid, nodeid }),
@@ -217,7 +218,7 @@ pub fn handle_packet(connector_name: String, addr: String, packet: Packet) {
                     service_block.convert_services(),
                 ));
 
-                let cmd_channel = (*DTNCORE.lock()).routing_agent.channel();
+                let cmd_channel = DTNCORE.lock().routing_agent.channel();
                 if let Err(err) = cmd_channel.try_send(RoutingCmd::Notify(
                     RoutingNotifcation::EncounteredPeer(pdp.eid),
                 )) {

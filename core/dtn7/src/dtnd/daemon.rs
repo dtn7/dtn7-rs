@@ -67,48 +67,48 @@ pub async fn start_dtnd(cfg: DtnConfig) -> anyhow::Result<()> {
     {
         (*CONFIG.lock()).set(cfg);
     }
-    info!("Local Node ID: {}", (*CONFIG.lock()).host_eid);
+    info!("Local Node ID: {}", CONFIG.lock().host_eid);
 
-    info!("Work Dir: {:?}", (*CONFIG.lock()).workdir);
+    info!("Work Dir: {:?}", CONFIG.lock().workdir);
 
-    let db = (*CONFIG.lock()).db.clone();
+    let db = CONFIG.lock().db.clone();
     info!("DB Backend: {}", db);
 
     (*STORE.lock()) = crate::core::store::new(&db);
 
     info!(
         "Announcement Interval: {}",
-        humantime::format_duration((*CONFIG.lock()).announcement_interval)
+        humantime::format_duration(CONFIG.lock().announcement_interval)
     );
 
     info!(
         "Janitor Interval: {}",
-        humantime::format_duration((*CONFIG.lock()).janitor_interval)
+        humantime::format_duration(CONFIG.lock().janitor_interval)
     );
 
     info!(
         "Peer Timeout: {}",
-        humantime::format_duration((*CONFIG.lock()).peer_timeout)
+        humantime::format_duration(CONFIG.lock().peer_timeout)
     );
 
-    info!("Web Port: {}", (*CONFIG.lock()).webport);
-    info!("IPv4: {}", (*CONFIG.lock()).v4);
-    info!("IPv6: {}", (*CONFIG.lock()).v6);
+    info!("Web Port: {}", CONFIG.lock().webport);
+    info!("IPv4: {}", CONFIG.lock().v4);
+    info!("IPv6: {}", CONFIG.lock().v6);
 
     info!(
         "Generate Status Reports: {}",
-        (*CONFIG.lock()).generate_status_reports
+        CONFIG.lock().generate_status_reports
     );
 
-    let routing = (*CONFIG.lock()).routing.clone();
-    (*DTNCORE.lock()).routing_agent = crate::routing::new(&routing);
+    let routing = CONFIG.lock().routing.clone();
+    DTNCORE.lock().routing_agent = crate::routing::new(&routing);
 
     info!("RoutingAgent: {}", routing);
 
-    let routing_options = (*CONFIG.lock()).routing_settings.clone();
+    let routing_options = CONFIG.lock().routing_settings.clone();
     info!("RoutingOptions: {:?}", routing_options);
 
-    let clas = (*CONFIG.lock()).clas.clone();
+    let clas = CONFIG.lock().clas.clone();
     for (cla, local_settings) in &clas {
         info!("Adding CLA: {:?}", cla);
         cla_add(crate::cla::new(cla, Some(local_settings)));
@@ -117,7 +117,7 @@ pub async fn start_dtnd(cfg: DtnConfig) -> anyhow::Result<()> {
         warn!("No CLAs configured!");
     }
 
-    for s in &(*CONFIG.lock()).statics {
+    for s in &CONFIG.lock().statics {
         info!(
             "Adding static peer: {}://{}/{}",
             s.cla_list[0].0,
@@ -127,10 +127,10 @@ pub async fn start_dtnd(cfg: DtnConfig) -> anyhow::Result<()> {
         peers_add(s.clone());
     }
 
-    let local_host_id = (*CONFIG.lock()).host_eid.clone();
+    let local_host_id = CONFIG.lock().host_eid.clone();
     (*DTNCORE.lock())
         .register_application_agent(SimpleApplicationAgent::with(local_host_id.clone()).into());
-    for e in &(*CONFIG.lock()).endpoints {
+    for e in &CONFIG.lock().endpoints {
         let eid = if let Ok(eid) = EndpointID::try_from(e.clone()) {
             // TODO: add check if non-local ID that service name is non-singleton ('~') for naming scheme dtn
             eid
@@ -155,8 +155,8 @@ pub async fn start_dtnd(cfg: DtnConfig) -> anyhow::Result<()> {
         }
     }
 
-    if (*CONFIG.lock()).ecla_enable {
-        let ecla_port = (*CONFIG.lock()).ecla_tcp_port;
+    if CONFIG.lock().ecla_enable {
+        let ecla_port = CONFIG.lock().ecla_tcp_port;
         start_ecla(ecla_port).await;
     }
 
