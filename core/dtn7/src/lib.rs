@@ -14,12 +14,13 @@ use crate::routing::{RoutingAgent, RoutingCmd};
 use bp7::{Bundle, EndpointID};
 use cla::{CLAEnum, ClaSenderTask};
 pub use dtnconfig::DtnConfig;
-use log::{error, info};
+use log::{debug, error, info};
 
 pub use crate::core::{DtnCore, DtnPeer};
 pub use crate::routing::RoutingNotifcation;
 
 use crate::cla::ConvergenceLayerAgent;
+use crate::core::bundlepack::Constraint;
 use crate::core::peer::PeerAddress;
 use crate::core::store::BundleStoresEnum;
 use anyhow::{bail, Context, Result};
@@ -193,20 +194,19 @@ pub fn store_get_metadata(bpid: &str) -> Option<BundlePack> {
     (*STORE.lock()).get_metadata(bpid)
 }
 
-// OBSOLETE: inefficient because complete bundle needs to be fetched from store
 pub fn store_delete_expired() {
-    let pending_bids: Vec<String> = (*STORE.lock()).pending();
+    let all_bids = (*STORE.lock()).bundles();
 
-    let expired: Vec<String> = pending_bids
+    let all_but_deleted: Vec<&BundlePack> = all_bids
         .iter()
-        .flat_map(|b| (*STORE.lock()).get_bundle(b))
-        //.filter(|b| b.is_some())
-        //.map(|b| b.unwrap())
-        .filter(|e| e.primary.is_lifetime_exceeded())
-        .map(|e| e.id())
+        .filter(|bp| !bp.has_constraint(Constraint::Deleted))
         .collect();
-    for bid in expired {
-        store_remove(&bid);
+
+    for meta in all_but_deleted {
+        if meta.has_expired() {
+            debug!("Bundle {} is too old, deleting it", meta.id);
+            store_remove(&meta.id);
+        }
     }
 }
 

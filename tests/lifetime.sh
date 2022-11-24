@@ -13,12 +13,15 @@ echo
 
 echo "Sending 'test' to node 3 with a lifetime of 2 seconds"
 echo test | $BINS/dtnsend -r dtn://node3/incoming -p $PORT_NODE1 -l 2
-#$BINS/dtnquery bundles
+echo "Sending 'test' to self with a lifetime of 2 seconds"
+echo test | $BINS/dtnsend -r dtn://node1/incoming -p $PORT_NODE1 -l 2
+
+#$BINS/dtnquery store
 echo
 echo "Waiting for 5 seconds"
 sleep 5
 
-#$BINS/dtnquery bundles
+#$BINS/dtnquery store
 
 echo
 echo -n "Bundles in store on node 1: "
