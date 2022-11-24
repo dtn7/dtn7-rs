@@ -41,6 +41,8 @@ impl BundleStore for InMemoryBundleStore {
             meta.clear_constraints();
             meta.add_constraint(Constraint::Deleted);
             self.update_metadata(&meta)?;
+        } else {
+            bail!("Bundle meta data not in store!");
         }
         if self.bundles.remove(bid).is_none() {
             bail!("Bundle not in store!");

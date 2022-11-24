@@ -128,6 +128,7 @@ impl BundleStore for SneakersBundleStore {
             source,
             destination,
             received_time: meta.time_added_to_db,
+            lifetime: meta.lifetime,
             id: bpid.to_owned(),
             administrative: false,
             size: meta.size as usize,

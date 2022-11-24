@@ -192,6 +192,7 @@ pub fn store_get_metadata(bpid: &str) -> Option<BundlePack> {
     (*STORE.lock()).get_metadata(bpid)
 }
 
+// OBSOLETE: inefficient because complete bundle needs to be fetched from store
 pub fn store_delete_expired() {
     let pending_bids: Vec<String> = (*STORE.lock()).pending();
 

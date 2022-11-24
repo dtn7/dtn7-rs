@@ -5,10 +5,11 @@ pub mod peer;
 pub mod processing;
 pub mod store;
 
+use crate::core::bundlepack::Constraint;
 pub use crate::core::peer::{DtnPeer, PeerType};
 use crate::core::store::BundleStore;
 use crate::routing::RoutingAgentsEnum;
-use crate::{routing_notify, store_get_bundle, store_get_metadata};
+use crate::{routing_notify, store_get_bundle, store_get_metadata, store_remove};
 pub use crate::{store_has_item, store_push_bundle};
 use crate::{RoutingNotifcation, CONFIG};
 use crate::{PEERS, STORE};
@@ -144,7 +145,21 @@ pub async fn process_bundles() {
     let mut forwarding_bundles: Vec<BundlePack> = forwarding_bids
         .iter()
         .filter_map(|bid| store_get_metadata(bid))
+        .filter(|bp| !bp.has_constraint(Constraint::Deleted))
         .collect();
+
+    // check if we have bundles that are expired
+    // if so delete them from store
+    for meta in &mut forwarding_bundles {
+        if meta.has_expired() {
+            debug!("Bundle {} is too old, deleting it", meta.id);
+            store_remove(&meta.id);
+        }
+        meta.add_constraint(Constraint::Deleted);
+    }
+    forwarding_bundles.retain(|bp| !bp.has_constraint(Constraint::Deleted));
+
+    // process them in chronological order
     forwarding_bundles.sort_unstable_by(|a, b| a.creation_time.cmp(&b.creation_time));
 
     let num_bundles = forwarding_bundles.len();
