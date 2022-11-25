@@ -6,6 +6,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE-MIT)
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE-APACHE)
 [![Chat](https://img.shields.io/matrix/dtn7:matrix.org)](https://matrix.to/#/#dtn7:matrix.org)
+[![Mastodon](https://img.shields.io/mastodon/follow/109375208547495905?domain=https%3A%2F%2Ffosstodon.org&style=social)](https://img.shields.io/mastodon/follow/109375208547495905?domain=https%3A%2F%2Ffosstodon.org&style=social)
 
 Rust implementation of a disruption-tolerant networking (DTN) daemon for the [Bundle Protocol version 7 - RFC9171](https://datatracker.ietf.org/doc/rfc9171/).
 
