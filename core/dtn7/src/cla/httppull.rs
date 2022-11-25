@@ -1,11 +1,10 @@
 use std::collections::HashMap;
 use std::convert::TryFrom;
-use std::hash::Hasher;
 use std::net::IpAddr;
 
+use crate::core::helpers::get_complete_digest;
 use crate::core::peer::PeerAddress;
-use crate::core::store::BundleStore;
-use crate::{store_has_item, CONFIG, STORE};
+use crate::{store_has_item, CONFIG};
 
 use super::TransferResult;
 use super::{ConvergenceLayerAgent, HelpStr};
@@ -94,21 +93,7 @@ async fn http_pull_from_node(
 async fn http_pull_bundles() {
     debug!("pulling bundles from peers");
 
-    // get our local digest as string
-    let bids: Vec<String> = (*STORE.lock())
-        .bundles()
-        .iter()
-        //.filter(|bp| !bp.has_constraint(Constraint::Deleted)) // deleted bundles were once known, thus, we don't need them again
-        .map(|bp| bp.id.to_string())
-        .collect();
-    // generate hash of all known bids
-    let mut hasher = std::collections::hash_map::DefaultHasher::new();
-    for bid in bids {
-        hasher.write(bid.as_bytes());
-    }
-    let hash = hasher.finish();
-
-    let local_digest = format!("{:02x}", hash);
+    let local_digest = get_complete_digest();
 
     let peers = crate::PEERS.lock().clone();
     for (_, p) in peers.iter() {
