@@ -5,11 +5,12 @@ pub mod peer;
 pub mod processing;
 pub mod store;
 
+use crate::cla::ConvergenceLayerAgent;
 use crate::core::bundlepack::Constraint;
 pub use crate::core::peer::{DtnPeer, PeerType};
 use crate::core::store::BundleStore;
 use crate::routing::RoutingAgentsEnum;
-use crate::{routing_notify, store_delete_expired, store_get_bundle, store_get_metadata};
+use crate::{routing_notify, store_delete_expired, store_get_bundle, store_get_metadata, CLAS};
 pub use crate::{store_has_item, store_push_bundle};
 use crate::{RoutingNotifcation, CONFIG};
 use crate::{PEERS, STORE};
@@ -142,6 +143,13 @@ pub async fn process_bundles() {
     let now_total = Instant::now();
 
     store_delete_expired();
+
+    let active_cla = (*CLAS.lock()).iter().any(|p| p.accepting());
+    if !active_cla {
+        debug!("No active/push CLA, not forwarding any bundles");
+        debug!("time to process bundles: {:?}", now_total.elapsed());
+        return;
+    }
 
     let forwarding_bids: Vec<String> = (*STORE.lock()).forwarding();
 
