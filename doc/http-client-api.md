@@ -195,6 +195,15 @@ $ curl http://127.0.0.1:3000/status/bundles
 ]
 ```
 
+### **GET** `/status/bundles/digest`
+
+Get a hash digest of all bundles at the local *dtnd* instance.
+
+```
+$ curl http://127.0.0.1:3000/status/bundles/digest
+39caaad825bbdc3c
+```
+
 ### **GET** `/status/bundles/verbose`
 
 Get a list of all bundles at the local *dtnd* instance including source and destination EID, creation timestamp and bundle size.
@@ -217,6 +226,15 @@ $ curl "http://127.0.0.1:3002/status/bundles/filtered?addr=node50"
 [
   "dtn://node29/123456-710077677209-0"
 ]
+```
+
+### **GET** `/status/bundles/filtered/digest?addr=<address_part_criteria>`
+
+Get a hash digest of the bundles matching the filter criteria at the local *dtnd* instance.
+
+```
+$ curl http://127.0.0.1:3000/status/bundles/filtered/digest?addr=node1
+c08e54f9a9bc98d5
 ```
 
 ### **GET** `/status/store`

@@ -38,6 +38,7 @@ use serde::Serialize;
 use std::collections::HashMap;
 use std::convert::{TryFrom, TryInto};
 use std::fmt::Write;
+use std::hash::Hasher;
 use std::net::SocketAddr;
 use std::time::Instant;
 use tinytemplate::TinyTemplate;
@@ -261,9 +262,44 @@ async fn status_bundles_filtered(
         Err((StatusCode::BAD_REQUEST, "missing filter criteria"))
     }
 }
+async fn status_bundles_filtered_digest(
+    Query(params): Query<HashMap<String, String>>,
+) -> Result<String, (StatusCode, &'static str)> {
+    if let Some(criteria) = params.get("addr") {
+        let bids = (*STORE.lock()).filter_addr(criteria);
+        let mut hasher = std::collections::hash_map::DefaultHasher::new();
+
+        for bid in bids {
+            hasher.write(bid.as_bytes());
+        }
+        let hash = hasher.finish();
+
+        Ok(format!("{:02x}", hash))
+    } else {
+        //anyhow::bail!("missing filter criteria");
+        Err((StatusCode::BAD_REQUEST, "missing filter criteria"))
+    }
+}
 //#[get("/status/bundles/verbose")]
 async fn status_bundles_verbose() -> String {
     serde_json::to_string_pretty(&(*DTNCORE.lock()).bundle_full_meta()).unwrap()
+}
+//#[get("/status/bundles/digest")]
+async fn status_bundles_digest() -> String {
+    let bids: Vec<String> = (*STORE.lock())
+        .bundles()
+        .iter()
+        //.filter(|bp| !bp.has_constraint(Constraint::Deleted)) // deleted bundles were once known, thus, we don't need them again
+        .map(|bp| bp.id.to_string())
+        .collect();
+    // generate hash of all known bids
+    let mut hasher = std::collections::hash_map::DefaultHasher::new();
+    for bid in bids {
+        hasher.write(bid.as_bytes());
+    }
+    let hash = hasher.finish();
+
+    format!("{:02x}", hash)
 }
 //#[get("/status/store", guard = "fn_guard_localhost")]
 async fn status_store() -> String {
@@ -653,7 +689,12 @@ pub async fn spawn_httpd() -> Result<()> {
         .route("/status/eids", get(status_eids))
         .route("/status/bundles", get(status_bundles))
         .route("/status/bundles/filtered", get(status_bundles_filtered))
+        .route(
+            "/status/bundles/filtered/digest",
+            get(status_bundles_filtered_digest),
+        )
         .route("/status/bundles/verbose", get(status_bundles_verbose))
+        .route("/status/bundles/digest", get(status_bundles_digest))
         .route("/status/store", get(status_store))
         .route("/status/peers", get(status_peers))
         .route("/status/info", get(status_info));

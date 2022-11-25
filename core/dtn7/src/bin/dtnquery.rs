@@ -27,6 +27,9 @@ enum Commands {
         /// Verbose output includes bundle destination
         #[clap(short, long)]
         verbose: bool,
+        /// Just print hash digest of bundles known
+        #[clap(short, long)]
+        digest: bool,
         /// Filter for bundles with source or destination address
         #[clap(short, long)]
         addr: Option<String>,
@@ -58,15 +61,28 @@ fn main() {
             println!("Listing of known peers:");
             format!("http://{}:{}/status/peers", localhost, port)
         }
-        Commands::Bundles { verbose, addr } => {
+        Commands::Bundles {
+            verbose,
+            digest,
+            addr,
+        } => {
             println!("Listing of bundles in store:");
             if *verbose {
                 format!("http://{}:{}/status/bundles/verbose", localhost, port)
             } else if let Some(addr) = addr {
-                format!(
-                    "http://{}:{}/status/bundles/filtered?addr={}",
-                    localhost, port, addr
-                )
+                if *digest {
+                    format!(
+                        "http://{}:{}/status/bundles/filtered/digest?addr={}",
+                        localhost, port, addr
+                    )
+                } else {
+                    format!(
+                        "http://{}:{}/status/bundles/filtered?addr={}",
+                        localhost, port, addr
+                    )
+                }
+            } else if *digest {
+                format!("http://{}:{}/status/bundles/digest", localhost, port)
             } else {
                 format!("http://{}:{}/status/bundles", localhost, port)
             }
