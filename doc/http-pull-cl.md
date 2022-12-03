@@ -6,6 +6,7 @@ HTTP Pull Convergence Layer
 While the most common Bundle Protocol / DTN convergence layers and routing protocols work on a push basis, this CL is based on a pull strategy similar to protocols like [Forban](https://github.com/adulau/Forban).
 
 The CLA does not accept bundles for transmission but periodically checks all peers for the bundles they have in their store. 
+Therefore, it even works without a routing agent selected as the convergence layer agent itself pulls in the new bundles.
 
 For each peer with the default webservice and/or *httppull* CLA the following steps are performed:
 
