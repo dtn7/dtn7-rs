@@ -25,8 +25,10 @@ sleep 1
 
 echo
 
-echo "Sending 'test' to node 3"
-echo test | $BINS/dtnsend -r dtn://node3/incoming -p $PORT_NODE1
+echo "Sending 3x'test' to node 3"
+echo test1 | $BINS/dtnsend -r dtn://node3/incoming -p $PORT_NODE1
+echo test2 | $BINS/dtnsend -r dtn://node3/incoming -p $PORT_NODE1
+echo test3 | $BINS/dtnsend -r dtn://node3/incoming -p $PORT_NODE1
 
 sleep 5
 
@@ -36,9 +38,9 @@ NUM_BUNDLES=$($BINS/dtnquery store | grep "dtn://" | wc -l | awk '{print $1}')
 echo -n $NUM_BUNDLES
 
 if [ -z "$STATUS_REPORTS" ]; then
-  EXPECTED_BUNDLES=1
+  EXPECTED_BUNDLES=3
 else
-  EXPECTED_BUNDLES=2
+  EXPECTED_BUNDLES=6
 fi
 echo " / $EXPECTED_BUNDLES"
 if [ "$NUM_BUNDLES" = "$EXPECTED_BUNDLES" ]; then
