@@ -27,10 +27,18 @@ async fn http_pull_from_node(
     port: u16,
     local_digest: String,
 ) -> TransferResult {
+    let now = std::time::Instant::now();
+    let mut transfers = 0;
+
+    let client = reqwest::Client::new();
+
     debug!("pulling bundles from {} / {}", eid, addr);
 
     // get digest of remote node
-    let response = reqwest::get(&format!("http://{}:{}/status/bundles/digest", addr, port)).await;
+    let response = client
+        .get(&format!("http://{}:{}/status/bundles/digest", addr, port))
+        .send()
+        .await;
     let digest = match response {
         Ok(digest) => digest.text().await.unwrap(),
         Err(e) => {
@@ -41,9 +49,17 @@ async fn http_pull_from_node(
     if digest == local_digest {
         debug!("no new bundles on remote");
         return TransferResult::Successful;
+    } else {
+        debug!(
+            "remote ({}) has new bundles (remote: {} vs local: {})",
+            eid, digest, local_digest
+        );
     }
     // get list of bundles from remote node
-    let response = reqwest::get(&format!("http://{}:{}/status/bundles", addr, port)).await;
+    let response = client
+        .get(&format!("http://{}:{}/status/bundles", addr, port))
+        .send()
+        .await;
     let bid_list = match response {
         Ok(bid_list) => bid_list.text().await.unwrap(),
         Err(e) => {
@@ -64,7 +80,11 @@ async fn http_pull_from_node(
 
     // fetch missing bundles from remote node
     for bid in missing {
-        let response = reqwest::get(&format!("http://{}:{}/download?{}", addr, port, bid)).await;
+        transfers += 1;
+        let response = client
+            .get(&format!("http://{}:{}/download?{}", addr, port, bid))
+            .send()
+            .await;
         let bundle_buf = match response {
             Ok(bundle) => bundle.bytes().await.unwrap(),
             Err(e) => {
@@ -88,6 +108,13 @@ async fn http_pull_from_node(
             });
         }
     }
+    debug!(
+        "finished pulling {} bundles from {} / {} in {:?}",
+        transfers,
+        eid,
+        addr,
+        now.elapsed()
+    );
     TransferResult::Successful
 }
 async fn http_pull_bundles() {
@@ -130,7 +157,9 @@ async fn http_puller_loop(rx: mpsc::Receiver<bool>) {
             break;
           }
           _ = tokio::time::sleep(interval) => {
+            let now = std::time::Instant::now();
             http_pull_bundles().await;
+            debug!("http puller took {:?}", now.elapsed());
           }
         }
     }
