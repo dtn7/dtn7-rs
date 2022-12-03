@@ -147,12 +147,13 @@ pub fn is_valid_service_name(name: &str) -> bool {
 }
 
 pub fn get_complete_digest() -> String {
-    let bids: Vec<String> = (*STORE.lock())
+    let mut bids: Vec<String> = (*STORE.lock())
         .bundles()
         .iter()
         //.filter(|bp| !bp.has_constraint(Constraint::Deleted)) // deleted bundles were once known, thus, we don't need them again
         .map(|bp| bp.id.to_string())
         .collect();
+    bids.sort();
     get_digest_of_bids(&bids)
 }
 
