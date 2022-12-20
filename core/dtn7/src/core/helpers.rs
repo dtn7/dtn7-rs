@@ -6,8 +6,7 @@ use bp7::EndpointID;
 use rand::distributions::Alphanumeric;
 use rand::thread_rng;
 use rand::Rng;
-use std::collections::hash_map::DefaultHasher;
-use std::hash::Hasher;
+use sha1::{Digest, Sha1};
 use std::{
     convert::{TryFrom, TryInto},
     net::IpAddr,
@@ -158,9 +157,9 @@ pub fn get_complete_digest() -> String {
 }
 
 pub fn get_digest_of_bids(bids: &[String]) -> String {
-    let mut hasher = DefaultHasher::new();
+    let mut hasher = Sha1::new();
     for bid in bids {
-        hasher.write(bid.as_bytes());
+        hasher.update(bid.as_bytes());
     }
-    format!("{:x}", hasher.finish())
+    format!("{:x}", hasher.finalize())
 }
