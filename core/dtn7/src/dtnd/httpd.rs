@@ -1,6 +1,8 @@
 use crate::core::application_agent::ApplicationAgent;
 use crate::core::application_agent::SimpleApplicationAgent;
 use crate::core::bundlepack::Constraint;
+use crate::core::helpers::get_complete_digest;
+use crate::core::helpers::get_digest_of_bids;
 use crate::core::helpers::is_valid_service_name;
 use crate::core::helpers::rnd_peer;
 use crate::core::peer::PeerType;
@@ -38,7 +40,6 @@ use serde::Serialize;
 use std::collections::HashMap;
 use std::convert::{TryFrom, TryInto};
 use std::fmt::Write;
-use std::hash::Hasher;
 use std::net::SocketAddr;
 use std::time::Instant;
 use tinytemplate::TinyTemplate;
@@ -93,6 +94,7 @@ struct IndexContext<'a> {
     timeout: String,
     num_peers: usize,
     num_bundles: usize,
+    bundles_digest: String,
     clas: Vec<String>,
 }
 
@@ -119,6 +121,7 @@ struct BundleInfo {
 struct BundlesContext<'a> {
     config: &'a DtnConfig,
     bundles: &'a [BundleInfo],
+    bundles_digest: String,
 }
 #[derive(Serialize)]
 struct BundleEntry {
@@ -139,6 +142,7 @@ async fn index() -> Html<String> {
     let announcement = humantime::format_duration(CONFIG.lock().announcement_interval).to_string();
     let janitor = humantime::format_duration(CONFIG.lock().janitor_interval).to_string();
     let timeout = humantime::format_duration(CONFIG.lock().peer_timeout).to_string();
+    let bundles_digest = get_complete_digest();
     let clas = cla_names();
     let context = IndexContext {
         config: &CONFIG.lock(),
@@ -147,6 +151,7 @@ async fn index() -> Html<String> {
         timeout,
         num_peers: peers_count(),
         num_bundles: (*DTNCORE.lock()).bundle_count(),
+        bundles_digest,
         clas,
     };
 
@@ -221,9 +226,11 @@ async fn web_bundles() -> Html<String> {
             size: format_size(bp.size, DECIMAL),
         })
         .collect();
+    let bundles_digest = get_complete_digest();
     let context = BundlesContext {
         config: &CONFIG.lock(),
         bundles: bundles_vec.as_slice(),
+        bundles_digest,
     };
     //let peers_vec: Vec<&DtnPeer> = (*PEERS.lock()).values().collect();
     let rendered = tt
@@ -267,14 +274,7 @@ async fn status_bundles_filtered_digest(
 ) -> Result<String, (StatusCode, &'static str)> {
     if let Some(criteria) = params.get("addr") {
         let bids = (*STORE.lock()).filter_addr(criteria);
-        let mut hasher = std::collections::hash_map::DefaultHasher::new();
-
-        for bid in bids {
-            hasher.write(bid.as_bytes());
-        }
-        let hash = hasher.finish();
-
-        Ok(format!("{:02x}", hash))
+        Ok(get_digest_of_bids(&bids))
     } else {
         //anyhow::bail!("missing filter criteria");
         Err((StatusCode::BAD_REQUEST, "missing filter criteria"))
@@ -286,20 +286,7 @@ async fn status_bundles_verbose() -> String {
 }
 //#[get("/status/bundles/digest")]
 async fn status_bundles_digest() -> String {
-    let bids: Vec<String> = (*STORE.lock())
-        .bundles()
-        .iter()
-        //.filter(|bp| !bp.has_constraint(Constraint::Deleted)) // deleted bundles were once known, thus, we don't need them again
-        .map(|bp| bp.id.to_string())
-        .collect();
-    // generate hash of all known bids
-    let mut hasher = std::collections::hash_map::DefaultHasher::new();
-    for bid in bids {
-        hasher.write(bid.as_bytes());
-    }
-    let hash = hasher.finish();
-
-    format!("{:02x}", hash)
+    get_complete_digest()
 }
 //#[get("/status/store", guard = "fn_guard_localhost")]
 async fn status_store() -> String {

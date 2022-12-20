@@ -6,6 +6,7 @@ use bp7::EndpointID;
 use rand::distributions::Alphanumeric;
 use rand::thread_rng;
 use rand::Rng;
+use sha1::{Digest, Sha1};
 use std::{
     convert::{TryFrom, TryInto},
     net::IpAddr,
@@ -142,4 +143,23 @@ pub fn is_valid_service_name(name: &str) -> bool {
     name.chars().all(|c| {
         c.is_ascii_alphanumeric() || c == '/' || c == '-' || c == '_' || c == '.' || c == '~'
     })
+}
+
+pub fn get_complete_digest() -> String {
+    let mut bids: Vec<String> = (*STORE.lock())
+        .bundles()
+        .iter()
+        //.filter(|bp| !bp.has_constraint(Constraint::Deleted)) // deleted bundles were once known, thus, we don't need them again
+        .map(|bp| bp.id.to_string())
+        .collect();
+    bids.sort();
+    get_digest_of_bids(&bids)
+}
+
+pub fn get_digest_of_bids(bids: &[String]) -> String {
+    let mut hasher = Sha1::new();
+    for bid in bids {
+        hasher.update(bid.as_bytes());
+    }
+    format!("{:x}", hasher.finalize())
 }

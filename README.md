@@ -13,7 +13,8 @@ Rust implementation of a disruption-tolerant networking (DTN) daemon for the [Bu
 Plus:
 * [TCP Convergence Layer v4 - RFC9174](https://datatracker.ietf.org/doc/rfc9174/)
 * [Minimal TCP Convergence Layer](https://tools.ietf.org/html/draft-ietf-dtn-mtcpcl-01) 
-* A simple HTTP Convergence Layer 
+* A simple [HTTP Convergence Layer](doc/http-cl.md)
+* A [HTTP pull-based Convergence Layer](doc/http-pull-cl.md)
 * An IP neighorhood discovery service
 * Convenient command line tools to interact with the daemon
 * A simple web interface for status information about `dtnd` 

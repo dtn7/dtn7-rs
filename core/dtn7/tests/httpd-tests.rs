@@ -10,6 +10,7 @@ struct Context<'a> {
     timeout: String,
     num_peers: u64,
     num_bundles: u64,
+    bundles_digest: String,
     clas: Vec<String>,
 }
 #[test]
@@ -25,6 +26,7 @@ fn template_test() {
         timeout: "20s".to_owned(),
         num_peers: 4,
         num_bundles: 10,
+        bundles_digest: "cafebabe".to_owned(),
         clas: vec![],
     };
 
