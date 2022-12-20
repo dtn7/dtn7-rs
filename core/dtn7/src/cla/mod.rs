@@ -2,6 +2,7 @@ pub mod dummy;
 pub mod ecla;
 pub mod external;
 pub mod http;
+pub mod httppull;
 pub mod mtcp;
 pub mod tcp;
 
@@ -14,6 +15,7 @@ use dtn7_codegen::init_cla_subsystem;
 use dummy::DummyConvergenceLayer;
 use enum_dispatch::enum_dispatch;
 use external::ExternalConvergenceLayer;
+use httppull::HttpPullConvergenceLayer;
 use mtcp::MtcpConvergenceLayer;
 use serde::{Deserialize, Serialize};
 use std::str::FromStr;
