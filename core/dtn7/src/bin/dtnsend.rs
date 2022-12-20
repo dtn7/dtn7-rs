@@ -103,7 +103,7 @@ fn main() {
     //let local_url = format!("http://127.0.0.1:3000/send?bundle={}", hexstr);
     //let res = reqwest::get(&local_url).expect("error connecting to local dtnd").text().unwrap();
     if !args.dryrun {
-        let res = attohttpc::post(&format!("http://{}:{}/insert", localhost, port))
+        let res = attohttpc::post(format!("http://{}:{}/insert", localhost, port))
             .bytes(binbundle)
             .send()
             .expect("error send bundle to dtnd")

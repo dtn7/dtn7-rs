@@ -76,7 +76,7 @@ fn main() {
             args.bid.unwrap()
         )
     };
-    let res = attohttpc::get(&local_url)
+    let res = attohttpc::get(local_url)
         .send()
         .expect("error connecting to local dtnd");
 
