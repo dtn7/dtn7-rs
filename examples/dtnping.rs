@@ -105,7 +105,7 @@ fn main() -> Result<()> {
     };
     client.register_application_endpoint(&endpoint)?;
 
-    let stream = std::net::TcpStream::connect(&format!("127.0.0.1:{}", port))?;
+    let stream = std::net::TcpStream::connect(format!("127.0.0.1:{}", port))?;
     stream.set_read_timeout(Some(timeout))?;
     let mut wscon = client.ws_custom(stream)?;
     //let mut wscon = client.ws()?;
