@@ -10,7 +10,12 @@ if [ -n "$1" ]; then
         SHARED=$(readlink -f $1)
     fi
     echo Using custom shared directory: $SHARED
-else 
+else
+    if ! lsmod | grep -q -e sch_netem -e ebtables; then
+        echo "neither sch_netem nor ebables kernel modules are not loaded"
+        echo "try running sudo modprobe sch_netem ebtables"
+        exit 1
+    fi
     echo Using default shared directory: $SHARED
 fi
 
@@ -20,32 +25,32 @@ else
     INTERACTIVE=""
 fi
 if [ "$PLATFORM" = "Darwin" ]; then
-xhost + 127.0.0.1
-docker run -it --rm \
-    --name coreemu-lab \
-    -p 2000:22 \
-    -p 50051:50051 \
-    -v $SHARED:/shared \
-    --cap-add=NET_ADMIN \
-    --cap-add=SYS_ADMIN \
-    -e SSHKEY="`cat ~/.ssh/id_rsa.pub`" \
-    -e DISPLAY=host.docker.internal:0 \
-    --privileged \
-    $INTERACTIVE \
-    gh0st42/coreemu-lab
+    xhost + 127.0.0.1
+    docker run -it --rm \
+        --name coreemu-lab \
+        -p 2000:22 \
+        -p 50051:50051 \
+        -v $SHARED:/shared \
+        --cap-add=NET_ADMIN \
+        --cap-add=SYS_ADMIN \
+        -e SSHKEY="$(cat ~/.ssh/id_rsa.pub)" \
+        -e DISPLAY=host.docker.internal:0 \
+        --privileged \
+        $INTERACTIVE \
+        gh0st42/coreemu-lab:1.1.0
 else
-xhost +local:root
-docker run -it --rm \
-    --name coreemu-lab \
-    -p 2000:22 \
-    -p 50051:50051 \
-    -v $SHARED:/shared \
-    --cap-add=NET_ADMIN \
-    --cap-add=SYS_ADMIN \
-    -e SSHKEY="`cat ~/.ssh/id_rsa.pub`" \
-    -e DISPLAY \
-    -v /tmp/.X11-unix:/tmp/.X11-unix:rw \
-    --privileged \
-    $INTERACTIVE \
-    gh0st42/coreemu-lab
+    xhost +local:root
+    docker run -it --rm \
+        --name coreemu-lab \
+        -p 2000:22 \
+        -p 50051:50051 \
+        -v $SHARED:/shared \
+        --cap-add=NET_ADMIN \
+        --cap-add=SYS_ADMIN \
+        -e SSHKEY="$(cat ~/.ssh/id_rsa.pub)" \
+        -e DISPLAY \
+        -v /tmp/.X11-unix:/tmp/.X11-unix:rw \
+        --privileged \
+        $INTERACTIVE \
+        gh0st42/coreemu-lab:1.1.0
 fi
