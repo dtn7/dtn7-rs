@@ -1,5 +1,14 @@
 #!/bin/bash
 
+set -e
+
+# check if cross binary is installed
+if ! command -v cross &>/dev/null; then
+    echo "cross command could not be found"
+    echo "install it with: cargo install cross"
+    exit
+fi
+
 if [[ "$OSTYPE" != "linux-gnu"* ]]; then
     echo "Only linux is support at the moment"
 fi
@@ -14,11 +23,11 @@ PLATFORM=$(uname)
 
 mkdir -p $1/bin
 if [ "$PLATFORM" = "Darwin" ]; then
-    cross build --all --release --locked --target=x86_64-unknown-linux-gnu && for i in $(find ../../target/x86_64-unknown-linux-gnu/release/ -perm +111 -depth 1); do cp -v $i  $1/bin ; done
-    cross build --all --release --locked --target=x86_64-unknown-linux-gnu --examples && for i in $(find ../../target/x86_64-unknown-linux-gnu/release/examples/ -perm +111 -depth 1); do cp -v $i  $1/bin ; done
+    cross build --all --release --locked --target=x86_64-unknown-linux-musl && for i in $(find ../../target/x86_64-unknown-linux-musl/release/ -perm +111 -depth 1); do cp -v $i $1/bin; done
+    cross build --all --release --locked --target=x86_64-unknown-linux-musl --examples && for i in $(find ../../target/x86_64-unknown-linux-musl/release/examples/ -perm +111 -depth 1); do cp -v $i $1/bin; done
 else
-    cargo build --all --release --locked && for i in $(find ../../target/release/ -executable -type f | grep -v -); do cp -v $i  $1/bin ; done
-    cargo build --all --release --locked --examples && for i in $(find ../../target/release/examples/ -executable -type f | grep -v -); do cp -v $i  $1/bin ; done
+    cross build --all --release --locked --target=x86_64-unknown-linux-musl && for i in $(find ../../target/x86_64-unknown-linux-musl/release/ -executable -type f | grep -v deps | grep -v -P "\-[a-z0-9]+$"); do cp -v $i $1/bin; done
+    cross build --all --release --locked --target=x86_64-unknown-linux-musl --examples && for i in $(find ../../target/x86_64-unknown-linux-musl/release/examples/ -executable -type f | grep -v deps | grep -v -P "\-[a-z0-9]+$"); do cp -v $i $1/bin; done
 fi
 
 ./clab $1 || exit 255
@@ -26,8 +35,8 @@ fi
 RESULT=$(cat $1/experiment.log | grep "EXPERIMENT RESULT: ")
 
 if [[ $RESULT =~ "EXPERIMENT RESULT: Success" ]]; then
-   echo "$RESULT"
-   exit 0
+    echo "$RESULT"
+    exit 0
 elif [[ $RESULT =~ "EXPERIMENT RESULT: Failed" ]]; then
     echo "$RESULT"
     exit 1
