@@ -142,6 +142,11 @@ impl Client {
                                 error!("Error while sending ForwardData to channel: {}", err);
                             }
                         }
+                        Packet::Registered(reg) => {
+                            if let Err(err) = self.packet_out.send(Packet::Registered(reg)).await {
+                                error!("Error while sending Registered to channel: {}", err);
+                            }
+                        }
                         Packet::Beacon(mut pdp) => {
                             pdp.addr = self.id.clone();
 
