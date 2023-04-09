@@ -22,12 +22,16 @@ struct Args {
     verbose: bool,
 
     /// Specify local endpoint, e.g. 'incoming', or a group endpoint 'dtn://helpers/~incoming'
-    #[clap(short, long, required_unless_present = "bid", conflicts_with = "bid")]
+    #[clap(short, long, required_unless_present_any = ["bid", "delete"], conflicts_with_all = ["bid", "delete"])]
     endpoint: Option<String>,
 
     /// Download any bundle by its ID
-    #[clap(short, long, required_unless_present = "endpoint")]
+    #[clap(short, long, required_unless_present_any = ["endpoint", "delete"])]
     bid: Option<String>,
+
+    /// Delete any bundle by its ID
+    #[clap(short, long, required_unless_present_any = ["endpoint", "bid"], value_name = "BID")]
+    delete: Option<String>,
 
     /// Write bundle payload to file instead of stdout
     #[clap(short, long)]
@@ -68,6 +72,13 @@ fn main() {
     let localhost = if args.ipv6 { "[::1]" } else { "127.0.0.1" };
     let local_url = if let Some(endpoint) = args.endpoint {
         format!("http://{}:{}/endpoint?{}", localhost, port, endpoint)
+    } else if args.delete.is_some() {
+        format!(
+            "http://{}:{}/delete?{}",
+            localhost,
+            port,
+            args.delete.clone().unwrap()
+        )
     } else {
         format!(
             "http://{}:{}/download?{}",
@@ -87,7 +98,10 @@ fn main() {
         process::exit(23);
     }
     let buf: Vec<u8> = res.bytes().expect("No bundle bytes received");
-    if buf.len() > 50 {
+    if args.delete.is_some() {
+        println!("Deleted bundle {}", args.delete.unwrap());
+        process::exit(0);
+    } else if buf.len() > 50 {
         // TODO: very arbitrary number, should check return code
         if args.hex {
             println!("{}", hexify(&buf));

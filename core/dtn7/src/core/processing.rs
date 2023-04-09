@@ -433,7 +433,7 @@ pub async fn forward(mut bp: BundlePack) -> Result<()> {
                 send_status_report(&bp, FORWARDED_BUNDLE, NO_INFORMATION).await;
             }
             if delete_afterwards {
-                store_remove(&bpid);
+                store_remove(&bpid)?;
             } else if bndl.is_administrative_record() {
                 // TODO: always inspect all bundles, should be configurable
                 is_administrative_record_valid(&bndl);
@@ -604,7 +604,13 @@ fn inspect_status_report(bid: &str, ar: AdministrativeRecord) {
                         bid,
                         bsr.refbundle()
                     );
-                    store_remove(&bsr.refbundle());
+                    if store_remove(&bsr.refbundle()).is_err() {
+                        warn!(
+                            "Status Report could not remove bundle: {} {}",
+                            bid,
+                            bsr.refbundle()
+                        );
+                    }
                 }
                 _ => {
                     warn!(

@@ -77,7 +77,7 @@ impl From<PathBuf> for DtnConfig {
         dtncfg.enable_period = s.get_bool("beacon-period").unwrap_or(false);
         debug!("announcing period: {:?}", dtncfg.enable_period);
         debug!("debug: {:?}", dtncfg.debug);
-        let nodeid = s.get_str("nodeid").unwrap_or_else(|_| rnd_node_name());
+        let nodeid = s.get_string("nodeid").unwrap_or_else(|_| rnd_node_name());
         if is_valid_node_name(&nodeid) {
             dtncfg.host_eid = if let Ok(number) = nodeid.parse::<u64>() {
                 format!("ipn:{}.0", number).try_into().unwrap()
@@ -93,14 +93,14 @@ impl From<PathBuf> for DtnConfig {
         debug!("nodeid: {:?}", dtncfg.host_eid);
         dtncfg.nodeid = dtncfg.host_eid.to_string();
 
-        dtncfg.routing = s.get_str("routing.strategy").unwrap_or(dtncfg.routing);
+        dtncfg.routing = s.get_string("routing.strategy").unwrap_or(dtncfg.routing);
         debug!("routing: {:?}", dtncfg.routing);
         if let Ok(routing_settings) = s.get_table("routing.settings") {
             for (k, v) in routing_settings.iter() {
                 let tab = v.clone().into_table().unwrap();
                 let mut routing_settings = HashMap::new();
                 for (k, v) in tab {
-                    routing_settings.insert(k, v.into_str().unwrap());
+                    routing_settings.insert(k, v.into_string().unwrap());
                 }
                 dtncfg
                     .routing_settings
@@ -109,14 +109,14 @@ impl From<PathBuf> for DtnConfig {
         }
         debug!("routing options: {:?}", dtncfg.routing_settings);
 
-        dtncfg.workdir = if let Ok(wd) = s.get_str("workdir") {
+        dtncfg.workdir = if let Ok(wd) = s.get_string("workdir") {
             PathBuf::from(wd)
         } else {
             std::env::current_dir().unwrap()
         };
         debug!("workdir: {:?}", dtncfg.workdir);
 
-        dtncfg.db = s.get_str("db").unwrap_or_else(|_| "mem".into());
+        dtncfg.db = s.get_string("db").unwrap_or_else(|_| "mem".into());
         debug!("db: {:?}", dtncfg.db);
 
         dtncfg.webport = s
@@ -124,21 +124,21 @@ impl From<PathBuf> for DtnConfig {
             .unwrap_or_else(|_| i64::from(dtncfg.webport)) as u16;
         debug!("webport: {:?}", dtncfg.webport);
 
-        dtncfg.janitor_interval = if let Ok(interval) = s.get_str("core.janitor") {
+        dtncfg.janitor_interval = if let Ok(interval) = s.get_string("core.janitor") {
             humantime::parse_duration(&interval).unwrap_or_else(|_| Duration::new(0, 0))
         } else {
             dtncfg.janitor_interval
         };
         debug!("janitor: {:?}", dtncfg.janitor_interval);
 
-        dtncfg.announcement_interval = if let Ok(interval) = s.get_str("discovery.interval") {
+        dtncfg.announcement_interval = if let Ok(interval) = s.get_string("discovery.interval") {
             humantime::parse_duration(&interval).unwrap_or_else(|_| Duration::new(0, 0))
         } else {
             dtncfg.announcement_interval
         };
         debug!("discovery-interval: {:?}", dtncfg.announcement_interval);
 
-        dtncfg.peer_timeout = if let Ok(interval) = s.get_str("discovery.peer-timeout") {
+        dtncfg.peer_timeout = if let Ok(interval) = s.get_string("discovery.peer-timeout") {
             humantime::parse_duration(&interval).unwrap_or_else(|_| Duration::new(0, 0))
         } else {
             dtncfg.peer_timeout
@@ -148,14 +148,14 @@ impl From<PathBuf> for DtnConfig {
         if let Ok(peers) = s.get_array("statics.peers") {
             for m in peers.iter() {
                 let peer: DtnPeer =
-                    crate::core::helpers::parse_peer_url(&m.clone().into_str().unwrap());
+                    crate::core::helpers::parse_peer_url(&m.clone().into_string().unwrap());
                 debug!("Peer: {:?}", peer);
                 dtncfg.statics.push(peer);
             }
         }
         if let Ok(endpoints) = s.get_table("endpoints.local") {
             for (_k, v) in endpoints.iter() {
-                let eid = v.clone().into_str().unwrap();
+                let eid = v.clone().into_string().unwrap();
                 debug!("EID: {:?}", eid);
                 dtncfg.endpoints.push(eid);
             }
@@ -163,13 +163,13 @@ impl From<PathBuf> for DtnConfig {
         if let Ok(clas) = s.get_table("convergencylayers.cla") {
             for (_k, v) in clas.iter() {
                 let mut tab = v.clone().into_table().unwrap();
-                let cla_id = tab.remove("id").unwrap().into_str().unwrap();
+                let cla_id = tab.remove("id").unwrap().into_string().unwrap();
                 match CLAsAvailable::from_str(cla_id.as_str()) {
                     Ok(agent) => {
                         debug!("CLA: {:?}", cla_id);
                         let mut local_settings = HashMap::new();
                         for (k, v) in tab {
-                            local_settings.insert(k, v.into_str().unwrap());
+                            local_settings.insert(k, v.into_string().unwrap());
                         }
                         dtncfg.clas.push((agent, local_settings));
                     }
@@ -186,7 +186,7 @@ impl From<PathBuf> for DtnConfig {
                         let tab = v.clone().into_table().unwrap();
                         let mut global_settings = HashMap::new();
                         for (k, v) in tab {
-                            global_settings.insert(k, v.into_str().unwrap());
+                            global_settings.insert(k, v.into_string().unwrap());
                         }
                         dtncfg.cla_global_settings.insert(agent, global_settings);
                     }
@@ -208,7 +208,7 @@ impl From<PathBuf> for DtnConfig {
             for (_k, v) in services.iter() {
                 let tab = v.clone().into_table().unwrap();
                 let service_tag: u8 =
-                    tab["tag"].clone().into_str().unwrap().parse().expect(
+                    tab["tag"].clone().into_string().unwrap().parse().expect(
                         "Encountered an error while parsing a service tag from config file",
                     );
                 if dtncfg.services.contains_key(&service_tag) {
@@ -221,7 +221,7 @@ impl From<PathBuf> for DtnConfig {
                     );
                     panic!("ConfigError: {:?}: {}\n", error.kind(), error);
                 }
-                let service_payload = tab["payload"].clone().into_str().unwrap();
+                let service_payload = tab["payload"].clone().into_string().unwrap();
                 debug!("Added custom service: {:?}", service_tag);
                 dtncfg.services.insert(service_tag, service_payload);
             }
@@ -229,7 +229,7 @@ impl From<PathBuf> for DtnConfig {
         if let Ok(discovery_destinations) = s.get_table("discovery_destinations.target") {
             for (_k, v) in discovery_destinations.iter() {
                 let tab = v.clone().into_table().unwrap();
-                let destination = tab["destination"].clone().into_str().unwrap();
+                let destination = tab["destination"].clone().into_string().unwrap();
                 dtncfg
                     .add_destination(destination.clone())
                     .expect("Encountered an error while parsing discovery address to config");
