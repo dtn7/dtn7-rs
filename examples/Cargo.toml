@@ -14,7 +14,7 @@ anyhow = "1.0.57"
 serde_cbor = "0.11"
 humantime = "2.1.0"
 rand = "0.8.5"
-dtn7 = { path = "../core/dtn7", version = "0.18.0" }
+dtn7 = { path = "../core/dtn7", version = "0.19.0" }
 tokio = { version = "1.16.1", features = ["net", "rt-multi-thread", "macros", "time"] }
 tokio-util = { version = "0.7.2", features = ["codec"] }
 tokio-serde = { version = "0.8", features = ["json"] }
