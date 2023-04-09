@@ -4,7 +4,7 @@ use num_derive::*;
 
 bitflags! {
     /// Contact Header flags
-    #[derive(Default)]
+    #[derive(Default, Clone, Copy, Debug, PartialEq, Eq, Hash)]
     pub(crate) struct ContactHeaderFlags : u8 {
         const CAN_TLS = 0x01;
     }
@@ -32,6 +32,7 @@ pub(crate) enum MessageType {
 
 bitflags! {
     /// Session Extension Item flags
+    #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
     pub(crate) struct SessionExtensionItemFlags : u8 {
         const CRITICAL = 0x01;
     }
@@ -50,7 +51,7 @@ pub(crate) enum MsgRejectReasonCode {
 }
 
 impl std::fmt::Debug for MsgRejectReasonCode {
-    fn fmt(&self, f: &mut _core::fmt::Formatter<'_>) -> _core::fmt::Result {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         match self {
             Self::TypeUnknown => write!(f, "TypeUnknown"),
             Self::Unsupported => write!(f, "Unsupported"),
@@ -61,6 +62,7 @@ impl std::fmt::Debug for MsgRejectReasonCode {
 
 bitflags! {
     /// XFER_SEGMENT flags
+    #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
     pub(crate) struct XferSegmentFlags : u8 {
         const END = 0x01;
         const START = 0x02;
@@ -87,6 +89,7 @@ pub(crate) enum XferRefuseReasonCode {
 
 bitflags! {
     /// Transfer Extension Item flags
+    #[derive(Default, Clone, Copy, Debug, PartialEq, Eq, Hash)]
     pub(crate) struct TransferExtensionItemFlags : u8 {
         const CRITICAL = 0x01;
     }
@@ -108,6 +111,7 @@ pub(crate) enum TransferExtensionItemType {
 
 bitflags! {
     /// SESS_TERM flags
+    #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
     pub(crate) struct SessTermFlags : u8 {
         /// If bit is set, indicates that this message is an acknowledgement of an earlier SESS_TERM message.
         const REPLY = 0x01;

@@ -119,7 +119,7 @@ impl BundlePack {
     pub fn sync(&self) -> Result<()> {
         if !self.has_constraints() {
             warn!("not constraints, removing bundle from store {}", self.id());
-            store_remove(self.id());
+            store_remove(self.id())?;
         } else {
             // TODO: add update logic
             store_update_metadata(self)?;

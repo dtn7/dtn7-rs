@@ -7,6 +7,7 @@ use crate::core::helpers::is_valid_service_name;
 use crate::core::helpers::rnd_peer;
 use crate::core::peer::PeerType;
 use crate::core::store::BundleStore;
+use crate::store_remove;
 use crate::CONFIG;
 use crate::DTNCORE;
 use crate::PEERS;
@@ -600,6 +601,22 @@ async fn endpoint_hex(
     }
 }
 
+//#[get("/delete", guard = "fn_guard_localhost")]
+async fn delete(
+    extract::RawQuery(query): extract::RawQuery,
+) -> Result<Vec<u8>, (StatusCode, &'static str)> {
+    if let Some(bid) = query {
+        info!("Requested deleting of bundle {}", bid);
+        if store_remove(&bid).is_ok() {
+            Ok(format!("Deleted {}", bid).as_bytes().to_vec())
+        } else {
+            Err((StatusCode::NOT_FOUND, "Bundle not found"))
+        }
+    } else {
+        Err((StatusCode::BAD_REQUEST, "Bundle ID not specified"))
+    }
+}
+
 //#[get("/download")]
 async fn download(
     extract::RawQuery(query): extract::RawQuery,
@@ -633,6 +650,7 @@ async fn download_hex(
 pub async fn spawn_httpd() -> Result<()> {
     let mut app_local_only = Router::new()
         .route("/send", post(send_post))
+        .route("/delete", get(delete).delete(delete))
         .route("/register", get(register))
         .route("/unregister", get(unregister))
         .route("/endpoint", get(endpoint))
