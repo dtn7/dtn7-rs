@@ -16,7 +16,7 @@ This is meant to be viewed with a standard web browser such as firefox, chrome, 
 
 These API endpoints can only be called from localhost for security reasons.
 
-### **POST** `/send`
+### **POST** `/send?dst=<EID>&lifetime=<LIFETIME>`
 
 Construct a new bundle with the given parameters. 
 The bundle payload is sent as the body of the *POST* request.
@@ -27,7 +27,7 @@ $ curl -X POST -d 'hello world' "http://127.0.0.1:3000/send?dst=dtn://node3/inco
 Sent payload with 11 bytes
 ```
 
-### **GET** `/register`
+### **GET** `/register?<ENDPOINT>`
 
 Register a new application endpoint. 
 This can be either a local singleton endpoint, e.g., `mailbox`, or a group endpoint such as `dtn://global/~news`. 
@@ -55,7 +55,7 @@ $ curl http://127.0.0.1:3000/status/eids
 ]
 ```
 
-### **GET** `/unregister`
+### **GET** `/unregister?<ENDPOINT>`
 
 Unregister a previously registered application agent endpoint.
 
@@ -86,7 +86,7 @@ Sent 103 bytes
 The *POST* request expects a valid CBOR encoded bundle as request body. 
 This is the preferred method for sending larger bundles, unless the [websocket interface](#websocket-application-agent-interface) is used.
 
-### **GET** `/endpoint`
+### **GET** `/endpoint?<ENDPOINT>`
 
 Download raw bundle from the supplied endpoint. 
 This can be either a local singleton endpoint, e.g., `mailbox`, or a group endpoint such as `dtn://global/~news`. 
@@ -99,7 +99,7 @@ Nothing to receive
 ```
 
 
-### **GET** `/endpoint.hex`
+### **GET** `/endpoint.hex?<ENDPOINT>`
 
 Download hex encoded bundle from the supplied endpoint. 
 This can be either a local singleton endpoint, e.g., `mailbox`, or a group endpoint such as `dtn://global/~news`. 
@@ -112,6 +112,15 @@ Get a new, unique creation timestamp (`[dtntime, seqno]`).
 ```
 $ curl http://127.0.0.1:3000/cts
 [690468652541,0]
+```
+
+### **GET** `/delete?<BID>`
+
+Delete a specific bundle from the local store.
+
+```
+$ curl http://127.0.0.1:3000/delete?dtn://node1/-734350088476-0
+Deleted bundle dtn://node1/-734350088476-0
 ```
 
 ### *DEBUG ONLY* **GET** `/debug/rnd_bundle`
@@ -131,7 +140,7 @@ For further information, see the corresponding [section](#websocket-application-
 
 ## Public API
 
-### **GET** `/download.hex`
+### **GET** `/download.hex?<BID>`
 
 Download a specific bundle as a hex string.
 
@@ -140,7 +149,7 @@ $ curl http://127.0.0.1:3000/download.hex?dtn://node1-690467584244-0
 9f88071a00020004008201702f2f6e6f6465332f696e636f6d696e678201672f2f6e6f6465318201672f2f6e6f646531821b000000a0c31338f4001a0036ee80850a020000448218200085010100004645746573740aff
 ```
 
-### **GET** `/download`
+### **GET** `/download?<BID>`
 
 Download a specific bundle as raw bytes.
 

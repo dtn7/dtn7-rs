@@ -42,6 +42,7 @@ cargo test $TARGET_OPT &&
     filter_output ./tests/local_trigger_test.sh &&
     filter_output ./tests/local_nodes_dtn_httppull.sh &&
     filter_output ./tests/local_nodes_http_dtn.sh &&
+    filter_output ./tests/store_delete.sh &&
     filter_output ./tests/lifetime.sh &&
     filter_output ./tests/cla_chain_test.sh &&
     filter_output ./tests/ecla_test.sh &&

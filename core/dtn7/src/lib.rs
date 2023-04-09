@@ -174,11 +174,13 @@ pub fn store_add_bundle_if_unknown(bndl: &Bundle) -> Result<bool> {
     }
 }
 
-pub fn store_remove(bid: &str) {
+pub fn store_remove(bid: &str) -> Result<()> {
     info!("Removing bundle {}", bid);
     if let Err(err) = (*STORE.lock()).remove(bid) {
         error!("store_remove: {}", err);
+        return Err(err);
     }
+    Ok(())
 }
 
 pub fn store_update_metadata(bp: &BundlePack) -> Result<()> {
@@ -205,7 +207,9 @@ pub fn store_delete_expired() {
     for meta in all_but_deleted {
         if meta.has_expired() {
             debug!("Bundle {} is too old, deleting it", meta.id);
-            store_remove(&meta.id);
+            if store_remove(&meta.id).is_err() {
+                error!("Error while deleting expired bundle {}", meta.id);
+            }
         }
     }
 }
