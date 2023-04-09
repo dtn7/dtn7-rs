@@ -1,6 +1,27 @@
 # Changelog
 All notable changes to this project will be documented in this file.
 
+## [0.19.0] - 2023-04-09
+
+### Bug Fixes
+
+- Added missing emission of Registered packet in ecla websocket client. (#49)
+
+### Documentation
+
+- Added mastodon link to README.md
+- Added some documentation explaining the simple HTTP CL
+
+### Features
+
+- Added HTTP endpoints to request a hash digest of the bundles known to the local dtnd instance
+- Http pull convergence layer (#44)
+- Added delete endpoint to rest interface, dtnrecv can now also remove bundles (#50)
+
+### Testing
+
+- Coreemu-lab script now pins docker images version and always uses cross to build musl binaries
+
 ## [0.18.2] - 2022-11-24
 
 ### Bug Fixes
