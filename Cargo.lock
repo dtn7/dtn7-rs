@@ -609,7 +609,7 @@ checksum = "212d0f5754cb6769937f4501cc0e67f4f4483c8d2c3e1e922ee9edbe4ab4c7c0"
 
 [[package]]
 name = "dtn7"
-version = "0.18.2"
+version = "0.19.0"
 dependencies = [
  "anyhow",
  "async-trait",
