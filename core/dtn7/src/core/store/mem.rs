@@ -13,7 +13,7 @@ pub struct InMemoryBundleStore {
 }
 
 impl BundleStore for InMemoryBundleStore {
-    fn push(&mut self, bndl: &Bundle) -> Result<()> {
+    fn add(&mut self, bndl: &Bundle) -> Result<()> {
         // TODO: check for duplicates, update, remove etc
         let bp = BundlePack::from(bndl);
         if self.bundles.contains_key(bp.id()) {

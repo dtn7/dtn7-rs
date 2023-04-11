@@ -16,7 +16,7 @@ pub struct SledBundleStore {
 }
 
 impl BundleStore for SledBundleStore {
-    fn push(&mut self, bndl: &Bundle) -> Result<()> {
+    fn add(&mut self, bndl: &Bundle) -> Result<()> {
         // TODO: check for duplicates, update, remove etc
         if self.bundles.contains_key(bndl.id())? {
             debug!("Bundle {} already in store, updating it!", bndl.id());

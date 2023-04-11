@@ -140,6 +140,14 @@ async fn main() -> Result<(), std::io::Error> {
                 .action(ArgAction::Set),
         )
         .arg(
+            Arg::new("maxstoresize")
+                .long("max-store-size")
+                .value_name("SIZE_IN_BYTES")
+                .help("Sets the maximum storage space for bundles in the store (default = 0 = unlimited)")
+                .value_parser(value_parser!(u64))
+                .action(ArgAction::Set),
+        )
+        .arg(
             Arg::new("ecla")
                 .long("ecla")
                 .help("Enable ECLA (WebSocket transport layer enabled by default)")
@@ -346,6 +354,10 @@ Tag 255 takes 5 arguments and is interpreted as address. Usage: -S 255:'Samplest
     }
     if let Some(i) = matches.get_one::<u16>("webport") {
         cfg.webport = *i;
+    }
+
+    if let Some(i) = matches.get_one::<u64>("maxstoresize") {
+        cfg.max_store_size = *i;
     }
 
     if let Some(i) = matches.get_one::<String>("janitor") {

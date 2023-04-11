@@ -1,7 +1,7 @@
 use crate::core::bundlepack::*;
 use crate::core::*;
 use crate::routing::RoutingNotifcation;
-use crate::store_push_bundle;
+use crate::store_add_bundle;
 use crate::store_remove;
 use crate::CONFIG;
 use crate::DTNCORE;
@@ -21,53 +21,19 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use std::time::SystemTime;
 use std::time::UNIX_EPOCH;
-use tokio::sync::mpsc::channel;
 
 // transmit an outbound bundle.
-pub async fn send_bundle(bndl: Bundle) {
+pub async fn send_bundle(bndl: Bundle) -> Result<()> {
+    if let Err(err) = store_add_bundle(&bndl) {
+        warn!("Transmission failed: {}", err);
+        return Err(err);
+    }
     tokio::spawn(async move {
-        if let Err(err) = store_push_bundle(&bndl) {
-            warn!("Transmission failed: {}", err);
-            return;
-        }
         if let Err(err) = transmit(bndl.into()).await {
             warn!("Transmission failed: {}", err);
         }
     });
-}
-
-pub fn send_through_task(bndl: Bundle) {
-    let rt = tokio::runtime::Handle::current();
-    let mut stask = crate::SENDERTASK.lock();
-    if stask.is_none() {
-        let (tx, rx) = channel(50);
-        tokio::spawn(sender_task(rx));
-        *stask = Some(tx);
-    }
-    let tx = stask.as_ref().unwrap().clone();
-    //let mut rt = tokio::runtime::Runtime::new().unwrap();
-    rt.spawn(async move { tx.send(bndl).await });
-}
-
-pub async fn send_through_task_async(bndl: Bundle) {
-    let tx = {
-        let mut stask = crate::SENDERTASK.lock();
-        if stask.is_none() {
-            let (tx, rx) = channel(50);
-            tokio::spawn(sender_task(rx));
-            *stask = Some(tx);
-        }
-        stask.as_ref().unwrap().clone()
-    };
-    if let Err(err) = tx.send(bndl).await {
-        warn!("Transmission failed: {}", err);
-    }
-}
-pub async fn sender_task(mut rx: tokio::sync::mpsc::Receiver<Bundle>) {
-    while let Some(bndl) = rx.recv().await {
-        debug!("sending bundle through task channel");
-        send_bundle(bndl).await;
-    }
+    Ok(())
 }
 
 // starts the transmission of an outbounding bundle pack. Therefore
@@ -170,7 +136,7 @@ pub async fn receive(mut bndl: Bundle) -> Result<()> {
         // Remove canoncial blocks marked for deletion
         bndl.canonicals.remove(i);
     }
-    if let Err(err) = store_push_bundle(&bndl) {
+    if let Err(err) = store_add_bundle(&bndl) {
         bail!("error adding received bundle: {} {}", bndl.id(), err);
     }
     if let Err(err) = dispatch(bp).await {
@@ -664,7 +630,7 @@ async fn send_status_report(
         reason,
     );
 
-    if let Err(err) = store_push_bundle(&out_bndl) {
+    if let Err(err) = store_add_bundle(&out_bndl) {
         warn!("Storing new status report failed: {}", err);
         return;
     }

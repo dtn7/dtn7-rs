@@ -39,7 +39,7 @@ impl SneakersBundleStore {
     }
 }
 impl BundleStore for SneakersBundleStore {
-    fn push(&mut self, bndl: &Bundle) -> Result<()> {
+    fn add(&mut self, bndl: &Bundle) -> Result<()> {
         // TODO: check for duplicates, update, remove etc
         if self.store.db.exists(&bndl.id()) {
             debug!("Bundle {} already in store, updating it!", bndl.id());

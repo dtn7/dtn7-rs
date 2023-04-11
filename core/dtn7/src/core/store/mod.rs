@@ -24,7 +24,7 @@ pub enum BundleStoresEnum {
 
 #[enum_dispatch(BundleStoresEnum)]
 pub trait BundleStore: Debug {
-    fn push(&mut self, bp: &Bundle) -> Result<()>;
+    fn add(&mut self, bp: &Bundle) -> Result<()>;
     fn update_metadata(&mut self, bp: &BundlePack) -> Result<()>;
     fn remove(&mut self, bid: &str) -> Result<()>;
     fn count(&self) -> u64;

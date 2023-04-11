@@ -38,6 +38,7 @@ pub struct DtnConfig {
     pub statics: Vec<DtnPeer>,
     pub workdir: PathBuf,
     pub db: String,
+    pub max_store_size: u64,
     pub generate_status_reports: bool,
     pub ecla_tcp_port: u16,
     pub ecla_enable: bool,
@@ -123,6 +124,7 @@ impl From<PathBuf> for DtnConfig {
             .get_int("webport")
             .unwrap_or_else(|_| i64::from(dtncfg.webport)) as u16;
         debug!("webport: {:?}", dtncfg.webport);
+        debug!("max_store_size: {:?}", dtncfg.max_store_size);
 
         dtncfg.janitor_interval = if let Ok(interval) = s.get_string("core.janitor") {
             humantime::parse_duration(&interval).unwrap_or_else(|_| Duration::new(0, 0))
@@ -271,6 +273,7 @@ impl DtnConfig {
             statics: Vec::new(),
             workdir: std::env::current_dir().unwrap(),
             db: String::from("mem"),
+            max_store_size: 0,
             generate_status_reports: false,
             ecla_enable: false,
             ecla_tcp_port: 0,
@@ -301,6 +304,7 @@ impl DtnConfig {
         self.statics = cfg.statics;
         self.workdir = cfg.workdir;
         self.db = cfg.db;
+        self.max_store_size = cfg.max_store_size;
         self.generate_status_reports = cfg.generate_status_reports;
         self.ecla_enable = cfg.ecla_enable;
         self.ecla_tcp_port = cfg.ecla_tcp_port;

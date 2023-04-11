@@ -27,6 +27,7 @@ use anyhow::{bail, Context, Result};
 use lazy_static::*;
 use parking_lot::Mutex;
 use std::collections::{BTreeMap, HashMap};
+use std::sync::atomic;
 use tokio::sync::mpsc::Sender;
 use tokio::sync::oneshot;
 
@@ -39,6 +40,8 @@ lazy_static! {
     pub static ref STORE: Mutex<BundleStoresEnum> = Mutex::new(InMemoryBundleStore::new().into());
     pub static ref CLAS: Mutex<Vec<CLAEnum>> = Mutex::new(Vec::new());
 }
+// global atomic of bundle store size (in bytes)
+pub static STORE_SIZE: atomic::AtomicU64 = atomic::AtomicU64::new(0);
 
 pub fn cla_add(cla: CLAEnum) {
     (*CLAS.lock()).push(cla);
@@ -160,25 +163,72 @@ pub fn peer_find_by_remote(addr: &PeerAddress) -> Option<String> {
     None
 }
 
-pub fn store_push_bundle(bndl: &Bundle) -> Result<()> {
-    (*STORE.lock()).push(bndl)
+pub fn store_add_bundle(bndl: &Bundle) -> Result<()> {
+    let max_size = CONFIG.lock().max_store_size;
+    // TODO: cloning and encoding here is not very efficient
+    let bndl_size = bndl.clone().to_cbor().len() as u64;
+    // check if bundle fits into store
+    if max_size > 0 && STORE_SIZE.load(atomic::Ordering::Relaxed) + bndl_size > max_size {
+        bail!("Bundle store is full");
+    }
+    let ret = (*STORE.lock()).add(bndl);
+    if ret.is_ok() {
+        STORE_SIZE.fetch_add(bndl_size, atomic::Ordering::Relaxed);
+    }
+    ret
 }
 
 pub fn store_add_bundle_if_unknown(bndl: &Bundle) -> Result<bool> {
+    let max_size = CONFIG.lock().max_store_size;
+    // TODO: cloning and encoding here is not very efficient
+    let bndl_size = bndl.clone().to_cbor().len() as u64;
+    if max_size > 0 && STORE_SIZE.load(atomic::Ordering::Relaxed) + bndl_size > max_size {
+        bail!("BundleStore is full");
+    }
     let store = &mut (*STORE.lock());
     if !store.has_item(bndl.id().as_str()) {
-        store.push(bndl)?;
+        store.add(bndl)?;
+
+        STORE_SIZE.fetch_add(bndl_size, atomic::Ordering::Relaxed);
+
         Ok(true)
     } else {
         Ok(false)
     }
 }
 
+pub fn store_free() -> u64 {
+    let max_size = CONFIG.lock().max_store_size;
+    if max_size == 0 {
+        return 0;
+    }
+    let store_size = STORE_SIZE.load(atomic::Ordering::Relaxed);
+    if store_size >= max_size {
+        0
+    } else {
+        max_size - store_size
+    }
+}
+pub fn store_usage() -> u64 {
+    STORE_SIZE.load(atomic::Ordering::Relaxed)
+}
+
 pub fn store_remove(bid: &str) -> Result<()> {
+    // TODO: cloning and encoding here is not very efficient
+    let bndl_size = if let Some(meta) = store_get_metadata(bid) {
+        meta.size as u64
+    } else {
+        0
+    };
     info!("Removing bundle {}", bid);
     if let Err(err) = (*STORE.lock()).remove(bid) {
         error!("store_remove: {}", err);
         return Err(err);
+    }
+    if STORE_SIZE.load(atomic::Ordering::Relaxed) < bndl_size {
+        STORE_SIZE.store(0, atomic::Ordering::Relaxed);
+    } else {
+        STORE_SIZE.fetch_sub(bndl_size, atomic::Ordering::Relaxed);
     }
     Ok(())
 }

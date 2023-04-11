@@ -35,6 +35,10 @@ workdir = "/tmp/dtn7"
 # the database to use for storing bundles, e.g., mem, sled, sneakers, etc.
 db = "mem"
 
+# the maximum bundle store size in bytes
+# 0 means unlimited store
+max_store_size = 0
+
 [routing]
 # the routing algorithm to use, e.g., flooding, epidemic, sink, sprayandwait, etc.
 strategy = "epidemic"

@@ -3,6 +3,7 @@ use crate::CONFIG;
 use crate::DTNCORE;
 
 use anyhow::{bail, Result};
+use attohttpc::StatusCode;
 use axum::extract::ws::{Message, WebSocket};
 use bp7::flags::BlockControlFlags;
 use bp7::flags::BundleControlFlags;
@@ -164,6 +165,47 @@ impl WsAASession {
             rx,
         )
     }
+    async fn send_bundle(
+        &self,
+        socket: tokio::sync::mpsc::Sender<axum::extract::ws::Message>,
+        bndl: Bundle,
+        b_len: usize,
+    ) -> Result<()> {
+        let bid = bndl.id();
+        let res = crate::core::processing::send_bundle(bndl).await;
+        if let Err(err) = res {
+            warn!("Error sending bundle: {}", err);
+            if err.to_string().contains("Bundle store is full") {
+                ws_reply_text!(
+                    socket,
+                    format!(
+                        "{} Not enough storage space for {} with {} bytes",
+                        StatusCode::INSUFFICIENT_STORAGE,
+                        bid,
+                        b_len
+                    )
+                );
+            } else {
+                ws_reply_text!(
+                    socket,
+                    format!(
+                        "{} Internal server error processing {}",
+                        StatusCode::INTERNAL_SERVER_ERROR,
+                        bid
+                    )
+                );
+            }
+        } else {
+            debug!("sent bundle");
+            //crate::core::processing::send_through_task(bndl);
+            ws_reply_text!(
+                socket,
+                format!("200 Sent bundle {} with {} bytes", bid, b_len)
+            );
+        }
+        Ok(())
+    }
+
     pub async fn handle_bundle_delivery(
         &self,
         socket: mpsc::Sender<Message>,
@@ -337,16 +379,7 @@ impl WsAASession {
                             // TODO: turn into channel
                             //                            crate::core::processing::send_bundle(bndl);
                             //crate::core::processing::send_through_task(bndl);
-                            let rt = tokio::runtime::Handle::current();
-                            rt.spawn(
-                                async move { crate::core::processing::send_bundle(bndl).await },
-                            );
-                            debug!("sent bundle");
-
-                            ws_reply_text!(
-                                socket,
-                                format!("200 Sent payload with {} bytes", bin.len())
-                            );
+                            self.send_bundle(socket, bndl, bin.len()).await?;
                         } else {
                             ws_reply_text!(socket, "400 Invalid binary bundle");
                         }
@@ -403,18 +436,7 @@ impl WsAASession {
                                 "Sending bundle {} from data frame to {} from WS",
                                 bid, bndl.primary.destination
                             );
-                            //let mut rt = tokio::runtime::Runtime::new().unwrap();
-                            //rt.block_on(async { crate::core::processing::send_bundle(bndl).await });
-                            let rt = tokio::runtime::Handle::current();
-                            rt.spawn(
-                                async move { crate::core::processing::send_bundle(bndl).await },
-                            );
-                            debug!("sent bundle");
-                            //crate::core::processing::send_through_task(bndl);
-                            ws_reply_text!(
-                                socket,
-                                format!("200 Sent bundle {} with {} bytes", bid, b_len)
-                            );
+                            self.send_bundle(socket, bndl, b_len).await?;
                         } else {
                             ws_reply_text!(
                                 socket,

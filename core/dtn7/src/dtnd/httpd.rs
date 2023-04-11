@@ -310,12 +310,20 @@ async fn get_creation_timestamp() -> String {
 }
 
 //#[get("/debug/rnd_bundle", guard = "fn_guard_localhost")]
-async fn debug_rnd_bundle() -> String {
+async fn debug_rnd_bundle() -> Result<String, (StatusCode, &'static str)> {
     debug!("inserting debug bundle");
     let b = rnd_bundle(CreationTimestamp::now());
     let res = b.id();
-    crate::core::processing::send_bundle(b).await;
-    res
+    if let Err(err) = crate::core::processing::send_bundle(b).await {
+        //error!("Error sending bundle: {}", err);
+        if err.to_string().contains("Bundle store is full") {
+            Err((StatusCode::INSUFFICIENT_STORAGE, "Bundle store is full!"))
+        } else {
+            Err((StatusCode::INTERNAL_SERVER_ERROR, "Internal Server Error"))
+        }
+    } else {
+        Ok(res)
+    }
 }
 
 //#[get("/debug/rnd_peer", guard = "fn_guard_localhost")]
@@ -328,10 +336,15 @@ async fn debug_rnd_peer() -> String {
 }
 
 //#[get("/insert", guard = "fn_guard_localhost")]
-async fn insert_get(extract::RawQuery(query): extract::RawQuery) -> Result<String, StatusCode> {
+async fn insert_get(
+    extract::RawQuery(query): extract::RawQuery,
+) -> Result<String, (StatusCode, &'static str)> {
     debug!("REQ: {:?}", query);
     if query.is_none() {
-        return Err(StatusCode::BAD_REQUEST);
+        return Err((
+            StatusCode::BAD_REQUEST,
+            "Bundle as query parameter is missing!",
+        ));
     }
     let bundle = query.unwrap();
     debug!("BUNDLE: {}", bundle);
@@ -346,16 +359,24 @@ async fn insert_get(extract::RawQuery(query): extract::RawQuery) -> Result<Strin
                     bndl.primary.destination
                 );
 
-                crate::core::processing::send_bundle(bndl).await;
-                Ok(format!("Sent {} bytes", b_len))
+                if let Err(err) = crate::core::processing::send_bundle(bndl).await {
+                    //error!("Error sending bundle: {}", err);
+                    if err.to_string().contains("Bundle store is full") {
+                        Err((StatusCode::INSUFFICIENT_STORAGE, "Bundle store is full!"))
+                    } else {
+                        Err((StatusCode::INTERNAL_SERVER_ERROR, "Internal Server Error"))
+                    }
+                } else {
+                    Ok(format!("Sent {} bytes", b_len))
+                }
             } else {
-                Err(StatusCode::BAD_REQUEST)
+                Err((StatusCode::BAD_REQUEST, "Error decoding bundle!"))
             }
         } else {
-            Err(StatusCode::BAD_REQUEST)
+            Err((StatusCode::BAD_REQUEST, "Error decoding bundle!"))
         }
     } else {
-        Err(StatusCode::BAD_REQUEST)
+        Err((StatusCode::BAD_REQUEST, "Error decoding bundle!"))
     }
 }
 
@@ -371,8 +392,16 @@ async fn insert_post(body: bytes::Bytes) -> Result<String, (StatusCode, &'static
             bndl.primary.destination
         );
 
-        crate::core::processing::send_bundle(bndl).await;
-        Ok(format!("Sent {} bytes", b_len))
+        if let Err(err) = crate::core::processing::send_bundle(bndl).await {
+            //error!("Error sending bundle: {}", err);
+            if err.to_string().contains("Bundle store is full") {
+                Err((StatusCode::INSUFFICIENT_STORAGE, "Bundle store is full!"))
+            } else {
+                Err((StatusCode::INTERNAL_SERVER_ERROR, "Internal Server Error"))
+            }
+        } else {
+            Ok(format!("Sent {} bytes", b_len))
+        }
     } else {
         Err((StatusCode::BAD_REQUEST, "Error decoding bundle!"))
     }
@@ -430,8 +459,16 @@ async fn send_post(
         bndl.primary.destination
     );
 
-    crate::core::processing::send_bundle(bndl).await;
-    Ok(format!("Sent payload with {} bytes", b_len))
+    if let Err(err) = crate::core::processing::send_bundle(bndl).await {
+        //error!("Error sending bundle: {}", err);
+        if err.to_string().contains("Bundle store is full") {
+            Err((StatusCode::INSUFFICIENT_STORAGE, "Bundle store is full!"))
+        } else {
+            Err((StatusCode::INTERNAL_SERVER_ERROR, "Internal Server Error"))
+        }
+    } else {
+        Ok(format!("Sent {} bytes", b_len))
+    }
 }
 
 //#[post("/push")]
@@ -617,6 +654,20 @@ async fn delete(
     }
 }
 
+//#[get("/store/usage", guard = "fn_guard_localhost")]
+async fn httpd_store_usage() -> String {
+    info!("Requested store usage");
+    let store_size = crate::store_usage();
+    format!("{}", store_size)
+}
+
+//#[get("/store/max_size", guard = "fn_guard_localhost")]
+async fn httpd_store_max_size() -> String {
+    info!("Requested store max_size");
+    let store_size = (CONFIG.lock()).max_store_size;
+    format!("{}", store_size)
+}
+
 //#[get("/download")]
 async fn download(
     extract::RawQuery(query): extract::RawQuery,
@@ -657,6 +708,8 @@ pub async fn spawn_httpd() -> Result<()> {
         .route("/insert", get(insert_get).post(insert_post))
         .route("/endpoint.hex", get(endpoint_hex))
         .route("/cts", get(get_creation_timestamp))
+        .route("/store/max_size", get(httpd_store_max_size))
+        .route("/store/usage", get(httpd_store_usage))
         .route(
             "/ws",
             get(|ws: WebSocketUpgrade| async move { ws.on_upgrade(super::ws::handle_socket) }),

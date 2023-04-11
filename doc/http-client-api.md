@@ -114,6 +114,25 @@ $ curl http://127.0.0.1:3000/cts
 [690468652541,0]
 ```
 
+### **GET** `/store/usage`
+
+Get size in bytes of all stored bundles.
+
+```
+$ curl http://127.0.0.1:3000/store/usage
+88
+```
+
+### **GET** `/store/max_size`
+
+Get size in bytes reserverd for buffer storage.
+A `0` indicates unlimited buffer space.
+
+```
+$ curl http://127.0.0.1:3000/store/max_size
+0
+```
+
 ### **GET** `/delete?<BID>`
 
 Delete a specific bundle from the local store.
