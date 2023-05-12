@@ -1,8 +1,8 @@
 use crate::core::bundlepack::*;
 use crate::core::*;
 use crate::routing::RoutingNotifcation;
-use crate::store_add_bundle;
 use crate::store_remove;
+use crate::store_update_bundle;
 use crate::CONFIG;
 use crate::DTNCORE;
 use crate::{is_local_node_id, STATS};
@@ -24,7 +24,7 @@ use std::time::UNIX_EPOCH;
 
 // transmit an outbound bundle.
 pub async fn send_bundle(bndl: Bundle) -> Result<()> {
-    if let Err(err) = store_add_bundle(&bndl) {
+    if let Err(err) = store_add_bundle_if_unknown(&bndl) {
         warn!("Transmission failed: {}", err);
         return Err(err);
     }
@@ -136,7 +136,7 @@ pub async fn receive(mut bndl: Bundle) -> Result<()> {
         // Remove canoncial blocks marked for deletion
         bndl.canonicals.remove(i);
     }
-    if let Err(err) = store_add_bundle(&bndl) {
+    if let Err(err) = store_update_bundle(&bndl) {
         bail!("error adding received bundle: {} {}", bndl.id(), err);
     }
     if let Err(err) = dispatch(bp).await {
@@ -630,7 +630,7 @@ async fn send_status_report(
         reason,
     );
 
-    if let Err(err) = store_add_bundle(&out_bndl) {
+    if let Err(err) = store_add_bundle_if_unknown(&out_bndl) {
         warn!("Storing new status report failed: {}", err);
         return;
     }

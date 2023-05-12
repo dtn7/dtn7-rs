@@ -11,7 +11,7 @@ pub use crate::core::peer::{DtnPeer, PeerType};
 use crate::core::store::BundleStore;
 use crate::routing::RoutingAgentsEnum;
 use crate::{routing_notify, store_delete_expired, store_get_bundle, store_get_metadata, CLAS};
-pub use crate::{store_add_bundle, store_has_item};
+pub use crate::{store_has_item, store_update_bundle};
 use crate::{RoutingNotifcation, CONFIG};
 use crate::{PEERS, STORE};
 use application_agent::ApplicationAgent;

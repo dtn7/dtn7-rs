@@ -163,35 +163,45 @@ pub fn peer_find_by_remote(addr: &PeerAddress) -> Option<String> {
     None
 }
 
-pub fn store_add_bundle(bndl: &Bundle) -> Result<()> {
+pub fn store_update_bundle(bndl: &Bundle) -> Result<()> {
     let max_size = CONFIG.lock().max_store_size;
     // TODO: cloning and encoding here is not very efficient
     let bndl_size = bndl.clone().to_cbor().len() as u64;
-    // check if bundle fits into store
-    if max_size > 0 && STORE_SIZE.load(atomic::Ordering::Relaxed) + bndl_size > max_size {
-        bail!("Bundle store is full");
+
+    if let Some(old_bp) = store_get_metadata(&bndl.id()) {
+        let old_size = old_bp.size as u64;
+        // check if bundle fits into store
+        if max_size > 0
+            && STORE_SIZE.load(atomic::Ordering::Relaxed) + bndl_size - old_size > max_size
+        {
+            bail!("Bundle store is full");
+        }
+        let ret = (*STORE.lock()).add(bndl);
+        if ret.is_ok() {
+            STORE_SIZE.fetch_add(bndl_size - old_size, atomic::Ordering::Relaxed);
+        }
+        ret
+    } else {
+        bail!("Bundle not found in store!");
     }
-    let ret = (*STORE.lock()).add(bndl);
-    if ret.is_ok() {
-        STORE_SIZE.fetch_add(bndl_size, atomic::Ordering::Relaxed);
-    }
-    ret
 }
 
 pub fn store_add_bundle_if_unknown(bndl: &Bundle) -> Result<bool> {
-    let max_size = CONFIG.lock().max_store_size;
-    // TODO: cloning and encoding here is not very efficient
-    let bndl_size = bndl.clone().to_cbor().len() as u64;
-    if max_size > 0 && STORE_SIZE.load(atomic::Ordering::Relaxed) + bndl_size > max_size {
-        bail!("BundleStore is full");
-    }
-    let store = &mut (*STORE.lock());
-    if !store.has_item(bndl.id().as_str()) {
-        store.add(bndl)?;
+    if !(*STORE.lock()).has_item(bndl.id().as_str()) {
+        let max_size = CONFIG.lock().max_store_size;
+        // TODO: cloning and encoding here is not very efficient
+        let bndl_size = bndl.clone().to_cbor().len() as u64;
+        // check if bundle fits into store
+        if max_size > 0 && STORE_SIZE.load(atomic::Ordering::Relaxed) + bndl_size > max_size {
+            bail!("Bundle store is full");
+        }
+        let ret = (*STORE.lock()).add(bndl);
+        if ret.is_ok() {
+            STORE_SIZE.fetch_add(bndl_size, atomic::Ordering::Relaxed);
+        }
+        Ok(ret.is_ok())
 
-        STORE_SIZE.fetch_add(bndl_size, atomic::Ordering::Relaxed);
-
-        Ok(true)
+        //Ok(true)
     } else {
         Ok(false)
     }
