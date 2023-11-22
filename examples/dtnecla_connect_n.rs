@@ -47,7 +47,6 @@ async fn main() -> Result<()> {
             let (ctx, crx) = mpsc::channel::<Packet>(100);
             conns.push(ctx);
 
-            let i = i;
             let addr = addr.to_string();
             let tx = tx.clone();
             tokio::spawn(async move {

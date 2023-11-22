@@ -33,7 +33,7 @@ impl EpidemicRoutingAgentCore {
     }
 
     fn add(&mut self, bundle_id: String, node_name: String) {
-        let entries = self.history.entry(bundle_id).or_insert_with(HashSet::new);
+        let entries = self.history.entry(bundle_id).or_default();
         entries.insert(node_name);
     }
 

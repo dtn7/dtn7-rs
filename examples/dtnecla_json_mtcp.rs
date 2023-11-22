@@ -58,7 +58,6 @@ async fn handle_connection(
 }
 
 async fn listener(port: u16, tx: mpsc::Sender<Packet>) -> Result<(), io::Error> {
-    let port = port;
     let addr: SocketAddrV4 = format!("0.0.0.0:{}", port).parse().unwrap();
     let listener = TcpListener::bind(&addr)
         .await

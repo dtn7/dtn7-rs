@@ -321,7 +321,6 @@ impl WsAASession {
                             ws_reply_text!(socket, format!("501 unknown command: {:?}", m));
                         }
                     }
-                } else {
                 }
             }
 
