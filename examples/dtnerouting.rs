@@ -27,7 +27,7 @@ impl EpidemicStrategy {
     }
 
     fn add(&mut self, bundle_id: String, node_name: String) {
-        let entries = self.history.entry(bundle_id).or_insert_with(HashSet::new);
+        let entries = self.history.entry(bundle_id).or_default();
         entries.insert(node_name);
     }
 
@@ -298,7 +298,7 @@ async fn main() -> Result<()> {
         )
         .get_matches();
 
-    let routing_types = vec!["flooding", "epidemic"];
+    let routing_types = ["flooding", "epidemic"];
 
     if matches.contains_id("debug") {
         std::env::set_var("RUST_LOG", "debug");

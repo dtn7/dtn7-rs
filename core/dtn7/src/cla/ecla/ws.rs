@@ -129,7 +129,7 @@ impl Connector for WebsocketConnector {
 
     fn close(&self, addr: &str) {
         if let Some(conn) = PEER_MAP.lock().unwrap().get_mut(addr) {
-            let close = std::mem::replace(&mut conn.close, None);
+            let close = conn.close.take();
             if let Err(_err) = close.unwrap().send(()) {
                 debug!("Error while sending close to {}", addr);
             }
