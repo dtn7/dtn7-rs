@@ -45,11 +45,20 @@ pub struct DtnConfig {
 }
 
 pub fn rnd_node_name() -> String {
-    thread_rng()
-        .sample_iter(&Alphanumeric)
-        .take(10)
-        .map(char::from)
-        .collect()
+    // generate a random node name starting with a character
+    let mut rng = thread_rng();
+    let mut result_str = String::new();
+
+    // Get a random letter
+    let first_char = rng.gen_range(b'a'..=b'z') as char;
+    result_str.push(first_char);
+
+    // Get 9 more random characters
+    for _ in 0..9 {
+        let next_char = thread_rng().sample_iter(&Alphanumeric).next().unwrap() as char;
+        result_str.push(next_char);
+    }
+    result_str
 }
 
 impl From<PathBuf> for DtnConfig {
