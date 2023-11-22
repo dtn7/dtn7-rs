@@ -64,13 +64,18 @@ pub fn rnd_node_name() -> String {
 impl From<PathBuf> for DtnConfig {
     fn from(item: PathBuf) -> Self {
         let mut dtncfg = DtnConfig::new();
-        let mut s = Config::default();
+        let s_default = Config::default();
+
+        let configbuilder = Config::builder().add_source(s_default);
 
         debug!("Loading config: {}", item.to_str().unwrap());
 
         // Start off by merging in the "default" configuration file
-        s.merge(File::new(item.to_str().unwrap(), config::FileFormat::Toml))
+        let s = configbuilder
+            .add_source(File::new(item.to_str().unwrap(), config::FileFormat::Toml))
+            .build()
             .unwrap();
+
         dtncfg.debug = s.get_bool("debug").unwrap_or(false);
         if dtncfg.debug {
             //std::env::set_var("RUST_LOG", "dtn7=debug,dtnd=debug");

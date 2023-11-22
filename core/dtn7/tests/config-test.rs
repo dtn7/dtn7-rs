@@ -2,14 +2,16 @@ use config::{Config, File};
 
 #[test]
 fn config_test() {
-    let mut s = Config::default();
-
     // Start off by merging in the "default" configuration file
-    s.merge(File::new(
-        "../../examples/dtn7.toml.example",
-        config::FileFormat::Toml,
-    ))
-    .unwrap();
+    let s = Config::builder()
+        .add_source(Config::default())
+        .add_source(File::new(
+            "../../examples/dtn7.toml.example",
+            config::FileFormat::Toml,
+        ))
+        .build()
+        .unwrap();
+
     println!("{:?}", s);
 
     println!("debug: {:?}", s.get_bool("debug").unwrap_or(false));
