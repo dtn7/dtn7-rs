@@ -71,9 +71,26 @@ $ curl http://127.0.0.1:3000/status/eids
 ]
 ```
 
+### **GET** `/peers/add?p=<PEER_CONNECT_URL>&p_t=<STATIC|DYNAMIC>`
+
+Adds a new peer connection or updates an existing one, setting the time of last contact to now.
+
+```
+$ curl "http://127.0.0.1:3000/peers/add?p=tcp://127.0.0.1:4223/node2&p_t=STATIC"
+Added new peer
+```
+### **GET** `/peers/del?p=<PEER_CONNECT_URL>`
+
+Deletes a peer from die internal peer list.
+
+```
+$ curl "http://127.0.0.1:3000/peers/del?p=tcp://127.0.0.1:4223/node2"           
+Removed peer
+```
+
 ### **GET**, **POST** `/insert`
 
-Insert is used to send a newly constructed from this node instance. 
+Insert is used to send a newly constructed bundle from this node instance. 
 
 A *GET* request expects a hex encoded bundle as its raw query parameter.
 

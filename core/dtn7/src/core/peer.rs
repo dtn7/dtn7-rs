@@ -13,6 +13,17 @@ pub enum PeerType {
     Dynamic,
 }
 
+impl std::convert::TryFrom<&str> for PeerType {
+    type Error = ();
+    fn try_from(value: &str) -> Result<Self, Self::Error> {
+        match dbg!(value.to_lowercase().as_str()) {
+            "static" => Ok(Self::Static),
+            "dynamic" => Ok(Self::Dynamic),
+            _ => Err(()),
+        }
+    }
+}
+
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq, Hash)]
 pub enum PeerAddress {
     /// Unicast IP node, e.g., reachable via mtcp, tcp or http

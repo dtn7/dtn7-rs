@@ -7,10 +7,8 @@ use rand::distributions::Alphanumeric;
 use rand::thread_rng;
 use rand::Rng;
 use sha1::{Digest, Sha1};
-use std::{
-    convert::{TryFrom, TryInto},
-    net::IpAddr,
-};
+use std::{convert::TryFrom, net::IpAddr};
+use thiserror::Error;
 use url::Url;
 
 pub fn rnd_peer() -> DtnPeer {
@@ -51,6 +49,19 @@ pub fn rnd_peer() -> DtnPeer {
     }
 }
 
+/// Peer Connection URL Parsing Errors
+#[derive(Error, Debug, PartialEq)]
+pub enum ParsePeerUrlError {
+    #[error("invalid URL format error")]
+    InvalidUrl,
+    #[error("invalid nodeid error")]
+    InvalidNodeId,
+    #[error("no such CLA registered error")]
+    NoSuchCLA(String),
+    #[error("unknown peer URL parsing error")]
+    Unknown,
+}
+
 /// # Example
 ///
 /// ```
@@ -58,7 +69,7 @@ pub fn rnd_peer() -> DtnPeer {
 /// use dtn7::core::helpers::parse_peer_url;
 /// use bp7::EndpointID;
 ///
-/// let peer = parse_peer_url("mtcp://192.168.2.1:2342/node1");
+/// let peer = parse_peer_url("mtcp://192.168.2.1:2342/node1").unwrap();
 /// assert_eq!(peer.eid, EndpointID::try_from("dtn://node1".to_string()).unwrap());
 /// ```
 ///
@@ -66,33 +77,44 @@ pub fn rnd_peer() -> DtnPeer {
 /// ```should_panic
 /// use dtn7::core::helpers::parse_peer_url;
 ///
-/// parse_peer_url("nosuchcla://192.168.2.1/node1");
+/// parse_peer_url("nosuchcla://192.168.2.1/node1").unwrap();
 /// ```
 ///
 /// A missing nodeid should also trigger a panic:
 /// ```should_panic
 /// use dtn7::core::helpers::parse_peer_url;
 ///
-/// parse_peer_url("mtcp://192.168.2.1");
+/// parse_peer_url("mtcp://192.168.2.1").unwrap();
 /// ```
-pub fn parse_peer_url(peer_url: &str) -> DtnPeer {
+pub fn parse_peer_url(peer_url: &str) -> Result<DtnPeer, ParsePeerUrlError> {
     let u: Url;
     let is_external = if peer_url.starts_with("ecla+") {
-        u = Url::parse(peer_url.strip_prefix("ecla+").unwrap())
-            .expect("Static external peer url parsing error");
+        u = if let Ok(parsed_url) = Url::parse(peer_url.strip_prefix("ecla+").unwrap()) {
+            parsed_url
+        } else {
+            return Err(ParsePeerUrlError::InvalidUrl);
+        };
 
         true
     } else {
-        u = Url::parse(peer_url).expect("Static peer url parsing error");
+        u = if let Ok(parsed_url) = Url::parse(peer_url) {
+            parsed_url
+        } else {
+            return Err(ParsePeerUrlError::InvalidUrl);
+        };
 
         false
     };
 
     let scheme = u.scheme();
     if !is_external && scheme.parse::<CLAsAvailable>().is_err() {
-        panic!("Unknown convergency layer selected: {}", scheme);
+        return Err(ParsePeerUrlError::NoSuchCLA(scheme.into()));
     }
-    let ipaddr = u.host_str().expect("Host parsing error");
+    let ipaddr = if let Some(host_part) = u.host_str() {
+        host_part
+    } else {
+        return Err(ParsePeerUrlError::InvalidUrl);
+    };
     let port = u.port();
 
     /*let cla_target: String = if port.is_some() {
@@ -102,7 +124,7 @@ pub fn parse_peer_url(peer_url: &str) -> DtnPeer {
     };*/
     let nodeid = u.path();
     if nodeid == "/" || nodeid.is_empty() {
-        panic!("Missing node id");
+        return Err(ParsePeerUrlError::InvalidNodeId);
     }
 
     let addr = if let Ok(ip) = ipaddr.parse::<IpAddr>() {
@@ -110,17 +132,25 @@ pub fn parse_peer_url(peer_url: &str) -> DtnPeer {
     } else {
         PeerAddress::Generic(ipaddr.to_owned())
     };
+    let nodeid = nodeid.replace('/', "");
+    let eid_str = if nodeid.chars().all(char::is_numeric) {
+        format!("ipn:{}.0", nodeid)
+    } else {
+        format!("dtn://{}/", nodeid)
+    };
 
-    DtnPeer::new(
-        format!("dtn://{}/", nodeid.replace('/', ""))
-            .try_into()
-            .unwrap(),
-        addr,
-        PeerType::Static,
-        None,
-        vec![(scheme.into(), port)],
-        HashMap::new(),
-    )
+    if let Ok(eid) = EndpointID::try_from(eid_str) {
+        Ok(DtnPeer::new(
+            eid,
+            addr,
+            PeerType::Static,
+            None,
+            vec![(scheme.into(), port)],
+            HashMap::new(),
+        ))
+    } else {
+        Err(ParsePeerUrlError::Unknown)
+    }
 }
 
 /// check node names for validity
