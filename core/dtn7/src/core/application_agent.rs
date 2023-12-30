@@ -1,11 +1,12 @@
 use bp7::{Bundle, EndpointID};
 use enum_dispatch::enum_dispatch;
-use log::{debug, trace};
+use log::{debug, error, trace};
 use std::collections::VecDeque;
 use std::fmt::Debug;
 use tokio::sync::mpsc::Sender;
 
 use crate::dtnd::ws::BundleDelivery;
+use crate::store_remove;
 //use crate::dtnd::ws::WsAASession;
 
 #[enum_dispatch]
@@ -49,6 +50,13 @@ impl ApplicationAgent for SimpleApplicationAgent {
         } else {
             // save in temp buffer for delivery
             self.bundles.push_back(bundle.clone());
+        }
+
+        if !bundle.primary.destination.is_non_singleton() {
+            debug!("Removing bundle with singleton destination from store");
+            if let Err(e) = store_remove(&bundle.id()) {
+                error!("Error while removing bundle from store: {e:?}");
+            }
         }
     }
     fn pop(&mut self) -> Option<Bundle> {
