@@ -16,7 +16,7 @@ This document covers the basic usage of `dtn7` (daemon and some of the CLI tools
 
 First, you need to checkout the most recent version of the `dtn7` source:
 ```bash
-git clone https://github.com/dtn7-rs
+git clone https://github.com/dtn7/dtn7-rs
 cd dtn7-rs
 ```
 
