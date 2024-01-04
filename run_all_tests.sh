@@ -52,6 +52,7 @@ cargo test $TARGET_OPT &&
     filter_output ./tests/erouting_epidemic.sh &&
     filter_output ./tests/ecla_erouting_test_mtcp.sh &&
     filter_output ./tests/routing_saw.sh &&
+    filter_output ./tests/routing_static.sh &&
     filter_output ./tests/ext_peer_management.sh &&
     filter_output ./tests/ext_peer_management_ipn.sh &&
     echo "SUCCESS"

@@ -121,6 +121,12 @@ jobs:
       - name: Run local dtntrigger test
         run: ./tests/local_trigger_test.sh
       
+      - name: Run spray and wait routing test
+        run: ./tests/routing_saw.sh
+      
+      - name: Run static routing test
+        run: ./tests/routing_static.sh
+      
       - name: Run external peer management (dtn) test
         run: ./tests/ext_peer_management.sh
       
