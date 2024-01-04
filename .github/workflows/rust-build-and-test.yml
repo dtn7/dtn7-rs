@@ -120,6 +120,12 @@ jobs:
       
       - name: Run local dtntrigger test
         run: ./tests/local_trigger_test.sh
+      
+      - name: Run external peer management (dtn) test
+        run: ./tests/ext_peer_management.sh
+      
+      - name: Run external peer management (ipn) test
+        run: ./tests/ext_peer_management_ipn.sh
 
     strategy:
       matrix:

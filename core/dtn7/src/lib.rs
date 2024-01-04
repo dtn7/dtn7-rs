@@ -118,6 +118,11 @@ pub fn peers_add(peer: DtnPeer) -> bool {
         .insert(peer.eid.node().unwrap(), peer)
         .is_none()
 }
+
+pub fn peers_remove(peer_id: &str) {
+    (*PEERS.lock()).remove(peer_id);
+}
+
 pub fn peers_count() -> usize {
     (*PEERS.lock()).len()
 }
