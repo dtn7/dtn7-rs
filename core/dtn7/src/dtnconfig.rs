@@ -162,7 +162,8 @@ impl From<PathBuf> for DtnConfig {
         if let Ok(peers) = s.get_array("statics.peers") {
             for m in peers.iter() {
                 let peer: DtnPeer =
-                    crate::core::helpers::parse_peer_url(&m.clone().into_string().unwrap());
+                    crate::core::helpers::parse_peer_url(&m.clone().into_string().unwrap())
+                        .expect("error parsing static peer url");
                 debug!("Peer: {:?}", peer);
                 dtncfg.statics.push(peer);
             }

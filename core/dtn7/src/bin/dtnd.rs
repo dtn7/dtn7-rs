@@ -465,7 +465,8 @@ Tag 255 takes 5 arguments and is interpreted as address. Usage: -S 255:'Samplest
         .expect("Encountered an error while checking for the existence of discovery addresses");
     if let Some(statics) = matches.get_many::<String>("staticpeer") {
         for s in statics {
-            cfg.statics.push(dtn7::core::helpers::parse_peer_url(s));
+            cfg.statics
+                .push(dtn7::core::helpers::parse_peer_url(s).expect("Invalid static peer url"));
         }
     }
 
