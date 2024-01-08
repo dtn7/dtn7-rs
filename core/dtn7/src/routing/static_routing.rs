@@ -4,8 +4,8 @@ use crate::{CONFIG, PEERS};
 
 use super::{RoutingAgent, RoutingCmd};
 use async_trait::async_trait;
+use glob_match::glob_match;
 use log::debug;
-use regex::Regex;
 use tokio::sync::mpsc;
 use tokio::sync::mpsc::Sender;
 
@@ -71,14 +71,14 @@ impl std::fmt::Display for StaticRoutingAgent {
 }
 
 fn parse_route_from_str(s: &str) -> Option<StaticRouteEntry> {
+    let s = s.trim();
+    if s.starts_with('#') || s.is_empty() {
+        return None;
+    }
     let mut parts = s.split_whitespace();
     let idx = parts.next().unwrap().parse::<u16>().unwrap();
     let src = parts.next().unwrap();
-    // check if regex is valid
-    let _re = Regex::new(src).unwrap();
     let dst = parts.next().unwrap();
-    // check if regex is valid
-    let _re = Regex::new(dst).unwrap();
     let via = parts.next().unwrap();
     Some(StaticRouteEntry {
         idx,
@@ -114,12 +114,8 @@ async fn handle_routing_cmd(mut rx: mpsc::Receiver<RoutingCmd>) {
                 let mut clas = vec![];
                 let mut delete_afterwards = false;
                 'route_loop: for route in &core.routes {
-                    if Regex::new(&route.src)
-                        .unwrap()
-                        .is_match(&bp.source.to_string())
-                        && Regex::new(&route.dst)
-                            .unwrap()
-                            .is_match(&bp.destination.to_string())
+                    if glob_match(&route.src, &bp.source.to_string())
+                        && glob_match(&route.dst, &bp.destination.to_string())
                     {
                         debug!(
                             "Found route: {}, looking for valid peer ({})",
@@ -135,6 +131,7 @@ async fn handle_routing_cmd(mut rx: mpsc::Receiver<RoutingCmd>) {
                                 }
                             }
                         }
+                        debug!("No valid peer found for route {}", route)
                     }
                 }
                 if clas.is_empty() {

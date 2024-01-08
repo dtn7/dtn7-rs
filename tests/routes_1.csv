@@ -1,1 +1,2 @@
-1 .+ .+ ipn:2.0
+# rule #1: match any source and route for destination ipn:2.* and ipn:3.* via ipn:2.0 node
+1 * ipn:[2-3].* ipn:2.0
