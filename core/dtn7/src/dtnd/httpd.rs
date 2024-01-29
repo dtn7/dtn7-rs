@@ -697,8 +697,6 @@ async fn download_hex(
 
 pub async fn spawn_httpd() -> Result<()> {
     let mut app_local_only = Router::new()
-        .route("/peers/add", get(http_peers_add))
-        .route("/peers/del", get(http_peers_delete))
         .route("/send", post(send_post))
         .route("/delete", get(delete).delete(delete))
         .route("/register", get(register))
@@ -736,6 +734,8 @@ pub async fn spawn_httpd() -> Result<()> {
     let app = app_local_only
         .route("/", get(index))
         .route("/peers", get(web_peers))
+        .route("/peers/add", get(http_peers_add))
+        .route("/peers/del", get(http_peers_delete))
         .route("/bundles", get(web_bundles))
         .route("/download.hex", get(download_hex))
         .route("/download", get(download))
