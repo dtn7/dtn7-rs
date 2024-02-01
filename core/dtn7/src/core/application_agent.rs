@@ -52,15 +52,25 @@ impl ApplicationAgent for SimpleApplicationAgent {
             self.bundles.push_back(bundle.clone());
         }
 
-        if !bundle.primary.destination.is_non_singleton() {
-            debug!("Removing bundle with singleton destination from store");
-            if let Err(e) = store_remove(&bundle.id()) {
-                error!("Error while removing bundle from store: {e:?}");
-            }
-        }
+        // if !bundle.primary.destination.is_non_singleton() {
+        //     debug!("Removing bundle with singleton destination from store");
+        //     if let Err(e) = store_remove(&bundle.id()) {
+        //         error!("Error while removing bundle from store: {e:?}");
+        //     }
+        // }
     }
     fn pop(&mut self) -> Option<Bundle> {
-        self.bundles.pop_front()
+        let bundle = self.bundles.pop_front();
+        bundle.as_ref().and_then(|b| {
+            if !b.primary.destination.is_non_singleton() {
+                debug!("Removing bundle with singleton destination from store");
+                if let Err(e) = store_remove(&b.id()) {
+                    error!("Error while removing bundle from store: {:?}", e);
+                }
+            }
+            Some(())
+        });
+        bundle
     }
 
     fn set_delivery_addr(&mut self, addr: Sender<BundleDelivery>) {
