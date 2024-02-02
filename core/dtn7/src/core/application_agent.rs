@@ -51,25 +51,17 @@ impl ApplicationAgent for SimpleApplicationAgent {
             // save in temp buffer for delivery
             self.bundles.push_back(bundle.clone());
         }
-
-        // if !bundle.primary.destination.is_non_singleton() {
-        //     debug!("Removing bundle with singleton destination from store");
-        //     if let Err(e) = store_remove(&bundle.id()) {
-        //         error!("Error while removing bundle from store: {e:?}");
-        //     }
-        // }
     }
     fn pop(&mut self) -> Option<Bundle> {
         let bundle = self.bundles.pop_front();
-        bundle.as_ref().and_then(|b| {
-            if !b.primary.destination.is_non_singleton() {
+        if let Some(bndl) = bundle.as_ref() {
+            if !bndl.primary.destination.is_non_singleton() {
                 debug!("Removing bundle with singleton destination from store");
-                if let Err(e) = store_remove(&b.id()) {
+                if let Err(e) = store_remove(&bndl.id()) {
                     error!("Error while removing bundle from store: {:?}", e);
                 }
             }
-            Some(())
-        });
+        };
         bundle
     }
 

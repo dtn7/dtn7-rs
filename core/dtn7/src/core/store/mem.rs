@@ -44,9 +44,7 @@ impl BundleStore for InMemoryBundleStore {
         } else {
             bail!("Bundle meta data not in store!");
         }
-        let v = self.bundles.remove(bid);
-        debug!("Removed bundle {v:?}");
-        if v.is_none() {
+        if self.bundles.remove(bid).is_none() {
             bail!("Bundle not in store!");
         }
         Ok(())

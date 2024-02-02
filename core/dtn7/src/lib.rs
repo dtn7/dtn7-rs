@@ -175,12 +175,10 @@ pub fn store_add_bundle_if_unknown(bndl: &Bundle) -> Result<bool> {
 }
 
 pub fn store_remove(bid: &str) -> Result<()> {
-    info!("store_remove: Removing bundle {}", bid);
+    info!("Removing bundle {}", bid);
     if let Err(err) = (*STORE.lock()).remove(bid) {
         error!("store_remove: {}", err);
         return Err(err);
-    } else {
-        debug!("store_remove: Success!");
     }
     Ok(())
 }
