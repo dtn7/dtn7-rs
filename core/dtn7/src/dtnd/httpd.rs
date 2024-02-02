@@ -7,6 +7,8 @@ use crate::core::helpers::is_valid_service_name;
 use crate::core::helpers::rnd_peer;
 use crate::core::peer::PeerType;
 use crate::core::store::BundleStore;
+use crate::peers_add;
+use crate::peers_remove;
 use crate::store_remove;
 use crate::CONFIG;
 use crate::DTNCORE;
@@ -325,6 +327,52 @@ async fn debug_rnd_peer() -> String {
     let res = serde_json::to_string_pretty(&p).unwrap();
     (*PEERS.lock()).insert(p.eid.node().unwrap_or_default(), p);
     res
+}
+
+async fn http_peers_add(
+    Query(params): Query<HashMap<String, String>>,
+) -> Result<String, (StatusCode, &'static str)> {
+    if let Some(peer_str) = params.get("p") {
+        let peer_type =
+            PeerType::try_from(params.get("p_t").unwrap_or(&"DYNAMIC".to_owned()).as_str())
+                .unwrap();
+        let mut peer = if let Ok(parsed_peer) = crate::core::helpers::parse_peer_url(peer_str) {
+            parsed_peer
+        } else {
+            return Err((StatusCode::BAD_REQUEST, "Malformed peer URL"));
+        };
+        peer.con_type = peer_type;
+
+        let is_new = peers_add(peer);
+        if is_new {
+            Ok("Added new peer".into())
+        } else {
+            Ok("Updated existing peer".into())
+        }
+    } else {
+        //anyhow::bail!("missing filter criteria");
+        Err((StatusCode::BAD_REQUEST, "missing peer parameter p"))
+    }
+}
+async fn http_peers_delete(
+    Query(params): Query<HashMap<String, String>>,
+) -> Result<String, (StatusCode, &'static str)> {
+    if let Some(peer_str) = params.get("p") {
+        // TODO: make it return a result
+        let peer = if let Ok(parsed_peer) = crate::core::helpers::parse_peer_url(peer_str) {
+            parsed_peer
+        } else {
+            return Err((StatusCode::BAD_REQUEST, "Malformed peer URL"));
+        };
+
+        // TODO: test with IPN
+        peers_remove(&peer.eid.node().unwrap());
+
+        Ok("Removed peer".into())
+    } else {
+        //anyhow::bail!("missing filter criteria");
+        Err((StatusCode::BAD_REQUEST, "missing peer parameter p"))
+    }
 }
 
 //#[get("/insert", guard = "fn_guard_localhost")]
@@ -649,6 +697,8 @@ async fn download_hex(
 
 pub async fn spawn_httpd() -> Result<()> {
     let mut app_local_only = Router::new()
+        .route("/peers/add", get(http_peers_add))
+        .route("/peers/del", get(http_peers_delete))
         .route("/send", post(send_post))
         .route("/delete", get(delete).delete(delete))
         .route("/register", get(register))
