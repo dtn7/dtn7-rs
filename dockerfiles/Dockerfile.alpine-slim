@@ -1,0 +1,27 @@
+FROM docker.io/rust:1.76.0-alpine as builder
+
+WORKDIR /root/
+RUN apk add musl-dev
+COPY . dtn7
+RUN cd dtn7 && \
+  cargo install --locked --bins --examples --root /usr/local --path examples && \
+  cargo install --locked --bins --examples --root /usr/local --path core/dtn7
+
+FROM docker.io/alpine:latest
+
+ENV DEBIAN_FRONTEND=noninteractive
+
+RUN apk add iproute2 iputils-ping tcpdump curl
+
+WORKDIR /
+COPY --from=builder /usr/local/bin/* /usr/local/bin/
+
+COPY dockerfiles/start_dtnd /usr/local/bin/start_dtnd
+
+ENV PATH="${PATH}:/usr/local/bin:/usr/local/sbin"
+
+HEALTHCHECK --interval=60s --timeout=10s --start-period=15s --retries=3 \
+  CMD curl --fail http://localhost:3000 || exit 1
+
+
+ENTRYPOINT [ "start_dtnd" ]
