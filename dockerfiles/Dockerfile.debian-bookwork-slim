@@ -1,35 +1,27 @@
-ARG ARCH=
+FROM docker.io/rust:1.76 as builder
 
-FROM ${ARCH}rust:1.75 as builder
-
-WORKDIR /root
-#RUN rustup component add rustfmt
-#RUN git clone https://github.com/dtn7/dtn7-rs  && cd dtn7-rs && \
-#    git checkout 43fac1cc2ead3a8fa9e1825f8265a77dd9298daa && \
+WORKDIR /root/
 COPY . dtn7
 RUN cd dtn7 && \
 	cargo install --locked --bins --examples --root /usr/local --path examples && \
     cargo install --locked --bins --examples --root /usr/local --path core/dtn7
 RUN cargo install --locked --bins --examples --root /usr/local dtn7-plus --git https://github.com/dtn7/dtn7-plus-rs  --rev 010202e56 dtn7-plus
 
-FROM debian:bookworm-slim
+FROM docker.io/debian:bookworm-slim
 
 ENV DEBIAN_FRONTEND=noninteractive
 
 RUN apt-get update && apt install net-tools iproute2 iputils-ping tcpdump wget curl -y
 
-WORKDIR /opt
-# RUN wget https://github.com/dtn7/dtn7-rs/releases/download/v0.19.0/dtn7-0.19.0-x86_64-unknown-linux-musl.tar.gz && \
-#  mkdir -p /opt/dtn7 && \
-#  tar -xvf dtn7-0.19.0-x86_64-unknown-linux-musl.tar.gz -C /opt/dtn7 --strip-components=1 && \
-#  rm dtn7-0.19.0-x86_64-unknown-linux-musl.tar.gz && \
-#  cp /opt/dtn7/bin/* /usr/local/bin && \
-#  cp /opt/dtn7/examples/* /usr/local/bin
-
+WORKDIR /
 COPY --from=builder /usr/local/bin/* /usr/local/bin/
 
 COPY dockerfiles/start_dtnd /usr/local/bin/start_dtnd
 
+ENV PATH="${PATH}:/usr/local/bin:/usr/local/sbin"
+
 HEALTHCHECK --interval=60s --timeout=10s --start-period=15s --retries=3 \
   CMD curl --fail http://localhost:3000 || exit 1
+
+
 ENTRYPOINT [ "start_dtnd" ]

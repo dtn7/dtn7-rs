@@ -50,7 +50,7 @@ pub fn rnd_peer() -> DtnPeer {
 }
 
 /// Peer Connection URL Parsing Errors
-#[derive(Error, Debug, PartialEq)]
+#[derive(Error, Debug, PartialEq, Eq)]
 pub enum ParsePeerUrlError {
     #[error("invalid URL format error")]
     InvalidUrl,
