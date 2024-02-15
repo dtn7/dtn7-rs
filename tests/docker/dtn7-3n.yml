@@ -1,0 +1,59 @@
+version: '3.5'
+name: dtn7-3n
+services:
+  n1:
+    hostname: n1
+    image: gh0st42/dtn7:bookworm
+    #command: -C mtcp -E 172.100.0.255
+    # override auto setting hostname but manually set to ipn:1.0
+    entrypoint: dtnd -n 1 -C mtcp -E 172.100.0.255
+    cap_add:
+      - NET_ADMIN
+    networks:
+      subnet1:
+        ipv4_address: 172.100.0.101
+    privileged: true
+
+  n2:
+    hostname: n2
+    image: gh0st42/dtn7:bookworm
+    command: -C mtcp -E 172.100.0.255 -E 172.200.0.255
+
+    cap_add:
+      - NET_ADMIN
+    networks:
+      subnet1:
+        ipv4_address: 172.100.0.102
+      subnet2:
+        ipv4_address: 172.200.0.102
+    privileged: true
+
+  n3:
+    hostname: n3
+    image: gh0st42/dtn7:bookworm
+    command: -C mtcp -E 172.200.0.255
+
+    cap_add:
+      - NET_ADMIN
+    networks:
+      subnet2:
+        ipv4_address: 172.200.0.103
+    privileged: true
+    environment:
+      - NODE_ID=66
+
+networks:
+  default:
+    driver: bridge
+
+  subnet1:
+    name: subnet1
+    ipam:
+      config:
+        - subnet: 172.100.0.0/24
+  
+  subnet2:
+    name: subnet2
+    ipam:
+      config:
+        - subnet: 172.200.0.0/24

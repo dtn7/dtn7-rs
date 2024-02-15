@@ -1,3 +1,12 @@
 #!/bin/sh
 
-dtnd -n $(hostname) $@
+
+# check if NODE_ID is set
+if [ -z "$NODE_ID" ]; then
+  echo "NODE_ID is not set, using hostname with dtn naming scheme"
+  NODE=$(hostname -s)
+else
+  echo "NODE_ID is set to $NODE_ID, using ipn naming scheme"
+  NODE=$NODE_ID  
+fi
+dtnd -n $NODE $@
