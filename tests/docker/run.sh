@@ -1,9 +1,15 @@
 #!/bin/bash
 
+DOCKERCMD=docker
+# use podman if available
+if command -v podman &> /dev/null; then
+  DOCKERCMD=podman
+fi
+
 cleanup () {
   echo "Cleaning up..."
-  docker compose -f $COMPOSE_FILE kill
-  docker compose -f $COMPOSE_FILE down -v --remove-orphans
+  $DOCKERCMD compose -f $COMPOSE_FILE kill
+  $DOCKERCMD compose -f $COMPOSE_FILE down -v --remove-orphans
 }
 
 # print help if no arguments are given
@@ -18,6 +24,6 @@ echo "Running scenario $COMPOSE_FILE"
 
 trap cleanup EXIT
 
-docker compose -f $COMPOSE_FILE up --force-recreate --build --remove-orphans -d
+$DOCKERCMD compose -f $COMPOSE_FILE up --force-recreate --build --remove-orphans -d
 
-docker compose -f $COMPOSE_FILE logs -f
+$DOCKERCMD compose -f $COMPOSE_FILE logs -f
