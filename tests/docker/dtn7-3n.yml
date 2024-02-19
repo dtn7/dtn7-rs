@@ -4,9 +4,10 @@ services:
   n1:
     hostname: n1
     image: gh0st42/dtn7:bookworm
-    #command: -C mtcp -E 172.100.0.255
+    # command: -C mtcp -E 172.100.0.255
     # override auto setting hostname but manually set to ipn:1.0
-    entrypoint: dtnd -n 1 -C mtcp -E 172.100.0.255
+    # entrypoint: dtnd -n 1 -C mtcp -E 172.100.0.255
+    command: -C mtcp
     cap_add:
       - NET_ADMIN
     networks:
@@ -17,7 +18,8 @@ services:
   n2:
     hostname: n2
     image: gh0st42/dtn7:bookworm
-    command: -C mtcp -E 172.100.0.255 -E 172.200.0.255
+    #command: -C mtcp -E 172.100.0.255 -E 172.200.0.255
+    command: -C mtcp
 
     cap_add:
       - NET_ADMIN
@@ -31,7 +33,8 @@ services:
   n3:
     hostname: n3
     image: gh0st42/dtn7:bookworm
-    command: -C mtcp -E 172.200.0.255
+    #command: -C mtcp -E 172.200.0.255
+    command: -C mtcp
 
     cap_add:
       - NET_ADMIN
