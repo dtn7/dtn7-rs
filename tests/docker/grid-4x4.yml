@@ -1,0 +1,420 @@
+version: '3.8'
+name: 'grid-4x4'
+
+services:
+  n-1-1:
+    hostname: n-1-1
+    container_name: n-1-1
+    image: gh0st42/dtn7:bookworm
+    cap_add:
+      - NET_ADMIN
+    networks: 
+      subnet-x-1:
+        ipv4_address: 172.18.1.2
+      subnet-y-1:
+        ipv4_address: 172.19.13.2
+    privileged: true
+    command: -C mtcp
+
+
+  n-2-1:
+    hostname: n-2-1
+    container_name: n-2-1
+    image: gh0st42/dtn7:bookworm
+    cap_add:
+      - NET_ADMIN
+    networks: 
+      subnet-x-2:
+        ipv4_address: 172.18.2.2
+      subnet-x-1:
+        ipv4_address: 172.18.1.3
+      subnet-y-4:
+        ipv4_address: 172.19.16.2
+    privileged: true
+    command: -C mtcp
+
+
+  n-3-1:
+    hostname: n-3-1
+    container_name: n-3-1
+    image: gh0st42/dtn7:bookworm
+    cap_add:
+      - NET_ADMIN
+    networks: 
+      subnet-x-3:
+        ipv4_address: 172.18.3.2
+      subnet-x-2:
+        ipv4_address: 172.18.2.3
+      subnet-y-7:
+        ipv4_address: 172.19.19.2
+    privileged: true
+    command: -C mtcp
+
+
+  n-4-1:
+    hostname: n-4-1
+    container_name: n-4-1
+    image: gh0st42/dtn7:bookworm
+    cap_add:
+      - NET_ADMIN
+    networks: 
+      subnet-x-3:
+        ipv4_address: 172.18.3.3
+      subnet-y-10:
+        ipv4_address: 172.19.22.2
+    privileged: true
+    command: -C mtcp
+
+
+  n-1-2:
+    hostname: n-1-2
+    container_name: n-1-2
+    image: gh0st42/dtn7:bookworm
+    cap_add:
+      - NET_ADMIN
+    networks: 
+      subnet-x-4:
+        ipv4_address: 172.18.4.2
+      subnet-y-1:
+        ipv4_address: 172.19.13.3
+      subnet-y-2:
+        ipv4_address: 172.19.14.2
+    privileged: true
+    command: -C mtcp
+
+
+  n-2-2:
+    hostname: n-2-2
+    container_name: n-2-2
+    image: gh0st42/dtn7:bookworm
+    cap_add:
+      - NET_ADMIN
+    networks: 
+      subnet-x-5:
+        ipv4_address: 172.18.5.2
+      subnet-x-4:
+        ipv4_address: 172.18.4.3
+      subnet-y-4:
+        ipv4_address: 172.19.16.3
+      subnet-y-5:
+        ipv4_address: 172.19.17.2
+    privileged: true
+    command: -C mtcp
+
+
+  n-3-2:
+    hostname: n-3-2
+    container_name: n-3-2
+    image: gh0st42/dtn7:bookworm
+    cap_add:
+      - NET_ADMIN
+    networks: 
+      subnet-x-6:
+        ipv4_address: 172.18.6.2
+      subnet-x-5:
+        ipv4_address: 172.18.5.3
+      subnet-y-7:
+        ipv4_address: 172.19.19.3
+      subnet-y-8:
+        ipv4_address: 172.19.20.2
+    privileged: true
+    command: -C mtcp
+
+
+  n-4-2:
+    hostname: n-4-2
+    container_name: n-4-2
+    image: gh0st42/dtn7:bookworm
+    cap_add:
+      - NET_ADMIN
+    networks: 
+      subnet-x-6:
+        ipv4_address: 172.18.6.3
+      subnet-y-10:
+        ipv4_address: 172.19.22.3
+      subnet-y-11:
+        ipv4_address: 172.19.23.2
+    privileged: true
+    command: -C mtcp
+
+
+  n-1-3:
+    hostname: n-1-3
+    container_name: n-1-3
+    image: gh0st42/dtn7:bookworm
+    cap_add:
+      - NET_ADMIN
+    networks: 
+      subnet-x-7:
+        ipv4_address: 172.18.7.2
+      subnet-y-2:
+        ipv4_address: 172.19.14.3
+      subnet-y-3:
+        ipv4_address: 172.19.15.2
+    privileged: true
+    command: -C mtcp
+
+
+  n-2-3:
+    hostname: n-2-3
+    container_name: n-2-3
+    image: gh0st42/dtn7:bookworm
+    cap_add:
+      - NET_ADMIN
+    networks: 
+      subnet-x-8:
+        ipv4_address: 172.18.8.2
+      subnet-x-7:
+        ipv4_address: 172.18.7.3
+      subnet-y-5:
+        ipv4_address: 172.19.17.3
+      subnet-y-6:
+        ipv4_address: 172.19.18.2
+    privileged: true
+    command: -C mtcp
+
+
+  n-3-3:
+    hostname: n-3-3
+    container_name: n-3-3
+    image: gh0st42/dtn7:bookworm
+    cap_add:
+      - NET_ADMIN
+    networks: 
+      subnet-x-9:
+        ipv4_address: 172.18.9.2
+      subnet-x-8:
+        ipv4_address: 172.18.8.3
+      subnet-y-8:
+        ipv4_address: 172.19.20.3
+      subnet-y-9:
+        ipv4_address: 172.19.21.2
+    privileged: true
+    command: -C mtcp
+
+
+  n-4-3:
+    hostname: n-4-3
+    container_name: n-4-3
+    image: gh0st42/dtn7:bookworm
+    cap_add:
+      - NET_ADMIN
+    networks: 
+      subnet-x-9:
+        ipv4_address: 172.18.9.3
+      subnet-y-11:
+        ipv4_address: 172.19.23.3
+      subnet-y-12:
+        ipv4_address: 172.19.24.2
+    privileged: true
+    command: -C mtcp
+
+
+  n-1-4:
+    hostname: n-1-4
+    container_name: n-1-4
+    image: gh0st42/dtn7:bookworm
+    cap_add:
+      - NET_ADMIN
+    networks: 
+      subnet-x-10:
+        ipv4_address: 172.18.10.2
+      subnet-y-3:
+        ipv4_address: 172.19.15.3
+    privileged: true
+    command: -C mtcp
+
+
+  n-2-4:
+    hostname: n-2-4
+    container_name: n-2-4
+    image: gh0st42/dtn7:bookworm
+    cap_add:
+      - NET_ADMIN
+    networks: 
+      subnet-x-11:
+        ipv4_address: 172.18.11.2
+      subnet-x-10:
+        ipv4_address: 172.18.10.3
+      subnet-y-6:
+        ipv4_address: 172.19.18.3
+    privileged: true
+    command: -C mtcp
+
+
+  n-3-4:
+    hostname: n-3-4
+    container_name: n-3-4
+    image: gh0st42/dtn7:bookworm
+    cap_add:
+      - NET_ADMIN
+    networks: 
+      subnet-x-12:
+        ipv4_address: 172.18.12.2
+      subnet-x-11:
+        ipv4_address: 172.18.11.3
+      subnet-y-9:
+        ipv4_address: 172.19.21.3
+    privileged: true
+    command: -C mtcp
+
+
+  n-4-4:
+    hostname: n-4-4
+    container_name: n-4-4
+    image: gh0st42/dtn7:bookworm
+    cap_add:
+      - NET_ADMIN
+    networks: 
+      subnet-x-12:
+        ipv4_address: 172.18.12.3
+      subnet-y-12:
+        ipv4_address: 172.19.24.3
+    privileged: true
+    command: -C mtcp
+
+networks:
+  subnet-x-1:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.18.1.0/24
+
+  subnet-x-2:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.18.2.0/24
+
+  subnet-x-3:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.18.3.0/24
+
+  subnet-x-4:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.18.4.0/24
+
+  subnet-x-5:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.18.5.0/24
+
+  subnet-x-6:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.18.6.0/24
+
+  subnet-x-7:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.18.7.0/24
+
+  subnet-x-8:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.18.8.0/24
+
+  subnet-x-9:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.18.9.0/24
+
+  subnet-x-10:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.18.10.0/24
+
+  subnet-x-11:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.18.11.0/24
+
+  subnet-x-12:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.18.12.0/24
+
+  subnet-y-1:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.19.13.0/24
+
+  subnet-y-2:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.19.14.0/24
+
+  subnet-y-3:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.19.15.0/24
+
+  subnet-y-4:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.19.16.0/24
+
+  subnet-y-5:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.19.17.0/24
+
+  subnet-y-6:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.19.18.0/24
+
+  subnet-y-7:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.19.19.0/24
+
+  subnet-y-8:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.19.20.0/24
+
+  subnet-y-9:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.19.21.0/24
+
+  subnet-y-10:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.19.22.0/24
+
+  subnet-y-11:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.19.23.0/24
+
+  subnet-y-12:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.19.24.0/24
+

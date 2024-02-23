@@ -1,5 +1,5 @@
 version: '3.5'
-name: dtn7-3n
+name: line-3n
 services:
   n1:
     hostname: n1
