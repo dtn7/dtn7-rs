@@ -31,7 +31,9 @@ if [ "$NUM_BUNDLES" = "$EXPECTED_BUNDLES" ]; then
   echo "Correct number of bundles in store!"
 else
   echo "Incorrect number of bundles in store!"
-
+  wait_for_key $1
+  cleanup
+  exit 1
 fi
 echo
 

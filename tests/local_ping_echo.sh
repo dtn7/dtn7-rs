@@ -21,6 +21,21 @@ $BINS/examples/dtnping -d 'dtn://node1/echo' -c 6 -t 500ms
 RC=$?
 echo "RET: $RC"
 
+echo -n "Bundles in store on node 1: "
+NUM_BUNDLES=$($BINS/dtnquery bundles | grep "dtn://" | wc -l | awk '{print $1}')
+echo -n $NUM_BUNDLES
+
+EXPECTED_BUNDLES=0
+
+echo " / $EXPECTED_BUNDLES"
+if [ "$NUM_BUNDLES" = "$EXPECTED_BUNDLES" ]; then
+  echo "Correct number of bundles in store!"
+else
+  echo "Incorrect number of bundles in store!"
+  RC=1
+fi
+
+
 wait_for_key $1
 
 #kill $PID_ECHO1
