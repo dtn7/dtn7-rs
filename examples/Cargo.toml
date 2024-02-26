@@ -7,7 +7,7 @@ edition = "2018"
 # If you copy one of the examples into a new project, you should be using
 # [dependencies] instead, and delete the **path**.
 [dev-dependencies]
-bp7 = {version = "0.10.5", default-features = false }
+bp7 = {version = "0.10.6", default-features = false }
 dtn7-plus = {version = "0.7.0", default-features = false, features = ["client"] }
 clap = { version = "4.0.27", features = ["cargo", "derive"] }
 anyhow = "1.0.57"
@@ -15,12 +15,12 @@ serde_cbor = "0.11"
 humantime = "2.1.0"
 rand = "0.8.5"
 dtn7 = { path = "../core/dtn7", version = "0.19.0" }
-tokio = { version = "1.16.1", features = ["net", "rt-multi-thread", "macros", "time"] }
-tokio-util = { version = "0.7.2", features = ["codec"] }
-tokio-serde = { version = "0.8", features = ["json"] }
+tokio = { version = "1.36.0", features = ["net", "rt-multi-thread", "macros", "time"] }
+tokio-util = { version = "0.7.10", features = ["codec"] }
+tokio-serde = { version = "0.9", features = ["json"] }
 parking_lot = { version = "0.12.0", features = ["send_guard"] }
 futures-util = "0.3.5"
-pretty_env_logger = "0.4.0"
+pretty_env_logger = "0.5.0"
 serde_json = "1.0"
 futures = "0.3.5"
 lazy_static = "1.4.0"

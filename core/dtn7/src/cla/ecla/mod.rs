@@ -25,20 +25,23 @@ pub mod ws_client;
 */
 
 mod base64 {
-    use base64::{decode, encode};
+    use base64::prelude::*;
+
     use serde::{Deserialize, Serialize};
     use serde::{Deserializer, Serializer};
 
     // TODO: Uses a extra allocation at the moment. Might be worth investigating a allocation-less solution in the future.
 
     pub fn serialize<S: Serializer>(v: &[u8], s: S) -> Result<S::Ok, S::Error> {
-        let base64 = encode(v);
+        let base64 = BASE64_STANDARD.encode(v);
         String::serialize(&base64, s)
     }
 
     pub fn deserialize<'de, D: Deserializer<'de>>(d: D) -> Result<Vec<u8>, D::Error> {
         let base64 = String::deserialize(d)?;
-        decode(base64.as_bytes()).map_err(serde::de::Error::custom)
+        BASE64_STANDARD
+            .decode(base64.as_bytes())
+            .map_err(serde::de::Error::custom)
     }
 }
 
