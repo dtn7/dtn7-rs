@@ -464,11 +464,6 @@ pub async fn local_delivery(mut bp: BundlePack) -> Result<()> {
     }
     bp.add_constraint(Constraint::LocalEndpoint);
     bp.sync()?;
-    if let Some(aa) = (*DTNCORE.lock()).get_endpoint_mut(&bp.destination) {
-        info!("Delivering {}", bp.id());
-        aa.push(&bndl);
-        STATS.lock().delivered += 1;
-    }
     if is_local_node_id(&bp.destination) {
         if bndl
             .primary
@@ -489,6 +484,11 @@ pub async fn local_delivery(mut bp: BundlePack) -> Result<()> {
         bp.add_constraint(Constraint::ForwardPending);
     }
     bp.sync()?;
+    if let Some(aa) = (*DTNCORE.lock()).get_endpoint_mut(&bp.destination) {
+        info!("Delivering {}", bp.id());
+        aa.push(&bndl);
+        STATS.lock().delivered += 1;
+    }
     Ok(())
 }
 pub fn contraindicated(mut bp: BundlePack) -> Result<()> {
