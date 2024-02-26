@@ -46,6 +46,8 @@ impl ApplicationAgent for SimpleApplicationAgent {
 
             if addr.try_send(BundleDelivery(bundle.clone())).is_err() {
                 self.bundles.push_back(bundle.clone());
+            } else {
+                remove_singleton_bundle_from_store(&bundle);
             }
         } else {
             // save in temp buffer for delivery
@@ -55,12 +57,7 @@ impl ApplicationAgent for SimpleApplicationAgent {
     fn pop(&mut self) -> Option<Bundle> {
         let bundle = self.bundles.pop_front();
         if let Some(bndl) = bundle.as_ref() {
-            if !bndl.primary.destination.is_non_singleton() {
-                debug!("Removing bundle with singleton destination from store");
-                if let Err(e) = store_remove(&bndl.id()) {
-                    error!("Error while removing bundle from store: {:?}", e);
-                }
-            }
+            remove_singleton_bundle_from_store(bndl);
         };
         bundle
     }
@@ -84,6 +81,16 @@ impl SimpleApplicationAgent {
             eid,
             bundles: VecDeque::new(),
             delivery: None,
+        }
+    }
+}
+
+/// Removes a bundle from the store if its destination is a singleton endpoint
+fn remove_singleton_bundle_from_store(bundle: &Bundle) {
+    if !bundle.primary.destination.is_non_singleton() {
+        debug!("Removing bundle with singleton destination from store");
+        if let Err(e) = store_remove(&bundle.id()) {
+            error!("Error while removing bundle from store: {:?}", e);
         }
     }
 }
