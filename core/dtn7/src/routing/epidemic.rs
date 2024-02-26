@@ -112,6 +112,10 @@ async fn handle_routing_cmd(mut rx: mpsc::Receiver<RoutingCmd>) {
             super::RoutingCmd::Shutdown => {
                 break;
             }
+            super::RoutingCmd::Command(_cmd) => {}
+            super::RoutingCmd::GetData(_, tx) => {
+                tx.send(format!("{:?}", core.history)).unwrap();
+            }
             super::RoutingCmd::Notify(notification) => match notification {
                 RoutingNotifcation::SendingFailed(bid, cla_sender) => {
                     core.sending_failed(bid.as_str(), cla_sender.as_str());

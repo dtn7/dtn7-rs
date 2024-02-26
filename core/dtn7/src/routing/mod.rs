@@ -45,6 +45,8 @@ pub enum RoutingAgentsEnum {
 pub enum RoutingCmd {
     SenderForBundle(BundlePack, oneshot::Sender<(Vec<ClaSenderTask>, bool)>),
     Notify(RoutingNotifcation),
+    Command(String),
+    GetData(String, oneshot::Sender<String>),
     Shutdown,
 }
 

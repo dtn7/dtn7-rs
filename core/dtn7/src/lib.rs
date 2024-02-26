@@ -218,6 +218,26 @@ pub fn store_delete_expired() {
         }
     }
 }
+pub async fn routing_cmd(cmd: String) -> Result<()> {
+    let chan = DTNCORE.lock().routing_agent.channel();
+    if let Err(err) = chan.send(RoutingCmd::Command(cmd)).await {
+        bail!("Error while sending notification: {}", err);
+    }
+    Ok(())
+}
+
+pub async fn routing_get_data(param: String) -> Result<String> {
+    let (reply_tx, reply_rx) = oneshot::channel();
+
+    let cmd_channel = DTNCORE.lock().routing_agent.channel();
+    if let Err(err) = cmd_channel.send(RoutingCmd::GetData(param, reply_tx)).await {
+        bail!("Error while sending command to routing agent: {}", err);
+    }
+    // wait for reply or timeout
+    let res = tokio::time::timeout(std::time::Duration::from_secs(1), reply_rx).await??;
+
+    Ok(res)
+}
 
 pub async fn routing_notify(notification: RoutingNotifcation) -> Result<()> {
     let chan = DTNCORE.lock().routing_agent.channel();

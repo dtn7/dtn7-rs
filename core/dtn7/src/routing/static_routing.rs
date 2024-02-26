@@ -5,7 +5,7 @@ use crate::{CONFIG, PEERS};
 use super::{RoutingAgent, RoutingCmd};
 use async_trait::async_trait;
 use glob_match::glob_match;
-use log::debug;
+use log::{debug, info};
 use tokio::sync::mpsc;
 use tokio::sync::mpsc::Sender;
 
@@ -91,6 +91,7 @@ fn parse_route_from_str(s: &str) -> Option<StaticRouteEntry> {
 async fn handle_routing_cmd(mut rx: mpsc::Receiver<RoutingCmd>) {
     let mut route_entries = vec![];
     let settings = CONFIG.lock().routing_settings.clone();
+
     if let Some(static_settings) = settings.get("static") {
         if let Some(routes_file) = static_settings.get("routes") {
             // open file and read routes line by line
@@ -104,7 +105,7 @@ async fn handle_routing_cmd(mut rx: mpsc::Receiver<RoutingCmd>) {
         }
     }
 
-    let core: StaticRoutingAgentCore = StaticRoutingAgentCore {
+    let mut core: StaticRoutingAgentCore = StaticRoutingAgentCore {
         routes: route_entries,
     };
 
@@ -141,6 +142,35 @@ async fn handle_routing_cmd(mut rx: mpsc::Receiver<RoutingCmd>) {
             }
             super::RoutingCmd::Shutdown => {
                 break;
+            }
+            super::RoutingCmd::Command(cmd) => {
+                if cmd == "reload" {
+                    let settings = CONFIG.lock().routing_settings.clone();
+                    if let Some(static_settings) = settings.get("static") {
+                        if let Some(routes_file) = static_settings.get("routes") {
+                            info!("Reloading static routes from {}", routes_file);
+                            // open file and read routes line by line
+                            let routes = std::fs::read_to_string(routes_file).unwrap();
+                            let mut route_entries = vec![];
+                            for line in routes.lines() {
+                                if let Some(entry) = parse_route_from_str(line) {
+                                    debug!("Adding static route: {}", entry);
+                                    route_entries.push(entry);
+                                }
+                            }
+                            core.routes = route_entries;
+                        }
+                    }
+                } else {
+                    debug!("Unknown command: {}", cmd);
+                }
+            }
+            super::RoutingCmd::GetData(_, tx) => {
+                let routes_as_str = core
+                    .routes
+                    .iter()
+                    .fold(String::new(), |acc, r| acc + &format!("{}\n", r));
+                tx.send(routes_as_str).unwrap();
             }
             super::RoutingCmd::Notify(_) => {}
         }
