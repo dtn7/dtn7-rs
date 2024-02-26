@@ -18,6 +18,7 @@ pub struct SprayAndWaitRoutingAgent {
     tx: mpsc::Sender<super::RoutingCmd>,
 }
 
+#[derive(Debug)]
 pub struct SaWBundleData {
     /// the number of copies we have left to spread
     remaining_copies: usize,
@@ -202,6 +203,10 @@ async fn handle_routing_cmd(mut rx: mpsc::Receiver<RoutingCmd>) {
             }
             super::RoutingCmd::Shutdown => {
                 break;
+            }
+            super::RoutingCmd::Command(_cmd) => {}
+            super::RoutingCmd::GetData(_, tx) => {
+                tx.send(format!("{:?}", core.history)).unwrap();
             }
             super::RoutingCmd::Notify(notification) => {
                 handle_notification(&mut core, notification);

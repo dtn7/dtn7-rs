@@ -15,7 +15,7 @@ Plus:
 * [Minimal TCP Convergence Layer](https://tools.ietf.org/html/draft-ietf-dtn-mtcpcl-01) 
 * A simple [HTTP Convergence Layer](doc/http-cl.md)
 * A [HTTP pull-based Convergence Layer](doc/http-pull-cl.md)
-* An IP neighorhood discovery service
+* An IP neighborhood discovery service
 * Convenient command line tools to interact with the daemon
 * A simple web interface for status information about `dtnd` 
 * A [web-socket interface](doc/http-client-api.md) for application agents
@@ -25,7 +25,7 @@ The actual BP7 implementation (encoding/decoding) is available as a separate [pr
 
 Additional dtn extensions and a client library are also [available](https://crates.io/crates/dtn7-plus).
 
-Currently, a service discovery based on IPND but adapted to CBOR and BPv7, TCP, MTCP & HTTP CLs, sprayandwait/flooding/epidemic/sink-routing and restful/websocket command interfaces are implemented. 
+Currently, a service discovery based on IPND but adapted to CBOR and BPv7, TCP, MTCP & HTTP CLs, sprayandwait/flooding/epidemic/static/sink-routing and restful/websocket command interfaces are implemented. 
 Both addressing schemes, *dtn* as well as *ipn* are supported. 
 Furthermore, some CLI tools are provided to easily integrate *dtn7* into shell scripts.
 

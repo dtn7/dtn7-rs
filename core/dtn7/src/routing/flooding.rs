@@ -39,6 +39,10 @@ impl FloodingRoutingAgent {
                     super::RoutingCmd::Shutdown => {
                         break;
                     }
+                    super::RoutingCmd::Command(_cmd) => {}
+                    super::RoutingCmd::GetData(_, tx) => {
+                        tx.send("unimplemented!".to_string()).unwrap();
+                    }
                     super::RoutingCmd::Notify(_) => {}
                 }
             }

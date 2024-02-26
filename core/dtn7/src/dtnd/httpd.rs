@@ -9,6 +9,8 @@ use crate::core::peer::PeerType;
 use crate::core::store::BundleStore;
 use crate::peers_add;
 use crate::peers_remove;
+use crate::routing_cmd;
+use crate::routing_get_data;
 use crate::store_remove;
 use crate::CONFIG;
 use crate::DTNCORE;
@@ -327,6 +329,41 @@ async fn debug_rnd_peer() -> String {
     let res = serde_json::to_string_pretty(&p).unwrap();
     (*PEERS.lock()).insert(p.eid.node().unwrap_or_default(), p);
     res
+}
+
+async fn http_routing_cmd(
+    Query(params): Query<HashMap<String, String>>,
+) -> Result<String, (StatusCode, &'static str)> {
+    if let Some(cmd) = params.get("c") {
+        if routing_cmd(cmd.to_string()).await.is_ok() {
+            Ok("Sent command to routing agent.".into())
+        } else {
+            Err((
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "error sending cmd to routing agent",
+            ))
+        }
+    } else {
+        //anyhow::bail!("missing filter criteria");
+        Err((
+            StatusCode::BAD_REQUEST,
+            "missing routing command parameter cmd",
+        ))
+    }
+}
+
+async fn http_routing_getdata(
+    Query(params): Query<HashMap<String, String>>,
+) -> Result<String, (StatusCode, &'static str)> {
+    let param = params.get("p").map_or("".to_string(), |f| f.to_string());
+    if let Ok(res) = routing_get_data(param).await {
+        Ok(res)
+    } else {
+        Err((
+            StatusCode::INTERNAL_SERVER_ERROR,
+            "error getting data from routing agent",
+        ))
+    }
 }
 
 async fn http_peers_add(
@@ -699,6 +736,8 @@ pub async fn spawn_httpd() -> Result<()> {
     let mut app_local_only = Router::new()
         .route("/peers/add", get(http_peers_add))
         .route("/peers/del", get(http_peers_delete))
+        .route("/routing/cmd", get(http_routing_cmd).post(http_routing_cmd))
+        .route("/routing/getdata", get(http_routing_getdata))
         .route("/send", post(send_post))
         .route("/delete", get(delete).delete(delete))
         .route("/register", get(register))

@@ -88,6 +88,23 @@ $ curl "http://127.0.0.1:3000/peers/del?p=tcp://127.0.0.1:4223/node2"
 Removed peer
 ```
 
+### **GET**, **POST** `/routing/cmd?c=<command to send to routing agent>`
+
+Send a command to the routing daemon, e.g., *static* accepts to `reload` to reload the routing information from the configured file.
+```
+$ curl http://127.0.0.1:3000/routing/cmd?cmd='reload'
+Sent command to routing agent.
+```
+### **GET** `/routing/getdata?p=<optional parameter>`
+
+Get internal data from routing agent.
+Not all routing agents respond to this.
+
+```
+$ curl http://127.0.0.1:3000/routing/getdata
+#1: route from * to ipn:[2-3].* via ipn:2.0
+```
+
 ### **GET**, **POST** `/insert`
 
 Insert is used to send a newly constructed bundle from this node instance. 
