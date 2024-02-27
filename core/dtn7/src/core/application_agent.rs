@@ -6,6 +6,7 @@ use std::fmt::Debug;
 use tokio::sync::mpsc::Sender;
 
 use crate::dtnd::ws::BundleDelivery;
+use crate::store_remove_if_singleton_bundle;
 //use crate::dtnd::ws::WsAASession;
 
 #[enum_dispatch]
@@ -45,6 +46,8 @@ impl ApplicationAgent for SimpleApplicationAgent {
 
             if addr.try_send(BundleDelivery(bundle.clone())).is_err() {
                 self.bundles.push_back(bundle.clone());
+            } else {
+                store_remove_if_singleton_bundle(bundle);
             }
         } else {
             // save in temp buffer for delivery
@@ -52,7 +55,11 @@ impl ApplicationAgent for SimpleApplicationAgent {
         }
     }
     fn pop(&mut self) -> Option<Bundle> {
-        self.bundles.pop_front()
+        let bundle = self.bundles.pop_front();
+        if let Some(bndl) = bundle.as_ref() {
+            store_remove_if_singleton_bundle(bndl);
+        };
+        bundle
     }
 
     fn set_delivery_addr(&mut self, addr: Sender<BundleDelivery>) {

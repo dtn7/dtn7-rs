@@ -190,6 +190,16 @@ pub fn store_remove(bid: &str) -> Result<()> {
     Ok(())
 }
 
+/// Removes a bundle from the store if its destination is a singleton endpoint
+fn store_remove_if_singleton_bundle(bundle: &Bundle) {
+    if !bundle.primary.destination.is_non_singleton() {
+        debug!("Removing bundle with singleton destination from store");
+        if let Err(e) = store_remove(&bundle.id()) {
+            error!("Error while removing bundle from store: {:?}", e);
+        }
+    }
+}
+
 pub fn store_update_metadata(bp: &BundlePack) -> Result<()> {
     (*STORE.lock()).update_metadata(bp)
 }
