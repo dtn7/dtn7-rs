@@ -88,6 +88,9 @@ This service can be used together with `examples/dtnping.rs` for connectivity te
 
 Under `tests/` are several shell scripts for integration tests that also showcase how to use the different command line utilities. 
 Furthermore, under `tests/clab` are more complex and dynamic tests that get executed in *Docker* and [*coreemu*](https://github.com/coreemu/core).
+For pure *docker compose* scenarios you can take a look under `tests/docker`.
+
+More complex scenarios can be found in the [dtn7 showroom](https://github.com/dtn7/dtn7-showroom).
 
 ### Acknowledging this work
 
