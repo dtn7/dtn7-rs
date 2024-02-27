@@ -132,6 +132,14 @@ jobs:
       
       - name: Run external peer management (ipn) test
         run: ./tests/ext_peer_management_ipn.sh
+      
+      - name: Run store delete test
+        run: ./tests/store_delete.sh
+      
+      - name: Run store delete test for singleton
+        run: ./tests/store_delete_singleton.sh
+      
+      
 
     strategy:
       matrix:
