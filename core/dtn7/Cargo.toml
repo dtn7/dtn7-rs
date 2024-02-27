@@ -36,7 +36,7 @@ tokio = { version = "1.36.0", features = [
   "time",
   "tracing",
 ] }
-console-subscriber = { version = "0.1.6", features = [
+console-subscriber = { version = "0.2.0", features = [
   "parking_lot",
 ], optional = true }
 tokio-util = { version = "0.7.10", features = ["codec"] }
@@ -70,11 +70,10 @@ hyper = { version = "0.14.18", features = ["client"] }
 tungstenite = "0.17.3"
 #measure_time = "0.7.0"
 bitflags = "2.0.2"
-num-derive = "0.3.3"
+num-derive = "0.4.2"
 num-traits = "0.2.15"
 thiserror = "1.0.31"
-dtn7-codegen = { path = "../codegen", version = "0.1.0" }
-byteorder = "1.4.3"
+dtn7-codegen = { path = "../codegen", version = "0.1.1" }
 reqwest = { version = "0.11.13", default-features = false, features = ["json"] }
 sha1 = "0.10.5"
 glob-match = "0.2.1"

@@ -3,6 +3,7 @@
 strip = true  # Automatically strip symbols from the binary.
 
 [workspace]
+resolver = "2"
 
 members = [
     "core/codegen",
