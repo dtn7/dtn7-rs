@@ -403,6 +403,14 @@ pub async fn forward(mut bp: BundlePack) -> Result<()> {
                         start_time.elapsed()
                     );
                     bundle_sent.store(true, Ordering::Relaxed);
+                    if let Err(err) = routing_notify(RoutingNotifcation::SendingSucceeded(
+                        bpid,
+                        n.next_hop.node().unwrap(),
+                    ))
+                    .await
+                    {
+                        error!("Error while sending succeeded notification: {}", err);
+                    }
                 }
             });
             wg.push(task_handle);

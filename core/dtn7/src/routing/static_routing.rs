@@ -1,6 +1,6 @@
 use std::fmt::Display;
 
-use crate::{CONFIG, PEERS};
+use crate::{RoutingNotifcation, CONFIG, PEERS};
 
 use super::{RoutingAgent, RoutingCmd};
 use async_trait::async_trait;
@@ -88,6 +88,19 @@ fn parse_route_from_str(s: &str) -> Option<StaticRouteEntry> {
     })
 }
 
+async fn handle_routing_notification(notification: RoutingNotifcation) {
+    debug!("Received notification: {:?}", notification);
+    match notification {
+        RoutingNotifcation::SendingFailed(bid, cla_sender) => {
+            debug!("Sending failed for bundle {} on CLA {}", bid, cla_sender);
+        }
+        RoutingNotifcation::SendingSucceeded(bid, cla_sender) => {
+            debug!("Sending succeeded for bundle {} on CLA {}", bid, cla_sender);
+        }
+        _ => { /* ignore */ }
+    }
+}
+
 async fn handle_routing_cmd(mut rx: mpsc::Receiver<RoutingCmd>) {
     let mut route_entries = vec![];
     let settings = CONFIG.lock().routing_settings.clone();
@@ -126,8 +139,7 @@ async fn handle_routing_cmd(mut rx: mpsc::Receiver<RoutingCmd>) {
                             if p.eid.to_string() == route.via {
                                 if let Some(cla) = p.first_cla() {
                                     clas.push(cla);
-                                    delete_afterwards =
-                                        p.node_name() == bp.destination.node().unwrap();
+                                    delete_afterwards = !bp.destination.is_non_singleton();
                                     break 'route_loop;
                                 }
                             }
@@ -172,7 +184,9 @@ async fn handle_routing_cmd(mut rx: mpsc::Receiver<RoutingCmd>) {
                     .fold(String::new(), |acc, r| acc + &format!("{}\n", r));
                 tx.send(routes_as_str).unwrap();
             }
-            super::RoutingCmd::Notify(_) => {}
+            super::RoutingCmd::Notify(notification) => {
+                handle_routing_notification(notification).await;
+            }
         }
     }
 }

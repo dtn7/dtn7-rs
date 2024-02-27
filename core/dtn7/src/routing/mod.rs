@@ -8,6 +8,7 @@ pub mod static_routing;
 
 use crate::cla::ClaSenderTask;
 use crate::core::bundlepack::BundlePack;
+use crate::BundleID;
 use async_trait::async_trait;
 use bp7::Bundle;
 use bp7::EndpointID;
@@ -23,10 +24,12 @@ use std::fmt::Debug;
 use std::fmt::Display;
 use tokio::sync::{mpsc, oneshot};
 
+#[derive(Debug)]
 pub enum RoutingNotifcation {
-    SendingFailed(String, String),
+    SendingFailed(BundleID, String),
+    SendingSucceeded(BundleID, String),
     IncomingBundle(Bundle),
-    IncomingBundleWithoutPreviousNode(String, String),
+    IncomingBundleWithoutPreviousNode(BundleID, String),
     EncounteredPeer(EndpointID),
     DroppedPeer(EndpointID),
 }

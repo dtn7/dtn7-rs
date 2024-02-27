@@ -1,4 +1,4 @@
-use crate::{peers_get_for_node, BundlePack, DtnPeer, PeerAddress, RoutingNotifcation};
+use crate::{peers_get_for_node, BundleID, BundlePack, DtnPeer, PeerAddress, RoutingNotifcation};
 use bp7::{Bundle, EndpointID};
 use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, HashMap};
@@ -32,6 +32,8 @@ pub enum Packet {
     Timeout(Timeout),
     /// Packet that signals that the sending failed.
     SendingFailed(SendingFailed),
+    /// Packet that signals that the sending succeeded.
+    SendingSucceeded(SendingSucceeded),
     /// Packet that signals that a bundle is incoming.
     IncomingBundle(IncomingBundle),
     /// Packet that signals that a bundle is incoming without a previous node.
@@ -53,6 +55,9 @@ impl From<RoutingNotifcation> for Packet {
         match notification {
             RoutingNotifcation::SendingFailed(bid, cla_sender) => {
                 Packet::SendingFailed(SendingFailed { bid, cla_sender })
+            }
+            RoutingNotifcation::SendingSucceeded(bid, cla_sender) => {
+                Packet::SendingSucceeded(SendingSucceeded { bid, cla_sender })
             }
             RoutingNotifcation::IncomingBundle(bndl) => {
                 Packet::IncomingBundle(IncomingBundle { bndl })
@@ -111,7 +116,13 @@ pub struct Timeout {
 
 #[derive(Serialize, Deserialize, Clone)]
 pub struct SendingFailed {
-    pub bid: String,
+    pub bid: BundleID,
+    pub cla_sender: String,
+}
+
+#[derive(Serialize, Deserialize, Clone)]
+pub struct SendingSucceeded {
+    pub bid: BundleID,
     pub cla_sender: String,
 }
 
@@ -122,7 +133,7 @@ pub struct IncomingBundle {
 
 #[derive(Serialize, Deserialize, Clone)]
 pub struct IncomingBundleWithoutPreviousNode {
-    pub bid: String,
+    pub bid: BundleID,
     pub node_name: String,
 }
 

@@ -40,6 +40,8 @@ lazy_static! {
     pub static ref CLAS: Mutex<Vec<CLAEnum>> = Mutex::new(Vec::new());
 }
 
+pub type BundleID = String;
+
 pub fn cla_add(cla: CLAEnum) {
     (*CLAS.lock()).push(cla);
 }
