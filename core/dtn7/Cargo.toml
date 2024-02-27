@@ -62,7 +62,6 @@ tempfile = "3.5.0"
 humansize = "2.1.2"
 sled = "0.34.7"
 enum_dispatch = "0.3.8"
-derive_more = "0.99.17"
 axum = { version = "0.5.13", features = ["ws"] }
 http = "0.2.7"
 #tower = "0.4.8"
@@ -73,8 +72,8 @@ bitflags = "2.0.2"
 num-derive = "0.4.2"
 num-traits = "0.2.15"
 thiserror = "1.0.31"
-dtn7-codegen = { path = "../codegen", version = "0.1.1" }
-reqwest = { version = "0.11.13", default-features = false, features = ["json"] }
+dtn7-codegen = { path = "../codegen", version = "0.1.2" }
+reqwest = { version = "0.11.13", default-features = false}
 sha1 = "0.10.5"
 glob-match = "0.2.1"
 

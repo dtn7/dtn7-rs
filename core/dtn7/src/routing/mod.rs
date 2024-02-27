@@ -12,7 +12,6 @@ use crate::BundleID;
 use async_trait::async_trait;
 use bp7::Bundle;
 use bp7::EndpointID;
-use derive_more::*;
 use enum_dispatch::enum_dispatch;
 use epidemic::EpidemicRoutingAgent;
 use external::ExternalRoutingAgent;
@@ -35,7 +34,7 @@ pub enum RoutingNotifcation {
 }
 
 #[enum_dispatch]
-#[derive(Debug, Display)]
+#[derive(Debug)]
 pub enum RoutingAgentsEnum {
     EpidemicRoutingAgent,
     FloodingRoutingAgent,
@@ -43,6 +42,12 @@ pub enum RoutingAgentsEnum {
     ExternalRoutingAgent,
     SprayAndWaitRoutingAgent,
     StaticRoutingAgent,
+}
+
+impl Display for RoutingAgentsEnum {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(f, "{:?}", self)
+    }
 }
 
 pub enum RoutingCmd {

@@ -37,16 +37,26 @@ pub fn init_cla_subsystem(_item: TokenStream) -> TokenStream {
 
     let cla_enum = quote! {
         #[enum_dispatch]
-        #[derive(Debug, Display)]
+        #[derive(Debug)]
         pub enum CLAEnum {
             #(#cla_subsystem),*
+        }
+        impl std::fmt::Display for CLAEnum {
+            fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+                write!(f, "{:?}", self)
+            }
         }
     };
 
     let clas_available = quote! {
-        #[derive(Debug, Display, PartialEq, Eq, Hash, Clone, Copy, Serialize, Deserialize)]
+        #[derive(Debug, PartialEq, Eq, Hash, Clone, Copy, Serialize, Deserialize)]
         pub enum CLAsAvailable {
             #(#cla_subsystem),*
+        }
+        impl std::fmt::Display for CLAsAvailable {
+            fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+                write!(f, "{:?}", self)
+            }
         }
         impl From<CLAsAvailable> for &'static str {
             fn from(v: CLAsAvailable) -> Self {

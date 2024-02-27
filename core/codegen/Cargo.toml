@@ -1,6 +1,6 @@
 [package]
 name = "dtn7-codegen"
-version = "0.1.1"
+version = "0.1.2"
 edition = "2021"
 authors = ["Lars Baumgaertner <baumgaertner@cs.tu-darmstadt.de>"]
 description = "codegen helpers for dtn7-rs"

@@ -10,7 +10,6 @@ use self::http::HttpConvergenceLayer;
 use anyhow::Result;
 use async_trait::async_trait;
 use bp7::{ByteBuffer, EndpointID};
-use derive_more::*;
 use dtn7_codegen::init_cla_subsystem;
 use dummy::DummyConvergenceLayer;
 use enum_dispatch::enum_dispatch;
