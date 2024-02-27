@@ -1,0 +1,64 @@
+name: Publish to Docker Hub
+
+on:
+  # release:
+  #   types: [published]
+  push:
+    tags:
+      - "v*.*.*"
+  workflow_dispatch:
+
+
+
+jobs:
+  push_to_registry:
+    name: Push Docker image to Docker Hub
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out the repo
+        uses: actions/checkout@v4
+
+      - name: Log in to Docker Hub
+        uses: docker/login-action@f4ef78c080cd8ba55a85445d5b36e214a81df20a
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+      
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Extract metadata (tags, labels) for Docker
+        id: meta
+        uses: docker/metadata-action@9ec57ed1fcdbf14dcef7dfbe97b2010124a938b7
+        with:
+          images: gh0st42/dtn7
+
+      - name: Build and push Docker image (alpine)
+        uses: docker/build-push-action@3b5e8027fcad23fda98b2e3ac259d8d67585f671
+        with:
+          context: .
+          file: ./dockerfiles/Dockerfile.alpine-slim
+          push: true
+          # platforms: linux/amd64,linux/arm64,linux/arm/v7
+          platforms: linux/amd64
+          tags: |
+            gh0st42/dtn7:alpine-${{ github.ref_name }}
+            gh0st42/dtn7:alpine
+          labels: ${{ steps.meta.outputs.labels }}
+
+      - name: Build and push Docker image (bookworm)
+        uses: docker/build-push-action@3b5e8027fcad23fda98b2e3ac259d8d67585f671
+        with:
+          context: .
+          file: ./dockerfiles/Dockerfile.debian-bookwork-slim
+          push: true
+          # platforms: linux/amd64,linux/arm64
+          platforms: linux/amd64
+          tags: |
+            gh0st42/dtn7:bookworm-${{ github.ref_name }}
+            gh0st42/dtn7:bookworm
+            gh0st42/dtn7:latest
+          labels: ${{ steps.meta.outputs.labels }}
