@@ -3,8 +3,18 @@ shopt -s expand_aliases
 
 if [[ "$OSTYPE" == "darwin"* ]]; then
     # Mac OSX
+	if ! command -v gsed &> /dev/null
+	then
+			echo "gsed could not be found"
+			exit 1
+	fi
 	alias sed=gsed
 elif [[ "$OSTYPE" == "freebsd"* ]]; then
+	if ! command -v gsed &> /dev/null
+	then
+			echo "gsed could not be found"
+			exit 1
+	fi
 	alias sed=gsed
 fi
 
@@ -14,6 +24,9 @@ if [ -n "$1" ]; then
 	msg="# managed by release.sh"
 	
 	sed "s/^version = .* $msg$/version = \"${1#v}\" $msg/" -i core/dtn7/Cargo.toml
+	# update the version in examples/Cargo.toml for dtn7
+	sed "s/^dtn7 = .* $msg$/dtn7 = { path = \"..\/core\/dtn7\", version = \"${1#v}\"} $msg/"-i  examples/Cargo.toml
+
 	# update the changelog
 	git cliff --tag "$1" > CHANGELOG.md
 	sleep 1
