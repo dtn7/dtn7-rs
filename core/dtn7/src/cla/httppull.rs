@@ -21,101 +21,99 @@ pub struct HttpPullConvergenceLayer {
     tx: mpsc::Sender<super::ClaCmd>,
 }
 
+/// pulls missing bundles from node
+/// addr can be either an IP or a DNS name
 async fn http_pull_from_node(
     eid: EndpointID,
-    addr: IpAddr,
+    addr: String,
     port: u16,
     local_digest: String,
 ) -> TransferResult {
     let now = std::time::Instant::now();
     let mut transfers = 0;
 
-    let client = reqwest::Client::new();
-
     debug!("pulling bundles from {} / {}", eid, addr);
-
-    // get digest of remote node
-    let response = client
-        .get(&format!("http://{}:{}/status/bundles/digest", addr, port))
-        .send()
-        .await;
-    let digest = match response {
-        Ok(digest) => digest.text().await.unwrap(),
-        Err(e) => {
-            error!("could not get digest from remote: {}", e);
-            return TransferResult::Failure;
-        }
-    };
-    if digest == local_digest {
-        debug!("no new bundles on remote");
-        return TransferResult::Successful;
-    } else {
-        debug!(
-            "remote ({}) has new bundles (remote: {} vs local: {})",
-            eid, digest, local_digest
-        );
-    }
-    // get list of bundles from remote node
-    let response = client
-        .get(&format!("http://{}:{}/status/bundles", addr, port))
-        .send()
-        .await;
-    let bid_list = match response {
-        Ok(bid_list) => bid_list.text().await.unwrap(),
-        Err(e) => {
-            error!("could not get bundle ID list from remote: {}", e);
-            return TransferResult::Failure;
-        }
-    };
-    let bids: Vec<String> = serde_json::from_str(&bid_list).unwrap();
-
-    // calculate missing bundles
-    let mut missing = Vec::new();
-
-    for bid in bids {
-        if !store_has_item(&bid) {
-            missing.push(bid);
-        }
-    }
-
-    // fetch missing bundles from remote node
-    for bid in missing {
-        transfers += 1;
-        let response = client
-            .get(&format!("http://{}:{}/download?{}", addr, port, bid))
-            .send()
-            .await;
-        let bundle_buf = match response {
-            Ok(bundle) => bundle.bytes().await.unwrap(),
+    tokio::task::spawn_blocking(move || {
+        // get digest of remote node
+        let response =
+            attohttpc::get(format!("http://{}:{}/status/bundles/digest", addr, port)).send();
+        let digest = match response {
+            Ok(digest) => digest.text().unwrap(),
             Err(e) => {
-                error!("could not get bundle from remote: {}", e);
+                error!("could not get digest from remote: {}", e);
+                //bail!("could not get digest from remote: {}", e);
                 return TransferResult::Failure;
             }
         };
-        let bundle = match bp7::Bundle::try_from(bundle_buf.as_ref()) {
-            Ok(bundle) => bundle,
+        if digest == local_digest {
+            debug!("no new bundles on remote");
+            return TransferResult::Successful;
+        } else {
+            debug!(
+                "remote ({}) has new bundles (remote: {} vs local: {})",
+                eid, digest, local_digest
+            );
+        }
+        // get list of bundles from remote node
+        let response = attohttpc::get(format!("http://{}:{}/status/bundles", addr, port)).send();
+        let bid_list = match response {
+            Ok(bid_list) => bid_list.text().unwrap(),
             Err(e) => {
-                warn!("could not parse bundle from remote: {}", e);
-                continue;
+                error!("could not get bundle ID list from remote: {}", e);
+                return TransferResult::Failure;
             }
         };
-        info!("Downloaded bundle: {} from {}", bundle.id(), addr);
-        {
-            tokio::spawn(async move {
-                if let Err(err) = crate::core::processing::receive(bundle).await {
-                    error!("Failed to process bundle: {}", err);
-                }
-            });
+        let bids: Vec<String> = serde_json::from_str(&bid_list).unwrap();
+
+        // calculate missing bundles
+        let mut missing = Vec::new();
+
+        for bid in bids {
+            if !store_has_item(&bid) {
+                missing.push(bid);
+            }
         }
-    }
-    debug!(
-        "finished pulling {} bundles from {} / {} in {:?}",
-        transfers,
-        eid,
-        addr,
-        now.elapsed()
-    );
-    TransferResult::Successful
+
+        // fetch missing bundles from remote node
+        for bid in missing {
+            transfers += 1;
+            let response =
+                attohttpc::get(format!("http://{}:{}/download?{}", addr, port, bid)).send();
+
+            let bundle_buf = match response {
+                Ok(bundle) => bundle.bytes().unwrap(),
+                Err(e) => {
+                    error!("could not get bundle from remote: {}", e);
+                    return TransferResult::Failure;
+                }
+            };
+            let bundle = match bp7::Bundle::try_from(bundle_buf.as_ref()) {
+                Ok(bundle) => bundle,
+                Err(e) => {
+                    warn!("could not parse bundle from remote: {}", e);
+                    continue;
+                }
+            };
+            info!("Downloaded bundle: {} from {}", bundle.id(), addr);
+            {
+                tokio::spawn(async move {
+                    if let Err(err) = crate::core::processing::receive(bundle).await {
+                        error!("Failed to process bundle: {}", err);
+                    }
+                });
+            }
+        }
+        debug!(
+            "finished pulling {} bundles from {} / {} in {:?}",
+            transfers,
+            eid,
+            addr,
+            now.elapsed()
+        );
+        TransferResult::Successful
+    })
+    .await
+    .unwrap()
 }
 async fn http_pull_bundles() {
     debug!("pulling bundles from peers");
@@ -138,10 +136,10 @@ async fn http_pull_bundles() {
             }
             if CONFIG.lock().parallel_bundle_processing {
                 tokio::spawn(async move {
-                    http_pull_from_node(peer.eid, ipaddr, port, local_digest).await;
+                    http_pull_from_node(peer.eid, ipaddr.to_string(), port, local_digest).await;
                 });
             } else {
-                http_pull_from_node(peer.eid, ipaddr, port, local_digest).await;
+                http_pull_from_node(peer.eid, ipaddr.to_string(), port, local_digest).await;
             }
         }
     }
