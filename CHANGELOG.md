@@ -1,6 +1,26 @@
 # Changelog
 All notable changes to this project will be documented in this file.
 
+## [0.20.1] - 2024-02-28
+
+### Bug Fixes
+
+- Added grep to alpine docker image for determining broadcast addresses in start_dtnd
+
+### Miscellaneous Tasks
+
+- Release.sh now also updates version in examples/Cargo.toml
+
+### Refactor
+
+- Removed reqwest dependecy, httppullcl is now using attohttpc
+
+### Build
+
+- Sled and d7sneakers are now optional features for dtn7
+- Debian docker image now cleans apt database when building image
+- Alpine image no build dtn7 without d7sneakers store to reduce binary size
+
 ## [0.20.0] - 2024-02-27
 
 ### Bug Fixes
@@ -131,12 +151,12 @@ All notable changes to this project will be documented in this file.
 
 ### Features
 
-- Increased sending channel buffer from 1 to 100 for http, mtcp and tcp
-- ClaSenderTask now carries the next_hop node ID of the peer
 - Http cla now has a timeout to complete the bundle delivery (default: 5s)
 - Added transmission time output to tcpcl
 - Remove peers from neighborhood list if they fail too often when transferring bundles
 - Added optional feature for tokio tracing
+- Increased sending channel buffer from 1 to 100 for http, mtcp and tcp
+- ClaSenderTask now carries the next_hop node ID of the peer
 - Increased sending channel buffer from 1 to 100 for http, mtcp and tcp
 - ClaSenderTask now carries the next_hop node ID of the peer
 - Transmission time debug output for all CLAs
@@ -145,9 +165,9 @@ All notable changes to this project will be documented in this file.
 - HTTP cla now uses shared hyper client for connection pooling
 - Added config to enable parallel processing of bundles - can speed up bundle transmission time but can also cause congestion and higher CPU load
 - Added receive processing time to HTTP push endpoint
+- Add more fine granular logging to dtnd processing
 - Added rest endpoint with verbose bundle output and filter query interface
 - Add new verbose and filter functions to dtnquery bundle CLI tool
-- Add more fine granular logging to dtnd processing
 - Added python example to produce message flood via websocket (bulk and sequential)
 - Return bundle ID for newly sent bundle via websocket
 - Ws-flooder.py now supports different payload sizes
@@ -164,8 +184,8 @@ All notable changes to this project will be documented in this file.
 - Minor changes to please clippy
 - Upgraded dependencies and pleased new clippy lints
 - Bump crossbeam-utils from 0.7.2 to 0.8.8 in /core/dtn7/fuzz
-- Bump generic-array from 0.12.3 to 0.12.4 in /core/dtn7/fuzz
 - Bump regex from 1.3.9 to 1.5.6 in /core/dtn7/fuzz
+- Bump generic-array from 0.12.3 to 0.12.4 in /core/dtn7/fuzz
 - Bump miow from 0.2.1 to 0.2.2 in /core/dtn7/fuzz
 - Moved fuzz project to top and updated deps to most recent versions
 - Cleaned up flooding example and updated comments
@@ -173,8 +193,8 @@ All notable changes to this project will be documented in this file.
 
 ### Refactor
 
-- Switched ClaSender to a channel for sending
 - Direct delivery priority is now up to the routing agent
+- Switched ClaSender to a channel for sending
 - Switched ClaSender to a channel for sending
 - Cleanup in forward of processing logic
 - Let tcp_send_bundles directly send reply to provided oneshot address
@@ -263,7 +283,6 @@ All notable changes to this project will be documented in this file.
 ### Documentation
 
 - Updated README and CLI help to reflect latest protocol and code changes
-- Added `doc/http-client-api.md, documenting the http client api and websocket interface.
 - Added section about JSON mode in http client API documentation
 - Updated README to point to the different guides and include the new features
 
@@ -276,6 +295,10 @@ All notable changes to this project will be documented in this file.
 - Added `dtnecho_json.go` illustrating how to write clients using only JSON and websockets
 
 ## [0.17.0] - 2021-11-04
+
+### Documentation
+
+- Added `doc/http-client-api.md, documenting the http client api and websocket interface.
 
 ### Features
 
