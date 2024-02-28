@@ -7,18 +7,27 @@ use std::collections::HashSet;
 use std::fmt::Debug;
 
 mod mem;
+pub use mem::InMemoryBundleStore;
+
+#[cfg(feature = "store_sled")]
 mod sled;
+
+#[cfg(feature = "store_sneakers")]
 mod sneakers;
 
+#[cfg(feature = "store_sled")]
 pub use self::sled::SledBundleStore;
-pub use mem::InMemoryBundleStore;
+
+#[cfg(feature = "store_sneakers")]
 pub use sneakers::SneakersBundleStore;
 
 #[enum_dispatch]
 #[derive(Debug)]
 pub enum BundleStoresEnum {
+    #[cfg(feature = "store_sled")]
     SledBundleStore,
     InMemoryBundleStore,
+    #[cfg(feature = "store_sneakers")]
     SneakersBundleStore,
 }
 
@@ -67,13 +76,21 @@ pub trait BundleStore: Debug {
 }
 
 pub fn bundle_stores() -> Vec<&'static str> {
-    vec!["mem", "sled", "sneakers"]
+    vec![
+        "mem",
+        #[cfg(feature = "store_sled")]
+        "sled",
+        #[cfg(feature = "store_sneakers")]
+        "sneakers",
+    ]
 }
 
 pub fn new(bundlestore: &str) -> BundleStoresEnum {
     match bundlestore {
         "mem" => mem::InMemoryBundleStore::new().into(),
+        #[cfg(feature = "store_sled")]
         "sled" => sled::SledBundleStore::new().into(),
+        #[cfg(feature = "store_sneakers")]
         "sneakers" => sneakers::SneakersBundleStore::new().into(),
         _ => panic!("Unknown bundle store {}", bundlestore),
     }

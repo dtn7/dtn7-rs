@@ -1,6 +1,5 @@
 use std::collections::HashMap;
 use std::convert::TryFrom;
-use std::net::IpAddr;
 
 use crate::core::helpers::get_complete_digest;
 use crate::core::peer::PeerAddress;

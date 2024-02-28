@@ -1,9 +1,9 @@
 [package]
 name = "dtn7"
-version = "0.20.0" # managed by release.sh
+version = "0.20.0"                                                                                                   # managed by release.sh
 authors = ["Lars Baumgaertner <baumgaertner@cs.tu-darmstadt.de>"]
 description = "Rust delay-tolerant-networking daemon and CLI tools implementing Bundle Protocol Version 7 (RFC9171)"
-edition = "2018"
+edition = "2021"
 license = "MIT OR Apache-2.0"
 categories = ["command-line-utilities", "network-programming"]
 repository = "https://github.com/dtn7/dtn7-rs"
@@ -13,16 +13,19 @@ readme = "README.md"
 
 [features]
 
-default = []
+default = ["store_sled", "store_sneakers"]
 tracing = ["console-subscriber"]
 deadlock_detection = ["parking_lot/deadlock_detection"]
+store_sled = ["sled"]
+store_sneakers = ["d7sneakers"]
 
 [dependencies]
+sled = { version = "0.34.7", optional = true }
 bp7 = { version = "0.10.6", default-features = false }
 dtn7-plus = { version = "0.7.0", default-features = false, features = [
   "client",
 ] }
-d7sneakers = { version = "0.3.1", default-features = false }
+d7sneakers = { version = "0.3.1", default-features = false, optional = true }
 serde = { version = "1.0", features = ["derive"] }
 serde_cbor = "0.11"
 serde_json = "1.0"
@@ -60,7 +63,6 @@ tinytemplate = "1.1.0"
 humantime = "2.1.0"
 tempfile = "3.5.0"
 humansize = "2.1.2"
-sled = "0.34.7"
 enum_dispatch = "0.3.8"
 axum = { version = "0.5.13", features = ["ws"] }
 http = "0.2.7"
