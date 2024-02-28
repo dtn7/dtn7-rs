@@ -11,7 +11,7 @@ FROM docker.io/alpine:latest
 
 ENV DEBIAN_FRONTEND=noninteractive
 
-RUN apk add iproute2 iputils-ping tcpdump curl
+RUN apk add iproute2 iputils-ping tcpdump curl grep
 
 WORKDIR /
 COPY --from=builder /usr/local/bin/* /usr/local/bin/
