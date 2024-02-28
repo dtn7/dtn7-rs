@@ -1,10 +1,31 @@
 # Changelog
 All notable changes to this project will be documented in this file.
 
+## [0.20.1] - 2024-02-28
+
+### Bug Fixes
+
+- Added grep to alpine docker image for determining broadcast addresses in start_dtnd
+
+### Miscellaneous Tasks
+
+- Release.sh now also updates version in examples/Cargo.toml
+
+### Refactor
+
+- Removed reqwest dependecy, httppullcl is now using attohttpc
+
+### Build
+
+- Sled and d7sneakers are now optional features for dtn7
+- Debian docker image now cleans apt database when building image
+- Alpine image no build dtn7 without d7sneakers store to reduce binary size
+
 ## [0.20.0] - 2024-02-27
 
 ### Bug Fixes
 
+- Added missing emission of Registered packet in ecla websocket client. (#49)
 - Update getting-started.md to correct repo (#53)
 - Fixed permission bug for docker start script
 - Static routing now removes bundles if forwarded without errors for singleton endpoints
@@ -12,12 +33,17 @@ All notable changes to this project will be documented in this file.
 
 ### Documentation
 
+- Added mastodon link to README.md
+- Added some documentation explaining the simple HTTP CL
 - Added documentation on CBOR-based IPND implementation
 - Added README for docker compose example directory
 - Updated README to reflect new features such as static routing and docker compose scenarios.
 
 ### Features
 
+- Added HTTP endpoints to request a hash digest of the bundles known to the local dtnd instance
+- Http pull convergence layer (#44)
+- Added delete endpoint to rest interface, dtnrecv can now also remove bundles (#50)
 - Dynamically add/delete peers via HTTP rest call (#54)
 
 ### Miscellaneous Tasks
@@ -34,6 +60,7 @@ All notable changes to this project will be documented in this file.
 
 ### Testing
 
+- Coreemu-lab script now pins docker images version and always uses cross to build musl binaries
 - Added example docker compose file for testing network topologies
 - Added podman support to docker setups
 - Docker image now adds broadcast addresses of all eth interfaces in container to ipnd
@@ -44,28 +71,19 @@ All notable changes to this project will be documented in this file.
 - Added alpine docker image
 - Updated dockerignore to speed up building on non-linux platforms
 
-## [0.19.0] - 2023-04-09
+## [0.18.2] - 2022-11-24
 
 ### Bug Fixes
 
-- Added missing emission of Registered packet in ecla websocket client. (#49)
+- Added lifetime expiration functionality in process_bundles, prior to actual forwarding
+- Localendpoint bundles now also expire if not consumed by an application
 
-### Documentation
+### Miscellaneous Tasks
 
-- Added mastodon link to README.md
-- Added some documentation explaining the simple HTTP CL
+- Fixed autodef for global locks as suggested by clippy
+- Updated to most recent version of clap and attohttpc
 
-### Features
-
-- Added HTTP endpoints to request a hash digest of the bundles known to the local dtnd instance
-- Http pull convergence layer (#44)
-- Added delete endpoint to rest interface, dtnrecv can now also remove bundles (#50)
-
-### Testing
-
-- Coreemu-lab script now pins docker images version and always uses cross to build musl binaries
-
-## [0.18.2] - 2022-11-24
+## [0.18.1] - 2022-10-09
 
 ### Bug Fixes
 
@@ -73,8 +91,6 @@ All notable changes to this project will be documented in this file.
 - Removed debug symbols from release profile and enabled stripping binaries
 - Filtering bundles from store by address no longer returns deleted BIDs (#40)
 - Ignore beacons from self for broadcast IPND packets
-- Added lifetime expiration functionality in process_bundles, prior to actual forwarding
-- Localendpoint bundles now also expire if not consumed by an application
 
 ### Documentation
 
@@ -93,8 +109,6 @@ All notable changes to this project will be documented in this file.
 
 - Bumped minimum ubuntu version in cd.yml to 20.04
 - Pleased clippy of rust 1.64
-- Fixed autodef for global locks as suggested by clippy
-- Updated to most recent version of clap and attohttpc
 
 ### Refactor
 
@@ -131,12 +145,12 @@ All notable changes to this project will be documented in this file.
 
 ### Features
 
-- Increased sending channel buffer from 1 to 100 for http, mtcp and tcp
-- ClaSenderTask now carries the next_hop node ID of the peer
 - Http cla now has a timeout to complete the bundle delivery (default: 5s)
 - Added transmission time output to tcpcl
 - Remove peers from neighborhood list if they fail too often when transferring bundles
 - Added optional feature for tokio tracing
+- Increased sending channel buffer from 1 to 100 for http, mtcp and tcp
+- ClaSenderTask now carries the next_hop node ID of the peer
 - Increased sending channel buffer from 1 to 100 for http, mtcp and tcp
 - ClaSenderTask now carries the next_hop node ID of the peer
 - Transmission time debug output for all CLAs
@@ -145,9 +159,9 @@ All notable changes to this project will be documented in this file.
 - HTTP cla now uses shared hyper client for connection pooling
 - Added config to enable parallel processing of bundles - can speed up bundle transmission time but can also cause congestion and higher CPU load
 - Added receive processing time to HTTP push endpoint
+- Add more fine granular logging to dtnd processing
 - Added rest endpoint with verbose bundle output and filter query interface
 - Add new verbose and filter functions to dtnquery bundle CLI tool
-- Add more fine granular logging to dtnd processing
 - Added python example to produce message flood via websocket (bulk and sequential)
 - Return bundle ID for newly sent bundle via websocket
 - Ws-flooder.py now supports different payload sizes
@@ -164,8 +178,8 @@ All notable changes to this project will be documented in this file.
 - Minor changes to please clippy
 - Upgraded dependencies and pleased new clippy lints
 - Bump crossbeam-utils from 0.7.2 to 0.8.8 in /core/dtn7/fuzz
-- Bump generic-array from 0.12.3 to 0.12.4 in /core/dtn7/fuzz
 - Bump regex from 1.3.9 to 1.5.6 in /core/dtn7/fuzz
+- Bump generic-array from 0.12.3 to 0.12.4 in /core/dtn7/fuzz
 - Bump miow from 0.2.1 to 0.2.2 in /core/dtn7/fuzz
 - Moved fuzz project to top and updated deps to most recent versions
 - Cleaned up flooding example and updated comments
@@ -173,8 +187,8 @@ All notable changes to this project will be documented in this file.
 
 ### Refactor
 
-- Switched ClaSender to a channel for sending
 - Direct delivery priority is now up to the routing agent
+- Switched ClaSender to a channel for sending
 - Switched ClaSender to a channel for sending
 - Cleanup in forward of processing logic
 - Let tcp_send_bundles directly send reply to provided oneshot address
@@ -263,7 +277,6 @@ All notable changes to this project will be documented in this file.
 ### Documentation
 
 - Updated README and CLI help to reflect latest protocol and code changes
-- Added `doc/http-client-api.md, documenting the http client api and websocket interface.
 - Added section about JSON mode in http client API documentation
 - Updated README to point to the different guides and include the new features
 
@@ -276,6 +289,10 @@ All notable changes to this project will be documented in this file.
 - Added `dtnecho_json.go` illustrating how to write clients using only JSON and websockets
 
 ## [0.17.0] - 2021-11-04
+
+### Documentation
+
+- Added `doc/http-client-api.md, documenting the http client api and websocket interface.
 
 ### Features
 
@@ -365,10 +382,6 @@ All notable changes to this project will be documented in this file.
 
 ## [0.16.12] - 2021-09-10
 
-### Features
-
-- Added flag to output raw bundle instead of payload
-
 ### Miscellaneous Tasks
 
 - Cleaned up some leftover TODOs
@@ -377,5 +390,11 @@ All notable changes to this project will be documented in this file.
 
 - Updated bp7 to version with much less deps
 - Added Cargo.lock
+
+## [0.16.11] - 2021-09-09
+
+### Features
+
+- Added flag to output raw bundle instead of payload
 
 <!-- generated by git-cliff -->
