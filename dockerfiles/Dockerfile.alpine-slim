@@ -5,7 +5,7 @@ RUN apk add musl-dev
 COPY . dtn7
 RUN cd dtn7 && \
   cargo install --locked --bins --examples --root /usr/local --path examples && \
-  cargo install --locked --bins --examples --root /usr/local --path core/dtn7
+  cargo install --locked --bins --examples --root /usr/local --no-default-features -F store_sled --path core/dtn7
 
 FROM docker.io/alpine:latest
 
