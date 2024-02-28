@@ -3,15 +3,15 @@ FROM docker.io/rust:1.76 as builder
 WORKDIR /root/
 COPY . dtn7
 RUN cd dtn7 && \
-	cargo install --locked --bins --examples --root /usr/local --path examples && \
-    cargo install --locked --bins --examples --root /usr/local --path core/dtn7
+  cargo install --locked --bins --examples --root /usr/local --path examples && \
+  cargo install --locked --bins --examples --root /usr/local --path core/dtn7
 RUN cargo install --locked --bins --examples --root /usr/local dtn7-plus --git https://github.com/dtn7/dtn7-plus-rs  --rev 010202e56 dtn7-plus
 
 FROM docker.io/debian:bookworm-slim
 
 ENV DEBIAN_FRONTEND=noninteractive
 
-RUN apt-get update && apt install net-tools iproute2 iputils-ping tcpdump wget curl -y
+RUN apt-get update && apt install net-tools iproute2 iputils-ping tcpdump wget curl -y && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /
 COPY --from=builder /usr/local/bin/* /usr/local/bin/
