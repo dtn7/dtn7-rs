@@ -9,17 +9,17 @@ prepare_test
 #DB1="-W /tmp/node1 -D sled"
 #DB1="-W /tmp/node1 -D sneakers"
 PORT_NODE1=$(get_current_port)
-start_dtnd -d -j2s -i0 -C httppull -e incoming -r sink -n node1 -s tcp://127.0.0.1:$PORT_NODE2/node2 $DB1 $STATUS_REPORTS
+start_dtnd -d -j2s -i0 -C httppull -e incoming -r sink -n node1 -s httppull://127.0.0.1:$PORT_NODE2/node2 $DB1 $STATUS_REPORTS
 
 PORT_NODE2=$(get_current_port)
 #DB2="-W /tmp/node2 -D sled"
 #DB2="-W /tmp/node2 -D sneakers"
-start_dtnd -d -j2s -i0 -C httppull -e incoming -r sink -n node2 -s tcp://127.0.0.1:$PORT_NODE1/node1 -s tcp://127.0.0.1:$PORT_NODE3/node3 $DB2
+start_dtnd -d -j2s -i0 -C httppull -e incoming -r sink -n node2 -s httppull://127.0.0.1:$PORT_NODE1/node1 -s httppull://127.0.0.1:$PORT_NODE3/node3 $DB2
 
 PORT_NODE3=$(get_current_port)
 #DB3="-W /tmp/node3 -D sled"
 #DB3="-W /tmp/node3 -D sneakers"
-start_dtnd -d -j2s -i0 -C httppull -e incoming -r sink -n node3 -s tcp://127.0.0.1:$PORT_NODE2/node2 $DB3 $STATUS_REPORTS
+start_dtnd -d -j2s -i0 -C httppull -e incoming -r sink -n node3 -s httppull://127.0.0.1:$PORT_NODE2/node2 $DB3 $STATUS_REPORTS
 
 sleep 1
 
