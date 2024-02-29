@@ -121,25 +121,28 @@ async fn http_pull_bundles() {
 
     let peers = crate::PEERS.lock().clone();
     for (_, p) in peers.iter() {
-        if let PeerAddress::Ip(ipaddr) = p.addr {
-            let peer = p.clone();
-            let local_digest = local_digest.clone();
-            let mut port = 3000;
-            for cla in p.cla_list.iter() {
-                if cla.0 == "httppull" {
-                    if let Some(p) = cla.1 {
-                        port = p;
-                        break;
-                    }
+        let (peer, ipaddr) = match p.addr.clone() {
+            PeerAddress::Ip(ipaddr) => (p.clone(), ipaddr.to_string()),
+            PeerAddress::Dns(hostname, _) => (p.clone(), hostname),
+            _ => continue,
+        };
+
+        let local_digest = local_digest.clone();
+        let mut port = 3000;
+        for cla in p.cla_list.iter() {
+            if cla.0 == "httppull" {
+                if let Some(p) = cla.1 {
+                    port = p;
+                    break;
                 }
             }
-            if CONFIG.lock().parallel_bundle_processing {
-                tokio::spawn(async move {
-                    http_pull_from_node(peer.eid, ipaddr.to_string(), port, local_digest).await;
-                });
-            } else {
+        }
+        if CONFIG.lock().parallel_bundle_processing {
+            tokio::spawn(async move {
                 http_pull_from_node(peer.eid, ipaddr.to_string(), port, local_digest).await;
-            }
+            });
+        } else {
+            http_pull_from_node(peer.eid, ipaddr.to_string(), port, local_digest).await;
         }
     }
     debug!("finished pulling bundles from peers");

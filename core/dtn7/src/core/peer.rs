@@ -30,6 +30,8 @@ pub enum PeerAddress {
     Ip(IpAddr),
     /// Generic peer reachable via a broadcast medium, e.g., LoRa "868_1" "node_id_1"
     BroadcastGeneric(String, String),
+    /// A peer reachable via a DNS name and port, e.g., "dtn7.io" 4556
+    Dns(String, u16),
     /// Generic peer reachable via a unicast transmission, e.g., MAC address "AA:BB:CC:DD:EE:FF"
     Generic(String),
 }
@@ -41,7 +43,14 @@ impl From<IpAddr> for PeerAddress {
 }
 impl From<String> for PeerAddress {
     fn from(addr: String) -> Self {
-        PeerAddress::Generic(addr)
+        let parts = addr.split(':').collect::<Vec<&str>>();
+        if parts.len() == 2 {
+            let hostname = parts[0].to_string();
+            let port = parts[1].parse::<u16>().unwrap();
+            PeerAddress::Dns(hostname, port)
+        } else {
+            PeerAddress::Generic(addr)
+        }
     }
 }
 
@@ -50,6 +59,7 @@ impl Display for PeerAddress {
         match self {
             PeerAddress::Ip(addr) => write!(f, "{}", addr),
             PeerAddress::BroadcastGeneric(domain, addr) => write!(f, "{}/{}", domain, addr),
+            PeerAddress::Dns(hostname, port) => write!(f, "{}:{}", hostname, port),
             PeerAddress::Generic(addr) => write!(f, "{}", addr),
         }
     }

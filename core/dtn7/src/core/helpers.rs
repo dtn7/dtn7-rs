@@ -130,7 +130,16 @@ pub fn parse_peer_url(peer_url: &str) -> Result<DtnPeer, ParsePeerUrlError> {
     let addr = if let Ok(ip) = ipaddr.parse::<IpAddr>() {
         PeerAddress::Ip(ip)
     } else {
-        PeerAddress::Generic(ipaddr.to_owned())
+        // check if ipaddr is a valid DNS name
+        if ipaddr
+            .chars()
+            .all(|c| c.is_alphanumeric() || c == '-' || c == '.')
+            && port.is_some()
+        {
+            PeerAddress::Dns(ipaddr.to_owned(), port.unwrap())
+        } else {
+            PeerAddress::Generic(ipaddr.to_owned())
+        }
     };
     let nodeid = nodeid.replace('/', "");
     let eid_str = if nodeid.chars().all(char::is_numeric) {

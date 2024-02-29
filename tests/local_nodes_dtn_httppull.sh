@@ -14,7 +14,7 @@ start_dtnd -d -j2s -i0 -C httppull -e incoming -r sink -n node1 -s httppull://12
 PORT_NODE2=$(get_current_port)
 #DB2="-W /tmp/node2 -D sled"
 #DB2="-W /tmp/node2 -D sneakers"
-start_dtnd -d -j2s -i0 -C httppull -e incoming -r sink -n node2 -s httppull://127.0.0.1:$PORT_NODE1/node1 -s httppull://127.0.0.1:$PORT_NODE3/node3 $DB2
+start_dtnd -d -j2s -i0 -C httppull -e incoming -r sink -n node2 -s httppull://localhost:$PORT_NODE1/node1 -s httppull://127.0.0.1:$PORT_NODE3/node3 $DB2
 
 PORT_NODE3=$(get_current_port)
 #DB3="-W /tmp/node3 -D sled"
