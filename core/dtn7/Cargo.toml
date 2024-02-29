@@ -1,6 +1,6 @@
 [package]
 name = "dtn7"
-version = "0.20.1" # managed by release.sh
+version = "0.20.1"                                                                                                   # managed by release.sh
 authors = ["Lars Baumgaertner <baumgaertner@cs.tu-darmstadt.de>"]
 description = "Rust delay-tolerant-networking daemon and CLI tools implementing Bundle Protocol Version 7 (RFC9171)"
 edition = "2021"
@@ -77,6 +77,7 @@ thiserror = "1.0.31"
 dtn7-codegen = { path = "../codegen", version = "0.1.2" }
 sha1 = "0.10.5"
 glob-match = "0.2.1"
+tower-http = { version = "0.3.4", features = ["cors"] }
 
 [lib]
 name = "dtn7"
