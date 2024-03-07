@@ -48,6 +48,8 @@ use std::fmt::Write;
 use std::net::SocketAddr;
 use std::time::Instant;
 use tinytemplate::TinyTemplate;
+use tower_http::cors::Any;
+use tower_http::cors::CorsLayer;
 /*
 
 #[get("/ws", guard = "fn_guard_localhost")]
@@ -733,6 +735,12 @@ async fn download_hex(
 }
 
 pub async fn spawn_httpd() -> Result<()> {
+    let cors = CorsLayer::new()
+        // allow `GET` and `POST` when accessing the resource
+        .allow_methods([http::Method::GET, http::Method::POST, http::Method::DELETE])
+        // allow requests from any origin
+        .allow_origin(Any);
+
     let mut app_local_only = Router::new()
         .route("/peers/add", get(http_peers_add))
         .route("/peers/del", get(http_peers_delete))
@@ -752,7 +760,8 @@ pub async fn spawn_httpd() -> Result<()> {
         )
         .route("/debug/rnd_bundle", get(debug_rnd_bundle))
         .route("/debug/rnd_peer", get(debug_rnd_peer))
-        .layer(from_extractor::<RequireLocalhost>());
+        .layer(from_extractor::<RequireLocalhost>())
+        .layer(cors.clone());
 
     if CONFIG.lock().routing == "external" {
         app_local_only = app_local_only.route(
@@ -791,7 +800,8 @@ pub async fn spawn_httpd() -> Result<()> {
         .route("/status/bundles/digest", get(status_bundles_digest))
         .route("/status/store", get(status_store))
         .route("/status/peers", get(status_peers))
-        .route("/status/info", get(status_info));
+        .route("/status/info", get(status_info))
+        .layer(cors.clone());
 
     let port = CONFIG.lock().webport;
 
