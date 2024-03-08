@@ -1,100 +1,55 @@
 # Getting started with dtn7
 
-This document covers the basic usage of `dtn7` (daemon and some of the CLI tools) within the [core network emulator](https://github.com/coreemu/core). This content is also available as a youtube video with instructions for macos:
+This document covers the basic usage of `dtn7` (daemon and some of the CLI tools) within the [core network emulator](https://github.com/coreemu/core). 
+An older version of this guide is also available as a youtube video with instructions for macos:
 
 [![Quickstart using dtn7 and coreemu on macOS](https://img.youtube.com/vi/7xwJEZyL_Ns/0.jpg)](https://www.youtube.com/watch?v=7xwJEZyL_Ns)
 
 ## Prerequisites
 
-- [Install rust](https://www.rust-lang.org/tools/install) - needed to compile `dtn7`
 - [Install docker](https://docs.docker.com/get-docker/) - needed for testing in an emulated, virtual network
-    * On Linux loading of `ebtables` kernel module might be necessary (`sudo modprobe ebtables`)
-- On non-x64 Linux platforms, `cross` is helpful to cross-compile for the docker container (`cargo install cross`)
-- On non-linux platforms, a x-server is needed (e.g., [xquartz](https://www.xquartz.org/) on macOS)
+    * On Linux loading of `ebtables` and/or `sch_netem` kernel modules might be necessary (`sudo modprobe ebtables` / `sudo modprobe sch_netem`)
+- For a quick start we are going to use the [dtn7-showroom](https://github.com/dtn7/dtn7-showroom). 
 
-## Building 
 
-First, you need to checkout the most recent version of the `dtn7` source:
-```bash
-git clone https://github.com/dtn7/dtn7-rs
-cd dtn7-rs
-```
-
-Depending on the platform you can then build the various binaries of `dtn7`, optionally append the `--release` flag.
-
-For x64 linux use `cargo` directly:
-
-```bash
-cargo build
-```
-
-For other platforms cross-compile it using the following command:
-
-```bash
-cross build --target=x86_64-unknown-linux-gnu
-```
+*Note: Most of the instructions apply to podman as well but depending on your host platform some parameters or security rules might be different.*
 
 ## Setting up the simulation environment
 
 First, setup a shared directory and copy over necessary files:
 ```bash
 mkdir /tmp/shared
-cp target/x86_64-unknown-linux-gnu/debug/dtn* /tmp/shared/
 cp tests/sink.sh /tmp/shared
 ```
 
 The last file (`tests/sink.sh`) is only for demonstration purposes and not strictly necessary.
 
-### Docker on Linux
+### Running the virtual showroom
 ```bash
-sudo modprobe ebtables
-xhost +local:root
-docker run --rm \
-    --name coreemu \
-    -p 2000:22 \
-    -v /tmp/shared:/shared \
-    --cap-add=NET_ADMIN \
-    --cap-add=SYS_ADMIN \
-    -e SSHKEY="`cat ~/.ssh/id_rsa.pub`" \
-    -e DISPLAY \
-    -v /tmp/.X11-unix:/tmp/.X11-unix:rw \
-    --privileged \
-    -d \
-    gh0st42/coreemu7
+docker run --rm -it                             \
+    --name showroom                             \
+    -p 5901:5901                                \
+    -p 50052:50051                              \
+    -p 2023:22                                  \
+    -p 1190:1190                                \
+    -p 6080:6080                                \
+    -v /tmp/shared:/shared                      \
+    --privileged                                \
+    gh0st42/dtn7-showroom
 ```
 
+### Connecting to the docker instance: CLI
 
-### Docker on macOS
+Finally, we want to issue commands directly on the docker machine. Thus, we connect to it via:
 ```bash
-xhost + 127.0.0.1
-docker run -it --rm \
-    --name coreemu6 \
-    -p 2000:22 \
-    -v /tmp/shared:/shared \
-    --cap-add=NET_ADMIN \
-    --cap-add=SYS_ADMIN \
-    -e SSHKEY="`cat ~/.ssh/id_rsa.pub`" \
-    -e DISPLAY=host.docker.internal:0 \
-    --privileged \
-    -d \
-    gh0st42/coreemu7
+docker exec -it showroom bash
 ```
-
-### Connecting to docker instance
-
-Finally, we want to issue commands directly on the docker machine. Thus, we connect via ssh (without remembering the temporary ssh server fingerprint):
-```bash
-alias nossh='ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null'
-
-nossh -p 2000 root@localhost
-```
-
-If no ssh key is present then the default password for the docker container is `netsim`.
 
 We can then access all shared files within the docker instance in `/shared`. For easier access, it is recommended to copy all binaries to the `PATH` on the virtual machine.
-```bash
-cp /shared/dtn* /usr/local/bin
-```
+
+### Connecting to the docker instance: GUI
+
+A complete desktop with access to `core-gui` is provided through a web vnc on http://127.0.0.1:6080/vnc.html. The default session password is `sneakers`.
 
 ## Starting a simulation
 
@@ -102,10 +57,15 @@ cp /shared/dtn* /usr/local/bin
 
 In the `core-gui` click on the network nodes symbol left of the canvas and select the *host* as node type. Then place it three times on the canvas.
 Now select *wireless LAN* from the link node types and place it on the canvas.
-By double-clicking it you can change the wifi properties. Change the IPv4 subnet mask from `/32` to `/24`, press *link to all routers*, and finally click *apply*.
+Use the link tool (the one below the run and cursor buttons on the left side) and connect all nodes to the wifi.
+By double-clicking each node you have to change the IPv4 subnet mask from `/32` to `/24`.
 
 The simulation can be then started by pressing the green start button.
 When dragging nodes in the running simulation around a green line should appear once they are in communication range.
+
+By double-clicking a node in a running session you can get a terminal on this node.
+To verify that everything works you should be able to `ping` nodes with a green line and when dragging them out of reach the packets should get lost.
+If this is not the case you might be missing the proper kernel modules on your host system.
 
 ### Basic `dtnd` operation
 
@@ -125,6 +85,10 @@ The dtn daemon can be stopped and the standard out log can be cleared with the f
 ```bash
 pkill -9 dtnd && cea rm nohup.out
 ```
+
+*Note: dtn7-showroom has a preconfigured dtnd node type which you can also use instead of the above instructions.*
+
+*Note2: The [core helpers](https://github.com/gh0st42/core-helpers) installed in the dtn7-showroom contain various little scripts to make life with core emu a bit easier.*
 
 ### Sample commands
 
