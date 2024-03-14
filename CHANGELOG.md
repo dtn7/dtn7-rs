@@ -1,11 +1,23 @@
 # Changelog
 All notable changes to this project will be documented in this file.
 
-## [0.20.1] - 2024-02-28
+## [0.20.2] - 2024-03-14
 
 ### Bug Fixes
 
 - Added grep to alpine docker image for determining broadcast addresses in start_dtnd
+- Fixed httppull test with correct scheme for static node entries
+- Fixed issues in dtnecho.py example when running with ipn naming scheme
+- Fixed statistics counters to properly record incoming/outgoing/failed/broken bundles
+
+### Documentation
+
+- Updated getting started guide to use dtn7-showroom.
+
+### Features
+
+- Added cors header to allow access from anywhere (#61)
+- Support work over proxy HTTP/HTTPS/SOCKS with DNS name instead of IP address (https://github.com/dtn7/dtn7-rs/issues/52) (#63)
 
 ### Miscellaneous Tasks
 
@@ -14,6 +26,11 @@ All notable changes to this project will be documented in this file.
 ### Refactor
 
 - Removed reqwest dependecy, httppullcl is now using attohttpc
+
+### Testing
+
+- Added script to fluctuate connectivity in line-3n docker compose scenario
+- Made line-3n-loss.sh for docker compose scenario compatible with docker and podman
 
 ### Build
 

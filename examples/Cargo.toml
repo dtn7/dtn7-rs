@@ -16,7 +16,7 @@ anyhow = "1.0.57"
 serde_cbor = "0.11"
 humantime = "2.1.0"
 rand = "0.8.5"
-dtn7 = { path = "../core/dtn7", default-features = false, version = "0.20.1"} # managed by release.sh
+dtn7 = { path = "../core/dtn7", default-features = false, version = "0.20.2"} # managed by release.sh
 tokio = { version = "1.36.0", features = [
   "net",
   "rt-multi-thread",
