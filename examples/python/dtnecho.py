@@ -23,7 +23,7 @@ if local_node.startswith('ipn'):
     service = 7
 
 # Prior to receiving anything register the local service endpoint
-register = urllib.request.urlopen("http://127.0.0.1:3000/register?"+service).read()
+register = urllib.request.urlopen("http://127.0.0.1:3000/register?"+str(service)).read()
 print(register)
 
 def on_open(ws):
@@ -43,14 +43,16 @@ def on_message(ws, message):
         if message == "200 tx mode: data":
             print("mode changed to `data`")
             # after the mode was set we subscribe to the echo service previously registered
+            if local_node.startswith('ipn'):
+                service = "{}.{}".format(local_node.split(".")[0], service)
             ws.send("/subscribe " + service)
         elif message == "200 subscribed":
-            print("succesfully subscribed")
+            print("successfully subscribed")
             # after subscribing we are ready to receive bundles
             recv_data = True
     else:
         if message[0:3] == '200': 
-            # text messages starting with '200' inidicate successful transmission
+            # text messages starting with '200' indicate successful transmission
             print("sent reply")
         else:
             #hexstr = "".join(format(i, "02x") for i in message)
