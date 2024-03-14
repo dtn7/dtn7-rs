@@ -235,6 +235,7 @@ impl TcpSession {
             Err(err) => {
                 error!("Failed to parse bundle: {}", err);
                 //error!("Failed bytes: {}", bp7::helpers::hexify(&vec));
+                crate::STATS.lock().broken += 1;
                 TcpClPacket::XferRefuse(XferRefuseData {
                     reason: XferRefuseReasonCode::NotAcceptable,
                     tid,

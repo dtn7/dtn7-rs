@@ -97,11 +97,13 @@ pub async fn transmit(mut bp: BundlePack) -> Result<()> {
 pub async fn receive(mut bndl: Bundle) -> Result<()> {
     if store_add_bundle_if_unknown(&bndl)? {
         info!("Received new bundle: {}", bndl.id());
+        STATS.lock().incoming += 1;
     } else {
         debug!(
             "Received an already known bundle, skip processing: {}",
             bndl.id()
         );
+        STATS.lock().dups += 1;
 
         // bundleDeletion is _not_ called because this would delete the already
         // stored BundlePack.
@@ -360,6 +362,7 @@ pub async fn forward(mut bp: BundlePack) -> Result<()> {
                         n.next_hop,
                         start_time.elapsed()
                     );
+                    STATS.lock().failed += 1;
                     debug!("Error while transferring bundle {}: {}", &bpid, err);
                     let mut failed_peer = None;
 
@@ -402,6 +405,7 @@ pub async fn forward(mut bp: BundlePack) -> Result<()> {
                         n.cla_name,
                         start_time.elapsed()
                     );
+                    STATS.lock().outgoing += 1;
                     bundle_sent.store(true, Ordering::Relaxed);
                     if let Err(err) = routing_notify(RoutingNotifcation::SendingSucceeded(
                         bpid,

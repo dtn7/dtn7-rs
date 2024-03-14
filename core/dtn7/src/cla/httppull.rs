@@ -89,6 +89,7 @@ async fn http_pull_from_node(
             let bundle = match bp7::Bundle::try_from(bundle_buf.as_ref()) {
                 Ok(bundle) => bundle,
                 Err(e) => {
+                    crate::STATS.lock().broken += 1;
                     warn!("could not parse bundle from remote: {}", e);
                     continue;
                 }

@@ -539,6 +539,7 @@ async fn push_post(body: bytes::Bytes) -> Result<String, (StatusCode, String)> {
         //});
         Ok(format!("Received {} bytes", b_len))
     } else {
+        crate::STATS.lock().broken += 1;
         Err((
             StatusCode::BAD_REQUEST,
             "Error decoding bundle!".to_string(),

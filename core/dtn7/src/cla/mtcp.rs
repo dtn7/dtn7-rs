@@ -329,6 +329,7 @@ impl MtcpConvergenceLayer {
                             });
                         }
                     } else {
+                        crate::STATS.lock().broken += 1;
                         info!("Error decoding bundle from {}", peer_addr);
                         break;
                     }

@@ -34,6 +34,7 @@ pub struct DtnStatistics {
     pub dups: u64,
     pub outgoing: u64,
     pub delivered: u64,
+    pub failed: u64,
     pub broken: u64,
 }
 
@@ -44,6 +45,7 @@ impl DtnStatistics {
             dups: 0,
             outgoing: 0,
             delivered: 0,
+            failed: 0,
             broken: 0,
         }
     }
