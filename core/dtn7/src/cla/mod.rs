@@ -5,6 +5,7 @@ pub mod http;
 pub mod httppull;
 pub mod mtcp;
 pub mod tcp;
+pub mod udp;
 
 use self::http::HttpConvergenceLayer;
 use anyhow::Result;
@@ -24,6 +25,7 @@ use std::{
 };
 use tcp::TcpConvergenceLayer;
 use tokio::sync::{mpsc, oneshot};
+use udp::UdpConvergenceLayer;
 
 // generate various helpers
 // - enum CLAsAvailable for verification and loading from str

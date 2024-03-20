@@ -10,6 +10,7 @@ PORT_NODE1=$(get_current_port)
 PORT_NODE2=$((PORT_NODE1 + 1))
 PORT_NODE3=$((PORT_NODE1 + 2))
 PORT_NODE4=$((PORT_NODE1 + 3))
+PORT_NODE5=$((PORT_NODE1 + 4))
 
 #DB1="-W /tmp/node1 -D sled"
 #DB1="-W /tmp/node1 -D sneakers"
@@ -30,15 +31,20 @@ start_dtnd -d -j5s -i0 -C http -C tcp:port=4224 -e incoming \
   -s http://127.0.0.1:$PORT_NODE2/node2 \
   -s tcp://127.0.0.1:4225/node4 $STATUS_REPORTS
 
-start_dtnd -d -j5s -i0 -C tcp:port=4225 -e incoming -r epidemic \
-  -n node4 -s tcp://127.0.0.1:4224/node3 $DB4 $STATUS_REPORTS
+start_dtnd -d -j5s -i0 -C tcp:port=4225 -C udp:port=4556 -e incoming -r epidemic \
+  -n node4 -s tcp://127.0.0.1:4224/node3 $DB4 $STATUS_REPORTS \
+  -s udp://127.0.0.1:4557/node5 $STATUS_REPORTS
+
+start_dtnd -d -j5s -i0 -C udp:port=4557 -e incoming \
+  -r epidemic -n node5 \
+  -s udp://127.0.0.1:4556/node4 $STATUS_REPORTS
 
 sleep 1
 
 echo
 
-echo "Sending 'test' to node 4"
-echo test | $BINS/dtnsend -r dtn://node4/incoming -p $PORT_NODE1
+echo "Sending 'test' to node 5"
+echo test | $BINS/dtnsend -r dtn://node5/incoming -p $PORT_NODE1
 
 sleep 5
 
@@ -59,8 +65,8 @@ else
   echo "Incorrect number of bundles in store!"
 fi
 echo
-echo -n "Receiving on node 4: "
-$BINS/dtnrecv -v -e incoming -p $PORT_NODE4
+echo -n "Receiving on node 5: "
+$BINS/dtnrecv -v -e incoming -p $PORT_NODE5
 RC=$?
 echo "RET: $RC"
 echo

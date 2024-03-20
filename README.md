@@ -15,6 +15,7 @@ Plus:
 * [Minimal TCP Convergence Layer](https://tools.ietf.org/html/draft-ietf-dtn-mtcpcl-01) 
 * A simple [HTTP Convergence Layer](doc/http-cl.md)
 * A [HTTP pull-based Convergence Layer](doc/http-pull-cl.md)
+* A minimal [UDP Convergence Layer](https://www.ietf.org/archive/id/draft-sipos-dtn-udpcl-01.html) (currently, without the extensions)
 * An IP neighborhood discovery service
 * Convenient command line tools to interact with the daemon
 * A simple web interface for status information about `dtnd` 
