@@ -1,6 +1,12 @@
 # Changelog
 All notable changes to this project will be documented in this file.
 
+## [0.21.0] - 2024-03-27
+
+### Features
+
+- Minimal implementation of UDP CL without any of the extensions (#64)
+
 ## [0.20.2] - 2024-03-14
 
 ### Bug Fixes
