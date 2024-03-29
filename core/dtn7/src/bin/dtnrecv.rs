@@ -22,15 +22,23 @@ struct Args {
     verbose: bool,
 
     /// Specify local endpoint, e.g. 'incoming', or a group endpoint 'dtn://helpers/~incoming'
-    #[clap(short, long, required_unless_present_any = ["bid", "delete"], conflicts_with_all = ["bid", "delete"])]
+    #[clap(short, long, required_unless_present_any = ["bid", "delete", "register", "unregister"], conflicts_with_all = ["bid", "delete", "register", "unregister"])]
     endpoint: Option<String>,
 
+    /// Register a local endpoint, e.g. 'incoming', or a group endpoint 'dtn://helpers/~incoming'
+    #[clap(short, long, required_unless_present_any = ["bid", "delete", "endpoint", "unregister"], conflicts_with_all = ["bid", "delete", "endpoint", "unregister"], value_name = "ENDPOINT")]
+    register: Option<String>,
+
+    /// Unregister a local endpoint, e.g. 'incoming', or a group endpoint 'dtn://helpers/~incoming'
+    #[clap(short, long, required_unless_present_any = ["bid", "delete", "endpoint", "register"], conflicts_with_all = ["bid", "delete", "endpoint", "unregister"], value_name = "ENDPOINT")]
+    unregister: Option<String>,
+
     /// Download any bundle by its ID
-    #[clap(short, long, required_unless_present_any = ["endpoint", "delete"])]
+    #[clap(short, long, required_unless_present_any = ["endpoint", "delete", "register", "unregister"], conflicts_with_all = ["endpoint", "delete", "register", "unregister"])]
     bid: Option<String>,
 
     /// Delete any bundle by its ID
-    #[clap(short, long, required_unless_present_any = ["endpoint", "bid"], value_name = "BID")]
+    #[clap(short, long, required_unless_present_any = ["endpoint", "bid", "register", "unregister"], conflicts_with_all = ["endpoint", "bid", "register", "unregister"],  value_name = "BID")]
     delete: Option<String>,
 
     /// Write bundle payload to file instead of stdout
@@ -79,6 +87,20 @@ fn main() {
             port,
             args.delete.clone().unwrap()
         )
+    } else if args.register.is_some() {
+        format!(
+            "http://{}:{}/register?{}",
+            localhost,
+            port,
+            args.register.clone().unwrap()
+        )
+    } else if args.unregister.is_some() {
+        format!(
+            "http://{}:{}/unregister?{}",
+            localhost,
+            port,
+            args.unregister.clone().unwrap()
+        )
     } else {
         format!(
             "http://{}:{}/download?{}",
@@ -100,6 +122,12 @@ fn main() {
     let buf: Vec<u8> = res.bytes().expect("No bundle bytes received");
     if args.delete.is_some() {
         println!("Deleted bundle {}", args.delete.unwrap());
+        process::exit(0);
+    } else if args.register.is_some() {
+        println!("Registered endpoint {}", args.register.unwrap());
+        process::exit(0);
+    } else if args.unregister.is_some() {
+        println!("Unregistered endpoint {}", args.unregister.unwrap());
         process::exit(0);
     } else if buf.len() > 50 {
         // TODO: very arbitrary number, should check return code
