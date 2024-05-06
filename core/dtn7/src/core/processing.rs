@@ -317,6 +317,9 @@ pub async fn forward(mut bp: BundlePack) -> Result<()> {
 
     if nodes.is_empty() {
         trace!("No new peers for forwarding of bundle {}", &bp.id());
+        if delete_afterwards {
+            store_remove(&bpid)?;
+        }
     } else {
         debug!("Attempting forwarding of {} to nodes: {:?}", bp.id(), nodes);
 
