@@ -27,6 +27,7 @@ pub struct DtnConfig {
     pub announcement_interval: Duration,
     pub disable_neighbour_discovery: bool,
     pub discovery_destinations: BTreeMap<String, u32>,
+    pub discovery_listen_port: u16,
     pub janitor_interval: Duration,
     pub endpoints: Vec<String>,
     pub clas: Vec<(CLAsAvailable, HashMap<String, String>)>,
@@ -137,6 +138,9 @@ impl From<PathBuf> for DtnConfig {
             .get_int("webport")
             .unwrap_or_else(|_| i64::from(dtncfg.webport)) as u16;
         debug!("webport: {:?}", dtncfg.webport);
+
+        dtncfg.discovery_listen_port = s.get_int("discovery.port").unwrap_or(3003) as u16;
+        debug!("discovery-listen-port: {:?}", dtncfg.discovery_listen_port);
 
         dtncfg.janitor_interval = if let Ok(interval) = s.get_string("core.janitor") {
             humantime::parse_duration(&interval).unwrap_or_else(|_| Duration::new(0, 0))
@@ -274,6 +278,7 @@ impl DtnConfig {
             announcement_interval: "2s".parse::<humantime::Duration>().unwrap().into(),
             disable_neighbour_discovery: false,
             discovery_destinations: BTreeMap::new(),
+            discovery_listen_port: 3003,
             webport: 3000,
             janitor_interval: "10s".parse::<humantime::Duration>().unwrap().into(),
             endpoints: Vec::new(),
