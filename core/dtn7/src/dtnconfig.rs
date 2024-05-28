@@ -310,6 +310,7 @@ impl DtnConfig {
         self.announcement_interval = cfg.announcement_interval;
         self.disable_neighbour_discovery = cfg.disable_neighbour_discovery;
         self.discovery_destinations = cfg.discovery_destinations;
+        self.discovery_listen_port = cfg.discovery_listen_port;
         self.janitor_interval = cfg.janitor_interval;
         self.endpoints = cfg.endpoints;
         self.clas = cfg.clas;
