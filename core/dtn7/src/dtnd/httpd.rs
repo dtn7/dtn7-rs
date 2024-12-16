@@ -130,12 +130,6 @@ struct BundlesContext<'a> {
     bundles: &'a [BundleInfo],
     bundles_digest: String,
 }
-#[derive(Serialize)]
-struct BundleEntry {
-    bid: String,
-    src: String,
-    dst: String,
-}
 
 // End of web UI specific structs
 

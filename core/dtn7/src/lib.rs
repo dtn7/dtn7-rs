@@ -46,15 +46,11 @@ pub fn cla_add(cla: CLAEnum) {
     (*CLAS.lock()).push(cla);
 }
 pub fn cla_remove(name: String) {
-    (*CLAS.lock()).retain(|value| {
-        return value.name() != name;
-    })
+    (*CLAS.lock()).retain(|value| value.name() != name)
 }
 pub fn cla_is_external(name: String) -> bool {
     return (*CLAS.lock()).iter().any(|p| match p {
-        CLAEnum::ExternalConvergenceLayer(e) => {
-            return e.name() == name;
-        }
+        CLAEnum::ExternalConvergenceLayer(e) => e.name() == name,
         _ => false,
     });
 }
@@ -68,9 +64,7 @@ pub fn cla_parse(name: &str) -> CLAsAvailable {
 pub fn cla_settings(name: String) -> Option<HashMap<String, String>> {
     let res: Vec<Option<HashMap<String, String>>> = (*CLAS.lock())
         .iter()
-        .filter(|p| {
-            return p.name() == name;
-        })
+        .filter(|p| p.name() == name)
         .map(|p| p.local_settings())
         .collect();
 
@@ -78,14 +72,12 @@ pub fn cla_settings(name: String) -> Option<HashMap<String, String>> {
         return None;
     }
 
-    return Some(res[0].as_ref().unwrap().clone());
+    Some(res[0].as_ref().unwrap().clone())
 }
 pub fn cla_names() -> Vec<String> {
     let names: Vec<String> = (*CLAS.lock())
         .iter()
-        .map(|val| {
-            return String::from(val.name());
-        })
+        .map(|val| String::from(val.name()))
         .collect();
 
     names

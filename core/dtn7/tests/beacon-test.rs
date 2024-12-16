@@ -347,12 +347,13 @@ pub fn rnd_beacon() -> Beacon {
     let rnd_serviceblock: u8 = rng.gen_range(0..101);
     let amount_of_services: u8 = rng.gen_range(0..11);
 
-    let clas = vec![
+    let clas = [
         "mtcp".to_owned(),
         "http".to_owned(),
         "tcp".to_owned(),
         "dummy".to_owned(),
     ];
+
     let ports = [
         20, 0, 5000, 1243, 513, 1241, 324, 9441, 2435, 6234, 23, 1, 45,
     ];

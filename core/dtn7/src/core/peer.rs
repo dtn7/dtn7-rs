@@ -124,7 +124,6 @@ impl DtnPeer {
     /// thread::sleep(Duration::from_secs(2));
     /// assert_eq!(peer.still_valid(), false);
     /// ```
-
     pub fn still_valid(&self) -> bool {
         if self.con_type == PeerType::Static {
             return true;

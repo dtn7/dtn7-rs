@@ -53,7 +53,7 @@ janitor = "10s"
 # interval of 0 deactives discovery service
 interval = "2s"
 peer-timeout = "20s"
-
+port = 3003
 
 [convergencylayers]
 global.tcp.refuse-existing-bundles = true
