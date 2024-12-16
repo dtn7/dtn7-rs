@@ -310,10 +310,10 @@ async fn main() -> Result<()> {
     }
 
     let strategy = routing_types.iter().find(|t| {
-        return matches
+        matches
             .get_one::<String>("type")
             .unwrap()
-            .eq_ignore_ascii_case(t);
+            .eq_ignore_ascii_case(t)
     });
 
     if strategy.is_none() {
