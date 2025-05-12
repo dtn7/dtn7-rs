@@ -71,7 +71,7 @@ If this is not the case you might be missing the proper kernel modules on your h
 
 By using the [core helper](https://github.com/gh0st42/core-helpers) scripts managing the simulation gets much easier.
 
-To start `dtnd` on all running nodes enter the following in the ssh session connected to the docker instance:
+To start `dtnd` on all running nodes enter the following in the bash that we previously connected to the docker instance:
 ```bash
 cda 'dtnd -n $(hostname) -e incoming -C mtcp -r epidemic'
 ```
@@ -79,7 +79,7 @@ cda 'dtnd -n $(hostname) -e incoming -C mtcp -r epidemic'
 This starts `dtnd` with a node naming matching its hostname in the simulation, registers an endpoint called `incoming`, uses minimal tcp convergence layer and *epidemic* routing.
 A full list of options can be seen by executing `dtnd -h`.
 
-Each node has a directly with logs and local files under `/tmp/pycore.*/n<node number>`.
+Each node has logs and a directory with local files under `/tmp/pycore.*/n<node number>.<conf/log>`.
 
 The dtn daemon can be stopped and the standard out log can be cleared with the following command:
 ```bash
@@ -94,7 +94,7 @@ pkill -9 dtnd && cea rm nohup.out
 
 #### Get global peer list
 
-To get a list of all known peers from all nodes issue the following command in the ssh session:
+To get a list of all known peers from all nodes issue the following command in the bash session:
 ```bash
 cea 'dtnquery peers | egrep "n[0-9].:" | cut -d \" -f 2 | sort'
 ```
