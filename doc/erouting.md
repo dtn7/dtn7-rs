@@ -10,10 +10,11 @@ To enable the erouting use ``-r external`` as a routing algorithm.
 
 ## Config File
 
-Configuration can also happen via a config file by setting the routing to ``external``.
+Configuration can also happen via a config file by setting the routing strategy to ``external``.
 
 ```toml
-routing = "external"
+[routing]
+strategy = "external"
 ```
 
 ## WebSocket Transport Layer
