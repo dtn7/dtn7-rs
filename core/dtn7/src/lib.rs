@@ -116,12 +116,14 @@ pub fn get_sequence(destination: &str) -> u32 {
 /// return true if peer was seen first time
 /// return false if peer was already known
 pub fn peers_add(peer: DtnPeer) -> bool {
+    debug!("Adding peer eid={}", peer.eid.node().unwrap());
     (*PEERS.lock())
         .insert(peer.eid.node().unwrap(), peer)
         .is_none()
 }
 
 pub fn peers_remove(peer_id: &str) {
+    debug!("Removing peer eid={}", peer_id);
     (*PEERS.lock()).remove(peer_id);
 }
 
@@ -129,6 +131,7 @@ pub fn peers_count() -> usize {
     (*PEERS.lock()).len()
 }
 pub fn peers_clear() {
+    debug!("Clearing peers");
     (*PEERS.lock()).clear();
 }
 pub fn peers_known(peer: &str) -> bool {
