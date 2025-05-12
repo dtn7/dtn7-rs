@@ -450,7 +450,7 @@ async fn insert_get(extract::RawQuery(query): extract::RawQuery) -> Result<Strin
 async fn insert_post(body: bytes::Bytes) -> Result<String, (StatusCode, &'static str)> {
     let bytes = body.to_vec();
     let b_len = bytes.len();
-    debug!("Received: {:?}", b_len);
+    debug!("Received: {:?} bytes", b_len);
     if let Ok(bndl) = bp7::Bundle::try_from(bytes.to_vec()) {
         debug!(
             "Sending bundle {} to {}",
