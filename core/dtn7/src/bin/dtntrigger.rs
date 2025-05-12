@@ -7,6 +7,7 @@ use std::io::prelude::*;
 use std::process::Command;
 use tempfile::NamedTempFile;
 use tungstenite::Message;
+use chrono::Local;
 
 fn write_temp_file(data: &[u8], verbose: bool) -> Result<NamedTempFile> {
     let mut data_file = NamedTempFile::new()?;
@@ -40,7 +41,7 @@ fn execute_cmd(
         });
 
     if !output.status.success() || verbose {
-        println!("[*] status: {}", output.status);
+        eprintln!("[*] status: {}", output.status);
         std::io::stdout().write_all(&output.stdout)?;
         std::io::stderr().write_all(&output.stderr)?;
     }
@@ -67,8 +68,12 @@ struct Args {
     #[clap(short, long)]
     endpoint: String,
 
+    /// Just print the message
+    #[clap(long)]
+    print: bool,
+
     /// Command to execute for incoming bundles, param1 = source, param2 = payload file
-    #[clap(short, long, required = true)]
+    #[clap(short, long, default_value = "echo")]
     command: String,
 }
 fn main() -> anyhow::Result<()> {
@@ -92,7 +97,7 @@ fn main() -> anyhow::Result<()> {
     wscon.write_text("/bundle")?;
     let msg = wscon.read_text()?;
     if msg.starts_with("200 tx mode: bundle") {
-        println!("[*] {}", msg);
+        eprintln!("[*] {}", msg);
     } else {
         bail!("[!] Failed to set mode to `bundle`");
     }
@@ -100,7 +105,7 @@ fn main() -> anyhow::Result<()> {
     wscon.write_text(&format!("/subscribe {}", args.endpoint))?;
     let msg = wscon.read_text()?;
     if msg.starts_with("200 subscribed") {
-        println!("[*] {}", msg);
+        eprintln!("[*] {}", msg);
     } else {
         bail!("[!] Failed to subscribe to service");
     }
@@ -121,8 +126,16 @@ fn main() -> anyhow::Result<()> {
                     if args.verbose {
                         eprintln!("[<] Received Bundle-Id: {}", bndl.id());
                     }
-                    let data_file = write_temp_file(data, args.verbose)?;
-                    execute_cmd(&args.command, data_file, &bndl, args.verbose)?;
+                    if args.print {
+                        let now = Local::now().format("%H:%M:%S.%3f");
+                        println!("[{}] {} → {}", now, bndl.primary.source.to_string(), String::from_utf8_lossy(data));
+                    } else {
+                        let data_file = write_temp_file(data, args.verbose)?;
+                        if args.verbose {
+                            eprintln!("[*] wrote tmp data file, now executing...");
+                        }
+                        execute_cmd(&args.command, data_file, &bndl, args.verbose)?;
+                    }
                 } else if args.verbose {
                     eprintln!("[!] Unexpected payload!");
                     break;
@@ -135,7 +148,7 @@ fn main() -> anyhow::Result<()> {
             }
             Message::Pong(_) => {
                 if args.verbose {
-                    eprintln!("[<] Ping")
+                    eprintln!("[<] Pong")
                 }
             }
             Message::Close(_) => {
