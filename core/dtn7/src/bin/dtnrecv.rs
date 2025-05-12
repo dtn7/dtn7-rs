@@ -73,7 +73,7 @@ fn main() {
     let args = Args::parse();
 
     let port = if let Ok(env_port) = std::env::var("DTN_WEB_PORT") {
-        env_port // string is fine no need to parse number
+        env_port // string is fine, no need to parse number
     } else {
         args.port.to_string()
     };

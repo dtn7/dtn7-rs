@@ -194,7 +194,7 @@ pub async fn dispatch(bp: BundlePack) -> Result<()> {
     }
 
     if (*DTNCORE.lock()).is_in_endpoints(&bp.destination)
-    // TODO: lookup here AND in local delivery, optmize for just one
+    // TODO: lookup here AND in local delivery, optimize for just one
     {
         local_delivery(bp.clone()).await?;
     }

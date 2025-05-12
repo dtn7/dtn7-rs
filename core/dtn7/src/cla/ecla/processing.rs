@@ -27,7 +27,7 @@ type LayerMap = Arc<Mutex<HashMap<String, ConnectorEnum>>>;
 lazy_static! {
     /// Tracks the registered connectors over which clients can connect to dtnd (e.g. WebSocket or TCP).
     static ref CONNECTORS_MAP: LayerMap = LayerMap::new(Mutex::new(HashMap::new()));
-    /// Tracks the registered modules that are connected over an connector.
+    /// Tracks the registered modules that are connected over a connector.
     static ref MODULE_MAP: ModuleMap = ModuleMap::new(Mutex::new(HashMap::new()));
 }
 
@@ -39,7 +39,7 @@ enum ModuleState {
     Active,
 }
 
-/// Represents the Module. A module holds it's connection state, it's name (typically name of the used transmission protocol),
+/// Represents the Module. A module holds its connection state, its name (typically the name of the used transmission protocol),
 /// the connector over which it's connected and if the optional service discovery via periodically sent beacons is enabled.
 struct Module {
     state: ModuleState,
@@ -81,7 +81,7 @@ pub fn generate_beacon() -> Beacon {
     beacon
 }
 
-/// Periodically advertises it's own node to the clients.
+/// Periodically advertises its own node to the clients.
 async fn announcer() {
     let mut task = interval(crate::CONFIG.lock().announcement_interval);
     loop {
@@ -230,8 +230,8 @@ pub fn handle_packet(connector_name: String, addr: String, packet: Packet) {
     }
 }
 
-/// When a module connects in a connector this function should be called. It will initialize
-/// the information about the new module.
+/// When a module connects in a connector, this function should be called.
+/// It will initialize the information about the new module.
 pub fn handle_connect(connector_name: String, from: String) {
     MODULE_MAP.lock().unwrap().insert(
         from,
@@ -273,7 +273,7 @@ pub fn scheduled_submission(name: String, dest: String, ready: &ByteBuffer) -> T
             if let Ok(bndl) = Bundle::try_from(ready.as_slice()) {
                 let packet: Packet = Packet::ForwardData(ForwardData {
                     dst: dest.to_string(),
-                    src: "".to_string(), // Leave blank for now and let the Module set it to a protocol specific address on his side
+                    src: "".to_string(), // Leave blank for now and let the Module set it to a protocol-specific address on its side
                     bundle_id: bndl.id(),
                     data: ready.to_vec(),
                 });
