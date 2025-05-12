@@ -16,10 +16,12 @@ debug = false
 beacon-period = true
 generate-status-reports = false
 parallel-bundle-processing = false
-routing = "epidemic"
 webport = 3000
 workdir = "/tmp/dtn7"
 db = "mem"
+
+[routing]
+strategy = "epidemic"
 
 [core]
 janitor = "10s"
