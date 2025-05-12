@@ -5,8 +5,7 @@ use crate::lazy_static;
 use async_trait::async_trait;
 use axum::extract::ws::{Message, WebSocket};
 use futures_util::{future, stream::TryStreamExt, SinkExt, StreamExt};
-use log::{debug, trace};
-use log::{error, info};
+use log::{error, warn, info, debug, trace};
 use serde_json::Result;
 use std::collections::HashMap;
 use std::sync::atomic::{AtomicUsize, Ordering};
@@ -46,11 +45,6 @@ pub async fn handle_connection(ws: WebSocket) {
 
     // Process incoming messages from the websocket client
     let broadcast_incoming = incoming.try_for_each(|msg| {
-        trace!(
-            "Received a message from {}: {}",
-            id,
-            msg.to_text().unwrap().trim()
-        );
 
         let packet: Result<Packet>;
         {
@@ -62,8 +56,24 @@ pub async fn handle_connection(ws: WebSocket) {
                 return future::ok(());
             }
 
+            // Try to convert the message to text
+            let msg_text = match msg.to_text() {
+                Ok(text) => {
+                    trace!(
+                        "Received a message from ECLA id {}: {}",
+                        id,
+                        text.trim()
+                    );
+                    text.trim()
+                },
+                Err(e) => {
+                    warn!("Failed to convert message to text from ECLA id {}: {}", id, e);
+                    return future::ok(());
+                }
+            };
+
             // Deserialize Packet
-            packet = serde_json::from_str(msg.to_text().unwrap());
+            packet = serde_json::from_str(msg_text);
             if packet.is_err() {
                 return future::ok(());
             }
