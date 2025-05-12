@@ -192,7 +192,7 @@ pub async fn process_bundles() {
         }
     }
 
-    debug!(
+    trace!(
         "time to process {} bundles: {:?}",
         num_bundles,
         now_total.elapsed()
