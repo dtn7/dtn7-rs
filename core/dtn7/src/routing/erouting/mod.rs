@@ -20,12 +20,12 @@ pub mod ws_client;
 #[derive(Serialize, Deserialize, Clone)]
 #[serde(tag = "type")]
 pub enum Packet {
-    /// Packet that contains information about a bundle that should be send.
+    /// Packet that contains information about a bundle that should be sent.
     RequestSenderForBundle(RequestSenderForBundle),
     /// Packet response to a RequestSenderForBundle packet. Contains the original
     /// bundle pack and a list of senders where the packet should be forwarded to.
     ResponseSenderForBundle(ResponseSenderForBundle),
-    /// Packet that contains information about a occurred error.
+    /// Packet that contains information about an occurred error.
     Error(Error),
     /// If no ResponseSenderForBundle was received in a certain timeframe a
     /// Timeout packet will be emitted.
