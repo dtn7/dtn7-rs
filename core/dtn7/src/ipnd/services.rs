@@ -106,7 +106,7 @@ impl ServiceBlock {
         match tag {
             // CustomString to allow a random unformatted string
             Service::CUSTOM_STRING => {
-                if payload.as_bytes().len() > 64 {
+                if payload.len() > 64 {
                     Err(String::from(
                         "The provided custom message is to big. Aim for less than 64 characters",
                     ))
