@@ -22,6 +22,7 @@ use crate::{DtnConfig, PeerAddress};
 use anyhow::Result;
 use async_trait::async_trait;
 use axum::extract::ws::WebSocketUpgrade;
+use axum::extract::DefaultBodyLimit;
 use axum::extract::Query;
 use axum::response::Html;
 use axum::{
@@ -742,16 +743,22 @@ pub async fn spawn_httpd() -> Result<()> {
         .route("/routing/cmd", get(http_routing_cmd).post(http_routing_cmd))
         .route("/routing/getdata", get(http_routing_getdata))
         .route("/send", post(send_post))
+        .layer(DefaultBodyLimit::disable())
         .route("/delete", get(delete).delete(delete))
         .route("/register", get(register))
         .route("/unregister", get(unregister))
         .route("/endpoint", get(endpoint))
         .route("/insert", get(insert_get).post(insert_post))
+        .layer(DefaultBodyLimit::disable())
         .route("/endpoint.hex", get(endpoint_hex))
         .route("/cts", get(get_creation_timestamp))
         .route(
             "/ws",
-            get(|ws: WebSocketUpgrade| async move { ws.on_upgrade(super::ws::handle_socket) }),
+            get(|ws: WebSocketUpgrade| async move {
+                ws.max_message_size(128 * 1024 * 1024)
+                    .max_frame_size(128 * 1024 * 1024)
+                    .on_upgrade(super::ws::handle_socket)
+            }),
         )
         .route("/debug/rnd_bundle", get(debug_rnd_bundle))
         .route("/debug/rnd_peer", get(debug_rnd_peer))
@@ -783,6 +790,7 @@ pub async fn spawn_httpd() -> Result<()> {
         .route("/download.hex", get(download_hex))
         .route("/download", get(download))
         .route("/push", post(push_post))
+        .layer(DefaultBodyLimit::disable())
         .route("/status/nodeid", get(status_node_id))
         .route("/status/eids", get(status_eids))
         .route("/status/bundles", get(status_bundles))

@@ -6,6 +6,7 @@ use std::convert::TryFrom;
 use std::io::prelude::*;
 use std::process::Command;
 use tempfile::NamedTempFile;
+use tungstenite::protocol::WebSocketConfig;
 use tungstenite::Message;
 
 fn write_temp_file(data: &[u8], verbose: bool) -> Result<NamedTempFile> {
@@ -87,7 +88,12 @@ fn main() -> anyhow::Result<()> {
     );
 
     client.register_application_endpoint(&args.endpoint)?;
-    let mut wscon = client.ws()?;
+    let config = WebSocketConfig {
+        max_message_size: Some(1024 * 1024 * 128), // 128 MB
+        max_frame_size: Some(1024 * 1024 * 128),   // 128 MB
+        ..Default::default()
+    };
+    let mut wscon = client.ws_with_config(config)?;
 
     wscon.write_text("/bundle")?;
     let msg = wscon.read_text()?;

@@ -21,8 +21,8 @@ use tokio::sync::Mutex;
 use tokio::time::interval;
 // Begin application agent WebSocket specific stuff
 
-/// How often new bundles are checked when no direct delivery happens (DEPRECATED)
-// const CHECK_INTERVAL: Duration = Duration::from_millis(100);
+/// How often new bundles are checked when no direct delivery happens
+const CHECK_INTERVAL: Duration = Duration::from_millis(100);
 /// How often heartbeat pings are sent
 const HEARTBEAT_INTERVAL: Duration = Duration::from_secs(5);
 /// How long before lack of client response causes a timeout
@@ -125,12 +125,24 @@ pub async fn handle_socket(socket: WebSocket) {
             }
         }
     });
+    let tx2 = tx.clone();
+    let session2 = session.clone();
+    let mut reflush_task = tokio::spawn(async move {
+        let mut task = interval(CHECK_INTERVAL);
+        loop {
+            task.tick().await;
+            debug!("Reflushing bundles again from application agent buffer");
+            session2.lock().await.fetch_new_bundles(tx2.clone()).await
+        }
+    });
+
     // TODO: maybe add legacy fetch_new_bundles call periodically again?
     tokio::select! {
-        _ = (&mut send_task) => {recv_task.abort(); hb_task.abort();br_task.abort();},
-        _ = (&mut recv_task) => {send_task.abort(); hb_task.abort();br_task.abort();},
-        _ = (&mut hb_task) => {send_task.abort(); recv_task.abort(); br_task.abort();},
-        _ = (&mut br_task) => {hb_task.abort(); recv_task.abort(); send_task.abort();},
+        _ = (&mut send_task) => {recv_task.abort(); hb_task.abort();br_task.abort();reflush_task.abort();},
+        _ = (&mut reflush_task) => {send_task.abort(); recv_task.abort(); hb_task.abort(); br_task.abort();},
+        _ = (&mut recv_task) => {send_task.abort(); hb_task.abort();br_task.abort();reflush_task.abort();},
+        _ = (&mut hb_task) => {send_task.abort(); recv_task.abort(); br_task.abort();reflush_task.abort();},
+        _ = (&mut br_task) => {hb_task.abort(); recv_task.abort(); send_task.abort();reflush_task.abort();},
     };
 
     if let Some(endpoints) = &session.lock().await.endpoints {
@@ -449,7 +461,7 @@ impl WsAASession {
         if let Some(endpoints) = self.endpoints.clone() {
             for eid in endpoints {
                 if let Some(aa) = (*DTNCORE.lock()).get_endpoint_mut(&eid) {
-                    if let Some(mut bundle) = aa.pop() {
+                    while let Some(mut bundle) = aa.pop() {
                         let recv_data = match self.mode {
                             WsReceiveMode::Bundle => bundle.to_cbor(),
                             WsReceiveMode::Data(format) => {

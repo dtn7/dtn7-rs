@@ -1,84 +1,84 @@
 [package]
-  name = "dtn7"
-  version = "0.21.0"                                                                                                   # managed by release.sh
-  authors = ["Lars Baumgaertner <baumgaertner@cs.tu-darmstadt.de>"]
-  description = "Rust delay-tolerant-networking daemon and CLI tools implementing Bundle Protocol Version 7 (RFC9171)"
-  edition = "2021"
-  license = "MIT OR Apache-2.0"
-  categories = ["command-line-utilities", "network-programming"]
-  repository = "https://github.com/dtn7/dtn7-rs"
-  keywords = ["peer2peer", "dtn"]
-  exclude = [".vscode/", ".travis.yml"]
-  readme = "README.md"
+name = "dtn7"
+version = "0.21.0"                                                                                                   # managed by release.sh
+authors = ["Lars Baumgaertner <baumgaertner@cs.tu-darmstadt.de>"]
+description = "Rust delay-tolerant-networking daemon and CLI tools implementing Bundle Protocol Version 7 (RFC9171)"
+edition = "2021"
+license = "MIT OR Apache-2.0"
+categories = ["command-line-utilities", "network-programming"]
+repository = "https://github.com/dtn7/dtn7-rs"
+keywords = ["peer2peer", "dtn"]
+exclude = [".vscode/", ".travis.yml"]
+readme = "README.md"
 
 [features]
 
-  default = ["store_sled", "store_sneakers"]
-  tracing = ["console-subscriber"]
-  deadlock_detection = ["parking_lot/deadlock_detection"]
-  store_sled = ["sled"]
-  store_sneakers = ["d7sneakers"]
+default = ["store_sled", "store_sneakers"]
+tracing = ["console-subscriber"]
+deadlock_detection = ["parking_lot/deadlock_detection"]
+store_sled = ["sled"]
+store_sneakers = ["d7sneakers"]
 
 [dependencies]
-  sled = { version = "0.34.7", optional = true }
-  bp7 = { version = "0.10.6", default-features = false }
-  dtn7-plus = { version = "0.7.2", default-features = false, features = [
-    "client",
-  ] }
-  d7sneakers = { version = "0.3.1", default-features = false, optional = true }
-  serde = { version = "1.0", features = ["derive"] }
-  serde_cbor = "0.11"
-  serde_json = "1.0"
-  serde_bytes = "0.11"
-  url = "2.2.2"
-  rand = "0.8.3"
-  tokio = { version = "1.36.0", features = [
-    "net",
-    "rt-multi-thread",
-    "macros",
-    "time",
-    "tracing",
-  ] }
-  console-subscriber = { version = "0.2.0", features = [
-    "parking_lot",
-  ], optional = true }
-  tokio-util = { version = "0.7.10", features = ["codec"] }
-  tokio-tungstenite = "0.21.0"
-  tokio-serde = { version = "0.9", features = ["json"] }
-  futures = "0.3.21"
-  base64 = "0.22.0"
-  futures-util = "0.3.21"
-  pretty_env_logger = "0.5.0"
-  log = "0.4"
-  socket2 = "0.5.6"
-  bytes = "1.5.0"
-  clap = { version = "4.2.1", features = ["cargo", "derive"] }
-  config = { version = "0.14.0", default-features = false, features = ["toml"] }
-  lazy_static = "1.4.0"
-  anyhow = "1.0.82"
-  parking_lot = "0.12.0"
-  async-trait = "0.1.53"
-  attohttpc = { version = "0.28.0", default-features = false }
-  tinytemplate = "1.1.0"
-  humantime = "2.1.0"
-  tempfile = "3.5.0"
-  humansize = "2.1.2"
-  enum_dispatch = "0.3.8"
-  axum = { version = "0.5.13", features = ["ws"] }
-  http = "0.2.7"
-  #tower = "0.4.8"
-  hyper = { version = "0.14.18", features = ["client"] }
-  tungstenite = "0.21.0"
-  #measure_time = "0.7.0"
-  bitflags = "2.0.2"
-  num-derive = "0.4.2"
-  num-traits = "0.2.15"
-  thiserror = "1.0.31"
-  dtn7-codegen = { path = "../codegen", version = "0.1.2" }
-  sha1 = "0.10.5"
-  glob-match = "0.2.1"
-  tower-http = { version = "0.3.4", features = ["cors"] }
+sled = { version = "0.34.7", optional = true }
+bp7 = { version = "0.10.7", default-features = false }
+dtn7-plus = { version = "0.7.3", default-features = false, features = [
+  "client",
+] }
+d7sneakers = { version = "0.3.1", default-features = false, optional = true }
+serde = { version = "1.0", features = ["derive"] }
+serde_cbor = "0.11"
+serde_json = "1.0"
+serde_bytes = "0.11"
+url = "2.2.2"
+rand = "0.8.3"
+tokio = { version = "1.36.0", features = [
+  "net",
+  "rt-multi-thread",
+  "macros",
+  "time",
+  "tracing",
+] }
+console-subscriber = { version = "0.2.0", features = [
+  "parking_lot",
+], optional = true }
+tokio-util = { version = "0.7.10", features = ["codec"] }
+tokio-tungstenite = "0.21.0"
+tokio-serde = { version = "0.9", features = ["json"] }
+futures = "0.3.21"
+base64 = "0.22.0"
+futures-util = "0.3.21"
+pretty_env_logger = "0.5.0"
+log = "0.4"
+socket2 = "0.5.6"
+bytes = "1.5.0"
+clap = { version = "4.2.1", features = ["cargo", "derive"] }
+config = { version = "0.14.0", default-features = false, features = ["toml"] }
+lazy_static = "1.4.0"
+anyhow = "1.0.82"
+parking_lot = "0.12.0"
+async-trait = "0.1.53"
+attohttpc = { version = "0.29.2", default-features = false }
+tinytemplate = "1.1.0"
+humantime = "2.1.0"
+tempfile = "3.5.0"
+humansize = "2.1.2"
+enum_dispatch = "0.3.8"
+axum = { version = "0.5.13", features = ["ws"] }
+http = "0.2.7"
+#tower = "0.4.8"
+hyper = { version = "0.14.18", features = ["client"] }
+tungstenite = "0.21.0"
+#measure_time = "0.7.0"
+bitflags = "2.0.2"
+num-derive = "0.4.2"
+num-traits = "0.2.15"
+thiserror = "1.0.31"
+dtn7-codegen = { path = "../codegen", version = "0.1.2" }
+sha1 = "0.10.5"
+glob-match = "0.2.1"
+tower-http = { version = "0.3.4", features = ["cors"] }
 
 [lib]
-  name = "dtn7"
-  path = "src/lib.rs"
+name = "dtn7"
+path = "src/lib.rs"
