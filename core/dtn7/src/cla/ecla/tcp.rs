@@ -68,7 +68,7 @@ async fn handle_connection(raw_stream: TcpStream, addr: SocketAddr) {
     future::select(rx_close, future::select(incoming, outgoing)).await;
 
     if PEER_MAP.lock().unwrap().remove(&addr.to_string()).is_some() {
-        info!("{} disconnected", &addr);
+        info!("ECLA (TCP) {} disconnected", &addr);
         handle_disconnect(addr.to_string());
     }
 }

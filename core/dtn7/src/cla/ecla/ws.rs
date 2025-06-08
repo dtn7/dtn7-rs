@@ -91,7 +91,7 @@ pub async fn handle_connection(ws: WebSocket) {
     )
     .await;
 
-    info!("{} disconnected", id);
+    info!("ECLA (WS) {} disconnected", id);
     handle_disconnect(id.to_string());
     PEER_MAP.lock().unwrap().remove(&id.to_string());
 }
@@ -116,7 +116,7 @@ impl Connector for WebsocketConnector {
     }
 
     fn send_packet(&self, dest: &str, packet: &Packet) -> bool {
-        debug!("Sending Packet to {} ({})", dest, self.name());
+        debug!("Sending Packet to dest={} ({})", dest, self.name());
 
         let peer_map = PEER_MAP.lock().unwrap();
         if let Some(target) = peer_map.get(dest) {
