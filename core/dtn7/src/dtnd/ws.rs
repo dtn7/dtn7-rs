@@ -363,6 +363,7 @@ impl WsAASession {
                         }
                     }
                     WsReceiveMode::Data(format) => {
+                        // TODO: make BPCF configurable via WsSendData
                         let send_data = match format {
                             DataReceiveFormat::CBOR => serde_cbor::from_slice::<WsSendData>(&bin)
                                 .map_err(|_| "error parsing cbor"),

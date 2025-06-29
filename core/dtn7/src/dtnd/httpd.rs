@@ -467,6 +467,9 @@ async fn send_post(
 ) -> Result<String, (StatusCode, &'static str)> {
     let mut dst: EndpointID = EndpointID::none();
     let mut lifetime = std::time::Duration::from_secs(60 * 60);
+    let mut flags = BundleControlFlags::BUNDLE_MUST_NOT_FRAGMENTED;
+    //    | BundleControlFlags::BUNDLE_STATUS_REQUEST_DELIVERY;
+
     for (k, v) in query_params.iter() {
         if k == "dst" {
             dst = v.as_str().try_into().unwrap();
@@ -474,14 +477,23 @@ async fn send_post(
             if let Ok(dur) = humantime::parse_duration(v) {
                 lifetime = dur;
             }
+        } else if k == "flags" {
+            let param_flags: u64 = v.as_str().parse().unwrap_or(0);
+            if let Some(bpcf) = BundleControlFlags::from_bits(param_flags) {
+                flags = bpcf;
+            } else {
+                return Err((
+                    StatusCode::BAD_REQUEST,
+                    "Invalid Bundle Processing Control Flags!",
+                ));
+            }
         }
     }
     if dst == EndpointID::none() {
         return Err((StatusCode::BAD_REQUEST, "Missing destination endpoint id!"));
     }
     let src = CONFIG.lock().host_eid.clone();
-    let flags = BundleControlFlags::BUNDLE_MUST_NOT_FRAGMENTED
-        | BundleControlFlags::BUNDLE_STATUS_REQUEST_DELIVERY;
+
     let pblock = bp7::primary::PrimaryBlockBuilder::default()
         .bundle_control_flags(flags.bits())
         .destination(dst)
@@ -508,12 +520,12 @@ async fn send_post(
 
     debug!(
         "Sending bundle {} to {}",
-        bndl.id(),
+        &bndl.id(),
         bndl.primary.destination
     );
-
+    let bid = bndl.id();
     crate::core::processing::send_bundle(bndl).await;
-    Ok(format!("Sent payload with {} bytes", b_len))
+    Ok(format!("Sent ADU in bundle {} with {} bytes", bid, b_len))
 }
 
 //#[post("/push")]
