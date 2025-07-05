@@ -301,6 +301,7 @@ async fn status_peers() -> String {
 }
 //#[get("/status/info")]
 async fn status_info() -> String {
+    STATS.lock().update_node_stats();
     let stats = &(*STATS.lock()).clone();
     serde_json::to_string_pretty(&stats).unwrap()
 }
@@ -427,7 +428,9 @@ async fn insert_get(extract::RawQuery(query): extract::RawQuery) -> Result<Strin
                     bndl.id(),
                     bndl.primary.destination
                 );
-
+                if bndl.primary.source.node() == (*CONFIG.lock()).host_eid.node() {
+                    STATS.lock().node.bundles.bundles_created += 1;
+                }
                 crate::core::processing::send_bundle(bndl).await;
                 Ok(format!("Sent {} bytes", b_len))
             } else {
@@ -452,6 +455,10 @@ async fn insert_post(body: bytes::Bytes) -> Result<String, (StatusCode, &'static
             bndl.id(),
             bndl.primary.destination
         );
+
+        if bndl.primary.source.node() == (*CONFIG.lock()).host_eid.node() {
+            STATS.lock().node.bundles.bundles_created += 1;
+        }
 
         crate::core::processing::send_bundle(bndl).await;
         Ok(format!("Sent {} bytes", b_len))
@@ -525,6 +532,7 @@ async fn send_post(
     );
     let bid = bndl.id();
     crate::core::processing::send_bundle(bndl).await;
+    STATS.lock().node.bundles.bundles_created += 1;
     Ok(format!("Sent ADU in bundle {} with {} bytes", bid, b_len))
 }
 

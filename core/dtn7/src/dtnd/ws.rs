@@ -1,6 +1,7 @@
 use crate::core::application_agent::ApplicationAgent;
 use crate::CONFIG;
 use crate::DTNCORE;
+use crate::STATS;
 
 use anyhow::{bail, Result};
 use axum::extract::ws::{Message, WebSocket};
@@ -353,6 +354,7 @@ impl WsAASession {
                                 async move { crate::core::processing::send_bundle(bndl).await },
                             );
                             debug!("sent bundle");
+                            STATS.lock().node.bundles.bundles_created += 1;
 
                             ws_reply_text!(
                                 socket,
@@ -422,6 +424,8 @@ impl WsAASession {
                                 async move { crate::core::processing::send_bundle(bndl).await },
                             );
                             debug!("sent bundle");
+                            STATS.lock().node.bundles.bundles_created += 1;
+
                             //crate::core::processing::send_through_task(bndl);
                             ws_reply_text!(
                                 socket,
