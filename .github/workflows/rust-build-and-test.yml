@@ -2,57 +2,56 @@ name: Rust
 
 on:
   push:
-    branches: [ master ]
+    branches: [master]
     paths:
-      - '**.rs'
+      - "**.rs"
   pull_request:
-    branches: [ master ]
+    branches: [master]
     paths:
-      - '**.rs'
+      - "**.rs"
 
 env:
   CARGO_TERM_COLOR: always
 
 jobs:
   build:
-
     runs-on: ubuntu-latest
 
     steps:
-    - name: Checkout sources
-      uses: actions/checkout@v2
-      with:
-        submodules: true
+      - name: Checkout sources
+        uses: actions/checkout@v2
+        with:
+          submodules: true
 
-    - name: Install stable toolchain
-      uses: actions-rs/toolchain@v1
-      with:
-        profile: minimal
-        toolchain: stable
-        override: true
+      - name: Install stable toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: stable
+          override: true
 
-    - name: Cache cargo registry
-      uses: actions/cache@v2.1.6
-      with:
-        path: ~/.cargo/registry
-        key: ${{ runner.os }}-v1-cargo-registry-${{ hashFiles('**/Cargo.lock') }}
+      - name: Cache cargo registry
+        uses: actions/cache@v4
+        with:
+          path: ~/.cargo/registry
+          key: ${{ runner.os }}-v1-cargo-registry-${{ hashFiles('**/Cargo.lock') }}
 
-    - name: Cache cargo index
-      uses: actions/cache@v2.1.6
-      with:
-        path: ~/.cargo/git
-        key: ${{ runner.os }}-v1-cargo-index-${{ hashFiles('**/Cargo.lock') }} 
-    
-    - name: Cache cargo target dir
-      uses: actions/cache@v2.1.6
-      with:
-        path: target
-        key: ${{ runner.os }}-v1-cargo-build-target-${{ hashFiles('**/Cargo.lock') }}
+      - name: Cache cargo index
+        uses: actions/cache@v4
+        with:
+          path: ~/.cargo/git
+          key: ${{ runner.os }}-v1-cargo-index-${{ hashFiles('**/Cargo.lock') }}
 
-    - name: Run cargo check
-      uses: actions-rs/cargo@v1
-      with:
-        command: check         
+      - name: Cache cargo target dir
+        uses: actions/cache@v4
+        with:
+          path: target
+          key: ${{ runner.os }}-v1-cargo-build-target-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Run cargo check
+        uses: actions-rs/cargo@v1
+        with:
+          command: check
 
   test:
     name: Test Suite
@@ -71,19 +70,19 @@ jobs:
           override: true
 
       - name: Cache cargo registry
-        uses: actions/cache@v2.1.6
+        uses: actions/cache@v4
         with:
           path: ~/.cargo/registry
           key: ${{ runner.os }}-v1-cargo-registry-${{ hashFiles('**/Cargo.lock') }}
 
       - name: Cache cargo index
-        uses: actions/cache@v2.1.6
+        uses: actions/cache@v4
         with:
           path: ~/.cargo/git
           key: ${{ runner.os }}-v1-cargo-index-${{ hashFiles('**/Cargo.lock') }}
 
       - name: Cache cargo target dir
-        uses: actions/cache@v2.1.6
+        uses: actions/cache@v4
         with:
           path: target
           key: ${{ runner.os }}-v1-cargo-build-target-${{ hashFiles('**/Cargo.lock') }}
@@ -93,53 +92,51 @@ jobs:
         with:
           command: test
           args: --release
-      
+
       - name: Run local ping/echo test
         run: ./tests/local_ping_echo.sh
-      
+
       - name: Run local nodes dtn test (w/o status reports)
         run: ./tests/local_nodes_dtn.sh
-      
+
       - name: Run local nodes dtn test (w/ status reports)
         run: STATUS_REPORTS="-g" ./tests/local_nodes_dtn.sh
-      
+
       - name: Run local nodes ipn test
         run: ./tests/local_nodes_ipn.sh
-      
+
       - name: Run lifetime test
         run: ./tests/lifetime.sh
-      
+
       - name: Run local group dtn test
         run: ./tests/local_group_test.sh
-      
+
       - name: Run chained CLAs test
         run: ./tests/cla_chain_test.sh
 
       - name: Run CLA extension test
         run: ./tests/cla_ext_test.sh
-      
+
       - name: Run local dtntrigger test
         run: ./tests/local_trigger_test.sh
-      
+
       - name: Run spray and wait routing test
         run: ./tests/routing_saw.sh
-      
+
       - name: Run static routing test
         run: ./tests/routing_static.sh
-      
+
       - name: Run external peer management (dtn) test
         run: ./tests/ext_peer_management.sh
-      
+
       - name: Run external peer management (ipn) test
         run: ./tests/ext_peer_management_ipn.sh
-      
+
       - name: Run store delete test
         run: ./tests/store_delete.sh
-      
+
       - name: Run store delete test for singleton
         run: ./tests/store_delete_singleton.sh
-      
-      
 
     strategy:
       matrix:
@@ -164,19 +161,19 @@ jobs:
           components: rustfmt, clippy
 
       - name: Cache cargo registry
-        uses: actions/cache@v2.1.6
+        uses: actions/cache@v4
         with:
           path: ~/.cargo/registry
           key: ${{ runner.os }}-v1-cargo-registry-${{ hashFiles('**/Cargo.lock') }}
 
       - name: Cache cargo index
-        uses: actions/cache@v2.1.6
+        uses: actions/cache@v4
         with:
           path: ~/.cargo/git
           key: ${{ runner.os }}-v1-cargo-index-${{ hashFiles('**/Cargo.lock') }}
 
       - name: Cache cargo target dir
-        uses: actions/cache@v2.1.6
+        uses: actions/cache@v4
         with:
           path: target
           key: ${{ runner.os }}-v1-cargo-build-target-${{ hashFiles('**/Cargo.lock') }}
