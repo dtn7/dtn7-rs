@@ -1,6 +1,7 @@
 # External Routing Getting Started
 
-First, you need to enable the external routing in dtnd. It's done by changing the routing strategy to ``external`` in the dtnd arguments. An example would be:
+First, you need to enable the external routing in `dtnd`.
+It's done by changing the routing strategy to ``external`` in the dtnd arguments. An example would be:
 
 ```
 dtnd -w 3000 -r external -n node1
