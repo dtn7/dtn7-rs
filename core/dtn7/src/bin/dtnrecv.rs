@@ -30,7 +30,7 @@ struct Args {
     register: Option<String>,
 
     /// Unregister a local endpoint, e.g. 'incoming', or a group endpoint 'dtn://helpers/~incoming'
-    #[clap(short, long, required_unless_present_any = ["bid", "delete", "endpoint", "register"], conflicts_with_all = ["bid", "delete", "endpoint", "unregister"], value_name = "ENDPOINT")]
+    #[clap(short, long, required_unless_present_any = ["bid", "delete", "endpoint", "register"], conflicts_with_all = ["bid", "delete", "endpoint", "register"], value_name = "ENDPOINT")]
     unregister: Option<String>,
 
     /// Download any bundle by its ID
@@ -50,7 +50,7 @@ struct Args {
     hex: bool,
 
     /// Output full bundle in raw bytes, not only payload
-    #[clap(short, long)]
+    #[clap(long)]
     raw: bool,
 }
 
