@@ -6,7 +6,7 @@ use crate::cla::ConvergenceLayerAgent;
 use crate::core::application_agent::SimpleApplicationAgent;
 use crate::dtnconfig::DtnConfig;
 use crate::ipnd::neighbour_discovery;
-use crate::{cla_add, peers_add};
+use crate::{cla_add, peers_add, STATS};
 use crate::{CLAS, CONFIG, DTNCORE, STORE};
 use bp7::EndpointID;
 use log::{error, info, warn};
@@ -67,6 +67,12 @@ pub async fn start_dtnd(cfg: DtnConfig) -> anyhow::Result<()> {
     {
         (*CONFIG.lock()).set(cfg);
     }
+
+    STATS.lock().node.node_state.last_up_time = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_secs();
+
     info!("Local Node ID: {}", CONFIG.lock().host_eid);
 
     info!("Work Dir: {:?}", CONFIG.lock().workdir);

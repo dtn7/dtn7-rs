@@ -518,6 +518,7 @@ pub async fn delete(mut bp: BundlePack, reason: StatusReportReason) -> Result<()
     if bndl.is_none() {
         bail!("bundle not found");
     }
+    (*STATS.lock()).node.error_info.discarded_bundle_count += 1;
     let bndl = bndl.unwrap();
     if bndl
         .primary
