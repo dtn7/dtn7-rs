@@ -92,6 +92,8 @@ pub async fn start_dtnd(cfg: DtnConfig) -> anyhow::Result<()> {
     );
 
     info!("Web Port: {}", CONFIG.lock().webport);
+    info!("Discovery Port: {}", CONFIG.lock().discovery_listen_port);
+
     info!("IPv4: {}", CONFIG.lock().v4);
     info!("IPv6: {}", CONFIG.lock().v6);
 
