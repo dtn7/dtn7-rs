@@ -1,16 +1,16 @@
-use log::debug;
+use log::{debug, trace};
 
 async fn janitor() {
     debug!("running janitor");
 
-    debug!("cleaning up peers");
+    trace!("cleaning up peers");
     crate::core::process_peers().await;
 
     // handled in forwarding
     //debug!("cleaning up store");
     //crate::store_delete_expired();
 
-    debug!("reprocessing bundles");
+    trace!("reprocessing bundles");
     /*if let Err(err) = crate::core::process_bundles().await {
         error!("Processing bundles failed: {}", err);
     }*/
