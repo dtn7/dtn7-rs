@@ -2,7 +2,7 @@ use super::RoutingAgent;
 use crate::routing::{RoutingCmd, RoutingNotifcation};
 use crate::PEERS;
 use async_trait::async_trait;
-use log::debug;
+use log::{debug, trace};
 use std::collections::{HashMap, HashSet};
 use tokio::sync::mpsc;
 use tokio::sync::mpsc::Sender;
@@ -85,7 +85,7 @@ async fn handle_routing_cmd(mut rx: mpsc::Receiver<RoutingCmd>) {
                 let mut clas = Vec::new();
                 let mut delete_afterwards = false;
                 for (_, p) in (*PEERS.lock()).iter() {
-                    debug!("checking peer {:?} (node_name={})", p, p.node_name());
+                    trace!("checking peer {:?} (node_name={})", p, p.node_name());
                     if !core.contains(bp.id(), &p.node_name()) {
                         if let Some(cla) = p.first_cla() {
                             core.add(bp.id().to_string(), p.node_name().clone());

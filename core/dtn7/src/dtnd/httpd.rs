@@ -38,9 +38,7 @@ use bp7::EndpointID;
 use http::StatusCode;
 use humansize::format_size;
 use humansize::DECIMAL;
-use log::info;
-use log::trace;
-use log::{debug, warn};
+use log::{trace, debug, info, warn};
 use serde::Serialize;
 use std::collections::HashMap;
 use std::convert::{TryFrom, TryInto};
@@ -450,7 +448,7 @@ async fn insert_get(extract::RawQuery(query): extract::RawQuery) -> Result<Strin
 async fn insert_post(body: bytes::Bytes) -> Result<String, (StatusCode, &'static str)> {
     let bytes = body.to_vec();
     let b_len = bytes.len();
-    debug!("Received: {:?} bytes", b_len);
+    trace!("Received: {:?} bytes", b_len);
     if let Ok(bndl) = bp7::Bundle::try_from(bytes.to_vec()) {
         debug!(
             "Sending bundle {} to {}",
