@@ -295,9 +295,11 @@ Tag 255 takes 5 arguments and is interpreted as address. Usage: -S 255:'Samplest
 
     if std::env::var("RUST_LOG").is_err() {
         if matches.get_flag("debug") || cfg.debug {
-            std::env::set_var("RUST_LOG", "dtn7=debug,dtnd=debug");
+            // is safe since main is single-threaded
+            unsafe { std::env::set_var("RUST_LOG", "dtn7=debug,dtnd=debug") };
         } else {
-            std::env::set_var("RUST_LOG", "dtn7=info,dtnd=info");
+            // is safe since main is single-threaded
+            unsafe { std::env::set_var("RUST_LOG", "dtn7=info,dtnd=info") };
         }
     }
     pretty_env_logger::init_timed();

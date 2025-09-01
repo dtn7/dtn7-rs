@@ -92,16 +92,19 @@ pub async fn handle_connection(ws: WebSocket) {
                         msg.to_text().unwrap().trim()
                     );
 
-                    if let Some(tx) = RESPONSES
+                    match RESPONSES
                         .lock()
                         .unwrap()
                         .remove(packet.bp.to_string().as_str())
                     {
-                        if tx.send(Packet::ResponseSenderForBundle(packet)).is_err() {
-                            error!("sender_for_bundle response could not be passed to channel")
+                        Some(tx) => {
+                            if tx.send(Packet::ResponseSenderForBundle(packet)).is_err() {
+                                error!("sender_for_bundle response could not be passed to channel")
+                            }
                         }
-                    } else {
-                        info!("sender_for_bundle no response channel available")
+                        _ => {
+                            info!("sender_for_bundle no response channel available")
+                        }
                     }
                 }
                 // Add a service on packet

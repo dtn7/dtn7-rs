@@ -92,11 +92,14 @@ pub fn send_bundle(addr: String, data: Vec<u8>) -> bool {
         #[allow(clippy::map_entry)]
         if !MTCP_CONNECTIONS.lock().contains_key(&addr) {
             debug!("Connecting to {}", addr);
-            if let Ok(stream) = TcpStream::connect(&addr) {
-                MTCP_CONNECTIONS.lock().insert(addr, stream);
-            } else {
-                error!("Error connecting to remote {}", addr);
-                return false;
+            match TcpStream::connect(&addr) {
+                Ok(stream) => {
+                    MTCP_CONNECTIONS.lock().insert(addr, stream);
+                }
+                _ => {
+                    error!("Error connecting to remote {}", addr);
+                    return false;
+                }
             }
         } else {
             debug!("Already connected to {}", addr);
@@ -152,7 +155,8 @@ async fn main() -> Result<()> {
         .get_matches();
 
     if matches.get_flag("debug") {
-        std::env::set_var("RUST_LOG", "debug");
+        // is safe since main is single-threaded
+        unsafe { std::env::set_var("RUST_LOG", "debug") };
         pretty_env_logger::init_timed();
     }
 

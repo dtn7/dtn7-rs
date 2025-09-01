@@ -124,10 +124,9 @@ impl From<PathBuf> for DtnConfig {
         }
         debug!("routing options: {:?}", dtncfg.routing_settings);
 
-        dtncfg.workdir = if let Ok(wd) = s.get_string("workdir") {
-            PathBuf::from(wd)
-        } else {
-            std::env::current_dir().unwrap()
+        dtncfg.workdir = match s.get_string("workdir") {
+            Ok(wd) => PathBuf::from(wd),
+            _ => std::env::current_dir().unwrap(),
         };
         debug!("workdir: {:?}", dtncfg.workdir);
 
@@ -142,24 +141,27 @@ impl From<PathBuf> for DtnConfig {
         dtncfg.discovery_listen_port = s.get_int("discovery.port").unwrap_or(3003) as u16;
         debug!("discovery-listen-port: {:?}", dtncfg.discovery_listen_port);
 
-        dtncfg.janitor_interval = if let Ok(interval) = s.get_string("core.janitor") {
-            humantime::parse_duration(&interval).unwrap_or_else(|_| Duration::new(0, 0))
-        } else {
-            dtncfg.janitor_interval
+        dtncfg.janitor_interval = match s.get_string("core.janitor") {
+            Ok(interval) => {
+                humantime::parse_duration(&interval).unwrap_or_else(|_| Duration::new(0, 0))
+            }
+            _ => dtncfg.janitor_interval,
         };
         debug!("janitor: {:?}", dtncfg.janitor_interval);
 
-        dtncfg.announcement_interval = if let Ok(interval) = s.get_string("discovery.interval") {
-            humantime::parse_duration(&interval).unwrap_or_else(|_| Duration::new(0, 0))
-        } else {
-            dtncfg.announcement_interval
+        dtncfg.announcement_interval = match s.get_string("discovery.interval") {
+            Ok(interval) => {
+                humantime::parse_duration(&interval).unwrap_or_else(|_| Duration::new(0, 0))
+            }
+            _ => dtncfg.announcement_interval,
         };
         debug!("discovery-interval: {:?}", dtncfg.announcement_interval);
 
-        dtncfg.peer_timeout = if let Ok(interval) = s.get_string("discovery.peer-timeout") {
-            humantime::parse_duration(&interval).unwrap_or_else(|_| Duration::new(0, 0))
-        } else {
-            dtncfg.peer_timeout
+        dtncfg.peer_timeout = match s.get_string("discovery.peer-timeout") {
+            Ok(interval) => {
+                humantime::parse_duration(&interval).unwrap_or_else(|_| Duration::new(0, 0))
+            }
+            _ => dtncfg.peer_timeout,
         };
         debug!("discovery-peer-timeout: {:?}", dtncfg.peer_timeout);
 

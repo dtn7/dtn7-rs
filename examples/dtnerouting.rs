@@ -301,7 +301,8 @@ async fn main() -> Result<()> {
     let routing_types = ["flooding", "epidemic"];
 
     if matches.contains_id("debug") {
-        std::env::set_var("RUST_LOG", "debug");
+        // is safe since main is single-threaded
+        unsafe { std::env::set_var("RUST_LOG", "debug") };
         pretty_env_logger::init_timed();
     }
 

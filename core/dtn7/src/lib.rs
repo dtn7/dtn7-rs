@@ -98,10 +98,9 @@ pub fn reset_sequence(destination: &str) {
     }
 }
 pub fn get_sequence(destination: &str) -> u32 {
-    if let Some(sequence) = CONFIG.lock().discovery_destinations.get(destination) {
-        *sequence
-    } else {
-        0
+    match CONFIG.lock().discovery_destinations.get(destination) {
+        Some(sequence) => *sequence,
+        _ => 0,
     }
 }
 /// adds a new peer to the DTN core

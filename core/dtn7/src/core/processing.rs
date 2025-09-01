@@ -356,67 +356,73 @@ pub async fn forward(mut bp: BundlePack) -> Result<()> {
                     "Sending bundle to a CLA: {} {} {}",
                     &bpid, n.dest, n.cla_name
                 );
-                if let Err(err) = n.transfer(bd).await {
-                    info!(
-                        "Sending bundle {} via {} to {} ({}) failed after {:?}",
-                        &bpid,
-                        n.cla_name,
-                        n.dest,
-                        n.next_hop,
-                        start_time.elapsed()
-                    );
-                    STATS.lock().failed += 1;
-                    debug!("Error while transferring bundle {}: {}", &bpid, err);
-                    let mut failed_peer = None;
-
-                    if let Err(err) = routing_notify(RoutingNotifcation::SendingFailed(
-                        bpid,
-                        n.next_hop.node().unwrap(),
-                    ))
-                    .await
-                    {
-                        error!("Error while sending failed notification: {}", err);
-                    }
-
-                    //debug!("current peers: {:?}", (*PEERS.lock()).keys());
-                    if let Some(peer_entry) = (*PEERS.lock()).get_mut(&n.next_hop.node().unwrap()) {
-                        debug!(
-                            "Reporting failed sending to peer: {}",
-                            &n.next_hop.node().unwrap()
+                match n.transfer(bd).await {
+                    Err(err) => {
+                        info!(
+                            "Sending bundle {} via {} to {} ({}) failed after {:?}",
+                            &bpid,
+                            n.cla_name,
+                            n.dest,
+                            n.next_hop,
+                            start_time.elapsed()
                         );
-                        peer_entry.report_fail();
-                        if peer_entry.failed_too_much() && peer_entry.con_type == PeerType::Dynamic
+                        STATS.lock().failed += 1;
+                        debug!("Error while transferring bundle {}: {}", &bpid, err);
+                        let mut failed_peer = None;
+
+                        if let Err(err) = routing_notify(RoutingNotifcation::SendingFailed(
+                            bpid,
+                            n.next_hop.node().unwrap(),
+                        ))
+                        .await
                         {
-                            failed_peer = Some(peer_entry.node_name());
+                            error!("Error while sending failed notification: {}", err);
                         }
+
+                        //debug!("current peers: {:?}", (*PEERS.lock()).keys());
+                        if let Some(peer_entry) =
+                            (*PEERS.lock()).get_mut(&n.next_hop.node().unwrap())
+                        {
+                            debug!(
+                                "Reporting failed sending to peer: {}",
+                                &n.next_hop.node().unwrap()
+                            );
+                            peer_entry.report_fail();
+                            if peer_entry.failed_too_much()
+                                && peer_entry.con_type == PeerType::Dynamic
+                            {
+                                failed_peer = Some(peer_entry.node_name());
+                            }
+                        }
+                        if let Some(peer) = failed_peer {
+                            let peers_before = (*PEERS.lock()).len();
+                            (*PEERS.lock()).remove(&peer);
+                            let peers_after = (*PEERS.lock()).len();
+                            debug!("Removing peer {} from list of neighbors due to too many failed transmissions ({}/{})", peer, peers_before, peers_after);
+                        }
+                        // TODO: send status report?
+                        // if (*CONFIG.lock()).generate_service_reports {
+                        //    send_status_report(&bp2, FORWARDED_BUNDLE, TRANSMISSION_CANCELED);
+                        // }
                     }
-                    if let Some(peer) = failed_peer {
-                        let peers_before = (*PEERS.lock()).len();
-                        (*PEERS.lock()).remove(&peer);
-                        let peers_after = (*PEERS.lock()).len();
-                        debug!("Removing peer {} from list of neighbors due to too many failed transmissions ({}/{})", peer, peers_before, peers_after);
-                    }
-                    // TODO: send status report?
-                    // if (*CONFIG.lock()).generate_service_reports {
-                    //    send_status_report(&bp2, FORWARDED_BUNDLE, TRANSMISSION_CANCELED);
-                    // }
-                } else {
-                    info!(
-                        "Sending bundle succeeded: {} {} {} in {:?}",
-                        &bpid,
-                        n.dest,
-                        n.cla_name,
-                        start_time.elapsed()
-                    );
-                    STATS.lock().outgoing += 1;
-                    bundle_sent.store(true, Ordering::Relaxed);
-                    if let Err(err) = routing_notify(RoutingNotifcation::SendingSucceeded(
-                        bpid,
-                        n.next_hop.node().unwrap(),
-                    ))
-                    .await
-                    {
-                        error!("Error while sending succeeded notification: {}", err);
+                    _ => {
+                        info!(
+                            "Sending bundle succeeded: {} {} {} in {:?}",
+                            &bpid,
+                            n.dest,
+                            n.cla_name,
+                            start_time.elapsed()
+                        );
+                        STATS.lock().outgoing += 1;
+                        bundle_sent.store(true, Ordering::Relaxed);
+                        if let Err(err) = routing_notify(RoutingNotifcation::SendingSucceeded(
+                            bpid,
+                            n.next_hop.node().unwrap(),
+                        ))
+                        .await
+                        {
+                            error!("Error while sending succeeded notification: {}", err);
+                        }
                     }
                 }
             });

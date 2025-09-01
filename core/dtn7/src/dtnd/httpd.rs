@@ -360,13 +360,12 @@ async fn http_routing_getdata(
     Query(params): Query<HashMap<String, String>>,
 ) -> Result<String, (StatusCode, &'static str)> {
     let param = params.get("p").map_or("".to_string(), |f| f.to_string());
-    if let Ok(res) = routing_get_data(param).await {
-        Ok(res)
-    } else {
-        Err((
+    match routing_get_data(param).await {
+        Ok(res) => Ok(res),
+        _ => Err((
             StatusCode::INTERNAL_SERVER_ERROR,
             "error getting data from routing agent",
-        ))
+        )),
     }
 }
 
@@ -640,26 +639,28 @@ async fn endpoint(
         let eid = host_eid
             .new_endpoint(&path)
             .expect("Error constructing new endpoint"); // TODO: support non-node-specific EIDs
-        if let Some(aa) = (*DTNCORE.lock()).get_endpoint_mut(&eid) {
-            if let Some(mut bundle) = aa.pop() {
-                let cbor_bundle = bundle.to_cbor();
-                Ok(cbor_bundle)
-            } else {
-                Ok("Nothing to receive".as_bytes().to_vec())
+        match (*DTNCORE.lock()).get_endpoint_mut(&eid) {
+            Some(aa) => {
+                if let Some(mut bundle) = aa.pop() {
+                    let cbor_bundle = bundle.to_cbor();
+                    Ok(cbor_bundle)
+                } else {
+                    Ok("Nothing to receive".as_bytes().to_vec())
+                }
             }
-        } else {
-            Err((StatusCode::NOT_FOUND, "No such endpoint registered!"))
+            _ => Err((StatusCode::NOT_FOUND, "No such endpoint registered!")),
         }
     } else if let Ok(eid) = EndpointID::try_from(path) {
-        if let Some(aa) = (*DTNCORE.lock()).get_endpoint_mut(&eid) {
-            if let Some(mut bundle) = aa.pop() {
-                let cbor_bundle = bundle.to_cbor();
-                Ok(cbor_bundle)
-            } else {
-                Ok("Nothing to receive".as_bytes().to_vec())
+        match (*DTNCORE.lock()).get_endpoint_mut(&eid) {
+            Some(aa) => {
+                if let Some(mut bundle) = aa.pop() {
+                    let cbor_bundle = bundle.to_cbor();
+                    Ok(cbor_bundle)
+                } else {
+                    Ok("Nothing to receive".as_bytes().to_vec())
+                }
             }
-        } else {
-            Err((StatusCode::NOT_FOUND, "No such endpoint registered!"))
+            _ => Err((StatusCode::NOT_FOUND, "No such endpoint registered!")),
         }
     } else {
         Err((
@@ -683,24 +684,26 @@ async fn endpoint_hex(
             .new_endpoint(&path)
             .expect("Error constructing new endpoint");
         // TODO: support non-node-specific EIDs
-        if let Some(aa) = (*DTNCORE.lock()).get_endpoint_mut(&eid) {
-            if let Some(mut bundle) = aa.pop() {
-                Ok(bp7::helpers::hexify(&bundle.to_cbor()))
-            } else {
-                Ok("Nothing to receive".to_string())
+        match (*DTNCORE.lock()).get_endpoint_mut(&eid) {
+            Some(aa) => {
+                if let Some(mut bundle) = aa.pop() {
+                    Ok(bp7::helpers::hexify(&bundle.to_cbor()))
+                } else {
+                    Ok("Nothing to receive".to_string())
+                }
             }
-        } else {
-            Err((StatusCode::NOT_FOUND, "No such endpoint registered!"))
+            _ => Err((StatusCode::NOT_FOUND, "No such endpoint registered!")),
         }
     } else if let Ok(eid) = EndpointID::try_from(path) {
-        if let Some(aa) = (*DTNCORE.lock()).get_endpoint_mut(&eid) {
-            if let Some(mut bundle) = aa.pop() {
-                Ok(bp7::helpers::hexify(&bundle.to_cbor()))
-            } else {
-                Ok("Nothing to receive".to_string())
+        match (*DTNCORE.lock()).get_endpoint_mut(&eid) {
+            Some(aa) => {
+                if let Some(mut bundle) = aa.pop() {
+                    Ok(bp7::helpers::hexify(&bundle.to_cbor()))
+                } else {
+                    Ok("Nothing to receive".to_string())
+                }
             }
-        } else {
-            Err((StatusCode::NOT_FOUND, "No such endpoint registered!"))
+            _ => Err((StatusCode::NOT_FOUND, "No such endpoint registered!")),
         }
     } else {
         Err((
@@ -731,11 +734,12 @@ async fn download(
     extract::RawQuery(query): extract::RawQuery,
 ) -> Result<Vec<u8>, (StatusCode, &'static str)> {
     if let Some(bid) = query {
-        if let Some(mut bundle) = (*STORE.lock()).get_bundle(&bid) {
-            let cbor_bundle = bundle.to_cbor();
-            Ok(cbor_bundle)
-        } else {
-            Err((StatusCode::NOT_FOUND, "Bundle not found"))
+        match (*STORE.lock()).get_bundle(&bid) {
+            Some(mut bundle) => {
+                let cbor_bundle = bundle.to_cbor();
+                Ok(cbor_bundle)
+            }
+            _ => Err((StatusCode::NOT_FOUND, "Bundle not found")),
         }
     } else {
         Err((StatusCode::BAD_REQUEST, "Bundle ID not specified"))
@@ -746,10 +750,9 @@ async fn download_hex(
     extract::RawQuery(query): extract::RawQuery,
 ) -> Result<String, (StatusCode, &'static str)> {
     if let Some(bid) = query {
-        if let Some(mut bundle) = (*STORE.lock()).get_bundle(&bid) {
-            Ok(bp7::helpers::hexify(&bundle.to_cbor()))
-        } else {
-            Err((StatusCode::BAD_REQUEST, "Bundle not found"))
+        match (*STORE.lock()).get_bundle(&bid) {
+            Some(mut bundle) => Ok(bp7::helpers::hexify(&bundle.to_cbor())),
+            _ => Err((StatusCode::BAD_REQUEST, "Bundle not found")),
         }
     } else {
         Err((http::StatusCode::BAD_REQUEST, "Bundle ID not specified"))
