@@ -69,7 +69,7 @@ impl DtnStatistics {
                 let registration = RegistrationInformation {
                     eid: eid.clone(),
                     active: aa.delivery_addr().is_some(),
-                    singleton: singleton,
+                    singleton,
                     default_failure_action: stats::FailureAction::Defer,
                 };
                 self.node.registrations.push(registration);
