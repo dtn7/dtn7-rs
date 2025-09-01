@@ -125,11 +125,11 @@ async fn http_pull_bundles() {
         let local_digest = local_digest.clone();
         let mut port = 3000;
         for cla in p.cla_list.iter() {
-            if cla.0 == "httppull" {
-                if let Some(p) = cla.1 {
-                    port = p;
-                    break;
-                }
+            if cla.0 == "httppull"
+                && let Some(p) = cla.1
+            {
+                port = p;
+                break;
             }
         }
         if CONFIG.lock().parallel_bundle_processing {
