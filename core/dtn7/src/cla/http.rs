@@ -1,5 +1,5 @@
-use crate::cla::ConvergenceLayerAgent;
 use crate::CONFIG;
+use crate::cla::ConvergenceLayerAgent;
 use async_trait::async_trait;
 use bp7::ByteBuffer;
 use dtn7_codegen::cla;

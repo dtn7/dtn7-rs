@@ -15,17 +15,17 @@ use std::net::SocketAddr;
 use std::time::Instant;
 use thiserror::Error;
 use tokio::net::tcp::{OwnedReadHalf, OwnedWriteHalf};
+use tokio::sync::Mutex;
 use tokio::sync::mpsc;
 use tokio::sync::mpsc::error::SendError;
 use tokio::sync::oneshot::{self, Sender};
-use tokio::sync::Mutex;
 use tokio::time::{self};
 //use std::net::TcpStream;
 use super::tcp::proto::*;
-use crate::core::store::BundleStore;
 use crate::core::PeerType;
-use crate::{peers_add, peers_known, STORE};
-use crate::{DtnPeer, CONFIG};
+use crate::core::store::BundleStore;
+use crate::{CONFIG, DtnPeer};
+use crate::{STORE, peers_add, peers_known};
 use anyhow::bail;
 use bytes::Bytes;
 use lazy_static::lazy_static;
@@ -905,9 +905,11 @@ mod tests {
         assert_eq!(segs.len(), num_expected_segs);
 
         assert!(segs[0].flags.contains(XferSegmentFlags::START));
-        assert!(segs[num_expected_segs - 1]
-            .flags
-            .contains(XferSegmentFlags::END));
+        assert!(
+            segs[num_expected_segs - 1]
+                .flags
+                .contains(XferSegmentFlags::END)
+        );
 
         Ok(segs)
     }

@@ -1,5 +1,5 @@
 use super::Packet;
-use futures_util::{future, pin_mut, SinkExt, StreamExt};
+use futures_util::{SinkExt, StreamExt, future, pin_mut};
 use log::{error, info};
 use serde_json::Result;
 use std::str::FromStr;

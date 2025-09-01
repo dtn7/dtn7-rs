@@ -1,10 +1,10 @@
-use crate::core::application_agent::ApplicationAgent;
 use crate::CONFIG;
 use crate::DTNCORE;
 use crate::STATS;
+use crate::core::application_agent::ApplicationAgent;
 
 use crate::core::helpers;
-use anyhow::{bail, Result};
+use anyhow::{Result, bail};
 use axum::extract::ws::{Message, WebSocket};
 use bp7::flags::BlockControlFlags;
 use bp7::flags::BundleControlFlags;
@@ -18,8 +18,8 @@ use std::{
     convert::TryFrom,
     time::{Duration, Instant},
 };
-use tokio::sync::mpsc;
 use tokio::sync::Mutex;
+use tokio::sync::mpsc;
 use tokio::time::interval;
 // Begin application agent WebSocket specific stuff
 

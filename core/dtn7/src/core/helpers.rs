@@ -3,8 +3,8 @@ use crate::core::peer::PeerAddress;
 
 use super::*;
 use bp7::EndpointID;
-use rand::distr::Alphanumeric;
 use rand::Rng;
+use rand::distr::Alphanumeric;
 use sha1::{Digest, Sha1};
 use std::{convert::TryFrom, net::IpAddr};
 use thiserror::Error;
