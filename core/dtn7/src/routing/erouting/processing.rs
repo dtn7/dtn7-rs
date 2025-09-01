@@ -57,7 +57,7 @@ pub async fn handle_connection(ws: WebSocket) {
         if let Ok(data) = serde_json::to_string(&Packet::Error(Error {
             reason: String::from("external routing agent already registered"),
         })) {
-            if let Err(err) = outgoing.send(Message::Text(data)).await {
+            if let Err(err) = outgoing.send(Message::Text(data.into())).await {
                 error!("Error while sending closing reason: {}", err);
             }
         }
@@ -145,7 +145,7 @@ fn disconnect() {
 fn send_packet(p: &Packet) {
     if let Ok(data) = serde_json::to_string(p) {
         if let Some(con) = CONNECTION.lock().unwrap().as_ref() {
-            if let Err(err) = con.tx.try_send(Message::Text(data)) {
+            if let Err(err) = con.tx.try_send(Message::Text(data.into())) {
                 error!("couldn't send packet {}", err)
             }
         }

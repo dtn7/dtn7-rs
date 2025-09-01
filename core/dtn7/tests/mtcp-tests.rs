@@ -1,5 +1,6 @@
 use bp7::{bundle, canonical, crc, dtntime, flags::BlockControlFlags, primary};
 use dtn7::cla::mtcp;
+use dtn7::core::helpers;
 use std::convert::TryInto;
 
 #[test]
@@ -29,7 +30,7 @@ fn mpdu_encoding() {
     println!("{:02x?}", b.to_cbor());
 
     let mpdu = mtcp::MPDU::new(&b);
-    let mpdu_encoded = serde_cbor::to_vec(&mpdu).expect("MPDU encoding error");
+    let mpdu_encoded = helpers::to_cbor_vec(&mpdu).expect("MPDU encoding error");
 
     println!("{:02x?}", mpdu_encoded);
 

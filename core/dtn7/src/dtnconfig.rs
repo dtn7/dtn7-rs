@@ -4,8 +4,8 @@ use crate::core::DtnPeer;
 use bp7::EndpointID;
 use config::{Config, File};
 use log::{debug, error};
-use rand::distributions::Alphanumeric;
-use rand::{thread_rng, Rng};
+use rand::distr::Alphanumeric;
+use rand::Rng;
 use serde::Serialize;
 use std::collections::{BTreeMap, HashMap};
 use std::net::SocketAddr;
@@ -47,16 +47,16 @@ pub struct DtnConfig {
 
 pub fn rnd_node_name() -> String {
     // generate a random node name starting with a character
-    let mut rng = thread_rng();
+    let mut rng = rand::rng();
     let mut result_str = String::new();
 
     // Get a random letter
-    let first_char = rng.gen_range(b'a'..=b'z') as char;
+    let first_char = rng.random_range(b'a'..=b'z') as char;
     result_str.push(first_char);
 
     // Get 9 more random characters
     for _ in 0..9 {
-        let next_char = thread_rng().sample_iter(&Alphanumeric).next().unwrap() as char;
+        let next_char = rand::rng().sample_iter(&Alphanumeric).next().unwrap() as char;
         result_str.push(next_char);
     }
     result_str

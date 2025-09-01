@@ -1,3 +1,4 @@
+use crate::core::helpers;
 use crate::store_remove;
 use crate::store_update_metadata;
 use anyhow::Result;
@@ -163,13 +164,14 @@ impl BundlePack {
         self.constraints = constraints;
     }
     pub fn to_cbor(&self) -> bp7::ByteBuffer {
-        serde_cbor::to_vec(self).expect("unexpected error converting BundlePack to cbor buffer")
+        helpers::to_cbor_vec(self).expect("unexpected error converting BundlePack to cbor buffer")
     }
 }
 
 /// Create from a given bundle.
 impl From<&[u8]> for BundlePack {
     fn from(buf: &[u8]) -> Self {
-        serde_cbor::from_slice(buf).expect("unexpected error converting cbor buffer to BundlePack")
+        helpers::from_cbor_slice(buf)
+            .expect("unexpected error converting cbor buffer to BundlePack")
     }
 }

@@ -4,7 +4,6 @@ use dtn7::core::*;
 use dtn7::get_sequence;
 use dtn7::ipnd::{beacon::*, services::ServiceBlock};
 use dtn7::CONFIG;
-use rand::thread_rng;
 use rand::Rng;
 use std::{convert::TryFrom, time::SystemTime};
 use std::{thread, time::Duration};
@@ -56,7 +55,7 @@ pub fn bsn_overflow() {
 pub fn plain_serialization() {
     let eid = EndpointID::try_from("dtn://n1/").unwrap();
     let beacon = Beacon::new(eid);
-    let serialized = serde_cbor::to_vec(&beacon);
+    let serialized = helpers::to_cbor_vec(&beacon);
     let unwrapped = serialized.expect("Error");
 
     for e in &unwrapped {
@@ -65,7 +64,7 @@ pub fn plain_serialization() {
     println!("Beacon size: {}", &unwrapped.len());
     println!();
 
-    let deserialized: Beacon = match serde_cbor::from_slice(&unwrapped) {
+    let deserialized: Beacon = match helpers::from_cbor_slice(&unwrapped) {
         Ok(pkt) => pkt,
         Err(e) => {
             println!("{}", e);
@@ -97,7 +96,7 @@ pub fn serialization_with_service_block() {
     service_block.add_cla(&third.0, &third.1);
     let beacon = Beacon::with_config(eid, service_block, None);
 
-    let serialized = serde_cbor::to_vec(&beacon);
+    let serialized = helpers::to_cbor_vec(&beacon);
     let unwrapped = serialized.expect("Error");
 
     for e in &unwrapped {
@@ -108,7 +107,7 @@ pub fn serialization_with_service_block() {
     println!("{}", &unwrapped.len());
     println!();
 
-    let deserialized: Beacon = match serde_cbor::from_slice(&unwrapped) {
+    let deserialized: Beacon = match helpers::from_cbor_slice(&unwrapped) {
         Ok(pkt) => pkt,
         Err(e) => panic!("deserialization error: {}", e),
     };
@@ -130,7 +129,7 @@ pub fn serialization_with_beacon_period() {
     let eid = EndpointID::try_from("dtn://n1/").unwrap();
     let beacon = Beacon::with_config(eid, ServiceBlock::new(), Some(Duration::from_secs(5)));
 
-    let serialized = serde_cbor::to_vec(&beacon);
+    let serialized = helpers::to_cbor_vec(&beacon);
     let unwrapped = serialized.expect("Error");
 
     for e in &unwrapped {
@@ -140,7 +139,7 @@ pub fn serialization_with_beacon_period() {
     println!();
     println!("Beacon size: {}", &unwrapped.len());
 
-    let deserialized: Beacon = match serde_cbor::from_slice(&unwrapped) {
+    let deserialized: Beacon = match helpers::from_cbor_slice(&unwrapped) {
         Ok(pkt) => pkt,
         Err(e) => {
             println!("{}", e);
@@ -167,7 +166,7 @@ pub fn serialization_with_full_config() {
     let beacon_period = Some(Duration::from_secs(2));
     let beacon = Beacon::with_config(eid, service_block, beacon_period);
 
-    let serialized = serde_cbor::to_vec(&beacon);
+    let serialized = helpers::to_cbor_vec(&beacon);
     let unwrapped = serialized.expect("Error");
 
     for e in &unwrapped {
@@ -177,7 +176,7 @@ pub fn serialization_with_full_config() {
     println!();
     println!("Packet size: {}", unwrapped.len());
 
-    let deserialized: Beacon = match serde_cbor::from_slice(&unwrapped) {
+    let deserialized: Beacon = match helpers::from_cbor_slice(&unwrapped) {
         Ok(pkt) => pkt,
         Err(e) => {
             println!("{}", e);
@@ -200,12 +199,12 @@ pub fn check_if_deserialized_is_equal_to_before() {
     }
 
     for x in &beacons {
-        serialized.push(serde_cbor::to_vec(x).expect("A problem occurred while serializing"));
+        serialized.push(helpers::to_cbor_vec(x).expect("A problem occurred while serializing"));
     }
 
     let mut deserialized: Vec<Beacon> = Vec::new();
     for x in serialized {
-        deserialized.push(serde_cbor::from_slice::<Beacon>(&x).expect("Something bad happened"));
+        deserialized.push(helpers::from_cbor_slice::<Beacon>(&x).expect("Something bad happened"));
     }
 
     for i in 0..beacons.len() {
@@ -266,7 +265,7 @@ pub fn check_time_for_serialization_of_5000_beacons() {
     let starts = now.elapsed().unwrap().as_nanos();
     println!("Starting serialization after {}ns", starts);
     for x in beacons {
-        serde_cbor::to_vec(&x).expect("A problem occured while serializing");
+        helpers::to_cbor_vec(&x).expect("A problem occured while serializing");
     }
     let afters = now.elapsed().unwrap().as_nanos();
 
@@ -284,13 +283,13 @@ pub fn check_time_for_deserialization_of_5000_beacons() {
     }
 
     for x in beacons {
-        serialized.push(serde_cbor::to_vec(&x).expect("A problem occured while serializing"));
+        serialized.push(helpers::to_cbor_vec(&x).expect("A problem occured while serializing"));
     }
     let now = SystemTime::now();
     let startd = now.elapsed().unwrap().as_nanos();
     println!("Starting deserialization after: {}ns", startd);
     for x in serialized {
-        serde_cbor::from_slice::<Beacon>(&x).expect("Something bad happened");
+        helpers::from_cbor_slice::<Beacon>(&x).expect("Something bad happened");
     }
     let afterd = now.elapsed().unwrap().as_nanos();
     println!("Deserialization finished after: {}ns", afterd - startd);
@@ -342,10 +341,10 @@ pub fn peer_validity_with_custom() {
 
 /// Generates a random beacon
 pub fn rnd_beacon() -> Beacon {
-    let mut rng = thread_rng();
-    let rnd_duration: u8 = rng.gen_range(0..101);
-    let rnd_serviceblock: u8 = rng.gen_range(0..101);
-    let amount_of_services: u8 = rng.gen_range(0..11);
+    let mut rng = rand::rng();
+    let rnd_duration: u8 = rng.random_range(0..101);
+    let rnd_serviceblock: u8 = rng.random_range(0..101);
+    let amount_of_services: u8 = rng.random_range(0..11);
 
     let clas = [
         "mtcp".to_owned(),
@@ -361,8 +360,8 @@ pub fn rnd_beacon() -> Beacon {
     let services = if rnd_serviceblock < 50 {
         let mut buf = Vec::new();
         for _x in 0..amount_of_services {
-            let rnd_scheme: usize = rng.gen_range(0..3);
-            let rnd_port: usize = rng.gen_range(0..13);
+            let rnd_scheme: usize = rng.random_range(0..3);
+            let rnd_port: usize = rng.random_range(0..13);
             let cla = clas[rnd_scheme].clone();
             let port = ports[rnd_port];
             let service = (cla, Some(port));
@@ -376,17 +375,17 @@ pub fn rnd_beacon() -> Beacon {
     serviceblock.set_clas(services);
 
     let beacon_period = if rnd_duration < 50 {
-        Some(Duration::from_secs(rng.gen_range(0..12001)))
+        Some(Duration::from_secs(rng.random_range(0..12001)))
     } else {
         None
     };
 
-    let rnd_dtn: u8 = rng.gen_range(0..3);
+    let rnd_dtn: u8 = rng.random_range(0..3);
     let endpoint = match rnd_dtn {
         0 => EndpointID::try_from("dtn://n1/").unwrap(),
         1 => {
-            let rnd_node: u64 = rng.gen();
-            let rnd_service: u64 = rng.gen();
+            let rnd_node: u64 = rng.random();
+            let rnd_service: u64 = rng.random();
             EndpointID::Ipn(2, IpnAddress::new(rnd_node, rnd_service))
         }
         _ => EndpointID::none(),

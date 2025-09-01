@@ -1,3 +1,4 @@
+use crate::core::helpers;
 use core::fmt;
 use serde::de::{SeqAccess, Visitor};
 use serde::ser::{SerializeSeq, Serializer};
@@ -298,6 +299,6 @@ impl<'de> Deserialize<'de> for Beacon {
 // Shortcut method to serialize a Beacon
 impl Block for Beacon {
     fn to_cbor(&self) -> ByteBuffer {
-        serde_cbor::to_vec(&self).expect("Error exporting Beacon to cbor")
+        helpers::to_cbor_vec(self).expect("Error exporting Beacon to cbor")
     }
 }
