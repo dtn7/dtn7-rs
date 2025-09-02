@@ -127,7 +127,12 @@ fn main() -> anyhow::Result<()> {
                     }
                     if args.print {
                         let now = humantime::format_rfc3339(std::time::SystemTime::now());
-                        println!("[{}] {} → {}", now, bndl.primary.source.to_string(), String::from_utf8_lossy(data));
+                        println!(
+                            "[{}] {} → {}",
+                            now,
+                            bndl.primary.source.to_string(),
+                            String::from_utf8_lossy(data)
+                        );
                     } else {
                         let data_file = write_temp_file(data, args.verbose)?;
                         if args.verbose {
