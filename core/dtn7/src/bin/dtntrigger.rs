@@ -7,7 +7,6 @@ use std::io::prelude::*;
 use std::process::Command;
 use tempfile::NamedTempFile;
 use tungstenite::Message;
-use chrono::Local;
 
 fn write_temp_file(data: &[u8], verbose: bool) -> Result<NamedTempFile> {
     let mut data_file = NamedTempFile::new()?;
@@ -127,7 +126,7 @@ fn main() -> anyhow::Result<()> {
                         eprintln!("[<] Received Bundle-Id: {}", bndl.id());
                     }
                     if args.print {
-                        let now = Local::now().format("%H:%M:%S.%3f");
+                        let now = humantime::format_rfc3339(std::time::SystemTime::now());
                         println!("[{}] {} → {}", now, bndl.primary.source.to_string(), String::from_utf8_lossy(data));
                     } else {
                         let data_file = write_temp_file(data, args.verbose)?;
