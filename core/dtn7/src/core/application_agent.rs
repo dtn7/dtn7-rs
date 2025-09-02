@@ -41,17 +41,20 @@ impl ApplicationAgent for SimpleApplicationAgent {
         trace!("Received raw: {:?}", bundle);
 
         // attempt direct delivery to websocket
-        if let Some(addr) = self.delivery_addr() {
-            // TODO: remove clone and work with reference
+        match self.delivery_addr() {
+            Some(addr) => {
+                // TODO: remove clone and work with reference
 
-            if addr.try_send(BundleDelivery(bundle.clone())).is_err() {
-                self.bundles.push_back(bundle.clone());
-            } else {
-                store_remove_if_singleton_bundle(bundle);
+                if addr.try_send(BundleDelivery(bundle.clone())).is_err() {
+                    self.bundles.push_back(bundle.clone());
+                } else {
+                    store_remove_if_singleton_bundle(bundle);
+                }
             }
-        } else {
-            // save in temp buffer for delivery
-            self.bundles.push_back(bundle.clone());
+            _ => {
+                // save in temp buffer for delivery
+                self.bundles.push_back(bundle.clone());
+            }
         }
     }
     fn pop(&mut self) -> Option<Bundle> {

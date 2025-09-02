@@ -7,9 +7,9 @@ pub mod ipnd;
 pub mod routing;
 
 use crate::cla::CLAsAvailable;
+use crate::core::DtnStatistics;
 use crate::core::bundlepack::BundlePack;
 use crate::core::store::{BundleStore, InMemoryBundleStore};
-use crate::core::DtnStatistics;
 use crate::routing::{RoutingAgent, RoutingCmd};
 use bp7::{Bundle, EndpointID};
 use cla::{CLAEnum, ClaSenderTask};
@@ -23,7 +23,7 @@ use crate::cla::ConvergenceLayerAgent;
 use crate::core::bundlepack::Constraint;
 use crate::core::peer::PeerAddress;
 use crate::core::store::BundleStoresEnum;
-use anyhow::{bail, Context, Result};
+use anyhow::{Context, Result, bail};
 use lazy_static::*;
 use parking_lot::Mutex;
 use std::collections::{BTreeMap, HashMap};
@@ -98,10 +98,9 @@ pub fn reset_sequence(destination: &str) {
     }
 }
 pub fn get_sequence(destination: &str) -> u32 {
-    if let Some(sequence) = CONFIG.lock().discovery_destinations.get(destination) {
-        *sequence
-    } else {
-        0
+    match CONFIG.lock().discovery_destinations.get(destination) {
+        Some(sequence) => *sequence,
+        _ => 0,
     }
 }
 /// adds a new peer to the DTN core

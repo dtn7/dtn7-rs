@@ -1,9 +1,10 @@
-use crate::core::application_agent::ApplicationAgent;
 use crate::CONFIG;
 use crate::DTNCORE;
 use crate::STATS;
+use crate::core::application_agent::ApplicationAgent;
 
-use anyhow::{bail, Result};
+use crate::core::helpers;
+use anyhow::{Result, bail};
 use axum::extract::ws::{Message, WebSocket};
 use bp7::flags::BlockControlFlags;
 use bp7::flags::BundleControlFlags;
@@ -17,8 +18,8 @@ use std::{
     convert::TryFrom,
     time::{Duration, Instant},
 };
-use tokio::sync::mpsc;
 use tokio::sync::Mutex;
+use tokio::sync::mpsc;
 use tokio::time::interval;
 // Begin application agent WebSocket specific stuff
 
@@ -104,7 +105,11 @@ pub async fn handle_socket(socket: WebSocket) {
             }
 
             debug!("sending ping");
-            if tx2.send(Message::Ping(b"dtn7".to_vec())).await.is_err() {
+            if tx2
+                .send(Message::Ping(bytes::Bytes::from_static(b"dtn7")))
+                .await
+                .is_err()
+            {
                 break;
             }
         }
@@ -158,7 +163,7 @@ pub async fn handle_socket(socket: WebSocket) {
 
 macro_rules! ws_reply_text {
     ($sock:expr,$msg:expr) => {
-        if let Err(err) = $sock.send(Message::Text($msg.to_string())).await {
+        if let Err(err) = $sock.send(Message::Text($msg.into())).await {
             bail!("err sendin reply: {} -> {}", $msg, err);
         }
     };
@@ -201,7 +206,7 @@ impl WsAASession {
                 };
                 match format {
                     DataReceiveFormat::CBOR => {
-                        serde_cbor::to_vec(&recv).expect("Fatal error encoding WsRecvData")
+                        helpers::to_cbor_vec(&recv).expect("Fatal error encoding WsRecvData")
                     }
                     DataReceiveFormat::JSON => {
                         serde_json::to_vec(&recv).expect("Fatal error encoding WsRecvData")
@@ -209,7 +214,11 @@ impl WsAASession {
                 }
             }
         };
-        if socket.send(Message::Binary(recv_data)).await.is_err() {
+        if socket
+            .send(Message::Binary(recv_data.into()))
+            .await
+            .is_err()
+        {
             bail!("error sending bundle");
         }
         Ok(())
@@ -340,7 +349,7 @@ impl WsAASession {
             Message::Binary(bin) => {
                 match self.mode {
                     WsReceiveMode::Bundle => {
-                        if let Ok(bndl) = serde_cbor::from_slice::<bp7::Bundle>(&bin) {
+                        if let Ok(bndl) = helpers::from_cbor_slice::<bp7::Bundle>(&bin) {
                             debug!(
                                 "Sending bundle {} to {} from WS",
                                 bndl.id(),
@@ -367,7 +376,7 @@ impl WsAASession {
                     WsReceiveMode::Data(format) => {
                         // TODO: make BPCF configurable via WsSendData
                         let send_data = match format {
-                            DataReceiveFormat::CBOR => serde_cbor::from_slice::<WsSendData>(&bin)
+                            DataReceiveFormat::CBOR => helpers::from_cbor_slice::<WsSendData>(&bin)
                                 .map_err(|_| "error parsing cbor"),
                             DataReceiveFormat::JSON => serde_json::from_slice::<WsSendData>(&bin)
                                 .map_err(|_| "error parsing json"),
@@ -484,14 +493,14 @@ impl WsAASession {
                                     data: bundle.payload().unwrap().to_vec(),
                                 };
                                 match format {
-                                    DataReceiveFormat::CBOR => serde_cbor::to_vec(&recv)
+                                    DataReceiveFormat::CBOR => helpers::to_cbor_vec(&recv)
                                         .expect("Fatal error encoding WsRecvData"),
                                     DataReceiveFormat::JSON => serde_json::to_vec(&recv)
                                         .expect("Fatal error encoding WsRecvData"),
                                 }
                             }
                         };
-                        let job = socket.send(Message::Binary(recv_data)); //.await;
+                        let job = socket.send(Message::Binary(recv_data.into())); //.await;
                         senders.push(job)
                         //ctx.binary(recv_data);
                     }

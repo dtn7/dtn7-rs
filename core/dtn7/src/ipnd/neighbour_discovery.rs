@@ -1,9 +1,10 @@
 use crate::cla::ConvergenceLayerAgent;
+use crate::core::helpers;
 use crate::core::{DtnPeer, PeerType};
 use crate::ipnd::{beacon::Beacon, services::*};
 use crate::routing::RoutingNotifcation;
-use crate::{peers_add, routing_notify, CLAS, CONFIG};
-use crate::{peers_touch, DTNCORE};
+use crate::{CLAS, CONFIG, peers_add, routing_notify};
+use crate::{DTNCORE, peers_touch};
 use anyhow::Result;
 use log::{debug, error, info, trace};
 use socket2::{Domain, Socket, Type};
@@ -19,7 +20,7 @@ async fn receiver(socket: UdpSocket) -> Result<(), io::Error> {
     loop {
         if let Ok((size, peer)) = socket.recv_from(&mut buf).await {
             trace!("received {} bytes", size);
-            let deserialized: Beacon = match serde_cbor::from_slice(&buf[..size]) {
+            let deserialized: Beacon = match helpers::from_cbor_slice(&buf[..size]) {
                 Ok(pkt) => pkt,
                 Err(e) => {
                     error!("Deserialization of beacon failed: {}", e);
@@ -113,18 +114,16 @@ async fn announcer(socket: UdpSocket, _v6: bool) {
             if destination.ip().is_multicast() {
                 trace!(
                     "Sending beacon\n{}\nto multicast address {}",
-                    pkt,
-                    destination
+                    pkt, destination
                 );
             } else {
                 trace!(
                     "Sending beacon\n{}\nto unicast address {}",
-                    pkt,
-                    destination
+                    pkt, destination
                 );
             }
             match socket
-                .send_to(&serde_cbor::to_vec(&pkt).unwrap(), destination)
+                .send_to(&helpers::to_cbor_vec(&pkt).unwrap(), destination)
                 .await
             {
                 Ok(amt) => {

@@ -1,3 +1,8 @@
+use crate::CONFIG;
+use crate::DTNCORE;
+use crate::PEERS;
+use crate::STATS;
+use crate::STORE;
 use crate::core::application_agent::ApplicationAgent;
 use crate::core::application_agent::SimpleApplicationAgent;
 use crate::core::bundlepack::Constraint;
@@ -12,33 +17,29 @@ use crate::peers_remove;
 use crate::routing_cmd;
 use crate::routing_get_data;
 use crate::store_remove;
-use crate::CONFIG;
-use crate::DTNCORE;
-use crate::PEERS;
-use crate::STATS;
-use crate::STORE;
-use crate::{cla_names, peers_count};
 use crate::{DtnConfig, PeerAddress};
+use crate::{cla_names, peers_count};
 use anyhow::Result;
-use async_trait::async_trait;
-use axum::extract::ws::WebSocketUpgrade;
 use axum::extract::DefaultBodyLimit;
+use axum::extract::FromRequestParts;
 use axum::extract::Query;
+use axum::extract::ws::WebSocketUpgrade;
 use axum::response::Html;
 use axum::{
-    extract::{self, connect_info::ConnectInfo, RequestParts},
+    Router,
+    extract::{self, connect_info::ConnectInfo},
     middleware::from_extractor,
     routing::{get, post},
-    Router,
 };
+use bp7::EndpointID;
 use bp7::dtntime::CreationTimestamp;
 use bp7::flags::BlockControlFlags;
 use bp7::flags::BundleControlFlags;
 use bp7::helpers::rnd_bundle;
-use bp7::EndpointID;
 use http::StatusCode;
-use humansize::format_size;
+use http::request::Parts;
 use humansize::DECIMAL;
+use humansize::format_size;
 use log::info;
 use log::trace;
 use log::{debug, warn};
@@ -49,6 +50,7 @@ use std::fmt::Write;
 use std::net::SocketAddr;
 use std::time::Instant;
 use tinytemplate::TinyTemplate;
+use tokio::net::TcpListener;
 use tower_http::cors::Any;
 use tower_http::cors::CorsLayer;
 /*
@@ -64,26 +66,30 @@ async fn ws_application_agent(
 
 struct RequireLocalhost;
 
-#[async_trait]
-impl<B> extract::FromRequest<B> for RequireLocalhost
+impl<S> FromRequestParts<S> for RequireLocalhost
 where
-    B: Send,
+    S: Send + Sync,
 {
     type Rejection = StatusCode;
 
-    async fn from_request(conn: &mut RequestParts<B>) -> Result<Self, Self::Rejection> {
+    async fn from_request_parts(parts: &mut Parts, _state: &S) -> Result<Self, Self::Rejection> {
         if CONFIG.lock().unsafe_httpd {
             return Ok(Self);
         }
-        if let Some(ConnectInfo(addr)) = conn.extensions().get::<ConnectInfo<SocketAddr>>() {
-            if addr.ip().is_loopback() {
+
+        if let Some(ConnectInfo(addr)) = parts.extensions.get::<ConnectInfo<SocketAddr>>() {
+            let ip = addr.ip();
+
+            if ip.is_loopback() {
                 return Ok(Self);
-            } else if let std::net::IpAddr::V6(ipv6) = addr.ip() {
+            }
+
+            if let std::net::IpAddr::V6(ipv6) = ip {
                 // workaround for bug in std when handling IPv4 in IPv6 addresses
-                if let Some(ipv4) = ipv6.to_ipv4() {
-                    if ipv4.is_loopback() {
-                        return Ok(Self);
-                    }
+                if let Some(ipv4) = ipv6.to_ipv4()
+                    && ipv4.is_loopback()
+                {
+                    return Ok(Self);
                 }
             }
         }
@@ -354,13 +360,12 @@ async fn http_routing_getdata(
     Query(params): Query<HashMap<String, String>>,
 ) -> Result<String, (StatusCode, &'static str)> {
     let param = params.get("p").map_or("".to_string(), |f| f.to_string());
-    if let Ok(res) = routing_get_data(param).await {
-        Ok(res)
-    } else {
-        Err((
+    match routing_get_data(param).await {
+        Ok(res) => Ok(res),
+        _ => Err((
             StatusCode::INTERNAL_SERVER_ERROR,
             "error getting data from routing agent",
-        ))
+        )),
     }
 }
 
@@ -428,7 +433,7 @@ async fn insert_get(extract::RawQuery(query): extract::RawQuery) -> Result<Strin
                     bndl.id(),
                     bndl.primary.destination
                 );
-                if bndl.primary.source.node() == (*CONFIG.lock()).host_eid.node() {
+                if bndl.primary.source.node() == CONFIG.lock().host_eid.node() {
                     STATS.lock().node.bundles.bundles_created += 1;
                 }
                 crate::core::processing::send_bundle(bndl).await;
@@ -456,7 +461,7 @@ async fn insert_post(body: bytes::Bytes) -> Result<String, (StatusCode, &'static
             bndl.primary.destination
         );
 
-        if bndl.primary.source.node() == (*CONFIG.lock()).host_eid.node() {
+        if bndl.primary.source.node() == CONFIG.lock().host_eid.node() {
             STATS.lock().node.bundles.bundles_created += 1;
         }
 
@@ -634,26 +639,28 @@ async fn endpoint(
         let eid = host_eid
             .new_endpoint(&path)
             .expect("Error constructing new endpoint"); // TODO: support non-node-specific EIDs
-        if let Some(aa) = (*DTNCORE.lock()).get_endpoint_mut(&eid) {
-            if let Some(mut bundle) = aa.pop() {
-                let cbor_bundle = bundle.to_cbor();
-                Ok(cbor_bundle)
-            } else {
-                Ok("Nothing to receive".as_bytes().to_vec())
+        match (*DTNCORE.lock()).get_endpoint_mut(&eid) {
+            Some(aa) => {
+                if let Some(mut bundle) = aa.pop() {
+                    let cbor_bundle = bundle.to_cbor();
+                    Ok(cbor_bundle)
+                } else {
+                    Ok("Nothing to receive".as_bytes().to_vec())
+                }
             }
-        } else {
-            Err((StatusCode::NOT_FOUND, "No such endpoint registered!"))
+            _ => Err((StatusCode::NOT_FOUND, "No such endpoint registered!")),
         }
     } else if let Ok(eid) = EndpointID::try_from(path) {
-        if let Some(aa) = (*DTNCORE.lock()).get_endpoint_mut(&eid) {
-            if let Some(mut bundle) = aa.pop() {
-                let cbor_bundle = bundle.to_cbor();
-                Ok(cbor_bundle)
-            } else {
-                Ok("Nothing to receive".as_bytes().to_vec())
+        match (*DTNCORE.lock()).get_endpoint_mut(&eid) {
+            Some(aa) => {
+                if let Some(mut bundle) = aa.pop() {
+                    let cbor_bundle = bundle.to_cbor();
+                    Ok(cbor_bundle)
+                } else {
+                    Ok("Nothing to receive".as_bytes().to_vec())
+                }
             }
-        } else {
-            Err((StatusCode::NOT_FOUND, "No such endpoint registered!"))
+            _ => Err((StatusCode::NOT_FOUND, "No such endpoint registered!")),
         }
     } else {
         Err((
@@ -677,24 +684,26 @@ async fn endpoint_hex(
             .new_endpoint(&path)
             .expect("Error constructing new endpoint");
         // TODO: support non-node-specific EIDs
-        if let Some(aa) = (*DTNCORE.lock()).get_endpoint_mut(&eid) {
-            if let Some(mut bundle) = aa.pop() {
-                Ok(bp7::helpers::hexify(&bundle.to_cbor()))
-            } else {
-                Ok("Nothing to receive".to_string())
+        match (*DTNCORE.lock()).get_endpoint_mut(&eid) {
+            Some(aa) => {
+                if let Some(mut bundle) = aa.pop() {
+                    Ok(bp7::helpers::hexify(&bundle.to_cbor()))
+                } else {
+                    Ok("Nothing to receive".to_string())
+                }
             }
-        } else {
-            Err((StatusCode::NOT_FOUND, "No such endpoint registered!"))
+            _ => Err((StatusCode::NOT_FOUND, "No such endpoint registered!")),
         }
     } else if let Ok(eid) = EndpointID::try_from(path) {
-        if let Some(aa) = (*DTNCORE.lock()).get_endpoint_mut(&eid) {
-            if let Some(mut bundle) = aa.pop() {
-                Ok(bp7::helpers::hexify(&bundle.to_cbor()))
-            } else {
-                Ok("Nothing to receive".to_string())
+        match (*DTNCORE.lock()).get_endpoint_mut(&eid) {
+            Some(aa) => {
+                if let Some(mut bundle) = aa.pop() {
+                    Ok(bp7::helpers::hexify(&bundle.to_cbor()))
+                } else {
+                    Ok("Nothing to receive".to_string())
+                }
             }
-        } else {
-            Err((StatusCode::NOT_FOUND, "No such endpoint registered!"))
+            _ => Err((StatusCode::NOT_FOUND, "No such endpoint registered!")),
         }
     } else {
         Err((
@@ -725,11 +734,12 @@ async fn download(
     extract::RawQuery(query): extract::RawQuery,
 ) -> Result<Vec<u8>, (StatusCode, &'static str)> {
     if let Some(bid) = query {
-        if let Some(mut bundle) = (*STORE.lock()).get_bundle(&bid) {
-            let cbor_bundle = bundle.to_cbor();
-            Ok(cbor_bundle)
-        } else {
-            Err((StatusCode::NOT_FOUND, "Bundle not found"))
+        match (*STORE.lock()).get_bundle(&bid) {
+            Some(mut bundle) => {
+                let cbor_bundle = bundle.to_cbor();
+                Ok(cbor_bundle)
+            }
+            _ => Err((StatusCode::NOT_FOUND, "Bundle not found")),
         }
     } else {
         Err((StatusCode::BAD_REQUEST, "Bundle ID not specified"))
@@ -740,10 +750,9 @@ async fn download_hex(
     extract::RawQuery(query): extract::RawQuery,
 ) -> Result<String, (StatusCode, &'static str)> {
     if let Some(bid) = query {
-        if let Some(mut bundle) = (*STORE.lock()).get_bundle(&bid) {
-            Ok(bp7::helpers::hexify(&bundle.to_cbor()))
-        } else {
-            Err((StatusCode::BAD_REQUEST, "Bundle not found"))
+        match (*STORE.lock()).get_bundle(&bid) {
+            Some(mut bundle) => Ok(bp7::helpers::hexify(&bundle.to_cbor())),
+            _ => Err((StatusCode::BAD_REQUEST, "Bundle not found")),
         }
     } else {
         Err((http::StatusCode::BAD_REQUEST, "Bundle ID not specified"))
@@ -831,14 +840,19 @@ pub async fn spawn_httpd() -> Result<()> {
     let v4 = CONFIG.lock().v4;
     let v6 = CONFIG.lock().v6;
     //debug!("starting webserver");
-    let server = if v4 && !v6 {
-        hyper::Server::bind(&format!("0.0.0.0:{}", port).parse()?)
+    let addr = if v4 && !v6 {
+        format!("0.0.0.0:{port}")
     } else if !v4 && v6 {
-        hyper::Server::bind(&format!("[::1]:{}", port).parse()?)
+        format!("[::1]:{port}")
     } else {
-        hyper::Server::bind(&format!("[::]:{}", port).parse()?)
-    }
-    .serve(app.into_make_service_with_connect_info::<SocketAddr>());
-    server.await?;
+        format!("[::]:{port}")
+    };
+
+    let listener = TcpListener::bind(&addr).await?;
+    axum::serve(
+        listener,
+        app.into_make_service_with_connect_info::<SocketAddr>(),
+    )
+    .await?;
     Ok(())
 }

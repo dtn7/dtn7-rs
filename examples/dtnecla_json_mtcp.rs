@@ -1,8 +1,8 @@
 use anyhow::Result;
-use clap::{crate_authors, crate_version, Arg, Command};
-use clap::{value_parser, ArgAction};
-use dtn7::client::ecla::{ws_client, Command::SendPacket, Packet};
-use futures_util::{future, pin_mut, TryStreamExt};
+use clap::{Arg, Command, crate_authors, crate_version};
+use clap::{ArgAction, value_parser};
+use dtn7::client::ecla::{Command::SendPacket, Packet, ws_client};
+use futures_util::{TryStreamExt, future, pin_mut};
 use lazy_static::lazy_static;
 use log::{debug, error, info};
 use parking_lot::Mutex;
@@ -79,11 +79,14 @@ pub fn send_bundles(addr: String, data: Vec<u8>) -> bool {
         #[allow(clippy::map_entry)]
         if !MTCP_CONNECTIONS.lock().contains_key(&addr) {
             debug!("Connecting to {}", addr);
-            if let Ok(stream) = TcpStream::connect(&addr) {
-                MTCP_CONNECTIONS.lock().insert(addr, stream);
-            } else {
-                error!("Error connecting to remote {}", addr);
-                return false;
+            match TcpStream::connect(&addr) {
+                Ok(stream) => {
+                    MTCP_CONNECTIONS.lock().insert(addr, stream);
+                }
+                _ => {
+                    error!("Error connecting to remote {}", addr);
+                    return false;
+                }
             }
         } else {
             debug!("Already connected to {}", addr);
@@ -139,7 +142,8 @@ async fn main() -> Result<()> {
         .get_matches();
 
     if matches.get_flag("debug") {
-        std::env::set_var("RUST_LOG", "debug");
+        // is safe since main is single-threaded
+        unsafe { std::env::set_var("RUST_LOG", "debug") };
         pretty_env_logger::init_timed();
     }
 

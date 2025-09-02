@@ -1,10 +1,10 @@
 use anyhow::Result;
 use bp7::Bundle;
-use clap::{crate_authors, crate_version, value_parser, Arg, ArgAction, Command as ClapCommand};
-use dtn7::cla::mtcp::{MPDUCodec, MPDU};
-use dtn7::client::ecla::{ws_client, Command, ForwardData, Packet};
+use clap::{Arg, ArgAction, Command as ClapCommand, crate_authors, crate_version, value_parser};
+use dtn7::cla::mtcp::{MPDU, MPDUCodec};
+use dtn7::client::ecla::{Command, ForwardData, Packet, ws_client};
 use futures_util::future::Either;
-use futures_util::{future, pin_mut, StreamExt};
+use futures_util::{StreamExt, future, pin_mut};
 use lazy_static::lazy_static;
 use log::{debug, error, info};
 use parking_lot::Mutex;
@@ -92,11 +92,14 @@ pub fn send_bundle(addr: String, data: Vec<u8>) -> bool {
         #[allow(clippy::map_entry)]
         if !MTCP_CONNECTIONS.lock().contains_key(&addr) {
             debug!("Connecting to {}", addr);
-            if let Ok(stream) = TcpStream::connect(&addr) {
-                MTCP_CONNECTIONS.lock().insert(addr, stream);
-            } else {
-                error!("Error connecting to remote {}", addr);
-                return false;
+            match TcpStream::connect(&addr) {
+                Ok(stream) => {
+                    MTCP_CONNECTIONS.lock().insert(addr, stream);
+                }
+                _ => {
+                    error!("Error connecting to remote {}", addr);
+                    return false;
+                }
             }
         } else {
             debug!("Already connected to {}", addr);
@@ -152,7 +155,8 @@ async fn main() -> Result<()> {
         .get_matches();
 
     if matches.get_flag("debug") {
-        std::env::set_var("RUST_LOG", "debug");
+        // is safe since main is single-threaded
+        unsafe { std::env::set_var("RUST_LOG", "debug") };
         pretty_env_logger::init_timed();
     }
 
@@ -189,11 +193,11 @@ async fn main() -> Result<()> {
 
             let res = future::select(connecting, read).await;
             #[allow(clippy::collapsible_match)]
-            if let Either::Left((con_res, _)) = res {
-                if let Err(err) = con_res {
-                    error!("error {}", err);
-                    std::process::exit(101);
-                }
+            if let Either::Left((con_res, _)) = res
+                && let Err(err) = con_res
+            {
+                error!("error {}", err);
+                std::process::exit(101);
             }
 
             std::process::exit(0);
@@ -211,7 +215,7 @@ async fn main() -> Result<()> {
 
                     if let Ok(bndl) = Bundle::try_from(fwd.data) {
                         let mpdu = MPDU::new(&bndl);
-                        if let Ok(buf) = serde_cbor::to_vec(&mpdu) {
+                        if let Ok(buf) = dtn7::core::helpers::to_cbor_vec(&mpdu) {
                             send_bundle(fwd.dst, buf);
                         } else {
                             error!("MPDU encoding error!");

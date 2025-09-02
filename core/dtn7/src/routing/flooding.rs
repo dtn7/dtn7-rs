@@ -1,6 +1,6 @@
 use super::RoutingAgent;
-use crate::routing::RoutingCmd;
 use crate::PEERS;
+use crate::routing::RoutingCmd;
 use async_trait::async_trait;
 use tokio::sync::mpsc;
 use tokio::sync::mpsc::Sender;

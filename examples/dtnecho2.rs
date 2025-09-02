@@ -1,4 +1,4 @@
-use anyhow::{bail, Result};
+use anyhow::{Result, bail};
 use clap::Parser;
 use dtn7_plus::client::DtnClient;
 use dtn7_plus::client::{Message, WsRecvData, WsSendData};
@@ -80,8 +80,8 @@ fn main() -> Result<()> {
             }
             Message::Binary(bin) => {
                 let now = Instant::now();
-                let recv_data: WsRecvData =
-                    serde_cbor::from_slice(bin).expect("Error decoding WsRecvData from server");
+                let recv_data: WsRecvData = dtn7::core::helpers::from_cbor_slice(bin)
+                    .expect("Error decoding WsRecvData from server");
 
                 if args.verbose {
                     eprintln!(
@@ -96,7 +96,7 @@ fn main() -> Result<()> {
                     print!(".");
                     std::io::stdout().flush().unwrap();
                 }
-                // flip src and destionation
+                // flip src and destination
                 let src = recv_data.dst.to_owned();
                 let dst = recv_data.src.to_owned();
                 // construct response with copied payload
@@ -108,7 +108,7 @@ fn main() -> Result<()> {
                     data: recv_data.data,
                 };
                 wscon
-                    .write_binary(&serde_cbor::to_vec(&echo_response)?)
+                    .write_binary(dtn7::core::helpers::to_cbor_vec(&echo_response)?)
                     .expect("error sending echo response");
                 if args.verbose {
                     println!("Processing bundle took {:?}", now.elapsed());

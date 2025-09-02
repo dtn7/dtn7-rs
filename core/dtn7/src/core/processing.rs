@@ -1,24 +1,24 @@
+use crate::CONFIG;
+use crate::DTNCORE;
 use crate::core::bundlepack::*;
 use crate::core::*;
 use crate::routing::RoutingNotifcation;
 use crate::store_push_bundle;
 use crate::store_remove;
-use crate::CONFIG;
-use crate::DTNCORE;
-use crate::{is_local_node_id, STATS};
+use crate::{STATS, is_local_node_id};
 use crate::{routing_notify, routing_sender_for_bundle, store_add_bundle_if_unknown};
 
+use bp7::BUNDLE_AGE_BLOCK;
+use bp7::CanonicalData;
 use bp7::administrative_record::*;
 use bp7::bundle::*;
 use bp7::flags::*;
-use bp7::CanonicalData;
-use bp7::BUNDLE_AGE_BLOCK;
 
-use anyhow::{bail, Result};
+use anyhow::{Result, bail};
 use log::trace;
 use log::{debug, info, warn};
-use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::SystemTime;
 use std::time::UNIX_EPOCH;
 use tokio::sync::mpsc::channel;
@@ -206,23 +206,23 @@ pub async fn dispatch(bp: BundlePack) -> Result<()> {
 
 async fn handle_hop_count_block(mut bundle: Bundle) -> Result<Bundle> {
     let bid = bundle.id();
-    if let Some(hc) = bundle.extension_block_by_type_mut(bp7::canonical::HOP_COUNT_BLOCK) {
-        if hc.hop_count_increase() {
-            let (hc_limit, hc_count) = hc
-                .hop_count_get()
-                .expect("hop count data missing from hop count block");
-            debug!(
-                "Bundle contains an hop count block: {} {} {}",
+    if let Some(hc) = bundle.extension_block_by_type_mut(bp7::canonical::HOP_COUNT_BLOCK)
+        && hc.hop_count_increase()
+    {
+        let (hc_limit, hc_count) = hc
+            .hop_count_get()
+            .expect("hop count data missing from hop count block");
+        debug!(
+            "Bundle contains an hop count block: {} {} {}",
+            &bid, hc_limit, hc_count
+        );
+        if hc.hop_count_exceeded() {
+            warn!(
+                "Bundle contains an exceeded hop count block: {} {} {}",
                 &bid, hc_limit, hc_count
             );
-            if hc.hop_count_exceeded() {
-                warn!(
-                    "Bundle contains an exceeded hop count block: {} {} {}",
-                    &bid, hc_limit, hc_count
-                );
-                delete(bundle.into(), HOP_LIMIT_EXCEEDED).await?;
-                bail!("hop count exceeded");
-            }
+            delete(bundle.into(), HOP_LIMIT_EXCEEDED).await?;
+            bail!("hop count exceeded");
         }
     }
     Ok(bundle)
@@ -263,12 +263,12 @@ pub fn update_bundle_age(bundle: &mut Bundle) -> Option<u64> {
     None
 }
 async fn handle_bundle_age_block(mut bundle: Bundle) -> Result<Bundle> {
-    if let Some(age) = update_bundle_age(&mut bundle) {
-        if std::time::Duration::from_micros(age) >= bundle.primary.lifetime {
-            warn!("Dropping bundle, age exceeds lifetime: {}", bundle.id());
-            delete(bundle.into(), LIFETIME_EXPIRED).await?;
-            bail!("age block lifetime exceeded");
-        }
+    if let Some(age) = update_bundle_age(&mut bundle)
+        && std::time::Duration::from_micros(age) >= bundle.primary.lifetime
+    {
+        warn!("Dropping bundle, age exceeds lifetime: {}", bundle.id());
+        delete(bundle.into(), LIFETIME_EXPIRED).await?;
+        bail!("age block lifetime exceeded");
     }
     Ok(bundle)
 }
@@ -356,67 +356,76 @@ pub async fn forward(mut bp: BundlePack) -> Result<()> {
                     "Sending bundle to a CLA: {} {} {}",
                     &bpid, n.dest, n.cla_name
                 );
-                if let Err(err) = n.transfer(bd).await {
-                    info!(
-                        "Sending bundle {} via {} to {} ({}) failed after {:?}",
-                        &bpid,
-                        n.cla_name,
-                        n.dest,
-                        n.next_hop,
-                        start_time.elapsed()
-                    );
-                    STATS.lock().failed += 1;
-                    debug!("Error while transferring bundle {}: {}", &bpid, err);
-                    let mut failed_peer = None;
-
-                    if let Err(err) = routing_notify(RoutingNotifcation::SendingFailed(
-                        bpid,
-                        n.next_hop.node().unwrap(),
-                    ))
-                    .await
-                    {
-                        error!("Error while sending failed notification: {}", err);
-                    }
-
-                    //debug!("current peers: {:?}", (*PEERS.lock()).keys());
-                    if let Some(peer_entry) = (*PEERS.lock()).get_mut(&n.next_hop.node().unwrap()) {
-                        debug!(
-                            "Reporting failed sending to peer: {}",
-                            &n.next_hop.node().unwrap()
+                match n.transfer(bd).await {
+                    Err(err) => {
+                        info!(
+                            "Sending bundle {} via {} to {} ({}) failed after {:?}",
+                            &bpid,
+                            n.cla_name,
+                            n.dest,
+                            n.next_hop,
+                            start_time.elapsed()
                         );
-                        peer_entry.report_fail();
-                        if peer_entry.failed_too_much() && peer_entry.con_type == PeerType::Dynamic
+                        STATS.lock().failed += 1;
+                        debug!("Error while transferring bundle {}: {}", &bpid, err);
+                        let mut failed_peer = None;
+
+                        if let Err(err) = routing_notify(RoutingNotifcation::SendingFailed(
+                            bpid,
+                            n.next_hop.node().unwrap(),
+                        ))
+                        .await
                         {
-                            failed_peer = Some(peer_entry.node_name());
+                            error!("Error while sending failed notification: {}", err);
                         }
+
+                        //debug!("current peers: {:?}", (*PEERS.lock()).keys());
+                        if let Some(peer_entry) =
+                            (*PEERS.lock()).get_mut(&n.next_hop.node().unwrap())
+                        {
+                            debug!(
+                                "Reporting failed sending to peer: {}",
+                                &n.next_hop.node().unwrap()
+                            );
+                            peer_entry.report_fail();
+                            if peer_entry.failed_too_much()
+                                && peer_entry.con_type == PeerType::Dynamic
+                            {
+                                failed_peer = Some(peer_entry.node_name());
+                            }
+                        }
+                        if let Some(peer) = failed_peer {
+                            let peers_before = (*PEERS.lock()).len();
+                            (*PEERS.lock()).remove(&peer);
+                            let peers_after = (*PEERS.lock()).len();
+                            debug!(
+                                "Removing peer {} from list of neighbors due to too many failed transmissions ({}/{})",
+                                peer, peers_before, peers_after
+                            );
+                        }
+                        // TODO: send status report?
+                        // if (*CONFIG.lock()).generate_service_reports {
+                        //    send_status_report(&bp2, FORWARDED_BUNDLE, TRANSMISSION_CANCELED);
+                        // }
                     }
-                    if let Some(peer) = failed_peer {
-                        let peers_before = (*PEERS.lock()).len();
-                        (*PEERS.lock()).remove(&peer);
-                        let peers_after = (*PEERS.lock()).len();
-                        debug!("Removing peer {} from list of neighbors due to too many failed transmissions ({}/{})", peer, peers_before, peers_after);
-                    }
-                    // TODO: send status report?
-                    // if (*CONFIG.lock()).generate_service_reports {
-                    //    send_status_report(&bp2, FORWARDED_BUNDLE, TRANSMISSION_CANCELED);
-                    // }
-                } else {
-                    info!(
-                        "Sending bundle succeeded: {} {} {} in {:?}",
-                        &bpid,
-                        n.dest,
-                        n.cla_name,
-                        start_time.elapsed()
-                    );
-                    STATS.lock().outgoing += 1;
-                    bundle_sent.store(true, Ordering::Relaxed);
-                    if let Err(err) = routing_notify(RoutingNotifcation::SendingSucceeded(
-                        bpid,
-                        n.next_hop.node().unwrap(),
-                    ))
-                    .await
-                    {
-                        error!("Error while sending succeeded notification: {}", err);
+                    _ => {
+                        info!(
+                            "Sending bundle succeeded: {} {} {} in {:?}",
+                            &bpid,
+                            n.dest,
+                            n.cla_name,
+                            start_time.elapsed()
+                        );
+                        STATS.lock().outgoing += 1;
+                        bundle_sent.store(true, Ordering::Relaxed);
+                        if let Err(err) = routing_notify(RoutingNotifcation::SendingSucceeded(
+                            bpid,
+                            n.next_hop.node().unwrap(),
+                        ))
+                        .await
+                        {
+                            error!("Error while sending succeeded notification: {}", err);
+                        }
                     }
                 }
             });
@@ -518,7 +527,7 @@ pub async fn delete(mut bp: BundlePack, reason: StatusReportReason) -> Result<()
     if bndl.is_none() {
         bail!("bundle not found");
     }
-    (*STATS.lock()).node.error_info.discarded_bundle_count += 1;
+    STATS.lock().node.error_info.discarded_bundle_count += 1;
     let bndl = bndl.unwrap();
     if bndl
         .primary
@@ -554,7 +563,7 @@ fn is_administrative_record_valid(bundle: &Bundle) -> bool {
     }
     match payload.unwrap().data() {
         bp7::canonical::CanonicalData::Data(data) => {
-            match serde_cbor::from_slice::<AdministrativeRecord>(data) {
+            match helpers::from_cbor_slice::<AdministrativeRecord>(data) {
                 Ok(ar) => {
                     info!(
                         "Received bundle contains an administrative record: {} {:?}",
@@ -650,7 +659,10 @@ async fn send_status_report(
 ) {
     // Don't respond to other administrative records or anonymous bundles.
     if bp.administrative || bp.source == EndpointID::none() {
-        warn!("status report sending denied for dtn:none sources/administrative bundles themselves: {}", bp.id());
+        warn!(
+            "status report sending denied for dtn:none sources/administrative bundles themselves: {}",
+            bp.id()
+        );
         return;
     }
     let bndl = store_get_bundle(bp.id());

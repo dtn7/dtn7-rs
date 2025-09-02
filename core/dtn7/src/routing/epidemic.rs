@@ -1,6 +1,6 @@
 use super::RoutingAgent;
-use crate::routing::{RoutingCmd, RoutingNotifcation};
 use crate::PEERS;
+use crate::routing::{RoutingCmd, RoutingNotifcation};
 use async_trait::async_trait;
 use log::debug;
 use std::collections::{HashMap, HashSet};
@@ -84,23 +84,23 @@ async fn handle_routing_cmd(mut rx: mpsc::Receiver<RoutingCmd>) {
                 let mut clas = Vec::new();
                 let mut delete_afterwards = false;
                 for (_, p) in (*PEERS.lock()).iter() {
-                    if !core.contains(bp.id(), &p.node_name()) {
-                        if let Some(cla) = p.first_cla() {
-                            core.add(bp.id().to_string(), p.node_name().clone());
-                            if bp.destination.node().unwrap() == p.node_name() {
-                                // direct delivery possible
-                                debug!(
-                                    "Attempting direct delivery of bundle {} to {}",
-                                    bp.id(),
-                                    p.node_name()
-                                );
-                                delete_afterwards = true;
-                                clas.clear();
-                                clas.push(cla);
-                                break;
-                            } else {
-                                clas.push(cla);
-                            }
+                    if !core.contains(bp.id(), &p.node_name())
+                        && let Some(cla) = p.first_cla()
+                    {
+                        core.add(bp.id().to_string(), p.node_name().clone());
+                        if bp.destination.node().unwrap() == p.node_name() {
+                            // direct delivery possible
+                            debug!(
+                                "Attempting direct delivery of bundle {} to {}",
+                                bp.id(),
+                                p.node_name()
+                            );
+                            delete_afterwards = true;
+                            clas.clear();
+                            clas.push(cla);
+                            break;
+                        } else {
+                            clas.push(cla);
                         }
                     }
                 }
@@ -121,10 +121,10 @@ async fn handle_routing_cmd(mut rx: mpsc::Receiver<RoutingCmd>) {
                     core.sending_failed(bid.as_str(), cla_sender.as_str());
                 }
                 RoutingNotifcation::IncomingBundle(bndl) => {
-                    if let Some(eid) = bndl.previous_node() {
-                        if let Some(node_name) = eid.node() {
-                            core.incoming_bundle(&bndl.id(), &node_name);
-                        }
+                    if let Some(eid) = bndl.previous_node()
+                        && let Some(node_name) = eid.node()
+                    {
+                        core.incoming_bundle(&bndl.id(), &node_name);
                     };
                 }
                 RoutingNotifcation::IncomingBundleWithoutPreviousNode(bid, node_name) => {

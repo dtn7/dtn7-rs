@@ -15,17 +15,17 @@ use std::net::SocketAddr;
 use std::time::Instant;
 use thiserror::Error;
 use tokio::net::tcp::{OwnedReadHalf, OwnedWriteHalf};
+use tokio::sync::Mutex;
 use tokio::sync::mpsc;
 use tokio::sync::mpsc::error::SendError;
 use tokio::sync::oneshot::{self, Sender};
-use tokio::sync::Mutex;
 use tokio::time::{self};
 //use std::net::TcpStream;
 use super::tcp::proto::*;
-use crate::core::store::BundleStore;
 use crate::core::PeerType;
-use crate::{peers_add, peers_known, STORE};
-use crate::{DtnPeer, CONFIG};
+use crate::core::store::BundleStore;
+use crate::{CONFIG, DtnPeer};
+use crate::{STORE, peers_add, peers_known};
 use anyhow::bail;
 use bytes::Bytes;
 use lazy_static::lazy_static;
@@ -314,21 +314,19 @@ impl TcpSession {
                             for extension in &data.extensions {
                                 if extension.item_type == TransferExtensionItemType::BundleID
                                     && self.refuse_existing_bundles
-                                {
-                                    if let Ok(bundle_id) =
+                                    && let Ok(bundle_id) =
                                         String::from_utf8(extension.data.to_vec())
-                                    {
-                                        debug!("transfer extension: bundle id: {}", bundle_id);
-                                        if (*STORE.lock()).has_item(&bundle_id) {
-                                            debug!("refusing bundle, already in store");
-                                            TcpClPacket::XferRefuse(XferRefuseData {
-                                                reason: XferRefuseReasonCode::NotAcceptable,
-                                                tid: data.tid,
-                                            })
-                                            .write(&mut self.writer)
-                                            .await?;
-                                            return Ok((receive_state, send_state));
-                                        }
+                                {
+                                    debug!("transfer extension: bundle id: {}", bundle_id);
+                                    if (*STORE.lock()).has_item(&bundle_id) {
+                                        debug!("refusing bundle, already in store");
+                                        TcpClPacket::XferRefuse(XferRefuseData {
+                                            reason: XferRefuseReasonCode::NotAcceptable,
+                                            tid: data.tid,
+                                        })
+                                        .write(&mut self.writer)
+                                        .await?;
+                                        return Ok((receive_state, send_state));
                                     }
                                 }
                             }
@@ -905,9 +903,11 @@ mod tests {
         assert_eq!(segs.len(), num_expected_segs);
 
         assert!(segs[0].flags.contains(XferSegmentFlags::START));
-        assert!(segs[num_expected_segs - 1]
-            .flags
-            .contains(XferSegmentFlags::END));
+        assert!(
+            segs[num_expected_segs - 1]
+                .flags
+                .contains(XferSegmentFlags::END)
+        );
 
         Ok(segs)
     }

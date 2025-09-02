@@ -1,7 +1,7 @@
 use super::BundleStore;
-use crate::core::bundlepack::{self, BundlePack, Constraint};
 use crate::CONFIG;
-use anyhow::{bail, Result};
+use crate::core::bundlepack::{self, BundlePack, Constraint};
+use anyhow::{Result, bail};
 use bp7::{Bundle, EndpointID};
 use d7sneakers::{Constraints, SneakerWorld};
 use log::debug;
@@ -86,7 +86,7 @@ impl BundleStore for SneakersBundleStore {
     fn bundles(&self) -> Vec<BundlePack> {
         let all_ids = self.all_ids();
 
-        let bps = all_ids
+        all_ids
             .iter()
             .map(|id| self.store.fs.get_bundle(id).unwrap().into())
             .map(|mut bp: BundlePack| {
@@ -95,8 +95,7 @@ impl BundleStore for SneakersBundleStore {
                 bp.constraints = c;
                 bp
             })
-            .collect::<Vec<BundlePack>>();
-        bps
+            .collect::<Vec<BundlePack>>()
     }
 
     fn get_bundle(&self, bpid: &str) -> Option<bp7::Bundle> {
