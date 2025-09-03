@@ -123,6 +123,9 @@ pub async fn start_dtnd(cfg: DtnConfig) -> anyhow::Result<()> {
     }
     if clas.is_empty() {
         warn!("No CLAs configured!");
+        if CONFIG.lock().ecla_enable {
+            info!("... but ECLA mode is enabled! (port={})", CONFIG.lock().ecla_tcp_port);
+        }
     }
 
     for s in &CONFIG.lock().statics {

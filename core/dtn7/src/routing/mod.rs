@@ -21,6 +21,7 @@ use sprayandwait::SprayAndWaitRoutingAgent;
 use static_routing::StaticRoutingAgent;
 use std::fmt::Debug;
 use std::fmt::Display;
+use log::debug;
 use tokio::sync::{mpsc, oneshot};
 
 #[derive(Debug)]
@@ -88,6 +89,7 @@ pub fn routing_options() -> Vec<&'static str> {
 }
 
 pub fn new(routingagent: &str) -> RoutingAgentsEnum {
+    debug!("Creating routing agent {}", routingagent);
     match routingagent {
         "flooding" => FloodingRoutingAgent::new().into(),
         "epidemic" => EpidemicRoutingAgent::new().into(),

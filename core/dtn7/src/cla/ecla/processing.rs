@@ -97,7 +97,7 @@ async fn announcer() {
                 .unwrap()
                 .get_mut(value.connector.as_str())
             {
-                debug!("Sending Beacon to {} ({})", addr, value.connector);
+                debug!("Sending Beacon to addr={} ({})", addr, value.connector);
                 connector.send_packet(addr, &Packet::Beacon(generate_beacon()));
             }
         });
@@ -204,10 +204,11 @@ pub fn handle_packet(connector_name: String, addr: String, packet: Packet) {
             // will typically be from the other side of the transmission Protocol that the connected
             // client implements.
             Packet::Beacon(pdp) => {
-                info!("Received beacon: {} {} {}", me.name, pdp.eid, pdp.addr);
 
                 let service_block: ServiceBlock =
                     serde_cbor::from_slice(pdp.service_block.as_slice()).unwrap();
+
+                debug!("Received beacon: ecla={} eid={} addr={} service_block={}", me.name, pdp.eid, pdp.addr, service_block);
 
                 peers_add(DtnPeer::new(
                     pdp.eid.clone(),
@@ -247,7 +248,7 @@ pub fn handle_connect(connector_name: String, from: String) {
 /// When a module disconnects in a connector this function should be called. It will remove the
 /// client from the internal module registry and remove the CLA if the module was already fully registered.
 pub fn handle_disconnect(addr: String) {
-    info!("{} disconnected", &addr);
+    info!("ECLA {} disconnected", &addr);
 
     if let Some(module) = MODULE_MAP.lock().unwrap().get(&addr) {
         if let ModuleState::Active = module.state {
