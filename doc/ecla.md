@@ -20,7 +20,8 @@ The WebSocket is accessible under the same port as defined by ``-w``, ``--web-po
 
 ### TCP
 
-If the TCP Transport Layer is used the packets use a big-endian length delimited codec. More information about the codec can be found here: [tokio_util::codec::length_delimited](https://docs.rs/tokio-util/0.2.0/tokio_util/codec/length_delimited/index.html). This layer will be activated if the tcp port is set via the ``-ecla-tcp 7263`` flag.
+If the TCP Transport Layer is used, the packets use a big-endian length delimited codec. More information about the codec can be found here: [tokio_util::codec::length_delimited](https://docs.rs/tokio-util/0.2.0/tokio_util/codec/length_delimited/index.html).
+This layer will be activated if the tcp port is set via the ``--ecla-tcp 7263`` flag.
 
 ```
 +----------+--------------------------------+
@@ -49,9 +50,14 @@ Normally dntd won't accept static peers for CLAs that are not present at startup
 
 ### Registration
 
-After the initial connect to the ECLA the first packet that must be send is the ``RegisterPacket`` that contains the name of the CLA and if the beacon system should be enabled. If the registration is successful the ECLA responds with a ``RegisteredPacket`` containing basic information about the connected dtnd node. If a error occured a ``ErrorPacket`` will be returned. Reasons for error can be:
+After the initial connect to the ECLA, the first packet that must be sent is the ``Register`` packet that contains the name of the CLA and if the beacon system should be enabled.
+Important detail: The name of the ECLA needs to be the same at all dtn7 instances in order to function.
+If the registration is successful, the ECLA responds with a ``Registered`` packet containing basic information about the connected dtnd node.
+If an error occurred, an ``Error`` packet will be returned.
+Reasons for errors can be:
 - CLA with the same name is already registered
 - Illegal name (e.g. empty)
+- Name too long (maximum is 64 characters)
 
 #### Example Sequence
 
@@ -63,11 +69,13 @@ After the initial connect to the ECLA the first packet that must be send is the 
 
 #### Coming from dtnd
 
-If you receive the packet from the dtnd that means the ECL-Module should send the packet to the address specified in ``dst`` field. If no ``dst`` is specified, for example when the transmission layer doesn't have addressable id's send the packet to all possible targets. In case the transmission layer has addressable id's you must set the ``src`` field to the address of the ECL-Module.
+If you receive a packet from dtnd, that means the ECL-Module should send the packet to the address specified in the ``dst`` field.
+If no ``dst`` is specified, for example, when the transmission layer doesn't have addressable IDs, then send the packet to all possible targets.
+In case the transmission layer has addressable IDs, you must set the ``src`` field to the address of the ECL-Module.
 
 #### Coming from the Transmission Layer
 
-If you receive a packet from the transmission layer you must pass it to the ECLA as it is.
+If you receive a packet from the transmission layer, you must pass it to dtnd's ECLA endpoint as it is.
 
 #### Example Sequence
 
@@ -75,15 +83,17 @@ If you receive a packet from the transmission layer you must pass it to the ECLA
 
 ### Beacon
 
-If the beacon is enabled dtnd will periodically send beacons to the ECL-Module acting as a basic peer discovery. The interval is specified by the ``announcement_interval`` (``-interval``, ``-i`` cli flag).
+If the beacon is enabled, dtnd will periodically send beacons to the ECL-Module, acting as a basic peer discovery.
+The interval is specified by the ``announcement_interval`` (``--interval``, ``-i`` cli flag).
 
 #### Coming from dtnd
 
-If you receive the packet from the dtnd that means the ECL-Module can send the beacon to all reachable devices. If the transmission layer has addressable id's the ECL-Module should set the ``addr`` field to it's own id.
+If you receive the packet from dtnd, that means the ECL-Module can send the beacon to all reachable devices.
+If the transmission layer has addressable IDs, the ECL-Module should set the ``addr`` field to its own id.
 
 #### Coming from the Transmission Layer
 
-If you receive a packet from the transmission layer you can pass it to the ECLA as it is.
+If you receive a packet from the transmission layer, you can pass it to dtnd's ECLA endpoint as it is.
 
 #### Example Sequence
 
