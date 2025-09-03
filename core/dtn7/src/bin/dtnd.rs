@@ -43,7 +43,7 @@ async fn main() -> Result<(), std::io::Error> {
 
     let mut cfg = DtnConfig::new();
     if cfg!(debug_assertions) {
-        // Whenever a threads has a panic, quit the whole program!
+        // Whenever a thread panics, quit the whole program!
         panic::set_hook(Box::new(|p| {
             println!("Panic hook: {}", p);
             process::exit(1);

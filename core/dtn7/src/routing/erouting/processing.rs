@@ -235,7 +235,7 @@ pub async fn sender_for_bundle(bp: &BundlePack) -> (Vec<ClaSenderTask>, bool) {
 
     // Signal to the external router that the timeout was reached and no ResponseSenderForBundle was processed.
     // This is needed in case that the response arrived later than the timeout and the connected router thinks
-    // it successfully send its response. Otherwise there is no way for the router to know if its response has
+    // it successfully sends its response. Otherwise, there is no way for the router to know if its response has
     // failed.
     send_packet(&Packet::Timeout(super::Timeout { bp: bp.clone() }));
 

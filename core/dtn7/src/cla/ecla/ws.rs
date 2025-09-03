@@ -26,7 +26,7 @@ static LAYER_NAME: &str = "Websocket";
 
 /// Handles the websocket connection coming from httpd
 pub async fn handle_connection(ws: WebSocket) {
-    // We can't get a remote address from ws so we create own monotonic increasing id's
+    // We can't get a remote address from ws, so we create our own monotonic increasing IDs
     let id = ID_COUNTER.fetch_add(1, Ordering::SeqCst);
 
     let (tx, mut rx) = mpsc::channel(100);
