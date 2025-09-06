@@ -1,11 +1,11 @@
 use core::fmt;
 use serde::de::{SeqAccess, Visitor};
 use serde::ser::{SerializeSeq, Serializer};
-use serde::{de, Deserialize, Deserializer, Serialize};
+use serde::{Deserialize, Deserializer, Serialize, de};
 use std::{fmt::Debug, time::Duration};
 
 use crate::ipnd::services::ServiceBlock;
-use bp7::{bundle::Block, ByteBuffer, EndpointID};
+use bp7::{ByteBuffer, EndpointID, bundle::Block};
 
 // Draft IPND version is 0x04
 // This implementation uses more enhanced and additional features, also the bundle protocol version
@@ -160,11 +160,20 @@ impl std::fmt::Display for Beacon {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let temp = format!("{:010b}", self.flags);
         let output = if self.beacon_period.is_some() {
-            format!("Version: {:#x}\tFlags: {}\tBeaconSequenceNumber: {}\nEID: {}\nServiceBlock:\n{}\nBeaconPeriod: {:#?}",
-        self.version, temp, self.beacon_sequence_number, self.eid, self.service_block, self.beacon_period.unwrap())
+            format!(
+                "Version: {:#x}\tFlags: {}\tBeaconSequenceNumber: {}\nEID: {}\nServiceBlock:\n{}\nBeaconPeriod: {:#?}",
+                self.version,
+                temp,
+                self.beacon_sequence_number,
+                self.eid,
+                self.service_block,
+                self.beacon_period.unwrap()
+            )
         } else {
-            format!("Version: {:#x}\tFlags: {}\tBeaconSequenceNumber: {}\nEID: {}\nServiceBlock:\n{}\nBeaconPeriod: None",
-        self.version, temp, self.beacon_sequence_number, self.eid, self.service_block)
+            format!(
+                "Version: {:#x}\tFlags: {}\tBeaconSequenceNumber: {}\nEID: {}\nServiceBlock:\n{}\nBeaconPeriod: None",
+                self.version, temp, self.beacon_sequence_number, self.eid, self.service_block
+            )
         };
 
         write!(f, "{}", output)

@@ -1,10 +1,10 @@
-use anyhow::{bail, Result};
+use anyhow::{Result, bail};
 use clap::Parser;
 use dtn7_plus::client::{DtnClient, DtnWsConnection};
 use dtn7_plus::client::{Message, WsRecvData, WsSendData};
 use humantime::parse_duration;
-use rand::distr::Alphanumeric;
 use rand::Rng;
+use rand::distr::Alphanumeric;
 use std::net::TcpStream;
 use std::str::from_utf8;
 use std::time::Duration;

@@ -4,7 +4,7 @@ use super::RoutingAgent;
 use crate::cla::ClaSenderTask;
 use crate::core::bundlepack::BundlePack;
 use crate::routing::RoutingCmd;
-use crate::{RoutingNotifcation, CONFIG, PEERS};
+use crate::{CONFIG, PEERS, RoutingNotifcation};
 use async_trait::async_trait;
 use log::{debug, info, warn};
 use tokio::sync::mpsc;

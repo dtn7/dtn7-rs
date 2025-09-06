@@ -1,13 +1,13 @@
 use std::convert::TryFrom;
 
 use super::{httpd, janitor};
-use crate::cla::ecla::processing::start_ecla;
 use crate::cla::ConvergenceLayerAgent;
+use crate::cla::ecla::processing::start_ecla;
 use crate::core::application_agent::SimpleApplicationAgent;
 use crate::dtnconfig::DtnConfig;
 use crate::ipnd::neighbour_discovery;
-use crate::{cla_add, peers_add, STATS};
 use crate::{CLAS, CONFIG, DTNCORE, STORE};
+use crate::{STATS, cla_add, peers_add};
 use bp7::EndpointID;
 use log::{error, info, warn};
 

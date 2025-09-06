@@ -1,8 +1,8 @@
 use anyhow::Result;
-use clap::{crate_authors, crate_version, Arg, Command};
-use clap::{value_parser, ArgAction};
-use dtn7::client::ecla::{ws_client, Command::SendPacket, Packet};
-use futures_util::{future, pin_mut, TryStreamExt};
+use clap::{Arg, Command, crate_authors, crate_version};
+use clap::{ArgAction, value_parser};
+use dtn7::client::ecla::{Command::SendPacket, Packet, ws_client};
+use futures_util::{TryStreamExt, future, pin_mut};
 use lazy_static::lazy_static;
 use log::{debug, error, info};
 use parking_lot::Mutex;

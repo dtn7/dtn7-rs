@@ -1,24 +1,24 @@
+use crate::CONFIG;
+use crate::DTNCORE;
 use crate::core::bundlepack::*;
 use crate::core::*;
 use crate::routing::RoutingNotifcation;
 use crate::store_push_bundle;
 use crate::store_remove;
-use crate::CONFIG;
-use crate::DTNCORE;
-use crate::{is_local_node_id, STATS};
+use crate::{STATS, is_local_node_id};
 use crate::{routing_notify, routing_sender_for_bundle, store_add_bundle_if_unknown};
 
+use bp7::BUNDLE_AGE_BLOCK;
+use bp7::CanonicalData;
 use bp7::administrative_record::*;
 use bp7::bundle::*;
 use bp7::flags::*;
-use bp7::CanonicalData;
-use bp7::BUNDLE_AGE_BLOCK;
 
-use anyhow::{bail, Result};
+use anyhow::{Result, bail};
 use log::trace;
 use log::{debug, info, warn};
-use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::SystemTime;
 use std::time::UNIX_EPOCH;
 use tokio::sync::mpsc::channel;
@@ -402,7 +402,10 @@ pub async fn forward(mut bp: BundlePack) -> Result<()> {
                         let peers_before = (*PEERS.lock()).len();
                         (*PEERS.lock()).remove(&peer);
                         let peers_after = (*PEERS.lock()).len();
-                        debug!("Removing peer {} from list of neighbors due to too many failed transmissions ({}/{})", peer, peers_before, peers_after);
+                        debug!(
+                            "Removing peer {} from list of neighbors due to too many failed transmissions ({}/{})",
+                            peer, peers_before, peers_after
+                        );
                     }
                     // TODO: send status report?
                     // if (*CONFIG.lock()).generate_service_reports {
@@ -658,7 +661,10 @@ async fn send_status_report(
 ) {
     // Don't respond to other administrative records or anonymous bundles.
     if bp.administrative || bp.source == EndpointID::none() {
-        warn!("status report sending denied for dtn:none sources/administrative bundles themselves: {}", bp.id());
+        warn!(
+            "status report sending denied for dtn:none sources/administrative bundles themselves: {}",
+            bp.id()
+        );
         return;
     }
     let bndl = store_get_bundle(bp.id());

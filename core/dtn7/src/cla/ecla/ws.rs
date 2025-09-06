@@ -1,10 +1,10 @@
 use super::Connector;
-use crate::cla::ecla::processing::{handle_connect, handle_disconnect, handle_packet};
 use crate::cla::ecla::Packet;
+use crate::cla::ecla::processing::{handle_connect, handle_disconnect, handle_packet};
 use crate::lazy_static;
 use async_trait::async_trait;
 use axum::extract::ws::{Message, WebSocket};
-use futures_util::{future, stream::TryStreamExt, SinkExt, StreamExt};
+use futures_util::{SinkExt, StreamExt, future, stream::TryStreamExt};
 use log::{debug, error, info, trace, warn};
 use serde_json::Result;
 use std::collections::HashMap;

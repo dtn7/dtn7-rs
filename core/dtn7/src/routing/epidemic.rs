@@ -1,6 +1,6 @@
 use super::RoutingAgent;
-use crate::routing::{RoutingCmd, RoutingNotifcation};
 use crate::PEERS;
+use crate::routing::{RoutingCmd, RoutingNotifcation};
 use async_trait::async_trait;
 use log::{debug, trace};
 use std::collections::{HashMap, HashSet};

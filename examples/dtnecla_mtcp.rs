@@ -1,10 +1,10 @@
 use anyhow::Result;
 use bp7::Bundle;
-use clap::{crate_authors, crate_version, value_parser, Arg, ArgAction, Command as ClapCommand};
-use dtn7::cla::mtcp::{MPDUCodec, MPDU};
-use dtn7::client::ecla::{ws_client, Command, ForwardData, Packet};
+use clap::{Arg, ArgAction, Command as ClapCommand, crate_authors, crate_version, value_parser};
+use dtn7::cla::mtcp::{MPDU, MPDUCodec};
+use dtn7::client::ecla::{Command, ForwardData, Packet, ws_client};
 use futures_util::future::Either;
-use futures_util::{future, pin_mut, StreamExt};
+use futures_util::{StreamExt, future, pin_mut};
 use lazy_static::lazy_static;
 use log::{debug, error, info};
 use parking_lot::Mutex;

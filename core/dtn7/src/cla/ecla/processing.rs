@@ -7,10 +7,10 @@ use crate::cla::{ConvergenceLayerAgent, TransferResult};
 use crate::core::PeerType;
 use crate::ipnd::services::ServiceBlock;
 use crate::routing::RoutingAgent;
-use crate::{cla_add, cla_remove, PeerAddress, RoutingCmd, CONFIG};
-use crate::{cla_names, CLAS, DTNCORE};
-use crate::{lazy_static, RoutingNotifcation};
-use crate::{peers_add, DtnPeer};
+use crate::{CLAS, DTNCORE, cla_names};
+use crate::{CONFIG, PeerAddress, RoutingCmd, cla_add, cla_remove};
+use crate::{DtnPeer, peers_add};
+use crate::{RoutingNotifcation, lazy_static};
 use bp7::{Bundle, ByteBuffer};
 use log::{debug, error, info};
 use serde::__private::TryFrom;
@@ -264,9 +264,9 @@ pub fn handle_disconnect(addr: String) {
 /// Will schedule a submission to a module by name
 pub fn scheduled_submission(name: String, dest: String, ready: &ByteBuffer) -> TransferResult {
     debug!(
-            "Scheduled submission External Convergence Layer for Destination with Module '{}' and Target '{}'",
-            name, dest
-        );
+        "Scheduled submission External Convergence Layer for Destination with Module '{}' and Target '{}'",
+        name, dest
+    );
 
     let mut was_sent = TransferResult::Failure;
     let mut connectors_map = CONNECTORS_MAP.lock().unwrap();

@@ -1,3 +1,8 @@
+use crate::CONFIG;
+use crate::DTNCORE;
+use crate::PEERS;
+use crate::STATS;
+use crate::STORE;
 use crate::core::application_agent::ApplicationAgent;
 use crate::core::application_agent::SimpleApplicationAgent;
 use crate::core::bundlepack::Constraint;
@@ -12,34 +17,29 @@ use crate::peers_remove;
 use crate::routing_cmd;
 use crate::routing_get_data;
 use crate::store_remove;
-use crate::CONFIG;
-use crate::DTNCORE;
-use crate::PEERS;
-use crate::STATS;
-use crate::STORE;
-use crate::{cla_names, peers_count};
 use crate::{DtnConfig, PeerAddress};
+use crate::{cla_names, peers_count};
 use anyhow::Result;
-use axum::extract::ws::WebSocketUpgrade;
 use axum::extract::DefaultBodyLimit;
 use axum::extract::FromRequestParts;
 use axum::extract::Query;
+use axum::extract::ws::WebSocketUpgrade;
 use axum::response::Html;
 use axum::{
+    Router,
     extract::{self, connect_info::ConnectInfo},
     middleware::from_extractor,
     routing::{get, post},
-    Router,
 };
+use bp7::EndpointID;
 use bp7::dtntime::CreationTimestamp;
 use bp7::flags::BlockControlFlags;
 use bp7::flags::BundleControlFlags;
 use bp7::helpers::rnd_bundle;
-use bp7::EndpointID;
-use http::request::Parts;
 use http::StatusCode;
-use humansize::format_size;
+use http::request::Parts;
 use humansize::DECIMAL;
+use humansize::format_size;
 use log::{debug, info, trace, warn};
 use serde::Serialize;
 use std::collections::HashMap;

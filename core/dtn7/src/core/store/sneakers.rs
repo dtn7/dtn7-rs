@@ -1,7 +1,7 @@
 use super::BundleStore;
-use crate::core::bundlepack::{self, BundlePack, Constraint};
 use crate::CONFIG;
-use anyhow::{bail, Result};
+use crate::core::bundlepack::{self, BundlePack, Constraint};
+use anyhow::{Result, bail};
 use bp7::{Bundle, EndpointID};
 use d7sneakers::{Constraints, SneakerWorld};
 use log::debug;

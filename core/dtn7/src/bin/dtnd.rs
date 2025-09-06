@@ -1,10 +1,10 @@
 #![recursion_limit = "256"]
 
-use clap::{crate_authors, crate_version, value_parser, Arg, ArgAction, Command};
+use clap::{Arg, ArgAction, Command, crate_authors, crate_version, value_parser};
+use dtn7::DtnConfig;
 use dtn7::cla::CLAsAvailable;
 use dtn7::core::helpers::is_valid_node_name;
 use dtn7::dtnd::daemon::*;
-use dtn7::DtnConfig;
 use log::info;
 use std::collections::HashMap;
 use std::panic;
@@ -23,19 +23,21 @@ async fn main() -> Result<(), std::io::Error> {
         use std::time::Duration;
 
         // Create a background thread which checks for deadlocks every 10s
-        thread::spawn(move || loop {
-            thread::sleep(Duration::from_secs(10));
-            let deadlocks = deadlock::check_deadlock();
-            if deadlocks.is_empty() {
-                continue;
-            }
+        thread::spawn(move || {
+            loop {
+                thread::sleep(Duration::from_secs(10));
+                let deadlocks = deadlock::check_deadlock();
+                if deadlocks.is_empty() {
+                    continue;
+                }
 
-            println!("{} deadlocks detected", deadlocks.len());
-            for (i, threads) in deadlocks.iter().enumerate() {
-                println!("Deadlock #{}", i);
-                for t in threads {
-                    println!("Thread Id {:#?}", t.thread_id());
-                    println!("{:#?}", t.backtrace());
+                println!("{} deadlocks detected", deadlocks.len());
+                for (i, threads) in deadlocks.iter().enumerate() {
+                    println!("Deadlock #{}", i);
+                    for t in threads {
+                        println!("Thread Id {:#?}", t.thread_id());
+                        println!("{:#?}", t.backtrace());
+                    }
                 }
             }
         });

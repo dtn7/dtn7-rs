@@ -1,10 +1,10 @@
-use crate::cla::ConvergenceLayerAgent;
 use crate::CONFIG;
+use crate::cla::ConvergenceLayerAgent;
 use async_trait::async_trait;
 use bp7::ByteBuffer;
 use dtn7_codegen::cla;
 use log::{debug, error};
-use reqwest::{header, Client};
+use reqwest::{Client, header};
 use std::{
     collections::HashMap,
     net::{IpAddr, SocketAddr},

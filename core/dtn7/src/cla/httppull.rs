@@ -2,7 +2,7 @@ use std::collections::HashMap;
 use std::convert::TryFrom;
 
 use crate::core::helpers::get_complete_digest;
-use crate::{store_has_item, CONFIG};
+use crate::{CONFIG, store_has_item};
 
 use super::TransferResult;
 use super::{ConvergenceLayerAgent, HelpStr};

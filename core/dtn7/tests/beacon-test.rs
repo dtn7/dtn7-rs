@@ -1,9 +1,9 @@
-use bp7::eid::IpnAddress;
 use bp7::EndpointID;
+use bp7::eid::IpnAddress;
+use dtn7::CONFIG;
 use dtn7::core::*;
 use dtn7::get_sequence;
 use dtn7::ipnd::{beacon::*, services::ServiceBlock};
-use dtn7::CONFIG;
 use rand::Rng;
 use std::{convert::TryFrom, time::SystemTime};
 use std::{thread, time::Duration};
