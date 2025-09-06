@@ -38,7 +38,7 @@ fn send_ping(
         lifetime: 3600 * 24 * 1000,
         data: payload.as_bytes().to_vec(),
     };
-    wscon.write_binary(&serde_cbor::to_vec(&ping)?)
+    wscon.write_binary(serde_cbor::to_vec(&ping)?)
 }
 
 /// A simple Bundle Protocol 7 Ping Tool for Delay Tolerant Networking

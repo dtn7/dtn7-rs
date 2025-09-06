@@ -108,7 +108,7 @@ fn main() -> Result<()> {
                     data: recv_data.data,
                 };
                 wscon
-                    .write_binary(&serde_cbor::to_vec(&echo_response)?)
+                    .write_binary(serde_cbor::to_vec(&echo_response)?)
                     .expect("error sending echo response");
                 if args.verbose {
                     println!("Processing bundle took {:?}", now.elapsed());

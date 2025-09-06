@@ -108,8 +108,8 @@ impl Client {
             while let Some(command) = cmd_receiver.recv().await {
                 match command {
                     Command::SendPacket(packet) => {
-                        let data = serde_json::to_string(&packet);
-                        if write.send(Message::Text(data.unwrap())).await.is_err() {
+                        let data = serde_json::to_string(&packet).unwrap();
+                        if write.send(Message::Text(data.into())).await.is_err() {
                             error!("Error while sending packet");
                         }
                     }

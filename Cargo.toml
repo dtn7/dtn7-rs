@@ -12,3 +12,7 @@ members = [
     # internal
     "examples",
 ]
+
+[patch.crates-io]
+# Point to master since tungstenite 0.21.x and 0.27.x are incompatible.
+dtn7-plus = { git = "https://github.com/dtn7/dtn7-plus-rs.git", branch = "master" }

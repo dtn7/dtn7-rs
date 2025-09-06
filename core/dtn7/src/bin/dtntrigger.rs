@@ -92,11 +92,9 @@ fn main() -> anyhow::Result<()> {
     );
 
     client.register_application_endpoint(&args.endpoint)?;
-    let config = WebSocketConfig {
-        max_message_size: Some(1024 * 1024 * 128), // 128 MB
-        max_frame_size: Some(1024 * 1024 * 128),   // 128 MB
-        ..Default::default()
-    };
+    let mut config = WebSocketConfig::default();
+    config.max_message_size = Some(128 * 1024 * 1024); // 128 MiB
+    config.max_frame_size = Some(128 * 1024 * 1024); // 128 MiB
     let mut wscon = client.ws_with_config(config)?;
 
     wscon.write_text("/bundle")?;
@@ -124,7 +122,7 @@ fn main() -> anyhow::Result<()> {
             }
             Message::Binary(bin) => {
                 let bndl: Bundle =
-                    Bundle::try_from(bin).expect("Error decoding bundle from server");
+                    Bundle::try_from(bin.to_vec()).expect("Error decoding bundle from server");
                 if bndl.is_administrative_record() {
                     eprintln!("[!] Handling of administrative records not yet implemented!");
                 } else if let Some(data) = bndl.payload() {
