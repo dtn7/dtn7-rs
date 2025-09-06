@@ -45,6 +45,7 @@ use std::collections::HashMap;
 use std::convert::{TryFrom, TryInto};
 use std::fmt::Write;
 use std::net::SocketAddr;
+use std::net::TcpListener;
 use std::time::Instant;
 use tinytemplate::TinyTemplate;
 use tower_http::cors::Any;
@@ -829,14 +830,17 @@ pub async fn spawn_httpd() -> Result<()> {
     let v4 = CONFIG.lock().v4;
     let v6 = CONFIG.lock().v6;
     //debug!("starting webserver");
-    let server = if v4 && !v6 {
-        hyper::Server::bind(&format!("0.0.0.0:{}", port).parse()?)
+    let addr = if v4 && !v6 {
+        format!("0.0.0.0:{port}")
     } else if !v4 && v6 {
-        hyper::Server::bind(&format!("[::1]:{}", port).parse()?)
+        format!("[::1]:{port}")
     } else {
-        hyper::Server::bind(&format!("[::]:{}", port).parse()?)
-    }
-    .serve(app.into_make_service_with_connect_info::<SocketAddr>());
-    server.await?;
+        format!("[::]:{port}")
+    };
+
+    let listener = TcpListener::bind(&addr)?;
+    axum::Server::from_tcp(listener)?
+        .serve(app.into_make_service_with_connect_info::<SocketAddr>())
+        .await?;
     Ok(())
 }
