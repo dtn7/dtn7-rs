@@ -603,7 +603,6 @@ dependencies = [
  "http 0.2.12",
  "humansize",
  "humantime",
- "hyper",
  "lazy_static",
  "log",
  "mdns-sd",

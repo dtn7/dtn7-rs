@@ -830,11 +830,11 @@ pub async fn spawn_httpd() -> Result<()> {
     let v6 = CONFIG.lock().v6;
     //debug!("starting webserver");
     let server = if v4 && !v6 {
-        hyper::Server::bind(&format!("0.0.0.0:{}", port).parse()?)
+        axum::Server::bind(&format!("0.0.0.0:{}", port).parse()?)
     } else if !v4 && v6 {
-        hyper::Server::bind(&format!("[::1]:{}", port).parse()?)
+        axum::Server::bind(&format!("[::1]:{}", port).parse()?)
     } else {
-        hyper::Server::bind(&format!("[::]:{}", port).parse()?)
+        axum::Server::bind(&format!("[::]:{}", port).parse()?)
     }
     .serve(app.into_make_service_with_connect_info::<SocketAddr>());
     server.await?;
