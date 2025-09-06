@@ -30,8 +30,12 @@ struct Args {
     #[clap(short, long)]
     receiver: String,
 
-    /// File to send, if omitted data is read from stdin till EOF
-    #[clap(index = 1)]
+    /// Message via parameter instead if stdin
+    #[clap(short, long, conflicts_with = "infile")]
+    message: Option<String>,
+
+    /// File to send, if omitted, data is read from stdin till EOF
+    #[clap(index = 1, conflicts_with = "message")]
     infile: Option<String>,
 
     /// Don't actually send packet, just dump the encoded one.
@@ -78,9 +82,13 @@ fn main() {
         f.read_to_end(&mut buffer)
             .expect("Error reading from file.");
     } else {
-        io::stdin()
-            .read_to_end(&mut buffer)
-            .expect("Error reading from stdin.");
+        if let Some(message) = args.message {
+            buffer = message.into_bytes();
+        } else {
+            io::stdin()
+                .read_to_end(&mut buffer)
+                .expect("Error reading from stdin.");
+        }
     }
 
     if args.verbose {
