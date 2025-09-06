@@ -139,7 +139,8 @@ async fn main() -> Result<()> {
         .get_matches();
 
     if matches.get_flag("debug") {
-        std::env::set_var("RUST_LOG", "debug");
+        // is safe since main is single-threaded
+        unsafe { std::env::set_var("RUST_LOG", "debug") };
         pretty_env_logger::init_timed();
     }
 
