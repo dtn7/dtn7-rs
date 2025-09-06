@@ -3,8 +3,8 @@ use clap::Parser;
 use dtn7_plus::client::{DtnClient, DtnWsConnection};
 use dtn7_plus::client::{Message, WsRecvData, WsSendData};
 use humantime::parse_duration;
-use rand::distributions::Alphanumeric;
-use rand::{thread_rng, Rng};
+use rand::distr::Alphanumeric;
+use rand::Rng;
 use std::net::TcpStream;
 use std::str::from_utf8;
 use std::time::Duration;
@@ -12,7 +12,7 @@ use std::{convert::TryInto, io::Write};
 use std::{thread, time};
 
 fn get_random_payload(length: usize) -> String {
-    thread_rng()
+    rand::rng()
         .sample_iter(&Alphanumeric)
         .take(length)
         .map(char::from)
