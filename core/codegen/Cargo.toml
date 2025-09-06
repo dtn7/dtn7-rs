@@ -6,7 +6,7 @@ authors = ["Lars Baumgaertner <baumgaertner@cs.tu-darmstadt.de>"]
 description = "codegen helpers for dtn7-rs"
 license = "MIT OR Apache-2.0"
 categories = ["command-line-utilities", "network-programming"]
-repository    = "https://github.com/dtn7/dtn7-rs"
+repository = "https://github.com/dtn7/dtn7-rs"
 keywords = ["peer2peer", "dtn"]
 exclude = [".vscode/", ".travis.yml"]
 readme = "README.md"
@@ -15,6 +15,6 @@ readme = "README.md"
 proc-macro = true
 
 [dependencies]
-syn = {version="2.0.51",features=["full","fold"]}
-quote = "1.0.8"
-lazy_static = "1.4.0"
+syn = { version = "2.0.106", features = ["full", "fold"] }
+quote = "1.0.40"
+lazy_static = "1.5.0"

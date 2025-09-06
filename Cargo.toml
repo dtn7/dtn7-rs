@@ -1,6 +1,6 @@
 [profile.release]
 #debug = true
-strip = true  # Automatically strip symbols from the binary.
+strip = true # Automatically strip symbols from the binary.
 
 [workspace]
 resolver = "2"
@@ -10,5 +10,5 @@ members = [
     "core/dtn7",
 
     # internal
-    "examples"
+    "examples",
 ]
