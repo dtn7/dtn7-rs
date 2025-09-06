@@ -84,10 +84,10 @@ where
 
             if let std::net::IpAddr::V6(ipv6) = ip {
                 // workaround for bug in std when handling IPv4 in IPv6 addresses
-                if let Some(ipv4) = ipv6.to_ipv4() {
-                    if ipv4.is_loopback() {
-                        return Ok(Self);
-                    }
+                if let Some(ipv4) = ipv6.to_ipv4()
+                    && ipv4.is_loopback()
+                {
+                    return Ok(Self);
                 }
             }
         }

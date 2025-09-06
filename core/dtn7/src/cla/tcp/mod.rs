@@ -314,21 +314,19 @@ impl TcpSession {
                             for extension in &data.extensions {
                                 if extension.item_type == TransferExtensionItemType::BundleID
                                     && self.refuse_existing_bundles
-                                {
-                                    if let Ok(bundle_id) =
+                                    && let Ok(bundle_id) =
                                         String::from_utf8(extension.data.to_vec())
-                                    {
-                                        debug!("transfer extension: bundle id: {}", bundle_id);
-                                        if (*STORE.lock()).has_item(&bundle_id) {
-                                            debug!("refusing bundle, already in store");
-                                            TcpClPacket::XferRefuse(XferRefuseData {
-                                                reason: XferRefuseReasonCode::NotAcceptable,
-                                                tid: data.tid,
-                                            })
-                                            .write(&mut self.writer)
-                                            .await?;
-                                            return Ok((receive_state, send_state));
-                                        }
+                                {
+                                    debug!("transfer extension: bundle id: {}", bundle_id);
+                                    if (*STORE.lock()).has_item(&bundle_id) {
+                                        debug!("refusing bundle, already in store");
+                                        TcpClPacket::XferRefuse(XferRefuseData {
+                                            reason: XferRefuseReasonCode::NotAcceptable,
+                                            tid: data.tid,
+                                        })
+                                        .write(&mut self.writer)
+                                        .await?;
+                                        return Ok((receive_state, send_state));
                                     }
                                 }
                             }

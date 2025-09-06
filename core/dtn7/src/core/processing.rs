@@ -214,23 +214,23 @@ pub async fn dispatch(bp: BundlePack) -> Result<()> {
 
 async fn handle_hop_count_block(mut bundle: Bundle) -> Result<Bundle> {
     let bid = bundle.id();
-    if let Some(hc) = bundle.extension_block_by_type_mut(bp7::canonical::HOP_COUNT_BLOCK) {
-        if hc.hop_count_increase() {
-            let (hc_limit, hc_count) = hc
-                .hop_count_get()
-                .expect("hop count data missing from hop count block");
-            debug!(
-                "Bundle contains an hop count block: {} {} {}",
+    if let Some(hc) = bundle.extension_block_by_type_mut(bp7::canonical::HOP_COUNT_BLOCK)
+        && hc.hop_count_increase()
+    {
+        let (hc_limit, hc_count) = hc
+            .hop_count_get()
+            .expect("hop count data missing from hop count block");
+        debug!(
+            "Bundle contains an hop count block: {} {} {}",
+            &bid, hc_limit, hc_count
+        );
+        if hc.hop_count_exceeded() {
+            warn!(
+                "Bundle contains an exceeded hop count block: {} {} {}",
                 &bid, hc_limit, hc_count
             );
-            if hc.hop_count_exceeded() {
-                warn!(
-                    "Bundle contains an exceeded hop count block: {} {} {}",
-                    &bid, hc_limit, hc_count
-                );
-                delete(bundle.into(), HOP_LIMIT_EXCEEDED).await?;
-                bail!("hop count exceeded");
-            }
+            delete(bundle.into(), HOP_LIMIT_EXCEEDED).await?;
+            bail!("hop count exceeded");
         }
     }
     Ok(bundle)
@@ -271,12 +271,12 @@ pub fn update_bundle_age(bundle: &mut Bundle) -> Option<u64> {
     None
 }
 async fn handle_bundle_age_block(mut bundle: Bundle) -> Result<Bundle> {
-    if let Some(age) = update_bundle_age(&mut bundle) {
-        if std::time::Duration::from_micros(age) >= bundle.primary.lifetime {
-            warn!("Dropping bundle, age exceeds lifetime: {}", bundle.id());
-            delete(bundle.into(), LIFETIME_EXPIRED).await?;
-            bail!("age block lifetime exceeded");
-        }
+    if let Some(age) = update_bundle_age(&mut bundle)
+        && std::time::Duration::from_micros(age) >= bundle.primary.lifetime
+    {
+        warn!("Dropping bundle, age exceeds lifetime: {}", bundle.id());
+        delete(bundle.into(), LIFETIME_EXPIRED).await?;
+        bail!("age block lifetime exceeded");
     }
     Ok(bundle)
 }

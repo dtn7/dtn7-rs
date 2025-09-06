@@ -379,10 +379,10 @@ Tag 255 takes 5 arguments and is interpreted as address. Usage: -S 255:'Samplest
         }
     }
 
-    if let Some(r) = matches.get_one::<String>("routing") {
-        if dtn7::routing::routing_algorithms().contains(&r.as_str()) {
-            cfg.routing = r.into();
-        }
+    if let Some(r) = matches.get_one::<String>("routing")
+        && dtn7::routing::routing_algorithms().contains(&r.as_str())
+    {
+        cfg.routing = r.into();
     }
     if let Some(r_opts) = matches.get_many::<String>("routing_options") {
         for r_opt in r_opts {
@@ -409,10 +409,10 @@ Tag 255 takes 5 arguments and is interpreted as address. Usage: -S 255:'Samplest
         //cfg.routing_options = r_opts.map(|s| s.to_string()).collect();
     }
 
-    if let Some(db) = matches.get_one::<String>("db") {
-        if dtn7::core::store::bundle_stores().contains(&db.as_str()) {
-            cfg.db = db.into();
-        }
+    if let Some(db) = matches.get_one::<String>("db")
+        && dtn7::core::store::bundle_stores().contains(&db.as_str())
+    {
+        cfg.db = db.into();
     }
 
     if let Some(clas) = matches.get_many::<String>("cla") {

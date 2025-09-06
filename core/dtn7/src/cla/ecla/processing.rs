@@ -252,10 +252,10 @@ pub fn handle_connect(connector_name: String, from: String) {
 pub fn handle_disconnect(addr: String) {
     info!("ECLA {} disconnected", &addr);
 
-    if let Some(module) = MODULE_MAP.lock().unwrap().get(&addr) {
-        if let ModuleState::Active = module.state {
-            cla_remove(module.name.clone());
-        }
+    if let Some(module) = MODULE_MAP.lock().unwrap().get(&addr)
+        && let ModuleState::Active = module.state
+    {
+        cla_remove(module.name.clone());
     }
 
     MODULE_MAP.lock().unwrap().remove(&addr);
@@ -272,19 +272,19 @@ pub fn scheduled_submission(name: String, dest: String, ready: &ByteBuffer) -> T
     let mut connectors_map = CONNECTORS_MAP.lock().unwrap();
     let module_map = MODULE_MAP.lock().unwrap();
     module_map.iter().for_each(|(addr, value)| {
-        if value.name == name {
-            if let Ok(bndl) = Bundle::try_from(ready.as_slice()) {
-                let packet: Packet = Packet::ForwardData(ForwardData {
-                    dst: dest.to_string(),
-                    src: "".to_string(), // Leave blank for now and let the Module set it to a protocol-specific address on its side
-                    bundle_id: bndl.id(),
-                    data: ready.to_vec(),
-                });
+        if value.name == name
+            && let Ok(bndl) = Bundle::try_from(ready.as_slice())
+        {
+            let packet: Packet = Packet::ForwardData(ForwardData {
+                dst: dest.to_string(),
+                src: "".to_string(), // Leave blank for now and let the Module set it to a protocol-specific address on its side
+                bundle_id: bndl.id(),
+                data: ready.to_vec(),
+            });
 
-                if let Some(connector) = connectors_map.get_mut(value.connector.as_str()) {
-                    connector.send_packet(addr, &packet);
-                    was_sent = TransferResult::Successful;
-                }
+            if let Some(connector) = connectors_map.get_mut(value.connector.as_str()) {
+                connector.send_packet(addr, &packet);
+                was_sent = TransferResult::Successful;
             }
         }
     });

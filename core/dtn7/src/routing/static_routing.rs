@@ -105,15 +105,15 @@ async fn handle_routing_cmd(mut rx: mpsc::Receiver<RoutingCmd>) {
     let mut route_entries = vec![];
     let settings = CONFIG.lock().routing_settings.clone();
 
-    if let Some(static_settings) = settings.get("static") {
-        if let Some(routes_file) = static_settings.get("routes") {
-            // open file and read routes line by line
-            let routes = std::fs::read_to_string(routes_file).unwrap();
-            for line in routes.lines() {
-                if let Some(entry) = parse_route_from_str(line) {
-                    debug!("Adding static route: {}", entry);
-                    route_entries.push(entry);
-                }
+    if let Some(static_settings) = settings.get("static")
+        && let Some(routes_file) = static_settings.get("routes")
+    {
+        // open file and read routes line by line
+        let routes = std::fs::read_to_string(routes_file).unwrap();
+        for line in routes.lines() {
+            if let Some(entry) = parse_route_from_str(line) {
+                debug!("Adding static route: {}", entry);
+                route_entries.push(entry);
             }
         }
     }
@@ -136,12 +136,12 @@ async fn handle_routing_cmd(mut rx: mpsc::Receiver<RoutingCmd>) {
                             route, route.via
                         );
                         for (_, p) in (*PEERS.lock()).iter() {
-                            if p.eid.to_string() == route.via {
-                                if let Some(cla) = p.first_cla() {
-                                    clas.push(cla);
-                                    delete_afterwards = !bp.destination.is_non_singleton();
-                                    break 'route_loop;
-                                }
+                            if p.eid.to_string() == route.via
+                                && let Some(cla) = p.first_cla()
+                            {
+                                clas.push(cla);
+                                delete_afterwards = !bp.destination.is_non_singleton();
+                                break 'route_loop;
                             }
                         }
                         debug!("No valid peer found for route {}", route)
@@ -158,20 +158,20 @@ async fn handle_routing_cmd(mut rx: mpsc::Receiver<RoutingCmd>) {
             super::RoutingCmd::Command(cmd) => {
                 if cmd == "reload" {
                     let settings = CONFIG.lock().routing_settings.clone();
-                    if let Some(static_settings) = settings.get("static") {
-                        if let Some(routes_file) = static_settings.get("routes") {
-                            info!("Reloading static routes from {}", routes_file);
-                            // open file and read routes line by line
-                            let routes = std::fs::read_to_string(routes_file).unwrap();
-                            let mut route_entries = vec![];
-                            for line in routes.lines() {
-                                if let Some(entry) = parse_route_from_str(line) {
-                                    debug!("Adding static route: {}", entry);
-                                    route_entries.push(entry);
-                                }
+                    if let Some(static_settings) = settings.get("static")
+                        && let Some(routes_file) = static_settings.get("routes")
+                    {
+                        info!("Reloading static routes from {}", routes_file);
+                        // open file and read routes line by line
+                        let routes = std::fs::read_to_string(routes_file).unwrap();
+                        let mut route_entries = vec![];
+                        for line in routes.lines() {
+                            if let Some(entry) = parse_route_from_str(line) {
+                                debug!("Adding static route: {}", entry);
+                                route_entries.push(entry);
                             }
-                            core.routes = route_entries;
                         }
+                        core.routes = route_entries;
                     }
                 } else {
                     debug!("Unknown command: {}", cmd);

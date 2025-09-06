@@ -90,10 +90,10 @@ impl Client {
                 let data = message.unwrap().into_text();
 
                 let packet: Result<Packet> = serde_json::from_str(data.unwrap().as_str());
-                if let Ok(packet) = packet {
-                    if let Err(err) = self.packet_out.send(packet).await {
-                        error!("Error while sending packet to channel: {}", err);
-                    }
+                if let Ok(packet) = packet
+                    && let Err(err) = self.packet_out.send(packet).await
+                {
+                    error!("Error while sending packet to channel: {}", err);
                 }
             })
         };
