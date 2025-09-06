@@ -364,7 +364,8 @@ Tag 255 takes 5 arguments and is interpreted as address. Usage: -S 255:'Samplest
         cfg.discovery_listen_port = *i;
     }
     if let Some(transport) = matches.get_one::<String>("discoverytransport") {
-        cfg.discovery_transport = transport.parse()
+        cfg.discovery_transport = transport
+            .parse()
             .expect("Invalid discovery transport! Use: udp-multicast, mdns, or both");
     }
     if let Some(i) = matches.get_one::<u16>("webport") {

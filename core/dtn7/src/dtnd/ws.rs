@@ -10,7 +10,7 @@ use bp7::flags::BundleControlFlags;
 use bp7::{Bundle, CreationTimestamp, EndpointID};
 use dtn7_plus::client::{WsRecvData, WsSendData};
 use futures::{sink::SinkExt, stream::StreamExt};
-use log::{debug, warn, trace};
+use log::{debug, trace, warn};
 use std::collections::HashSet;
 use std::sync::Arc;
 use std::{

@@ -39,7 +39,7 @@ use bp7::EndpointID;
 use http::StatusCode;
 use humansize::format_size;
 use humansize::DECIMAL;
-use log::{trace, debug, info, warn};
+use log::{debug, info, trace, warn};
 use serde::Serialize;
 use std::collections::HashMap;
 use std::convert::{TryFrom, TryInto};
