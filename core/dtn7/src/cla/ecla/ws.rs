@@ -128,8 +128,8 @@ impl Connector for WebsocketConnector {
 
         let peer_map = PEER_MAP.lock().unwrap();
         if let Some(target) = peer_map.get(dest) {
-            let data = serde_json::to_string(&packet);
-            return target.tx.try_send(Message::Text(data.unwrap())).is_ok();
+            let data = serde_json::to_string(&packet).unwrap();
+            return target.tx.try_send(Message::Text(data.into())).is_ok();
         }
 
         false

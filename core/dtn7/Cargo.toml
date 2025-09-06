@@ -63,8 +63,8 @@ humantime = "2.2.0"
 tempfile = "3.21.0"
 humansize = "2.1.3"
 enum_dispatch = "0.3.13"
-axum = { version = "0.5.17", features = ["ws"] }
-http = "0.2.12"
+axum = { version = "0.8.4", features = ["ws"] }
+http = "1.3.1"
 #tower = "0.4.8"
 reqwest = { version = "0.12.23", default-features = false }
 tungstenite = "0.21.0"
@@ -76,7 +76,7 @@ thiserror = "2.0.16"
 dtn7-codegen = { path = "../codegen", version = "0.1.2" }
 sha1 = "0.10.6"
 glob-match = "0.2.1"
-tower-http = { version = "0.3.5", features = ["cors"] }
+tower-http = { version = "0.6.6", features = ["cors"] }
 
 [lib]
 name = "dtn7"
