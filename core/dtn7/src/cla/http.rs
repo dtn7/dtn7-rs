@@ -1,11 +1,15 @@
-use crate::cla::ConvergenceLayerAgent;
 use crate::CONFIG;
+use crate::cla::ConvergenceLayerAgent;
 use async_trait::async_trait;
 use bp7::ByteBuffer;
 use dtn7_codegen::cla;
-use hyper::{client::HttpConnector, Body, Client, Method, Request};
 use log::{debug, error};
-use std::{collections::HashMap, net::SocketAddr, time::Instant};
+use reqwest::{Client, header};
+use std::{
+    collections::HashMap,
+    net::{IpAddr, SocketAddr},
+    time::{Duration, Instant},
+};
 use tokio::sync::mpsc;
 
 use super::{HelpStr, TransferResult};
@@ -18,61 +22,68 @@ pub struct HttpConvergenceLayer {
 }
 
 pub async fn http_send_bundles(
-    client: Client<HttpConnector>,
+    client: Client,
     remote: String,
     ready: ByteBuffer,
 ) -> TransferResult {
-    if !ready.is_empty() {
-        let now = Instant::now();
-        //let client = hyper::client::Client::new();
-        let peeraddr: SocketAddr = remote.parse().unwrap();
-        let buf_len = ready.len();
-        debug!("forwarding to {:?}", peeraddr);
-        //for b in &ready {
-        let req_url = format!("http://{}:{}/push", peeraddr.ip(), peeraddr.port());
-        let req = Request::builder()
-            .method(Method::POST)
-            .uri(req_url)
-            .header("content-type", "application/octet-stream")
-            .body(Body::from(ready))
-            .unwrap();
-        // TODO: make timout configurable
-        match tokio::time::timeout(std::time::Duration::from_secs(5), client.request(req)).await {
-            Ok(result) => match result {
-                Ok(_response) => debug!(
-                    "Transmission time: {:?} for {} bytes to {}",
-                    now.elapsed(),
-                    buf_len,
-                    peeraddr
-                ),
-                Err(e) => {
-                    error!("could not push bundle to remote: {}", e);
-                    return TransferResult::Failure;
-                }
-            },
-            Err(_) => {
-                error!("Timeout: no response in 5 seconds while pushing bundle.");
-                return TransferResult::Failure;
-            }
-        }
-        //}
-        //debug!("successfully sent {} bundles to {}", ready.len(), remote);
-    } else {
+    if ready.is_empty() {
         debug!("Nothing to forward.");
+        return TransferResult::Successful;
     }
-    TransferResult::Successful
+
+    let now = Instant::now();
+
+    let peeraddr: SocketAddr = remote.parse().unwrap();
+
+    let buf_len = ready.len();
+    debug!("forwarding to {:?}", peeraddr);
+
+    // IPv6 must be bracketed in URLs
+    let host = match peeraddr.ip() {
+        IpAddr::V4(ip) => ip.to_string(),
+        IpAddr::V6(ip) => format!("[{ip}]"),
+    };
+    let url = format!("http://{host}:{}/push", peeraddr.port());
+
+    // TODO: make timeout configurable
+    let req = client
+        .post(url)
+        .header(header::CONTENT_TYPE, "application/octet-stream")
+        .timeout(Duration::from_secs(5))
+        .body(ready)
+        .build()
+        .unwrap();
+
+    match client.execute(req).await {
+        Ok(_response) => {
+            debug!(
+                "Transmission time: {:?} for {} bytes to {}",
+                now.elapsed(),
+                buf_len,
+                peeraddr
+            );
+            TransferResult::Successful
+        }
+        Err(e) if e.is_timeout() => {
+            error!("Timeout: no response in 5 seconds while pushing bundle.");
+            TransferResult::Failure
+        }
+        Err(e) => {
+            error!("could not push bundle to remote: {e}");
+            TransferResult::Failure
+        }
+    }
 }
 
 impl HttpConvergenceLayer {
     pub fn new(_local_settings: Option<&HashMap<String, String>>) -> HttpConvergenceLayer {
         let (tx, mut rx) = mpsc::channel(100);
         tokio::spawn(async move {
-            let client = hyper::client::Client::new();
-            /*let client = hyper::client::Client::builder()
-            .pool_idle_timeout(Duration::from_secs(15))
-            .retry_canceled_requests(false)
-            .set_host(false)
-            .build_http();*/
+            let client = Client::new();
+            // let client = Client::builder()
+            //     .pool_idle_timeout(Duration::from_secs(15))
+            //     .build()
+            //     .expect("failed to build HTTP client");
 
             while let Some(cmd) = rx.recv().await {
                 match cmd {
@@ -81,6 +92,7 @@ impl HttpConvergenceLayer {
                             "HttpConvergenceLayer: received transfer command for {}",
                             remote
                         );
+
                         let client2 = client.clone();
                         tokio::spawn(async move {
                             reply
@@ -95,6 +107,7 @@ impl HttpConvergenceLayer {
                 }
             }
         });
+
         HttpConvergenceLayer {
             local_port: CONFIG.lock().webport,
             tx,

@@ -1,20 +1,19 @@
-
 [package]
 name = "dtn7-fuzz"
 version = "0.0.0"
 authors = ["Automatically generated"]
 publish = false
-edition = "2018"
+edition = "2024"
 
 [package.metadata]
 cargo-fuzz = true
 
 [dependencies]
-libfuzzer-sys = "0.3"
-tokio-util = { version = "0.7.2", features = ["codec"] }
-bytes = "1.1.0"
-dtn7-plus = "0.6.2"
-serde_cbor = "0.11.1"
+libfuzzer-sys = "0.4.10"
+tokio-util = { version = "0.7.16", features = ["codec"] }
+bytes = "1.10.1"
+dtn7-plus = "0.7.3"
+serde_cbor = "0.11.2"
 
 [dependencies.dtn7]
 path = "../core/dtn7"

@@ -1,8 +1,8 @@
 use anyhow::Result;
-use clap::{crate_authors, crate_version, Arg, ArgAction, Command};
-use dtn7::client::ecla::ws_client::Command::SendPacket;
+use clap::{Arg, ArgAction, Command, crate_authors, crate_version};
 use dtn7::client::ecla::Packet::{Beacon, ForwardData};
-use dtn7::client::ecla::{ws_client, Packet};
+use dtn7::client::ecla::ws_client::Command::SendPacket;
+use dtn7::client::ecla::{Packet, ws_client};
 use futures_util::{future, pin_mut};
 use log::{error, info};
 use std::str::FromStr;
@@ -32,7 +32,8 @@ async fn main() -> Result<()> {
         .get_matches();
 
     if matches.get_flag("debug") {
-        std::env::set_var("RUST_LOG", "debug");
+        // is safe since main is single-threaded
+        unsafe { std::env::set_var("RUST_LOG", "debug") };
         pretty_env_logger::init_timed();
     }
 
@@ -81,10 +82,10 @@ async fn main() -> Result<()> {
                     info!("Got ForwardData {} -> {}", fwd.src, dst[0]);
 
                     let id = usize::from_str(dst[0]).unwrap_or(conns.len());
-                    if id < conns.len() {
-                        if let Err(err) = conns[id].send(ForwardData(fwd.clone())).await {
-                            error!("couldn't pass packet to client packet channel: {}", err)
-                        }
+                    if id < conns.len()
+                        && let Err(err) = conns[id].send(ForwardData(fwd.clone())).await
+                    {
+                        error!("couldn't pass packet to client packet channel: {}", err)
                     }
                 }
                 Packet::Beacon(pdp) => {
