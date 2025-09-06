@@ -109,6 +109,13 @@ impl DtnPeer {
             .unwrap()
             .as_secs();
     }
+    /// Returns whether the peer has been in contact recently enough to be kept.
+    ///
+    /// Static peers are always valid.
+    /// Dynamic peers expire after twice their advertised beacon period,
+    /// or after the configured peer timeout if they advertised none
+    /// or a non-zero custom timeout is set.
+    ///
     /// Example
     ///
     /// ```
@@ -128,25 +135,29 @@ impl DtnPeer {
         if self.con_type == PeerType::Static {
             return true;
         }
-        // If a custom peer timeout was specified force remove all peers after specified amount of time
-        // Or if no custom peer timeout was specified force remove all peers after default peer timeout
-        // that didn't advertise a BeaconPeriod
-        let timeout = CONFIG.lock().peer_timeout.as_secs();
-        let custom = CONFIG.lock().custom_timeout;
-        if (custom && timeout > 0) || self.period.is_none() {
-            let now = SystemTime::now()
-                .duration_since(UNIX_EPOCH)
-                .expect("time went backwards")
-                .as_secs();
-            now - self.last_contact < timeout
-        // Else if a received beacon contains a BeaconPeriod remove this peer after 2 * received BeaconPeriod
-        } else {
-            let now = SystemTime::now()
-                .duration_since(UNIX_EPOCH)
-                .expect("Time went backwards")
-                .as_secs();
-            now - self.last_contact < self.period.unwrap().as_secs() * 2
-        }
+
+        let (peer_timeout, force_peer_timeout) = {
+            let cfg = CONFIG.lock();
+            let peer_timeout = cfg.peer_timeout.as_secs();
+            (peer_timeout, cfg.custom_timeout && peer_timeout > 0)
+        };
+
+        let timeout = match self.period {
+            // If a received beacon contains a BeaconPeriod remove this peer after 2 * received BeaconPeriod,
+            // unless a custom peer timeout was specified
+            Some(period) if !force_peer_timeout => period.as_secs().saturating_mul(2),
+            // If a custom peer timeout was specified force remove all peers after specified amount of time
+            // Or if no custom peer timeout was specified force remove all peers after default peer timeout
+            // that didn't advertise a BeaconPeriod
+            _ => peer_timeout,
+        };
+
+        let now = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .expect("time went backwards")
+            .as_secs();
+        // last_contact may lie in the future if the system clock was set back
+        now.saturating_sub(self.last_contact) < timeout
     }
 
     /// Return the peers DTN node name (without URI scheme)

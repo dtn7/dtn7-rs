@@ -134,7 +134,7 @@ async fn handle_sender_for_bundle(
     let mut delete_afterwards = false;
 
     if let Some(meta) = core.history.get_mut(bp.id()) {
-        for (_, p) in (*PEERS.lock()).iter() {
+        for p in (*PEERS.lock()).values() {
             let peer_node_id = p.eid.node_id().unwrap();
             if peer_node_id == core.local_node || meta.nodes.contains(&peer_node_id) {
                 // skip if the peer is ourself or if we already sent the bundle to this peer

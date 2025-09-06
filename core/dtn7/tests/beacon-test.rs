@@ -62,7 +62,7 @@ pub fn plain_serialization() {
     for e in &unwrapped {
         print!("{:02x?} ", e);
     }
-    println!("Beacon size: {}", &unwrapped.len());
+    println!("Beacon size: {}", unwrapped.len());
     println!();
 
     let deserialized: Beacon = match serde_cbor::from_slice(&unwrapped) {
@@ -105,7 +105,7 @@ pub fn serialization_with_service_block() {
     }
 
     println!();
-    println!("{}", &unwrapped.len());
+    println!("{}", unwrapped.len());
     println!();
 
     let deserialized: Beacon = match serde_cbor::from_slice(&unwrapped) {
@@ -113,7 +113,7 @@ pub fn serialization_with_service_block() {
         Err(e) => panic!("deserialization error: {}", e),
     };
 
-    println!("{}", &deserialized);
+    println!("{}", deserialized);
 
     assert_eq!(beacon, deserialized);
 }
@@ -138,7 +138,7 @@ pub fn serialization_with_beacon_period() {
     }
 
     println!();
-    println!("Beacon size: {}", &unwrapped.len());
+    println!("Beacon size: {}", unwrapped.len());
 
     let deserialized: Beacon = match serde_cbor::from_slice(&unwrapped) {
         Ok(pkt) => pkt,

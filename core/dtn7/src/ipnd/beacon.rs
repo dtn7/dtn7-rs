@@ -159,9 +159,9 @@ impl Beacon {
 impl std::fmt::Display for Beacon {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let temp = format!("{:010b}", self.flags);
-        let output = if self.beacon_period.is_some() {
+        let output = if let Some(beacon_period) = self.beacon_period {
             format!("Version: {:#x}\tFlags: {}\tBeaconSequenceNumber: {}\nEID: {}\nServiceBlock:\n{}\nBeaconPeriod: {:#?}",
-        self.version, temp, self.beacon_sequence_number, self.eid, self.service_block, self.beacon_period.unwrap())
+        self.version, temp, self.beacon_sequence_number, self.eid, self.service_block, beacon_period)
         } else {
             format!("Version: {:#x}\tFlags: {}\tBeaconSequenceNumber: {}\nEID: {}\nServiceBlock:\n{}\nBeaconPeriod: None",
         self.version, temp, self.beacon_sequence_number, self.eid, self.service_block)
@@ -202,8 +202,8 @@ impl Serialize for Beacon {
         if !self.service_block.is_empty() {
             seq.serialize_element(&self.service_block)?;
         }
-        if self.beacon_period.is_some() {
-            let period_number = self.beacon_period.unwrap().as_secs();
+        if let Some(beacon_period) = self.beacon_period {
+            let period_number = beacon_period.as_secs();
             seq.serialize_element(&period_number)?;
         }
         seq.end()

@@ -120,14 +120,14 @@ fn main() {
         process::exit(23);
     }
     let buf: Vec<u8> = res.bytes().expect("No bundle bytes received");
-    if args.delete.is_some() {
-        println!("Deleted bundle {}", args.delete.unwrap());
+    if let Some(bid) = args.delete {
+        println!("Deleted bundle {bid}");
         process::exit(0);
-    } else if args.register.is_some() {
-        println!("Registered endpoint {}", args.register.unwrap());
+    } else if let Some(eid) = args.register {
+        println!("Registered endpoint {eid}");
         process::exit(0);
-    } else if args.unregister.is_some() {
-        println!("Unregistered endpoint {}", args.unregister.unwrap());
+    } else if let Some(eid) = args.unregister {
+        println!("Unregistered endpoint {eid}");
         process::exit(0);
     } else if buf.len() > 50 {
         // TODO: very arbitrary number, should check return code

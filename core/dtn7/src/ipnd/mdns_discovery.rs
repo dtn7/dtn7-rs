@@ -172,7 +172,7 @@ async fn handle_mdns_event(event: mdns_sd::ServiceEvent) -> Result<()> {
                     };
 
                 // Silently ignore if peer doesn't exist yet - ServiceResolved will add it
-                if let Ok(_) = peers_touch(node_name) {
+                if peers_touch(node_name).is_ok() {
                     debug!("Successfully touched peer: {}", node_name);
                 }
             }
@@ -194,7 +194,7 @@ async fn handle_mdns_peer_discovered(info: mdns_sd::ServiceInfo) -> Result<()> {
         .get_property_val_str("eid")
         .ok_or_else(|| anyhow::anyhow!("No EID in mDNS service info"))?;
 
-    let eid: bp7::EndpointID = bp7::eid::EndpointID::try_from(eid_str.as_ref())
+    let eid: bp7::EndpointID = bp7::eid::EndpointID::try_from(eid_str)
         .map_err(|e| anyhow::anyhow!("Invalid EID in mDNS service: {:?}", e))?;
 
     // Don't add ourselves
@@ -246,7 +246,7 @@ async fn handle_mdns_peer_discovered(info: mdns_sd::ServiceInfo) -> Result<()> {
         .join(", ");
 
     // Prefer IPv4 over IPv6 link-local addresses for better reachability
-    let addr = addresses
+    let addr = *addresses
         .iter()
         .find(|ip| ip.is_ipv4())
         .or_else(|| {
@@ -255,8 +255,7 @@ async fn handle_mdns_peer_discovered(info: mdns_sd::ServiceInfo) -> Result<()> {
                 .find(|ip| !ip.to_string().starts_with("fe80::"))
         })
         .or_else(|| addresses.first())
-        .ok_or_else(|| anyhow::anyhow!("No valid address in mDNS service info"))?
-        .clone();
+        .ok_or_else(|| anyhow::anyhow!("No valid address in mDNS service info"))?;
 
     debug!("Selected address {} from [{}]", addr, addr_str);
 

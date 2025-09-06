@@ -426,7 +426,7 @@ async fn insert_get(extract::RawQuery(query): extract::RawQuery) -> Result<Strin
                     bndl.id(),
                     bndl.primary.destination
                 );
-                if bndl.primary.source.node() == (*CONFIG.lock()).host_eid.node() {
+                if bndl.primary.source.node() == CONFIG.lock().host_eid.node() {
                     STATS.lock().node.bundles.bundles_created += 1;
                 }
                 crate::core::processing::send_bundle(bndl).await;
@@ -454,7 +454,7 @@ async fn insert_post(body: bytes::Bytes) -> Result<String, (StatusCode, &'static
             bndl.primary.destination
         );
 
-        if bndl.primary.source.node() == (*CONFIG.lock()).host_eid.node() {
+        if bndl.primary.source.node() == CONFIG.lock().host_eid.node() {
             STATS.lock().node.bundles.bundles_created += 1;
         }
 
