@@ -204,11 +204,13 @@ pub fn handle_packet(connector_name: String, addr: String, packet: Packet) {
             // will typically be from the other side of the transmission Protocol that the connected
             // client implements.
             Packet::Beacon(pdp) => {
-
                 let service_block: ServiceBlock =
                     serde_cbor::from_slice(pdp.service_block.as_slice()).unwrap();
 
-                debug!("Received beacon: ecla={} eid={} addr={} service_block={}", me.name, pdp.eid, pdp.addr, service_block);
+                debug!(
+                    "Received beacon: ecla={} eid={} addr={} service_block={}",
+                    me.name, pdp.eid, pdp.addr, service_block
+                );
 
                 peers_add(DtnPeer::new(
                     pdp.eid.clone(),

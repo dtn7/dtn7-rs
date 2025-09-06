@@ -196,11 +196,17 @@ pub async fn dispatch(bp: BundlePack) -> Result<()> {
     if (*DTNCORE.lock()).is_in_endpoints(&bp.destination)
     // TODO: lookup here AND in local delivery, optimize for just one
     {
-        trace!("Destination for {} is local endpoint → local_delivery", bp.id());
+        trace!(
+            "Destination for {} is local endpoint → local_delivery",
+            bp.id()
+        );
         local_delivery(bp.clone()).await?;
     }
     if !is_local_node_id(&bp.destination) {
-        trace!("Destination for {} is NOT local endpoint → forward", bp.id());
+        trace!(
+            "Destination for {} is NOT local endpoint → forward",
+            bp.id()
+        );
         tokio::spawn(forward(bp));
     }
     Ok(())

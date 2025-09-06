@@ -16,12 +16,12 @@ use enum_dispatch::enum_dispatch;
 use epidemic::EpidemicRoutingAgent;
 use external::ExternalRoutingAgent;
 use flooding::FloodingRoutingAgent;
+use log::debug;
 use sink::SinkRoutingAgent;
 use sprayandwait::SprayAndWaitRoutingAgent;
 use static_routing::StaticRoutingAgent;
 use std::fmt::Debug;
 use std::fmt::Display;
-use log::debug;
 use tokio::sync::{mpsc, oneshot};
 
 #[derive(Debug)]
