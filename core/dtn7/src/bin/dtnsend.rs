@@ -30,7 +30,7 @@ struct Args {
     #[clap(short, long)]
     receiver: String,
 
-    /// File to send, if omitted data is read from stdin till EOF
+    /// File to send, if omitted, data is read from stdin till EOF
     #[clap(index = 1)]
     infile: Option<String>,
 
