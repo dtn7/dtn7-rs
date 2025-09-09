@@ -62,7 +62,7 @@ By double-clicking each node you have to change the IPv4 subnet mask from `/32` 
 You also might need to change the interface from `eth0` to one you have, type `ls -1 /sys/class/net/` in the open terminal to check which adapters exist.
 
 The simulation can be then started by pressing the green start button.
-When dragging nodes in the running simulation around, a green line should appear iff they are in communication range.
+When dragging nodes in the running simulation around, a green line should appear when they are in communication range.
 
 By double-clicking a node in a running session you can get a terminal on this node.
 To verify that everything works you should be able to `ping` nodes with a green line and when dragging them out of reach the packets should get lost.
