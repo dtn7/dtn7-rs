@@ -41,6 +41,7 @@ strategy = "epidemic"
 
 # additional parameters for the routing strategy can be set here
 settings.sprayandwait.num_copies = 7
+#settings.static.routes <routes_file>
 
 [core]
 # the janitor is responsible for cleaning the bundle buffer
