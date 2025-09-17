@@ -1,24 +1,24 @@
+use crate::CONFIG;
+use crate::DTNCORE;
 use crate::core::bundlepack::*;
 use crate::core::*;
 use crate::routing::RoutingNotifcation;
 use crate::store_push_bundle;
 use crate::store_remove;
-use crate::CONFIG;
-use crate::DTNCORE;
-use crate::{is_local_node_id, STATS};
+use crate::{STATS, is_local_node_id};
 use crate::{routing_notify, routing_sender_for_bundle, store_add_bundle_if_unknown};
 
+use bp7::BUNDLE_AGE_BLOCK;
+use bp7::CanonicalData;
 use bp7::administrative_record::*;
 use bp7::bundle::*;
 use bp7::flags::*;
-use bp7::CanonicalData;
-use bp7::BUNDLE_AGE_BLOCK;
 
-use anyhow::{bail, Result};
+use anyhow::{Result, bail};
 use log::trace;
 use log::{debug, info, warn};
-use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::SystemTime;
 use std::time::UNIX_EPOCH;
 use tokio::sync::mpsc::channel;
@@ -196,11 +196,17 @@ pub async fn dispatch(bp: BundlePack) -> Result<()> {
     if (*DTNCORE.lock()).is_in_endpoints(&bp.destination)
     // TODO: lookup here AND in local delivery, optimize for just one
     {
-        trace!("Destination for {} is local endpoint → local_delivery", bp.id());
+        trace!(
+            "Destination for {} is local endpoint → local_delivery",
+            bp.id()
+        );
         local_delivery(bp.clone()).await?;
     }
     if !is_local_node_id(&bp.destination) {
-        trace!("Destination for {} is NOT local endpoint → forward", bp.id());
+        trace!(
+            "Destination for {} is NOT local endpoint → forward",
+            bp.id()
+        );
         tokio::spawn(forward(bp));
     }
     Ok(())
@@ -208,23 +214,23 @@ pub async fn dispatch(bp: BundlePack) -> Result<()> {
 
 async fn handle_hop_count_block(mut bundle: Bundle) -> Result<Bundle> {
     let bid = bundle.id();
-    if let Some(hc) = bundle.extension_block_by_type_mut(bp7::canonical::HOP_COUNT_BLOCK) {
-        if hc.hop_count_increase() {
-            let (hc_limit, hc_count) = hc
-                .hop_count_get()
-                .expect("hop count data missing from hop count block");
-            debug!(
-                "Bundle contains an hop count block: {} {} {}",
+    if let Some(hc) = bundle.extension_block_by_type_mut(bp7::canonical::HOP_COUNT_BLOCK)
+        && hc.hop_count_increase()
+    {
+        let (hc_limit, hc_count) = hc
+            .hop_count_get()
+            .expect("hop count data missing from hop count block");
+        debug!(
+            "Bundle contains an hop count block: {} {} {}",
+            &bid, hc_limit, hc_count
+        );
+        if hc.hop_count_exceeded() {
+            warn!(
+                "Bundle contains an exceeded hop count block: {} {} {}",
                 &bid, hc_limit, hc_count
             );
-            if hc.hop_count_exceeded() {
-                warn!(
-                    "Bundle contains an exceeded hop count block: {} {} {}",
-                    &bid, hc_limit, hc_count
-                );
-                delete(bundle.into(), HOP_LIMIT_EXCEEDED).await?;
-                bail!("hop count exceeded");
-            }
+            delete(bundle.into(), HOP_LIMIT_EXCEEDED).await?;
+            bail!("hop count exceeded");
         }
     }
     Ok(bundle)
@@ -265,12 +271,12 @@ pub fn update_bundle_age(bundle: &mut Bundle) -> Option<u64> {
     None
 }
 async fn handle_bundle_age_block(mut bundle: Bundle) -> Result<Bundle> {
-    if let Some(age) = update_bundle_age(&mut bundle) {
-        if std::time::Duration::from_micros(age) >= bundle.primary.lifetime {
-            warn!("Dropping bundle, age exceeds lifetime: {}", bundle.id());
-            delete(bundle.into(), LIFETIME_EXPIRED).await?;
-            bail!("age block lifetime exceeded");
-        }
+    if let Some(age) = update_bundle_age(&mut bundle)
+        && std::time::Duration::from_micros(age) >= bundle.primary.lifetime
+    {
+        warn!("Dropping bundle, age exceeds lifetime: {}", bundle.id());
+        delete(bundle.into(), LIFETIME_EXPIRED).await?;
+        bail!("age block lifetime exceeded");
     }
     Ok(bundle)
 }
@@ -396,7 +402,10 @@ pub async fn forward(mut bp: BundlePack) -> Result<()> {
                         let peers_before = (*PEERS.lock()).len();
                         (*PEERS.lock()).remove(&peer);
                         let peers_after = (*PEERS.lock()).len();
-                        debug!("Removing peer {} from list of neighbors due to too many failed transmissions ({}/{})", peer, peers_before, peers_after);
+                        debug!(
+                            "Removing peer {} from list of neighbors due to too many failed transmissions ({}/{})",
+                            peer, peers_before, peers_after
+                        );
                     }
                     // TODO: send status report?
                     // if (*CONFIG.lock()).generate_service_reports {
@@ -520,7 +529,7 @@ pub async fn delete(mut bp: BundlePack, reason: StatusReportReason) -> Result<()
     if bndl.is_none() {
         bail!("bundle not found");
     }
-    (*STATS.lock()).node.error_info.discarded_bundle_count += 1;
+    STATS.lock().node.error_info.discarded_bundle_count += 1;
     let bndl = bndl.unwrap();
     if bndl
         .primary
@@ -652,7 +661,10 @@ async fn send_status_report(
 ) {
     // Don't respond to other administrative records or anonymous bundles.
     if bp.administrative || bp.source == EndpointID::none() {
-        warn!("status report sending denied for dtn:none sources/administrative bundles themselves: {}", bp.id());
+        warn!(
+            "status report sending denied for dtn:none sources/administrative bundles themselves: {}",
+            bp.id()
+        );
         return;
     }
     let bndl = store_get_bundle(bp.id());

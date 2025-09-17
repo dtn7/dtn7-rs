@@ -1,10 +1,10 @@
 #![recursion_limit = "256"]
 
-use clap::{crate_authors, crate_version, value_parser, Arg, ArgAction, Command};
+use clap::{Arg, ArgAction, Command, crate_authors, crate_version, value_parser};
+use dtn7::DtnConfig;
 use dtn7::cla::CLAsAvailable;
 use dtn7::core::helpers::is_valid_node_name;
 use dtn7::dtnd::daemon::*;
-use dtn7::DtnConfig;
 use log::info;
 use std::collections::HashMap;
 use std::panic;
@@ -23,19 +23,21 @@ async fn main() -> Result<(), std::io::Error> {
         use std::time::Duration;
 
         // Create a background thread which checks for deadlocks every 10s
-        thread::spawn(move || loop {
-            thread::sleep(Duration::from_secs(10));
-            let deadlocks = deadlock::check_deadlock();
-            if deadlocks.is_empty() {
-                continue;
-            }
+        thread::spawn(move || {
+            loop {
+                thread::sleep(Duration::from_secs(10));
+                let deadlocks = deadlock::check_deadlock();
+                if deadlocks.is_empty() {
+                    continue;
+                }
 
-            println!("{} deadlocks detected", deadlocks.len());
-            for (i, threads) in deadlocks.iter().enumerate() {
-                println!("Deadlock #{}", i);
-                for t in threads {
-                    println!("Thread Id {:#?}", t.thread_id());
-                    println!("{:#?}", t.backtrace());
+                println!("{} deadlocks detected", deadlocks.len());
+                for (i, threads) in deadlocks.iter().enumerate() {
+                    println!("Deadlock #{}", i);
+                    for t in threads {
+                        println!("Thread Id {:#?}", t.thread_id());
+                        println!("{:#?}", t.backtrace());
+                    }
                 }
             }
         });
@@ -295,9 +297,11 @@ Tag 255 takes 5 arguments and is interpreted as address. Usage: -S 255:'Samplest
 
     if std::env::var("RUST_LOG").is_err() {
         if matches.get_flag("debug") || cfg.debug {
-            std::env::set_var("RUST_LOG", "dtn7=debug,dtnd=debug");
+            // is safe since main is single-threaded
+            unsafe { std::env::set_var("RUST_LOG", "dtn7=debug,dtnd=debug") };
         } else {
-            std::env::set_var("RUST_LOG", "dtn7=info,dtnd=info");
+            // is safe since main is single-threaded
+            unsafe { std::env::set_var("RUST_LOG", "dtn7=info,dtnd=info") };
         }
     }
     pretty_env_logger::init_timed();
@@ -375,10 +379,10 @@ Tag 255 takes 5 arguments and is interpreted as address. Usage: -S 255:'Samplest
         }
     }
 
-    if let Some(r) = matches.get_one::<String>("routing") {
-        if dtn7::routing::routing_algorithms().contains(&r.as_str()) {
-            cfg.routing = r.into();
-        }
+    if let Some(r) = matches.get_one::<String>("routing")
+        && dtn7::routing::routing_algorithms().contains(&r.as_str())
+    {
+        cfg.routing = r.into();
     }
     if let Some(r_opts) = matches.get_many::<String>("routing_options") {
         for r_opt in r_opts {
@@ -405,10 +409,10 @@ Tag 255 takes 5 arguments and is interpreted as address. Usage: -S 255:'Samplest
         //cfg.routing_options = r_opts.map(|s| s.to_string()).collect();
     }
 
-    if let Some(db) = matches.get_one::<String>("db") {
-        if dtn7::core::store::bundle_stores().contains(&db.as_str()) {
-            cfg.db = db.into();
-        }
+    if let Some(db) = matches.get_one::<String>("db")
+        && dtn7::core::store::bundle_stores().contains(&db.as_str())
+    {
+        cfg.db = db.into();
     }
 
     if let Some(clas) = matches.get_many::<String>("cla") {
