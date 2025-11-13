@@ -16,11 +16,12 @@ This is meant to be viewed with a standard web browser such as firefox, chrome, 
 
 These API endpoints can only be called from localhost for security reasons.
 
-### **POST** `/send?dst=<EID>&lifetime=<LIFETIME>`
+### **POST** `/send?dst=<EID>&lifetime=<LIFETIME>&flags=<BPCF>`
 
 Construct a new bundle with the given parameters. 
 The bundle payload is sent as the body of the *POST* request.
 The URL parameters `dst` and `lifetime` are used to set the corresponding bundle fields.
+The [Bundle Processing Control Flags](https://www.rfc-editor.org/rfc/rfc9171.html#name-bundle-processing-control-f) can be set as an unsigned integer via the `flags` parameter.
 
 ```
 $ curl -X POST -d 'hello world' "http://127.0.0.1:3000/send?dst=dtn://node3/incoming&lifetime=5m"

@@ -43,7 +43,7 @@ async fn main() -> Result<(), std::io::Error> {
 
     let mut cfg = DtnConfig::new();
     if cfg!(debug_assertions) {
-        // Whenever a threads has a panic, quit the whole program!
+        // Whenever a thread panics, quit the whole program!
         panic::set_hook(Box::new(|p| {
             println!("Panic hook: {}", p);
             process::exit(1);
@@ -123,6 +123,13 @@ async fn main() -> Result<(), std::io::Error> {
                 .action(ArgAction::Append),
         )
         .arg(
+            Arg::new("discoveryport")
+                .long("discovery-port")
+                .value_name("PORT")
+                .help("Sets listening port for IPND node discovery (default = 3003)")
+                .value_parser(value_parser!(u16))
+                .action(ArgAction::Set),
+        ).arg(
             Arg::new("webport")
                 .short('w')
                 .long("web-port")
@@ -343,6 +350,9 @@ Tag 255 takes 5 arguments and is interpreted as address. Usage: -S 255:'Samplest
             cfg.announcement_interval =
                 humantime::parse_duration(i).expect("Could not parse interval parameter!");
         }
+    }
+    if let Some(i) = matches.get_one::<u16>("discoveryport") {
+        cfg.discovery_listen_port = *i;
     }
     if let Some(i) = matches.get_one::<u16>("webport") {
         cfg.webport = *i;

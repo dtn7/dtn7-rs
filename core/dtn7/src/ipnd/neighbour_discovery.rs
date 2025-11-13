@@ -138,7 +138,7 @@ async fn announcer(socket: UdpSocket, _v6: bool) {
 pub async fn spawn_neighbour_discovery() -> Result<()> {
     let v4 = CONFIG.lock().v4;
     let v6 = CONFIG.lock().v6;
-    let port = 3003;
+    let port = CONFIG.lock().discovery_listen_port;
     if v4 {
         let addr: SocketAddr = format!("0.0.0.0:{}", port).parse()?;
         let addr = addr.into();

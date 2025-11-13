@@ -5,8 +5,7 @@ use crate::lazy_static;
 use async_trait::async_trait;
 use axum::extract::ws::{Message, WebSocket};
 use futures_util::{future, stream::TryStreamExt, SinkExt, StreamExt};
-use log::{debug, trace};
-use log::{error, info};
+use log::{error, warn, info, debug, trace};
 use serde_json::Result;
 use std::collections::HashMap;
 use std::sync::atomic::{AtomicUsize, Ordering};
@@ -27,7 +26,7 @@ static LAYER_NAME: &str = "Websocket";
 
 /// Handles the websocket connection coming from httpd
 pub async fn handle_connection(ws: WebSocket) {
-    // We can't get a remote address from ws so we create own monotonic increasing id's
+    // We can't get a remote address from ws, so we create our own monotonic increasing IDs
     let id = ID_COUNTER.fetch_add(1, Ordering::SeqCst);
 
     let (tx, mut rx) = mpsc::channel(100);
@@ -46,11 +45,6 @@ pub async fn handle_connection(ws: WebSocket) {
 
     // Process incoming messages from the websocket client
     let broadcast_incoming = incoming.try_for_each(|msg| {
-        trace!(
-            "Received a message from {}: {}",
-            id,
-            msg.to_text().unwrap().trim()
-        );
 
         let packet: Result<Packet>;
         {
@@ -62,8 +56,24 @@ pub async fn handle_connection(ws: WebSocket) {
                 return future::ok(());
             }
 
+            // Try to convert the message to text
+            let msg_text = match msg.to_text() {
+                Ok(text) => {
+                    trace!(
+                        "Received a message from ECLA id {}: {}",
+                        id,
+                        text.trim()
+                    );
+                    text.trim()
+                },
+                Err(e) => {
+                    warn!("Failed to convert message to text from ECLA id {}: {}", id, e);
+                    return future::ok(());
+                }
+            };
+
             // Deserialize Packet
-            packet = serde_json::from_str(msg.to_text().unwrap());
+            packet = serde_json::from_str(msg_text);
             if packet.is_err() {
                 return future::ok(());
             }
@@ -91,7 +101,7 @@ pub async fn handle_connection(ws: WebSocket) {
     )
     .await;
 
-    info!("{} disconnected", id);
+    info!("ECLA (WS) {} disconnected", id);
     handle_disconnect(id.to_string());
     PEER_MAP.lock().unwrap().remove(&id.to_string());
 }
@@ -116,7 +126,7 @@ impl Connector for WebsocketConnector {
     }
 
     fn send_packet(&self, dest: &str, packet: &Packet) -> bool {
-        debug!("Sending Packet to {} ({})", dest, self.name());
+        debug!("Sending Packet to dest={} ({})", dest, self.name());
 
         let peer_map = PEER_MAP.lock().unwrap();
         if let Some(target) = peer_map.get(dest) {

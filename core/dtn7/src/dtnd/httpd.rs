@@ -39,9 +39,7 @@ use bp7::EndpointID;
 use http::StatusCode;
 use humansize::format_size;
 use humansize::DECIMAL;
-use log::info;
-use log::trace;
-use log::{debug, warn};
+use log::{trace, debug, info, warn};
 use serde::Serialize;
 use std::collections::HashMap;
 use std::convert::{TryFrom, TryInto};
@@ -301,6 +299,7 @@ async fn status_peers() -> String {
 }
 //#[get("/status/info")]
 async fn status_info() -> String {
+    STATS.lock().update_node_stats();
     let stats = &(*STATS.lock()).clone();
     serde_json::to_string_pretty(&stats).unwrap()
 }
@@ -427,7 +426,9 @@ async fn insert_get(extract::RawQuery(query): extract::RawQuery) -> Result<Strin
                     bndl.id(),
                     bndl.primary.destination
                 );
-
+                if bndl.primary.source.node() == (*CONFIG.lock()).host_eid.node() {
+                    STATS.lock().node.bundles.bundles_created += 1;
+                }
                 crate::core::processing::send_bundle(bndl).await;
                 Ok(format!("Sent {} bytes", b_len))
             } else {
@@ -445,13 +446,17 @@ async fn insert_get(extract::RawQuery(query): extract::RawQuery) -> Result<Strin
 async fn insert_post(body: bytes::Bytes) -> Result<String, (StatusCode, &'static str)> {
     let bytes = body.to_vec();
     let b_len = bytes.len();
-    debug!("Received: {:?}", b_len);
+    trace!("Received: {:?} bytes", b_len);
     if let Ok(bndl) = bp7::Bundle::try_from(bytes.to_vec()) {
         debug!(
             "Sending bundle {} to {}",
             bndl.id(),
             bndl.primary.destination
         );
+
+        if bndl.primary.source.node() == (*CONFIG.lock()).host_eid.node() {
+            STATS.lock().node.bundles.bundles_created += 1;
+        }
 
         crate::core::processing::send_bundle(bndl).await;
         Ok(format!("Sent {} bytes", b_len))
@@ -467,6 +472,9 @@ async fn send_post(
 ) -> Result<String, (StatusCode, &'static str)> {
     let mut dst: EndpointID = EndpointID::none();
     let mut lifetime = std::time::Duration::from_secs(60 * 60);
+    let mut flags = BundleControlFlags::BUNDLE_MUST_NOT_FRAGMENTED;
+    //    | BundleControlFlags::BUNDLE_STATUS_REQUEST_DELIVERY;
+
     for (k, v) in query_params.iter() {
         if k == "dst" {
             dst = v.as_str().try_into().unwrap();
@@ -474,14 +482,23 @@ async fn send_post(
             if let Ok(dur) = humantime::parse_duration(v) {
                 lifetime = dur;
             }
+        } else if k == "flags" {
+            let param_flags: u64 = v.as_str().parse().unwrap_or(0);
+            if let Some(bpcf) = BundleControlFlags::from_bits(param_flags) {
+                flags = bpcf;
+            } else {
+                return Err((
+                    StatusCode::BAD_REQUEST,
+                    "Invalid Bundle Processing Control Flags!",
+                ));
+            }
         }
     }
     if dst == EndpointID::none() {
         return Err((StatusCode::BAD_REQUEST, "Missing destination endpoint id!"));
     }
     let src = CONFIG.lock().host_eid.clone();
-    let flags = BundleControlFlags::BUNDLE_MUST_NOT_FRAGMENTED
-        | BundleControlFlags::BUNDLE_STATUS_REQUEST_DELIVERY;
+
     let pblock = bp7::primary::PrimaryBlockBuilder::default()
         .bundle_control_flags(flags.bits())
         .destination(dst)
@@ -508,12 +525,13 @@ async fn send_post(
 
     debug!(
         "Sending bundle {} to {}",
-        bndl.id(),
+        &bndl.id(),
         bndl.primary.destination
     );
-
+    let bid = bndl.id();
     crate::core::processing::send_bundle(bndl).await;
-    Ok(format!("Sent payload with {} bytes", b_len))
+    STATS.lock().node.bundles.bundles_created += 1;
+    Ok(format!("Sent ADU in bundle {} with {} bytes", bid, b_len))
 }
 
 //#[post("/push")]

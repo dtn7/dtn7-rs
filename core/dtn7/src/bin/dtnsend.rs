@@ -30,7 +30,7 @@ struct Args {
     #[clap(short, long)]
     receiver: String,
 
-    /// File to send, if omitted data is read from stdin till EOF
+    /// File to send, if omitted, data is read from stdin till EOF
     #[clap(index = 1)]
     infile: Option<String>,
 
@@ -47,7 +47,7 @@ fn main() {
     let args = Args::parse();
     let localhost = if args.ipv6 { "[::1]" } else { "127.0.0.1" };
     let port = if let Ok(env_port) = std::env::var("DTN_WEB_PORT") {
-        env_port // string is fine no need to parse number
+        env_port // string is fine, no need to parse number
     } else {
         args.port.to_string()
     };

@@ -6,7 +6,9 @@ First, you need to enable the ECLA in dtnd. It's done by adding the ``--ecla`` f
 dtnd -w 3000 -r epidemic -n node1 --ecla
 ```
 
-By default if ECLA is enabled the WebSocket transport layer is running under the web port of dtnd as specified by ``-w``, ``--web-port``. In the example above the port would be 3000 (``-w 3000``).
+By default, if ECLA is enabled, the WebSocket transport layer is running under the web port of dtnd as specified by ``-w``, ``--web-port``.
+In the example above the port would be 3000 (``-w 3000``).
+(If the TCP transport layer for connecting ECLAs is desired, it can be activated via setting the ``--ecla-tcp XYZ`` flag.)
 
 ## Example Config File
 
@@ -16,10 +18,12 @@ debug = false
 beacon-period = true
 generate-status-reports = false
 parallel-bundle-processing = false
-routing = "epidemic"
 webport = 3000
 workdir = "/tmp/dtn7"
 db = "mem"
+
+[routing]
+strategy = "epidemic"
 
 [core]
 janitor = "10s"
@@ -40,7 +44,7 @@ tcp_port = 0
 
 The registration process fails with a ``already registered`` error packet as a response and the connection will be closed by dtnd.
 
-### Where does my WebSocket client needs to connect to?
+### Where does my WebSocket client need to connect to?
 
 The WebSocket is accessible under the same port as defined by ``-w``, ``--web-port`` and the route ``/ws/ecla``. An example for a web port 3000 would be ``127.0.0.1:3000/ws/ecla``.
 

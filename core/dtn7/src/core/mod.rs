@@ -3,22 +3,24 @@ pub mod bundlepack;
 pub mod helpers;
 pub mod peer;
 pub mod processing;
+pub mod stats;
 pub mod store;
 
 use crate::cla::ConvergenceLayerAgent;
 use crate::core::bundlepack::Constraint;
 pub use crate::core::peer::{DtnPeer, PeerType};
+use crate::core::stats::{NodeStats, RegistrationInformation};
 use crate::core::store::BundleStore;
 use crate::routing::RoutingAgentsEnum;
-use crate::{routing_notify, store_delete_expired, store_get_bundle, store_get_metadata, CLAS};
+use crate::{
+    routing_notify, store_delete_expired, store_get_bundle, store_get_metadata, CLAS, DTNCORE,
+};
 pub use crate::{store_has_item, store_push_bundle};
 use crate::{RoutingNotifcation, CONFIG};
 use crate::{PEERS, STORE};
 use application_agent::ApplicationAgent;
 use bp7::EndpointID;
-use log::debug;
-use log::trace;
-use log::{error, info};
+use log::{error, warn, info, trace};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::time::Instant;
@@ -36,10 +38,12 @@ pub struct DtnStatistics {
     pub delivered: u64,
     pub failed: u64,
     pub broken: u64,
+    pub node: NodeStats,
 }
 
 impl DtnStatistics {
     pub fn new() -> DtnStatistics {
+        let nodestats = NodeStats::new();
         DtnStatistics {
             incoming: 0,
             dups: 0,
@@ -47,7 +51,35 @@ impl DtnStatistics {
             delivered: 0,
             failed: 0,
             broken: 0,
+            node: nodestats,
         }
+    }
+    pub fn update_node_stats(&mut self) {
+        println!("Updating node stats");
+        self.node.error_info.failed_forwards_bundle_count = self.failed;
+        self.node.registrations.clear();
+        let eids = (*DTNCORE.lock()).eids();
+        for eid in eids {
+            if let Some(aa) =
+                (*DTNCORE.lock()).get_endpoint(&EndpointID::try_from(eid.clone()).unwrap())
+            {
+                let singleton = !aa.eid().is_non_singleton();
+                let registration = RegistrationInformation {
+                    eid: eid.clone(),
+                    active: aa.delivery_addr().is_some(),
+                    singleton: singleton,
+                    default_failure_action: stats::FailureAction::Defer,
+                };
+                self.node.registrations.push(registration);
+            }
+        }
+        self.node.bundles.bundles_stored = (*STORE.lock()).count();
+        self.node.bundles.forward_pending_bundle_count = (*STORE.lock()).forwarding().len() as u64;
+        // TODO get correct number of bundles with dispatch pending
+        // self.node.bundles.dispatch_pending_bundle_count = (*STORE.lock()).pending().len() as u64;
+        // TODO get correct number of bundles with reassembly pending
+        // self.node.bundles.reassembly_pending_bundle_count =
+        //     (*STORE.lock()).reassembly_pending().len() as u64;
     }
 }
 #[derive(Debug)]
@@ -148,8 +180,8 @@ pub async fn process_bundles() {
 
     let active_cla = (*CLAS.lock()).iter().any(|p| p.accepting());
     if !active_cla {
-        debug!("No active/push CLA, not forwarding any bundles");
-        debug!("time to process bundles: {:?}", now_total.elapsed());
+        warn!("No active/push CLA, not forwarding any bundles");
+        trace!("time to process bundles: {:?}", now_total.elapsed());
         return;
     }
 
@@ -194,7 +226,7 @@ pub async fn process_bundles() {
         }
     }
 
-    debug!(
+    trace!(
         "time to process {} bundles: {:?}",
         num_bundles,
         now_total.elapsed()

@@ -41,6 +41,7 @@ strategy = "epidemic"
 
 # additional parameters for the routing strategy can be set here
 settings.sprayandwait.num_copies = 7
+#settings.static.routes <routes_file>
 
 [core]
 # the janitor is responsible for cleaning the bundle buffer
@@ -53,7 +54,7 @@ janitor = "10s"
 # interval of 0 deactives discovery service
 interval = "2s"
 peer-timeout = "20s"
-
+port = 3003
 
 [convergencylayers]
 global.tcp.refuse-existing-bundles = true

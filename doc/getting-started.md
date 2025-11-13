@@ -34,7 +34,7 @@ docker run --rm -it                             \
     -p 1190:1190                                \
     -p 6080:6080                                \
     -v /tmp/shared:/shared                      \
-    --privileged                                \
+    --cap-add=ALL                               \
     gh0st42/dtn7-showroom
 ```
 
@@ -55,13 +55,14 @@ A complete desktop with access to `core-gui` is provided through a web vnc on ht
 
 ### Configure wireless network
 
-In the `core-gui` click on the network nodes symbol left of the canvas and select the *host* as node type. Then place it three times on the canvas.
-Now select *wireless LAN* from the link node types and place it on the canvas.
-Use the link tool (the one below the run and cursor buttons on the left side) and connect all nodes to the wifi.
+In the `core-gui` click on the container nodes symbol left of the canvas and select the *host* as node type. Then place it three times on the canvas.
+Now select *wireless LAN* from the link layer node types and place it on the canvas.
+Use the link tool (3 dots with lines between them) and connect all nodes to the wifi by dragging a line.
 By double-clicking each node you have to change the IPv4 subnet mask from `/32` to `/24`.
+You also might need to change the interface from `eth0` to one you have, type `ls -1 /sys/class/net/` in the open terminal to check which adapters exist.
 
 The simulation can be then started by pressing the green start button.
-When dragging nodes in the running simulation around a green line should appear once they are in communication range.
+When dragging nodes in the running simulation around, a green line should appear when they are in communication range.
 
 By double-clicking a node in a running session you can get a terminal on this node.
 To verify that everything works you should be able to `ping` nodes with a green line and when dragging them out of reach the packets should get lost.
@@ -71,7 +72,7 @@ If this is not the case you might be missing the proper kernel modules on your h
 
 By using the [core helper](https://github.com/gh0st42/core-helpers) scripts managing the simulation gets much easier.
 
-To start `dtnd` on all running nodes enter the following in the ssh session connected to the docker instance:
+To start `dtnd` on all running nodes enter the following in the bash that we previously connected to the docker instance:
 ```bash
 cda 'dtnd -n $(hostname) -e incoming -C mtcp -r epidemic'
 ```
@@ -79,7 +80,7 @@ cda 'dtnd -n $(hostname) -e incoming -C mtcp -r epidemic'
 This starts `dtnd` with a node naming matching its hostname in the simulation, registers an endpoint called `incoming`, uses minimal tcp convergence layer and *epidemic* routing.
 A full list of options can be seen by executing `dtnd -h`.
 
-Each node has a directly with logs and local files under `/tmp/pycore.*/n<node number>`.
+Each node has logs and a directory with local files under `/tmp/pycore.*/n<node number>.<conf/log>`.
 
 The dtn daemon can be stopped and the standard out log can be cleared with the following command:
 ```bash
@@ -94,7 +95,7 @@ pkill -9 dtnd && cea rm nohup.out
 
 #### Get global peer list
 
-To get a list of all known peers from all nodes issue the following command in the ssh session:
+To get a list of all known peers from all nodes issue the following command in the bash session:
 ```bash
 cea 'dtnquery peers | egrep "n[0-9].:" | cut -d \" -f 2 | sort'
 ```

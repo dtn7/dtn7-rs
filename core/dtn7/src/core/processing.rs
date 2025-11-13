@@ -194,11 +194,13 @@ pub async fn dispatch(bp: BundlePack) -> Result<()> {
     }
 
     if (*DTNCORE.lock()).is_in_endpoints(&bp.destination)
-    // TODO: lookup here AND in local delivery, optmize for just one
+    // TODO: lookup here AND in local delivery, optimize for just one
     {
+        trace!("Destination for {} is local endpoint → local_delivery", bp.id());
         local_delivery(bp.clone()).await?;
     }
     if !is_local_node_id(&bp.destination) {
+        trace!("Destination for {} is NOT local endpoint → forward", bp.id());
         tokio::spawn(forward(bp));
     }
     Ok(())
@@ -402,7 +404,7 @@ pub async fn forward(mut bp: BundlePack) -> Result<()> {
                     // }
                 } else {
                     info!(
-                        "Sending bundle succeeded: {} {} {} in {:?}",
+                        "Bundle send success: id={} dest={} cla={} in {:?}",
                         &bpid,
                         n.dest,
                         n.cla_name,
@@ -518,6 +520,7 @@ pub async fn delete(mut bp: BundlePack, reason: StatusReportReason) -> Result<()
     if bndl.is_none() {
         bail!("bundle not found");
     }
+    (*STATS.lock()).node.error_info.discarded_bundle_count += 1;
     let bndl = bndl.unwrap();
     if bndl
         .primary

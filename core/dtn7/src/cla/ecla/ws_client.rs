@@ -136,7 +136,7 @@ impl Client {
                     // Pass received packets to read channel
                     match packet {
                         Packet::ForwardData(mut fwd) => {
-                            fwd.src = self.id.clone();
+                            fwd.src.clone_from(&self.id);
 
                             if let Err(err) = self.packet_out.send(Packet::ForwardData(fwd)).await {
                                 error!("Error while sending ForwardData to channel: {}", err);
@@ -148,7 +148,7 @@ impl Client {
                             }
                         }
                         Packet::Beacon(mut pdp) => {
-                            pdp.addr = self.id.clone();
+                            pdp.addr.clone_from(&self.id);
 
                             if let Err(err) = self.packet_out.send(Packet::Beacon(pdp)).await {
                                 error!("Error while sending ForwardData to channel: {}", err);

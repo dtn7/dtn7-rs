@@ -10,10 +10,11 @@ To enable the erouting use ``-r external`` as a routing algorithm.
 
 ## Config File
 
-Configuration can also happen via a config file by setting the routing to ``external``.
+Configuration can also happen via a config file by setting the routing strategy to ``external``.
 
 ```toml
-routing = "external"
+[routing]
+strategy = "external"
 ```
 
 ## WebSocket Transport Layer
@@ -82,7 +83,7 @@ The ``Error`` is emitted when an error occurs. At the Moment the only emitted er
 
 dtnd → external
 
-The ``Timeout`` is emitted when no ``SenderForBundleReponse`` was recieved or the timeout (250ms) ran out.
+The ``Timeout`` is emitted when an expected ``ReponseSenderForBundle`` was not received until the timeout (250ms) ran out.
 
 ```json
 {
@@ -108,7 +109,7 @@ The ``IncomingBundle`` is emitted when a bundle is incoming.
 
 dtnd → external
 
-The ``IncomingBundleWithoutPreviousNode`` is emitted when a bundle is incoming with a previous node.
+The ``IncomingBundleWithoutPreviousNode`` is emitted when a bundle is incoming without a previous node.
 
 ```json
 {
@@ -234,7 +235,7 @@ In order to implement a basic routing strategy you most likely want to do the fo
   - Saving the initial ``PeerState``
   - Adding peer if ``PeerEncountered`` packet is received
   - Removing peer ``PeerDropped`` packet is received
-- Responding to ``SenderForBundle`` packet with a ``ResponseSenderForBundle`` packet based on some kind of strategy and most likely involving the available peers.
+- Responding to ``RequestSenderForBundle`` packet with a ``ResponseSenderForBundle`` packet based on some kind of strategy and most likely involving the available peers.
 
 ## Python Example: Direct Routing
 
@@ -297,7 +298,7 @@ def on_sender_for_bundle(msg):
   dest = msg["bp"]["destination"]
   bundle_id = msg["bp"]["id"]
 
-  print("===> SenderForBundle: To", dest[1], bundle_id)
+  print("===> RequestSenderForBundle: To", dest[1], bundle_id)
 
   # Check if already delivered
   global delivered
