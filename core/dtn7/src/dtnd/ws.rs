@@ -9,7 +9,7 @@ use bp7::flags::BundleControlFlags;
 use bp7::{Bundle, CreationTimestamp, EndpointID};
 use dtn7_plus::client::{WsRecvData, WsSendData};
 use futures::{sink::SinkExt, stream::StreamExt};
-use log::{debug, warn};
+use log::{debug, warn, trace};
 use std::collections::HashSet;
 use std::sync::Arc;
 use std::{
@@ -131,7 +131,7 @@ pub async fn handle_socket(socket: WebSocket) {
         let mut task = interval(CHECK_INTERVAL);
         loop {
             task.tick().await;
-            debug!("Reflushing bundles again from application agent buffer");
+            trace!("Reflushing bundles again from application agent buffer");
             session2.lock().await.fetch_new_bundles(tx2.clone()).await
         }
     });
@@ -456,7 +456,7 @@ impl WsAASession {
         Ok(())
     }
     pub async fn fetch_new_bundles(&mut self, socket: mpsc::Sender<Message>) {
-        debug!("delivering bundles for endpoint(s)");
+        trace!("delivering bundles for endpoint(s)");
         let mut senders = Vec::new();
         if let Some(endpoints) = self.endpoints.clone() {
             for eid in endpoints {
