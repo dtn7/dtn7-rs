@@ -1,4 +1,4 @@
-use anyhow::{bail, Result};
+use anyhow::{Result, bail};
 use clap::Parser;
 use dtn7_plus::client::DtnClient;
 use dtn7_plus::client::{Message, WsRecvData, WsSendData};
@@ -108,7 +108,7 @@ fn main() -> Result<()> {
                     data: recv_data.data,
                 };
                 wscon
-                    .write_binary(&serde_cbor::to_vec(&echo_response)?)
+                    .write_binary(serde_cbor::to_vec(&echo_response)?)
                     .expect("error sending echo response");
                 if args.verbose {
                     println!("Processing bundle took {:?}", now.elapsed());

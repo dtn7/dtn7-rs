@@ -1,7 +1,7 @@
-use anyhow::{bail, Result};
-use clap::{crate_authors, crate_version, value_parser, Arg, ArgAction};
+use anyhow::{Result, bail};
+use clap::{Arg, ArgAction, crate_authors, crate_version, value_parser};
 use dtn7::client::data::{BundlePack, DtnPeer};
-use dtn7::client::erouting::{ws_client, Packet, ResponseSenderForBundle, Sender};
+use dtn7::client::erouting::{Packet, ResponseSenderForBundle, Sender, ws_client};
 use futures_util::{future, pin_mut};
 use lazy_static::lazy_static;
 use log::{debug, error, info};
@@ -210,13 +210,12 @@ async fn serve(strategy: String, addr: &str) -> Result<()> {
                     }
                 }
                 Packet::IncomingBundle(packet) => {
-                    if strategy == "epidemic" {
-                        if let Some(eid) = packet.bndl.previous_node() {
-                            if let Some(node_name) = eid.node() {
-                                epidemic_router.incoming_bundle(&packet.bndl.id(), &node_name);
-                            }
-                        };
-                    }
+                    if strategy == "epidemic"
+                        && let Some(eid) = packet.bndl.previous_node()
+                        && let Some(node_name) = eid.node()
+                    {
+                        epidemic_router.incoming_bundle(&packet.bndl.id(), &node_name);
+                    };
                 }
                 Packet::IncomingBundleWithoutPreviousNode(packet) => {
                     if strategy == "epidemic" {
@@ -301,7 +300,8 @@ async fn main() -> Result<()> {
     let routing_types = ["flooding", "epidemic"];
 
     if matches.contains_id("debug") {
-        std::env::set_var("RUST_LOG", "debug");
+        // is safe since main is single-threaded
+        unsafe { std::env::set_var("RUST_LOG", "debug") };
         pretty_env_logger::init_timed();
     }
 

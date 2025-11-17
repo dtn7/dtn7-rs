@@ -1,9 +1,9 @@
-use crate::core::application_agent::ApplicationAgent;
 use crate::CONFIG;
 use crate::DTNCORE;
 use crate::STATS;
+use crate::core::application_agent::ApplicationAgent;
 
-use anyhow::{bail, Result};
+use anyhow::{Result, bail};
 use axum::extract::ws::{Message, WebSocket};
 use bp7::flags::BlockControlFlags;
 use bp7::flags::BundleControlFlags;
@@ -17,8 +17,8 @@ use std::{
     convert::TryFrom,
     time::{Duration, Instant},
 };
-use tokio::sync::mpsc;
 use tokio::sync::Mutex;
+use tokio::sync::mpsc;
 use tokio::time::interval;
 // Begin application agent WebSocket specific stuff
 
@@ -104,7 +104,11 @@ pub async fn handle_socket(socket: WebSocket) {
             }
 
             debug!("sending ping");
-            if tx2.send(Message::Ping(b"dtn7".to_vec())).await.is_err() {
+            if tx2
+                .send(Message::Ping(bytes::Bytes::from_static(b"dtn7")))
+                .await
+                .is_err()
+            {
                 break;
             }
         }
@@ -158,7 +162,7 @@ pub async fn handle_socket(socket: WebSocket) {
 
 macro_rules! ws_reply_text {
     ($sock:expr,$msg:expr) => {
-        if let Err(err) = $sock.send(Message::Text($msg.to_string())).await {
+        if let Err(err) = $sock.send(Message::Text($msg.into())).await {
             bail!("err sendin reply: {} -> {}", $msg, err);
         }
     };
@@ -209,7 +213,11 @@ impl WsAASession {
                 }
             }
         };
-        if socket.send(Message::Binary(recv_data)).await.is_err() {
+        if socket
+            .send(Message::Binary(recv_data.into()))
+            .await
+            .is_err()
+        {
             bail!("error sending bundle");
         }
         Ok(())
@@ -491,7 +499,7 @@ impl WsAASession {
                                 }
                             }
                         };
-                        let job = socket.send(Message::Binary(recv_data)); //.await;
+                        let job = socket.send(Message::Binary(recv_data.into())); //.await;
                         senders.push(job)
                         //ctx.binary(recv_data);
                     }

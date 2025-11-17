@@ -7,10 +7,10 @@ use crate::cla::{ConvergenceLayerAgent, TransferResult};
 use crate::core::PeerType;
 use crate::ipnd::services::ServiceBlock;
 use crate::routing::RoutingAgent;
-use crate::{cla_add, cla_remove, PeerAddress, RoutingCmd, CONFIG};
-use crate::{cla_names, CLAS, DTNCORE};
-use crate::{lazy_static, RoutingNotifcation};
-use crate::{peers_add, DtnPeer};
+use crate::{CLAS, DTNCORE, cla_names};
+use crate::{CONFIG, PeerAddress, RoutingCmd, cla_add, cla_remove};
+use crate::{DtnPeer, peers_add};
+use crate::{RoutingNotifcation, lazy_static};
 use bp7::{Bundle, ByteBuffer};
 use log::{debug, error, info};
 use serde::__private::TryFrom;
@@ -204,11 +204,13 @@ pub fn handle_packet(connector_name: String, addr: String, packet: Packet) {
             // will typically be from the other side of the transmission Protocol that the connected
             // client implements.
             Packet::Beacon(pdp) => {
-
                 let service_block: ServiceBlock =
                     serde_cbor::from_slice(pdp.service_block.as_slice()).unwrap();
 
-                debug!("Received beacon: ecla={} eid={} addr={} service_block={}", me.name, pdp.eid, pdp.addr, service_block);
+                debug!(
+                    "Received beacon: ecla={} eid={} addr={} service_block={}",
+                    me.name, pdp.eid, pdp.addr, service_block
+                );
 
                 peers_add(DtnPeer::new(
                     pdp.eid.clone(),
@@ -250,10 +252,10 @@ pub fn handle_connect(connector_name: String, from: String) {
 pub fn handle_disconnect(addr: String) {
     info!("ECLA {} disconnected", &addr);
 
-    if let Some(module) = MODULE_MAP.lock().unwrap().get(&addr) {
-        if let ModuleState::Active = module.state {
-            cla_remove(module.name.clone());
-        }
+    if let Some(module) = MODULE_MAP.lock().unwrap().get(&addr)
+        && let ModuleState::Active = module.state
+    {
+        cla_remove(module.name.clone());
     }
 
     MODULE_MAP.lock().unwrap().remove(&addr);
@@ -262,27 +264,27 @@ pub fn handle_disconnect(addr: String) {
 /// Will schedule a submission to a module by name
 pub fn scheduled_submission(name: String, dest: String, ready: &ByteBuffer) -> TransferResult {
     debug!(
-            "Scheduled submission External Convergence Layer for Destination with Module '{}' and Target '{}'",
-            name, dest
-        );
+        "Scheduled submission External Convergence Layer for Destination with Module '{}' and Target '{}'",
+        name, dest
+    );
 
     let mut was_sent = TransferResult::Failure;
     let mut connectors_map = CONNECTORS_MAP.lock().unwrap();
     let module_map = MODULE_MAP.lock().unwrap();
     module_map.iter().for_each(|(addr, value)| {
-        if value.name == name {
-            if let Ok(bndl) = Bundle::try_from(ready.as_slice()) {
-                let packet: Packet = Packet::ForwardData(ForwardData {
-                    dst: dest.to_string(),
-                    src: "".to_string(), // Leave blank for now and let the Module set it to a protocol-specific address on its side
-                    bundle_id: bndl.id(),
-                    data: ready.to_vec(),
-                });
+        if value.name == name
+            && let Ok(bndl) = Bundle::try_from(ready.as_slice())
+        {
+            let packet: Packet = Packet::ForwardData(ForwardData {
+                dst: dest.to_string(),
+                src: "".to_string(), // Leave blank for now and let the Module set it to a protocol-specific address on its side
+                bundle_id: bndl.id(),
+                data: ready.to_vec(),
+            });
 
-                if let Some(connector) = connectors_map.get_mut(value.connector.as_str()) {
-                    connector.send_packet(addr, &packet);
-                    was_sent = TransferResult::Successful;
-                }
+            if let Some(connector) = connectors_map.get_mut(value.connector.as_str()) {
+                connector.send_packet(addr, &packet);
+                was_sent = TransferResult::Successful;
             }
         }
     });

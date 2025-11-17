@@ -1,10 +1,10 @@
-use anyhow::{bail, Result};
+use anyhow::{Result, bail};
 use clap::Parser;
 use dtn7_plus::client::{DtnClient, DtnWsConnection};
 use dtn7_plus::client::{Message, WsRecvData, WsSendData};
 use humantime::parse_duration;
-use rand::distributions::Alphanumeric;
-use rand::{thread_rng, Rng};
+use rand::Rng;
+use rand::distr::Alphanumeric;
 use std::net::TcpStream;
 use std::str::from_utf8;
 use std::time::Duration;
@@ -12,7 +12,7 @@ use std::{convert::TryInto, io::Write};
 use std::{thread, time};
 
 fn get_random_payload(length: usize) -> String {
-    thread_rng()
+    rand::rng()
         .sample_iter(&Alphanumeric)
         .take(length)
         .map(char::from)
@@ -38,7 +38,7 @@ fn send_ping(
         lifetime: 3600 * 24 * 1000,
         data: payload.as_bytes().to_vec(),
     };
-    wscon.write_binary(&serde_cbor::to_vec(&ping)?)
+    wscon.write_binary(serde_cbor::to_vec(&ping)?)
 }
 
 /// A simple Bundle Protocol 7 Ping Tool for Delay Tolerant Networking

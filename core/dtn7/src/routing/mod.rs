@@ -6,9 +6,9 @@ pub mod sink;
 pub mod sprayandwait;
 pub mod static_routing;
 
+use crate::BundleID;
 use crate::cla::ClaSenderTask;
 use crate::core::bundlepack::BundlePack;
-use crate::BundleID;
 use async_trait::async_trait;
 use bp7::Bundle;
 use bp7::EndpointID;
@@ -16,12 +16,12 @@ use enum_dispatch::enum_dispatch;
 use epidemic::EpidemicRoutingAgent;
 use external::ExternalRoutingAgent;
 use flooding::FloodingRoutingAgent;
+use log::debug;
 use sink::SinkRoutingAgent;
 use sprayandwait::SprayAndWaitRoutingAgent;
 use static_routing::StaticRoutingAgent;
 use std::fmt::Debug;
 use std::fmt::Display;
-use log::debug;
 use tokio::sync::{mpsc, oneshot};
 
 #[derive(Debug)]
