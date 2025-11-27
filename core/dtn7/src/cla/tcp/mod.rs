@@ -338,7 +338,7 @@ impl TcpSession {
                         TcpClPacket::XferAck(XferAckData {
                             tid: data.tid,
                             len: data.len,
-                            flags: XferSegmentFlags::empty(),
+                            flags: data.flags,
                         })
                         .write(&mut self.writer)
                         .await?;
