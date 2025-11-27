@@ -78,6 +78,7 @@ dtn7-codegen = { path = "../codegen", version = "0.1.2" }
 sha1 = "0.10.5"
 glob-match = "0.2.1"
 tower-http = { version = "0.3.4", features = ["cors"] }
+mdns-sd = "0.11"
 
 [lib]
 name = "dtn7"
