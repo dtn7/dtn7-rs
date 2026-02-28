@@ -1,7 +1,7 @@
 use std::io::Cursor;
 
 use super::proto::*;
-use log::{debug, error, warn};
+use log::{debug, warn};
 use num_traits::FromPrimitive;
 use thiserror::Error;
 use tokio::io::{self, AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt};
