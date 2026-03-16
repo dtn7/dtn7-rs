@@ -1,13 +1,13 @@
-use anyhow::{bail, Result};
+use anyhow::{Result, bail};
 use bp7::*;
-use clap::{crate_authors, crate_version, Parser};
+use clap::{Parser, crate_authors, crate_version};
 use dtn7_plus::client::DtnClient;
 use std::convert::TryFrom;
 use std::io::prelude::*;
 use std::process::Command;
 use tempfile::NamedTempFile;
-use tungstenite::protocol::WebSocketConfig;
 use tungstenite::Message;
+use tungstenite::protocol::WebSocketConfig;
 
 fn write_temp_file(data: &[u8], verbose: bool) -> Result<NamedTempFile> {
     let mut data_file = NamedTempFile::new()?;
@@ -92,11 +92,9 @@ fn main() -> anyhow::Result<()> {
     );
 
     client.register_application_endpoint(&args.endpoint)?;
-    let config = WebSocketConfig {
-        max_message_size: Some(1024 * 1024 * 128), // 128 MB
-        max_frame_size: Some(1024 * 1024 * 128),   // 128 MB
-        ..Default::default()
-    };
+    let mut config = WebSocketConfig::default();
+    config.max_message_size = Some(128 * 1024 * 1024); // 128 MiB
+    config.max_frame_size = Some(128 * 1024 * 1024); // 128 MiB
     let mut wscon = client.ws_with_config(config)?;
 
     wscon.write_text("/bundle")?;
@@ -124,7 +122,7 @@ fn main() -> anyhow::Result<()> {
             }
             Message::Binary(bin) => {
                 let bndl: Bundle =
-                    Bundle::try_from(bin).expect("Error decoding bundle from server");
+                    Bundle::try_from(bin.to_vec()).expect("Error decoding bundle from server");
                 if bndl.is_administrative_record() {
                     eprintln!("[!] Handling of administrative records not yet implemented!");
                 } else if let Some(data) = bndl.payload() {
@@ -136,7 +134,7 @@ fn main() -> anyhow::Result<()> {
                         println!(
                             "[{}] {} → {}",
                             now,
-                            bndl.primary.source.to_string(),
+                            bndl.primary.source,
                             String::from_utf8_lossy(data)
                         );
                     } else {

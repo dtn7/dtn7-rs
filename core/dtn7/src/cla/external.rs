@@ -3,11 +3,11 @@ use crate::cla::ecla::processing::scheduled_submission;
 use crate::cla::{ClaCmd, HelpStr};
 use async_trait::async_trait;
 use dtn7_codegen::cla;
+use log::debug;
 use std::collections::HashMap;
 use std::str::FromStr;
 use tokio::sync::mpsc;
 use tokio::sync::mpsc::Sender;
-use log::debug;
 
 #[cla(external)]
 #[derive(Debug, Clone)]

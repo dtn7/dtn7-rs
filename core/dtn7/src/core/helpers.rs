@@ -3,29 +3,28 @@ use crate::core::peer::PeerAddress;
 
 use super::*;
 use bp7::EndpointID;
-use rand::distributions::Alphanumeric;
-use rand::thread_rng;
 use rand::Rng;
+use rand::distr::Alphanumeric;
 use sha1::{Digest, Sha1};
 use std::{convert::TryFrom, net::IpAddr};
 use thiserror::Error;
 use url::Url;
 
 pub fn rnd_peer() -> DtnPeer {
-    let peertype = match rand::thread_rng().gen_range(0..2) {
+    let peertype = match rand::rng().random_range(0..2) {
         0 => PeerType::Static,
         _ => PeerType::Dynamic,
     };
-    let rstr: String = thread_rng()
+    let rstr: String = rand::rng()
         .sample_iter(&Alphanumeric)
         .take(10)
         .map(char::from)
         .collect();
 
     let eid = EndpointID::try_from(format!("dtn://{}", rstr)).unwrap();
-    match rand::thread_rng().gen_range(0..2) {
+    match rand::rng().random_range(0..2) {
         0 => {
-            let random_bytes = rand::thread_rng().gen::<[u8; 4]>();
+            let random_bytes = rand::rng().random::<[u8; 4]>();
             DtnPeer::new(
                 eid,
                 IpAddr::from(random_bytes).into(),
@@ -36,7 +35,7 @@ pub fn rnd_peer() -> DtnPeer {
             )
         }
         _ => {
-            let random_bytes = rand::thread_rng().gen::<[u8; 16]>();
+            let random_bytes = rand::rng().random::<[u8; 16]>();
             DtnPeer::new(
                 eid,
                 IpAddr::from(random_bytes).into(),
