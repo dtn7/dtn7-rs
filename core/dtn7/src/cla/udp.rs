@@ -5,8 +5,8 @@ use core::convert::TryFrom;
 use dtn7_codegen::cla;
 use log::{debug, error, info};
 use std::collections::HashMap;
+use std::net::IpAddr;
 use std::net::SocketAddr;
-use std::net::SocketAddrV4;
 use std::time::Instant;
 use tokio::io;
 use tokio::net::UdpSocket;
@@ -15,11 +15,19 @@ use tokio::sync::mpsc;
 use super::HelpStr;
 
 async fn udp_listener(addr: String, port: u16) -> Result<(), io::Error> {
-    let addr: SocketAddrV4 = format!("{}:{}", addr, port).parse().unwrap();
-    let listener = UdpSocket::bind(&addr)
+    let bind_display = match addr.parse::<IpAddr>() {
+        Ok(IpAddr::V6(_)) => format!("[{}]:{}", addr, port),
+        _ => format!("{}:{}", addr, port),
+    };
+    let listener = UdpSocket::bind((addr.as_str(), port))
         .await
-        .expect("failed to bind udp port");
-    debug!("spawning UDP listener on port {}", port);
+        .map_err(|err| {
+            io::Error::new(
+                err.kind(),
+                format!("failed to bind UDP listener on {}: {}", bind_display, err),
+            )
+        })?;
+    debug!("spawning UDP listener on {}", bind_display);
     loop {
         let mut buf = [0; 65535];
         let (amt, src) = listener.recv_from(&mut buf).await?;
@@ -45,12 +53,18 @@ pub async fn udp_send_bundles(addr: SocketAddr, bundles: Vec<ByteBuffer>) -> Tra
     let num_bundles = bundles.len();
     let total_bytes: usize = bundles.iter().map(|b| b.len()).sum();
 
-    let sock = UdpSocket::bind("0.0.0.0:0").await;
-    if sock.is_err() {
-        error!("Error binding UDP socket for sending");
-        return TransferResult::Failure;
-    }
-    let sock = sock.unwrap();
+    let sock = if addr.is_ipv6() {
+        UdpSocket::bind(("::", 0)).await
+    } else {
+        UdpSocket::bind(("0.0.0.0", 0)).await
+    };
+    let sock = match sock {
+        Ok(sock) => sock,
+        Err(err) => {
+            error!("Error binding UDP socket for sending to {}: {}", addr, err);
+            return TransferResult::Failure;
+        }
+    };
     if sock.connect(addr).await.is_err() {
         error!("Error connecting UDP socket for sending");
         return TransferResult::Failure;
@@ -90,8 +104,19 @@ pub struct UdpConvergenceLayer {
 impl UdpConvergenceLayer {
     pub fn new(local_settings: Option<&HashMap<String, String>>) -> UdpConvergenceLayer {
         let addr: String = local_settings
-            .and_then(|settings| settings.get("bind"))
-            .map(|s| s.to_string())
+            .and_then(|settings| settings.get("bind").or_else(|| settings.get("local_addr")))
+            .map(|s| {
+                let trimmed = s.trim();
+                if let Some(no_open_bracket) = trimmed.strip_prefix('[') {
+                    if let Some(no_brackets) = no_open_bracket.strip_suffix(']') {
+                        no_brackets.to_string()
+                    } else {
+                        trimmed.to_string()
+                    }
+                } else {
+                    trimmed.to_string()
+                }
+            })
             .unwrap_or_else(|| "0.0.0.0".to_string());
         let port = local_settings
             .and_then(|settings| settings.get("port"))
@@ -107,7 +132,17 @@ impl UdpConvergenceLayer {
                             remote
                         );
                         if !data.is_empty() {
-                            let peeraddr: SocketAddr = remote.parse().unwrap();
+                            let peeraddr: SocketAddr = match remote.parse() {
+                                Ok(peeraddr) => peeraddr,
+                                Err(err) => {
+                                    error!(
+                                        "UdpConvergenceLayer: invalid destination {}: {}",
+                                        remote, err
+                                    );
+                                    let _ = reply.send(TransferResult::Failure);
+                                    continue;
+                                }
+                            };
                             debug!("forwarding to {:?}", peeraddr);
                             tokio::spawn(async move {
                                 reply
