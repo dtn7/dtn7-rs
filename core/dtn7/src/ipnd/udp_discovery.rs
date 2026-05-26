@@ -152,7 +152,7 @@ pub async fn spawn_udp_discovery() -> Result<()> {
         //required for tokio
         socket.set_nonblocking(true)?;
 
-        // DEBUG: setup multicast on loopback to true
+        // DEBUG: disable multicast loopback on IPv4
         socket
             .set_multicast_loop_v4(false)
             .expect("error activating multicast loop v4");
