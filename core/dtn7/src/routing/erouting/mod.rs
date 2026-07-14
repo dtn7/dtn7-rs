@@ -1,5 +1,6 @@
 use crate::{BundleID, BundlePack, DtnPeer, PeerAddress, RoutingNotification, peers_get_for_node};
 use anyhow::Context;
+use bp7::administrative_record::AdministrativeRecordTypeCode;
 use bp7::{Bundle, EndpointID};
 use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, HashMap};
@@ -49,6 +50,8 @@ pub enum Packet {
     ServiceState(ServiceState),
     /// Packet that contains the full initial service state of dtnd at the point of connection.
     ServiceAdd(AddService),
+    /// Packet that signals that a routing metadata record (administrative record) addressed to this node was received.
+    RoutingRecord(RoutingRecord),
 }
 
 impl TryFrom<RoutingNotification> for Packet {
@@ -82,6 +85,15 @@ impl TryFrom<RoutingNotification> for Packet {
             RoutingNotification::DroppedPeer(eid) => Packet::DroppedPeer(DroppedPeer {
                 name: eid.node().context("dropped peer without node name")?,
                 eid,
+            }),
+            RoutingNotification::RoutingRecord {
+                record_type,
+                source,
+                data,
+            } => Packet::RoutingRecord(RoutingRecord {
+                record_type,
+                source,
+                data,
             }),
         };
         Ok(packet)
@@ -160,6 +172,13 @@ pub struct DroppedPeer {
 #[derive(Serialize, Deserialize, Clone)]
 pub struct PeerState {
     pub peers: BTreeMap<String, DtnPeer>,
+}
+
+#[derive(Serialize, Deserialize, Clone)]
+pub struct RoutingRecord {
+    pub record_type: AdministrativeRecordTypeCode,
+    pub source: EndpointID,
+    pub data: Vec<u8>,
 }
 
 #[derive(Serialize, Deserialize, Clone)]

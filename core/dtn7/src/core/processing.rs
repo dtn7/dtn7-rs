@@ -4,6 +4,7 @@ use crate::core::bpsec::{self, ProcessingStep, Verdict};
 use crate::core::bundlepack::*;
 use crate::core::*;
 use crate::routing::RoutingNotification;
+use crate::routing::metadata::is_routing_record;
 use crate::store_push_bundle;
 use crate::store_remove;
 use crate::{STATS, is_local_node_id};
@@ -593,9 +594,35 @@ pub async fn local_delivery(mut bp: BundlePack) -> Result<()> {
     }
     let bndl = bndl.unwrap();
 
-    if bp.administrative && !is_administrative_record_valid(&bndl) {
-        delete(bp, NO_INFORMATION).await?;
-        bail!("Empty administrative record");
+    if bp.administrative {
+        match parse_administrative_record(&bndl) {
+            None => {
+                delete(bp, NO_INFORMATION).await?;
+                bail!("Empty administrative record");
+            }
+            Some(AdministrativeRecord::Unknown(code, data)) if is_routing_record(code) => {
+                debug!(
+                    "Received routing record {} from {}: {}",
+                    code,
+                    bndl.primary.source,
+                    bp.id()
+                );
+                if let Err(err) = routing_notify(RoutingNotification::RoutingRecord {
+                    record_type: code,
+                    source: bndl.primary.source.clone(),
+                    data,
+                })
+                .await
+                {
+                    error!("Error while sending routing record notification: {}", err);
+                }
+                // Routing records are consumed by the routing agent.
+                // They are neither delivered to application agents nor kept in the store.
+                store_remove(bp.id())?;
+                return Ok(());
+            }
+            Some(ar) => inspect_status_report(&bndl.id(), ar),
+        }
     }
     bp.add_constraint(Constraint::LocalEndpoint);
     bp.sync()?;
@@ -661,13 +688,13 @@ pub async fn delete(mut bp: BundlePack, reason: StatusReportReason) -> Result<()
     Ok(())
 }
 
-fn is_administrative_record_valid(bundle: &Bundle) -> bool {
+fn parse_administrative_record(bundle: &Bundle) -> Option<AdministrativeRecord> {
     if !bundle.is_administrative_record() {
         warn!(
             "Bundle does not contain an administrative record: {}",
             bundle.id()
         );
-        return false;
+        return None;
     }
 
     let payload = bundle.extension_block_by_type(bp7::PAYLOAD_BLOCK);
@@ -676,7 +703,7 @@ fn is_administrative_record_valid(bundle: &Bundle) -> bool {
             "Bundle with an administrative record flag misses payload block: {}",
             bundle.id()
         );
-        return false;
+        return None;
     }
     match payload.unwrap().data() {
         bp7::canonical::CanonicalData::Data(data) => {
@@ -687,10 +714,7 @@ fn is_administrative_record_valid(bundle: &Bundle) -> bool {
                         bundle.id(),
                         ar
                     );
-                    // Currently there are only status reports. This must be changed if more
-                    // types of administrative records are introduced.
-                    inspect_status_report(&bundle.id(), ar);
-                    true
+                    Some(ar)
                 }
                 Err(ar) => {
                     warn!(
@@ -698,7 +722,7 @@ fn is_administrative_record_valid(bundle: &Bundle) -> bool {
                         bundle.id(),
                         ar
                     );
-                    false
+                    None
                 }
             }
         }
@@ -707,8 +731,22 @@ fn is_administrative_record_valid(bundle: &Bundle) -> bool {
                 "Bundle with an administrative record could not be parsed: {}",
                 bundle.id()
             );
-            false
+            None
         }
+    }
+}
+
+fn is_administrative_record_valid(bundle: &Bundle) -> bool {
+    match parse_administrative_record(bundle) {
+        // Routing records are only consumed at their destination and
+        // normally never relayed (unicast to a direct neighbor, hop limit 1).
+        // Should one still transit this node, it is not inspected here.
+        Some(AdministrativeRecord::Unknown(code, _)) if is_routing_record(code) => true,
+        Some(ar) => {
+            inspect_status_report(&bundle.id(), ar);
+            true
+        }
+        None => false,
     }
 }
 

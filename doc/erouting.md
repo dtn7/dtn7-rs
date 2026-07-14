@@ -148,6 +148,23 @@ The ``DroppedPeer`` is a signal that a peer was dropped.
 }
 ```
 
+#### Packet RoutingRecord
+
+dtnd → external
+
+The ``RoutingRecord`` is a signal that a routing metadata record addressed to this node was received.
+It carries the administrative record type code, the source of the bundle that carried the record, and the encoded record body as a byte array.
+Only record types that dtnd knows as routing records are passed on (see ``routing/metadata.rs``).
+
+```json
+{
+  "type": "RoutingRecord",
+  "record_type": 65535,
+  "source": [ 1, "//nodex/" ],
+  "data": [ 1, 2, 3, ... ]
+}
+```
+
 #### Packet PeerState
 
 dtnd → external

@@ -2,6 +2,7 @@ pub mod epidemic;
 pub mod erouting;
 pub mod external;
 pub mod flooding;
+pub mod metadata;
 pub mod sink;
 pub mod sprayandwait;
 pub mod static_routing;
@@ -12,6 +13,7 @@ use crate::core::bundlepack::BundlePack;
 use async_trait::async_trait;
 use bp7::Bundle;
 use bp7::EndpointID;
+use bp7::administrative_record::AdministrativeRecordTypeCode;
 use enum_dispatch::enum_dispatch;
 use epidemic::EpidemicRoutingAgent;
 use external::ExternalRoutingAgent;
@@ -32,6 +34,14 @@ pub enum RoutingNotification {
     IncomingBundleWithoutPreviousNode(BundleID, String),
     EncounteredPeer(EndpointID),
     DroppedPeer(EndpointID),
+    /// A routing metadata record (administrative record) addressed to this node was received.
+    RoutingRecord {
+        record_type: AdministrativeRecordTypeCode,
+        /// Source of the bundle that carried the record.
+        source: EndpointID,
+        /// Encoded record body.
+        data: Vec<u8>,
+    },
 }
 
 #[enum_dispatch]
