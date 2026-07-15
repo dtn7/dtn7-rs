@@ -9,6 +9,7 @@ use dtn7::cla::dummy::DummyConvergenceLayer;
 use dtn7::core::bundlepack::BundlePack;
 use dtn7::core::peer::{DtnPeer, PeerAddress, PeerType};
 use dtn7::routing::epidemic::EpidemicRoutingAgent;
+use dtn7::routing::prophet::v1::ProphetV1RoutingAgent;
 use dtn7::routing::sprayandwait::SprayAndWaitRoutingAgent;
 use dtn7::routing::{RoutingAgent, RoutingCmd, RoutingNotification};
 use std::collections::HashMap;
@@ -192,14 +193,27 @@ async fn routing_agents_survive_bad_requests() {
         .await
         .unwrap();
     // a foreign bundle has a single copy left, which triggers the direct delivery check
-    let (clas, _) = sender_for_bundle(&spray, to_none_bp)
+    let (clas, _) = sender_for_bundle(&spray, to_none_bp.clone())
         .await
         .expect("sprayandwait: no reply for bundle to dtn:none");
     assert!(clas.is_empty());
     get_data_with_dropped_requester(&spray).await;
     assert!(
-        sender_for_bundle(&spray, regular_bp).await.is_some(),
+        sender_for_bundle(&spray, regular_bp.clone())
+            .await
+            .is_some(),
         "sprayandwait: routing agent died"
+    );
+
+    let prophet = ProphetV1RoutingAgent::new().channel();
+    let (clas, _) = sender_for_bundle(&prophet, to_none_bp)
+        .await
+        .expect("prophet_v1: no reply for bundle to dtn:none");
+    assert!(clas.is_empty());
+    get_data_with_dropped_requester(&prophet).await;
+    assert!(
+        sender_for_bundle(&prophet, regular_bp).await.is_some(),
+        "prophet_v1: routing agent died"
     );
 }
 

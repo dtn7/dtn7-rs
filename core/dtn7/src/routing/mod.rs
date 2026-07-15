@@ -3,6 +3,7 @@ pub mod erouting;
 pub mod external;
 pub mod flooding;
 pub mod metadata;
+pub mod prophet;
 pub mod sink;
 pub mod sprayandwait;
 pub mod static_routing;
@@ -19,6 +20,7 @@ use epidemic::EpidemicRoutingAgent;
 use external::ExternalRoutingAgent;
 use flooding::FloodingRoutingAgent;
 use log::debug;
+use prophet::v1::ProphetV1RoutingAgent;
 use sink::SinkRoutingAgent;
 use sprayandwait::SprayAndWaitRoutingAgent;
 use static_routing::StaticRoutingAgent;
@@ -53,6 +55,7 @@ pub enum RoutingAgentsEnum {
     ExternalRoutingAgent,
     SprayAndWaitRoutingAgent,
     StaticRoutingAgent,
+    ProphetV1RoutingAgent,
 }
 
 impl Display for RoutingAgentsEnum {
@@ -91,11 +94,22 @@ pub fn routing_algorithms() -> Vec<&'static str> {
         "external",
         "sprayandwait",
         "static",
+        "prophet_v1",
     ]
 }
 
 pub fn routing_options() -> Vec<&'static str> {
-    vec!["sprayandwait.num_copies=<int>", "static.routes=<file>"]
+    vec![
+        "sprayandwait.num_copies=<int>",
+        "static.routes=<file>",
+        "prophet_v1.p_init=<0..1>",
+        "prophet_v1.beta=<0..1>",
+        "prophet_v1.gamma=<0..1>",
+        "prophet_v1.time_unit=<duration>",
+        "prophet_v1.prune_threshold=<0..1>",
+        "prophet_v1.tick_interval=<duration>",
+        "prophet_v1.record_lifetime=<duration>",
+    ]
 }
 
 pub fn new(routingagent: &str) -> RoutingAgentsEnum {
@@ -107,6 +121,7 @@ pub fn new(routingagent: &str) -> RoutingAgentsEnum {
         "static" => StaticRoutingAgent::new().into(),
         "external" => ExternalRoutingAgent::new().into(),
         "sprayandwait" => SprayAndWaitRoutingAgent::new().into(),
+        "prophet_v1" => ProphetV1RoutingAgent::new().into(),
         _ => panic!("Unknown routing agent {}", routingagent),
     }
 }

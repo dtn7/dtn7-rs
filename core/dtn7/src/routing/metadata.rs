@@ -22,12 +22,20 @@ use bp7::{Bundle, EndpointID};
 use crate::core::bpsec::{self, ProcessingStep, Verdict};
 use crate::core::processing::{transmit, validate_bundle};
 
+/// Administrative record type code for PRoPHET delivery predictability records.
+///
+/// Neither the PRoPHET paper nor RFC 6693 defines a record type code
+/// (RFC 6693 signals out-of-band over TCP, not via administrative records),
+/// so this is taken from the private use range 64512-65535 that RFC 9713 reserves.
+/// The trailing 194 echoes the extension block type code that dtn7-gold used for its PRoPHET block.
+pub const PROPHET_RIB_RECORD: AdministrativeRecordTypeCode = 65194;
+
 /// Administrative record type codes that carry routing metadata.
 ///
 /// Records with these codes are dispatched to the routing agent
 /// instead of being treated as unknown administrative records.
 /// The codes are taken from the private use range 64512-65535 that RFC 9713 reserves.
-pub const ROUTING_RECORD_TYPES: &[AdministrativeRecordTypeCode] = &[];
+pub const ROUTING_RECORD_TYPES: &[AdministrativeRecordTypeCode] = &[PROPHET_RIB_RECORD];
 
 /// Returns true if the given administrative record type code carries routing metadata and
 /// should be dispatched to the routing agent instead of being treated as an unknown record.

@@ -27,7 +27,7 @@ The actual BP7 implementation (encoding/decoding) is available as a separate [pr
 
 Additional dtn extensions and a client library are also [available](https://crates.io/crates/dtn7-plus).
 
-Currently, a service discovery based on IPND but adapted to CBOR and BPv7, TCP, MTCP & HTTP CLs, sprayandwait/flooding/epidemic/static/sink-routing and restful/websocket command interfaces are implemented.
+Currently, a service discovery based on IPND but adapted to CBOR and BPv7, TCP, MTCP & HTTP CLs, sprayandwait/flooding/epidemic/prophet_v1/static/sink-routing and restful/websocket command interfaces are implemented.
 Both addressing schemes, *dtn* as well as *ipn* are supported.
 Furthermore, some CLI tools are provided to easily integrate *dtn7* into shell scripts.
 
