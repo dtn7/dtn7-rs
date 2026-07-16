@@ -21,6 +21,7 @@ use external::ExternalRoutingAgent;
 use flooding::FloodingRoutingAgent;
 use log::debug;
 use prophet::v1::ProphetV1RoutingAgent;
+use prophet::v2::ProphetV2RoutingAgent;
 use sink::SinkRoutingAgent;
 use sprayandwait::SprayAndWaitRoutingAgent;
 use static_routing::StaticRoutingAgent;
@@ -56,6 +57,7 @@ pub enum RoutingAgentsEnum {
     SprayAndWaitRoutingAgent,
     StaticRoutingAgent,
     ProphetV1RoutingAgent,
+    ProphetV2RoutingAgent,
 }
 
 impl Display for RoutingAgentsEnum {
@@ -95,6 +97,7 @@ pub fn routing_algorithms() -> Vec<&'static str> {
         "sprayandwait",
         "static",
         "prophet_v1",
+        "prophet_v2",
     ]
 }
 
@@ -109,6 +112,17 @@ pub fn routing_options() -> Vec<&'static str> {
         "prophet_v1.prune_threshold=<0..1>",
         "prophet_v1.tick_interval=<duration>",
         "prophet_v1.record_lifetime=<duration>",
+        "prophet_v2.p_encounter_max=<0..1>",
+        "prophet_v2.p_encounter_first=<0..1>",
+        "prophet_v2.p_first_threshold=<0..1>",
+        "prophet_v2.beta=<0..1>",
+        "prophet_v2.gamma=<0..1>",
+        "prophet_v2.delta=<0..1>",
+        "prophet_v2.i_typ=<duration>",
+        "prophet_v2.time_unit=<duration>",
+        "prophet_v2.exchange_interval=<duration>",
+        "prophet_v2.tick_interval=<duration>",
+        "prophet_v2.record_lifetime=<duration>",
     ]
 }
 
@@ -122,6 +136,7 @@ pub fn new(routingagent: &str) -> RoutingAgentsEnum {
         "external" => ExternalRoutingAgent::new().into(),
         "sprayandwait" => SprayAndWaitRoutingAgent::new().into(),
         "prophet_v1" => ProphetV1RoutingAgent::new().into(),
+        "prophet_v2" => ProphetV2RoutingAgent::new().into(),
         _ => panic!("Unknown routing agent {}", routingagent),
     }
 }

@@ -10,6 +10,7 @@ use dtn7::core::bundlepack::BundlePack;
 use dtn7::core::peer::{DtnPeer, PeerAddress, PeerType};
 use dtn7::routing::epidemic::EpidemicRoutingAgent;
 use dtn7::routing::prophet::v1::ProphetV1RoutingAgent;
+use dtn7::routing::prophet::v2::ProphetV2RoutingAgent;
 use dtn7::routing::sprayandwait::SprayAndWaitRoutingAgent;
 use dtn7::routing::{RoutingAgent, RoutingCmd, RoutingNotification};
 use std::collections::HashMap;
@@ -206,14 +207,27 @@ async fn routing_agents_survive_bad_requests() {
     );
 
     let prophet = ProphetV1RoutingAgent::new().channel();
-    let (clas, _) = sender_for_bundle(&prophet, to_none_bp)
+    let (clas, _) = sender_for_bundle(&prophet, to_none_bp.clone())
         .await
         .expect("prophet_v1: no reply for bundle to dtn:none");
     assert!(clas.is_empty());
     get_data_with_dropped_requester(&prophet).await;
     assert!(
-        sender_for_bundle(&prophet, regular_bp).await.is_some(),
+        sender_for_bundle(&prophet, regular_bp.clone())
+            .await
+            .is_some(),
         "prophet_v1: routing agent died"
+    );
+
+    let prophet = ProphetV2RoutingAgent::new().channel();
+    let (clas, _) = sender_for_bundle(&prophet, to_none_bp)
+        .await
+        .expect("prophet_v2: no reply for bundle to dtn:none");
+    assert!(clas.is_empty());
+    get_data_with_dropped_requester(&prophet).await;
+    assert!(
+        sender_for_bundle(&prophet, regular_bp).await.is_some(),
+        "prophet_v2: routing agent died"
     );
 }
 

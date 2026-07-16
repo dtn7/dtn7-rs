@@ -1,6 +1,7 @@
 //! Shared logic for the PRoPHET routing agents.
 
 pub mod v1;
+pub mod v2;
 
 use std::collections::{HashMap, HashSet};
 use std::time::{Duration, Instant};
