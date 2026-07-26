@@ -2,6 +2,7 @@ use crate::CONFIG;
 use crate::DTNCORE;
 use crate::core::bpsec::{self, ProcessingStep, Verdict};
 use crate::core::bundlepack::*;
+use crate::core::stats::BundleClass;
 use crate::core::*;
 use crate::routing::RoutingNotification;
 use crate::routing::metadata::is_routing_record;
@@ -191,15 +192,19 @@ pub async fn receive(mut bndl: Bundle) -> Result<()> {
         STATS.lock().broken += 1;
         return Err(err);
     }
+    let class = BundleClass::of(&bndl);
     if store_add_bundle_if_unknown(&bndl)? {
         info!("Received new bundle: {}", bndl.id());
-        STATS.lock().incoming += 1;
     } else {
         debug!(
             "Received an already known bundle, skip processing: {}",
             bndl.id()
         );
-        STATS.lock().dups += 1;
+        // The received copy is not encoded again, the known one has the same size.
+        let size = store_get_metadata(&bndl.id()).map_or(0, |meta| meta.size);
+        let mut stats = STATS.lock();
+        stats.dups += 1;
+        stats.dups_classes.count(class, size);
 
         // bundleDeletion is _not_ called because this would delete the already
         // stored BundlePack.
@@ -207,6 +212,11 @@ pub async fn receive(mut bndl: Bundle) -> Result<()> {
     }
 
     let mut bp = BundlePack::from(&bndl);
+    {
+        let mut stats = STATS.lock();
+        stats.incoming += 1;
+        stats.incoming_classes.count(class, bp.size);
+    }
     bp.add_constraint(Constraint::DispatchPending);
     bp.sync()?;
 
@@ -462,7 +472,10 @@ pub async fn forward(mut bp: BundlePack) -> Result<()> {
         }
 
         let mut wg = Vec::new();
+        // Classified before encoding, and sized from the encoded form.
+        let class = BundleClass::of(&bndl);
         let bundle_data = bndl.to_cbor();
+        let wire_size = bundle_data.len();
         for n in nodes {
             let bd = bundle_data.clone(); // TODO: optimize cloning away, reference should do
             let bpid = bpid.clone();
@@ -483,7 +496,11 @@ pub async fn forward(mut bp: BundlePack) -> Result<()> {
                         n.next_hop,
                         start_time.elapsed()
                     );
-                    STATS.lock().failed += 1;
+                    {
+                        let mut stats = STATS.lock();
+                        stats.failed += 1;
+                        stats.failed_classes.count(class, wire_size);
+                    }
                     debug!("Error while transferring bundle {}: {}", bpid, err);
 
                     let next_hop = n.next_hop.node().unwrap_or_default();
@@ -511,7 +528,11 @@ pub async fn forward(mut bp: BundlePack) -> Result<()> {
                         n.cla_name,
                         start_time.elapsed()
                     );
-                    STATS.lock().outgoing += 1;
+                    {
+                        let mut stats = STATS.lock();
+                        stats.outgoing += 1;
+                        stats.outgoing_classes.count(class, wire_size);
+                    }
                     bundle_sent.store(true, Ordering::Relaxed);
                     if let Err(err) = routing_notify(RoutingNotification::SendingSucceeded(
                         bpid,
@@ -655,7 +676,11 @@ pub async fn local_delivery(mut bp: BundlePack) -> Result<()> {
     };
     // STATS must not be locked while holding DTNCORE (lock order: STATS -> DTNCORE)
     if delivered {
-        STATS.lock().delivered += 1;
+        let mut stats = STATS.lock();
+        stats.delivered += 1;
+        stats
+            .delivered_classes
+            .count(BundleClass::of(&bndl), bp.size);
     }
     Ok(())
 }

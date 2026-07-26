@@ -43,6 +43,28 @@ pub fn is_routing_record(code: AdministrativeRecordTypeCode) -> bool {
     ROUTING_RECORD_TYPES.contains(&code)
 }
 
+/// Returns the administrative record type code a bundle carries, if it carries one.
+///
+/// Only the leading type code is decoded and the record body is skipped.
+pub fn record_type_code(bundle: &Bundle) -> Option<AdministrativeRecordTypeCode> {
+    if !bundle.is_administrative_record() {
+        return None;
+    }
+    let bp7::canonical::CanonicalData::Data(data) =
+        bundle.extension_block_by_type(bp7::PAYLOAD_BLOCK)?.data()
+    else {
+        return None;
+    };
+    serde_cbor::from_slice::<(AdministrativeRecordTypeCode, serde::de::IgnoredAny)>(data)
+        .ok()
+        .map(|(code, _)| code)
+}
+
+/// Returns true if the bundle carries a routing metadata record.
+pub fn carries_routing_record(bundle: &Bundle) -> bool {
+    record_type_code(bundle).is_some_and(is_routing_record)
+}
+
 /// Builds a bundle carrying routing metadata as an administrative record.
 ///
 /// `data` is the already encoded record body,

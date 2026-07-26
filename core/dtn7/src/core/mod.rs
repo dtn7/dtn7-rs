@@ -10,7 +10,7 @@ pub mod store;
 use crate::cla::ConvergenceLayerAgent;
 use crate::core::bundlepack::Constraint;
 pub use crate::core::peer::{DtnPeer, PeerType};
-use crate::core::stats::{NodeStats, RegistrationInformation};
+use crate::core::stats::{ClassCounts, NodeStats, RegistrationInformation};
 use crate::core::store::BundleStore;
 use crate::routing::RoutingAgentsEnum;
 use crate::{
@@ -39,6 +39,16 @@ pub struct DtnStatistics {
     pub delivered: u64,
     pub failed: u64,
     pub broken: u64,
+    /// Breakdown of `incoming` by bundle class.
+    pub incoming_classes: ClassCounts,
+    /// Breakdown of `dups` by bundle class.
+    pub dups_classes: ClassCounts,
+    /// Breakdown of `outgoing` by bundle class.
+    pub outgoing_classes: ClassCounts,
+    /// Breakdown of `delivered` by bundle class.
+    pub delivered_classes: ClassCounts,
+    /// Breakdown of `failed` by bundle class.
+    pub failed_classes: ClassCounts,
     pub node: NodeStats,
 }
 
@@ -52,6 +62,11 @@ impl DtnStatistics {
             delivered: 0,
             failed: 0,
             broken: 0,
+            incoming_classes: ClassCounts::default(),
+            dups_classes: ClassCounts::default(),
+            outgoing_classes: ClassCounts::default(),
+            delivered_classes: ClassCounts::default(),
+            failed_classes: ClassCounts::default(),
             node: nodestats,
         }
     }

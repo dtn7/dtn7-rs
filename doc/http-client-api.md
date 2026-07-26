@@ -346,14 +346,34 @@ $ curl http://127.0.0.1:3000/status/peers
 
 Get some general statistics about the running *dtnd* instance.
 
+`incoming`, `dups`, `outgoing`, `delivered` and `failed` are broken down by traffic class in the matching `*_classes` field:
+`unicast` and `group` count payload bundles to singleton and non-singleton endpoints,
+`routing` counts routing metadata records (e.g., PRoPHET predictability maps), and `admin` counts all other administrative records, such as status reports.
+Each class counts the bundles and their total encoded size in bytes, and the classes add up to the flat counter.
+`outgoing` and `failed` count each transmission to a peer, so a bundle sent to several peers or retried is counted several times.
+`delivered` counts deliveries to local application agents; routing records are consumed by the routing agent and never counted as delivered.
+`node` contains the managed information of CCSDS 734.20-O-1, Annex C.
+
 ```
 $ curl http://127.0.0.1:3000/status/info
 {
-  "incoming": 0,
-  "dups": 0,
-  "outgoing": 0,
-  "delivered": 0,
-  "broken": 0
+  "incoming": 3,
+  "dups": 1,
+  "outgoing": 2,
+  "delivered": 1,
+  "failed": 0,
+  "broken": 0,
+  "incoming_classes": {
+    "unicast": { "bundles": 2, "bytes": 412 },
+    "group": { "bundles": 0, "bytes": 0 },
+    "routing": { "bundles": 1, "bytes": 96 },
+    "admin": { "bundles": 0, "bytes": 0 }
+  },
+  "dups_classes": { ... },
+  "outgoing_classes": { ... },
+  "delivered_classes": { ... },
+  "failed_classes": { ... },
+  "node": { ... }
 }
 ```
 
