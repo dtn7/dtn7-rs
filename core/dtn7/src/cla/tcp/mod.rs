@@ -24,7 +24,7 @@ use tokio::time::{self};
 use super::tcp::proto::*;
 use crate::core::store::BundleStore;
 use crate::core::PeerType;
-use crate::{peers_add, peers_known, STORE};
+use crate::{peers_add, peers_known, peers_touch, STORE};
 use crate::{DtnPeer, CONFIG};
 use anyhow::bail;
 use bytes::Bytes;
@@ -225,6 +225,18 @@ impl TcpSession {
     async fn process_bundle(&mut self, vec: Vec<u8>, tid: u64) -> anyhow::Result<ReceiveState> {
         match Bundle::try_from(vec) {
             Ok(bundle) => {
+                // Refresh the sending peer's last-contact on inbound traffic. A dynamic
+                // peer's last_contact is otherwise only updated by IPND beacons (see
+                // peers_touch / Peer::still_valid), so a peer that exchanges bundles but
+                // doesn't beacon — e.g. a TCPCL-only dialer — gets reaped at peer_timeout
+                // mid-session, severing the return path. Treating received traffic as
+                // contact keeps an active peer alive.
+                if let Some(node) = EndpointID::try_from(self.remote_session_data.node_id.as_ref())
+                    .ok()
+                    .and_then(|eid| eid.node())
+                {
+                    let _ = peers_touch(&node);
+                }
                 tokio::spawn(async move {
                     if let Err(err) = crate::core::processing::receive(bundle).await {
                         error!("Failed to process bundle: {}", err);
@@ -338,7 +350,7 @@ impl TcpSession {
                         TcpClPacket::XferAck(XferAckData {
                             tid: data.tid,
                             len: data.len,
-                            flags: XferSegmentFlags::empty(),
+                            flags: data.flags,
                         })
                         .write(&mut self.writer)
                         .await?;
