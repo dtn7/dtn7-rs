@@ -76,16 +76,16 @@ impl KeySet {
             let Some(key) = self.get(&rule.key) else {
                 bail!("bpsec rule {} uses unknown key {}", rule.name, rule.key);
             };
-            if let Some(lengths) = rule.valid_key_lengths() {
-                if !lengths.contains(&key.bytes().len()) {
-                    bail!(
-                        "bpsec rule {} requires a key of {:?} bytes, key {} has {} bytes",
-                        rule.name,
-                        lengths,
-                        rule.key,
-                        key.bytes().len()
-                    );
-                }
+            if let Some(lengths) = rule.valid_key_lengths()
+                && !lengths.contains(&key.bytes().len())
+            {
+                bail!(
+                    "bpsec rule {} requires a key of {:?} bytes, key {} has {} bytes",
+                    rule.name,
+                    lengths,
+                    rule.key,
+                    key.bytes().len()
+                );
             }
         }
         Ok(())
@@ -113,13 +113,13 @@ fn read_key(path: &Path) -> Result<Key> {
 #[cfg(unix)]
 fn warn_if_readable_by_others(path: &Path) {
     use std::os::unix::fs::PermissionsExt;
-    if let Ok(metadata) = std::fs::metadata(path) {
-        if metadata.permissions().mode() & 0o077 != 0 {
-            warn!(
-                "Key file {} is accessible by other users, consider `chmod 600`",
-                path.display()
-            );
-        }
+    if let Ok(metadata) = std::fs::metadata(path)
+        && metadata.permissions().mode() & 0o077 != 0
+    {
+        warn!(
+            "Key file {} is accessible by other users, consider `chmod 600`",
+            path.display()
+        );
     }
 }
 

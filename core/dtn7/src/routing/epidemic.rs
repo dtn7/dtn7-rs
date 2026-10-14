@@ -143,10 +143,10 @@ async fn handle_routing_cmd(mut rx: mpsc::Receiver<RoutingCmd>) {
                     core.sending_failed(bid.as_str(), cla_sender.as_str());
                 }
                 RoutingNotification::IncomingBundle(bndl) => {
-                    if let Some(eid) = bndl.previous_node() {
-                        if let Some(node_name) = eid.node() {
-                            core.incoming_bundle(&bndl.id(), &node_name);
-                        }
+                    if let Some(eid) = bndl.previous_node()
+                        && let Some(node_name) = eid.node()
+                    {
+                        core.incoming_bundle(&bndl.id(), &node_name);
                     };
                 }
                 RoutingNotification::IncomingBundleWithoutPreviousNode(bid, node_name) => {

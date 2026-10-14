@@ -210,13 +210,12 @@ async fn serve(strategy: String, addr: &str) -> Result<()> {
                     }
                 }
                 Packet::IncomingBundle(packet) => {
-                    if strategy == "epidemic" {
-                        if let Some(eid) = packet.bndl.previous_node() {
-                            if let Some(node_name) = eid.node() {
-                                epidemic_router.incoming_bundle(&packet.bndl.id(), &node_name);
-                            }
-                        };
-                    }
+                    if strategy == "epidemic"
+                        && let Some(eid) = packet.bndl.previous_node()
+                        && let Some(node_name) = eid.node()
+                    {
+                        epidemic_router.incoming_bundle(&packet.bndl.id(), &node_name);
+                    };
                 }
                 Packet::IncomingBundleWithoutPreviousNode(packet) => {
                     if strategy == "epidemic" {

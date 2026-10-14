@@ -190,11 +190,11 @@ async fn main() -> Result<()> {
 
             let res = future::select(connecting, read).await;
             #[allow(clippy::collapsible_match)]
-            if let Either::Left((con_res, _)) = res {
-                if let Err(err) = con_res {
-                    error!("error {}", err);
-                    std::process::exit(101);
-                }
+            if let Either::Left((con_res, _)) = res
+                && let Err(err) = con_res
+            {
+                error!("error {}", err);
+                std::process::exit(101);
             }
 
             std::process::exit(0);

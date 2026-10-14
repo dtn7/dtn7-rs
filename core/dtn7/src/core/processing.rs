@@ -312,23 +312,23 @@ pub async fn dispatch(bp: BundlePack) -> Result<()> {
 
 async fn handle_hop_count_block(mut bundle: Bundle) -> Result<Bundle> {
     let bid = bundle.id();
-    if let Some(hc) = bundle.extension_block_by_type_mut(bp7::canonical::HOP_COUNT_BLOCK) {
-        if hc.hop_count_increase() {
-            let (hc_limit, hc_count) = hc
-                .hop_count_get()
-                .expect("hop count data missing from hop count block");
-            debug!(
-                "Bundle contains an hop count block: {} {} {}",
+    if let Some(hc) = bundle.extension_block_by_type_mut(bp7::canonical::HOP_COUNT_BLOCK)
+        && hc.hop_count_increase()
+    {
+        let (hc_limit, hc_count) = hc
+            .hop_count_get()
+            .expect("hop count data missing from hop count block");
+        debug!(
+            "Bundle contains an hop count block: {} {} {}",
+            bid, hc_limit, hc_count
+        );
+        if hc.hop_count_exceeded() {
+            warn!(
+                "Bundle contains an exceeded hop count block: {} {} {}",
                 bid, hc_limit, hc_count
             );
-            if hc.hop_count_exceeded() {
-                warn!(
-                    "Bundle contains an exceeded hop count block: {} {} {}",
-                    bid, hc_limit, hc_count
-                );
-                delete(bundle.into(), HOP_LIMIT_EXCEEDED).await?;
-                bail!("hop count exceeded");
-            }
+            delete(bundle.into(), HOP_LIMIT_EXCEEDED).await?;
+            bail!("hop count exceeded");
         }
     }
     Ok(bundle)
@@ -492,12 +492,11 @@ pub async fn forward(mut bp: BundlePack) -> Result<()> {
                     {
                         error!("Error while sending failed notification: {}", err);
                     }
-                    if let Some(dropped_peer) = report_failed_transmission(&next_hop) {
-                        if let Err(err) =
+                    if let Some(dropped_peer) = report_failed_transmission(&next_hop)
+                        && let Err(err) =
                             routing_notify(RoutingNotification::DroppedPeer(dropped_peer.eid)).await
-                        {
-                            error!("Error while sending dropped peer notification: {}", err);
-                        }
+                    {
+                        error!("Error while sending dropped peer notification: {}", err);
                     }
                     // TODO: send status report?
                     // if (*CONFIG.lock()).generate_service_reports {
