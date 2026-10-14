@@ -7,9 +7,9 @@ pub mod ipnd;
 pub mod routing;
 
 use crate::cla::CLAsAvailable;
+use crate::core::DtnStatistics;
 use crate::core::bundlepack::BundlePack;
 use crate::core::store::{BundleStore, InMemoryBundleStore};
-use crate::core::DtnStatistics;
 use crate::routing::{RoutingAgent, RoutingCmd};
 use bp7::{Bundle, EndpointID};
 use cla::{CLAEnum, ClaSenderTask};
@@ -23,7 +23,7 @@ use crate::cla::ConvergenceLayerAgent;
 use crate::core::bundlepack::Constraint;
 use crate::core::peer::PeerAddress;
 use crate::core::store::BundleStoresEnum;
-use anyhow::{bail, Context, Result};
+use anyhow::{Context, Result, bail};
 use lazy_static::*;
 use parking_lot::Mutex;
 use std::collections::{BTreeMap, HashMap};
@@ -137,7 +137,7 @@ pub fn peers_touch(peer: &str) -> Result<()> {
     Ok(())
 }
 pub fn peers_get_for_node(eid: &EndpointID) -> Option<DtnPeer> {
-    for (_, p) in (*PEERS.lock()).iter() {
+    for p in (*PEERS.lock()).values() {
         if p.node_name() == eid.node().unwrap_or_default() {
             return Some(p.clone());
         }
@@ -154,7 +154,7 @@ pub fn peers_cla_for_node(eid: &EndpointID) -> Option<ClaSenderTask> {
     None
 }
 pub fn peer_find_by_remote(addr: &PeerAddress) -> Option<String> {
-    for (_, p) in (*PEERS.lock()).iter() {
+    for p in (*PEERS.lock()).values() {
         if p.addr() == addr {
             return Some(p.node_name());
         }

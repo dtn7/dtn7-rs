@@ -1,5 +1,5 @@
 use super::Packet;
-use futures_util::{future, pin_mut, SinkExt, StreamExt};
+use futures_util::{SinkExt, StreamExt, future, pin_mut};
 use log::{error, info};
 use serde_json::Result;
 use std::str::FromStr;
@@ -67,8 +67,8 @@ impl Client {
             while let Some(command) = cmd_receiver.recv().await {
                 match command {
                     Command::SendPacket(packet) => {
-                        let data = serde_json::to_string(&packet);
-                        if write.send(Message::Text(data.unwrap())).await.is_err() {
+                        let data = serde_json::to_string(&packet).unwrap();
+                        if write.send(Message::Text(data.into())).await.is_err() {
                             error!("Error while sending packet");
                         }
                     }
@@ -90,10 +90,10 @@ impl Client {
                 let data = message.unwrap().into_text();
 
                 let packet: Result<Packet> = serde_json::from_str(data.unwrap().as_str());
-                if let Ok(packet) = packet {
-                    if let Err(err) = self.packet_out.send(packet).await {
-                        error!("Error while sending packet to channel: {}", err);
-                    }
+                if let Ok(packet) = packet
+                    && let Err(err) = self.packet_out.send(packet).await
+                {
+                    error!("Error while sending packet to channel: {}", err);
                 }
             })
         };

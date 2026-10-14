@@ -2,11 +2,11 @@ use super::{Packet, PeerState, RequestSenderForBundle, ResponseSenderForBundle, 
 use crate::cla::ConvergenceLayerAgent;
 use crate::routing::erouting::Error;
 use crate::{
-    cla_names, lazy_static, service_add, BundlePack, ClaSenderTask, RoutingNotifcation, CLAS,
-    DTNCORE, PEERS,
+    BundlePack, CLAS, ClaSenderTask, DTNCORE, PEERS, RoutingNotifcation, cla_names, lazy_static,
+    service_add,
 };
 use axum::extract::ws::{Message, WebSocket};
-use futures_util::{future, SinkExt, StreamExt, TryStreamExt};
+use futures_util::{SinkExt, StreamExt, TryStreamExt, future};
 use log::{error, info, trace};
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
@@ -56,10 +56,9 @@ pub async fn handle_connection(ws: WebSocket) {
 
         if let Ok(data) = serde_json::to_string(&Packet::Error(Error {
             reason: String::from("external routing agent already registered"),
-        })) {
-            if let Err(err) = outgoing.send(Message::Text(data)).await {
-                error!("Error while sending closing reason: {}", err);
-            }
+        })) && let Err(err) = outgoing.send(Message::Text(data.into())).await
+        {
+            error!("Error while sending closing reason: {}", err);
         }
 
         if let Err(err) = outgoing.close().await {
@@ -143,12 +142,11 @@ fn disconnect() {
 
 /// Sends a JSON encoded packet to the connected router.
 fn send_packet(p: &Packet) {
-    if let Ok(data) = serde_json::to_string(p) {
-        if let Some(con) = CONNECTION.lock().unwrap().as_ref() {
-            if let Err(err) = con.tx.try_send(Message::Text(data)) {
-                error!("couldn't send packet {}", err)
-            }
-        }
+    if let Ok(data) = serde_json::to_string(p)
+        && let Some(con) = CONNECTION.lock().unwrap().as_ref()
+        && let Err(err) = con.tx.try_send(Message::Text(data.into()))
+    {
+        error!("couldn't send packet {}", err)
     }
 }
 

@@ -1,6 +1,6 @@
 use super::Connector;
-use crate::cla::ecla::processing::{handle_connect, handle_disconnect, handle_packet};
 use crate::cla::ecla::Packet;
+use crate::cla::ecla::processing::{handle_connect, handle_disconnect, handle_packet};
 use crate::lazy_static;
 use async_trait::async_trait;
 use futures_util::{future, stream::TryStreamExt};
@@ -68,7 +68,7 @@ async fn handle_connection(raw_stream: TcpStream, addr: SocketAddr) {
     future::select(rx_close, future::select(incoming, outgoing)).await;
 
     if PEER_MAP.lock().unwrap().remove(&addr.to_string()).is_some() {
-        info!("ECLA (TCP) {} disconnected", &addr);
+        info!("ECLA (TCP) {} disconnected", addr);
         handle_disconnect(addr.to_string());
     }
 }

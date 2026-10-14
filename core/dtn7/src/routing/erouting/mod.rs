@@ -1,4 +1,4 @@
-use crate::{peers_get_for_node, BundleID, BundlePack, DtnPeer, PeerAddress, RoutingNotifcation};
+use crate::{BundleID, BundlePack, DtnPeer, PeerAddress, RoutingNotifcation, peers_get_for_node};
 use bp7::{Bundle, EndpointID};
 use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, HashMap};

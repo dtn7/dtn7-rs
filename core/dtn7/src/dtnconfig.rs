@@ -1,11 +1,11 @@
 use crate::cla::CLAsAvailable;
-use crate::core::helpers::is_valid_node_name;
 use crate::core::DtnPeer;
+use crate::core::helpers::is_valid_node_name;
 use bp7::EndpointID;
 use config::{Config, File};
 use log::{debug, error};
-use rand::distributions::Alphanumeric;
-use rand::{thread_rng, Rng};
+use rand::RngExt;
+use rand::distr::{Alphanumeric, SampleString};
 use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, HashMap};
 use std::net::SocketAddr;
@@ -14,21 +14,16 @@ use std::str::FromStr;
 use std::{convert::TryInto, time::Duration};
 
 /// Discovery transport mechanism
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 pub enum DiscoveryTransport {
     /// UDP multicast (legacy IPND)
+    #[default]
     UdpMulticast,
     /// mDNS/DNS-SD service discovery
     Mdns,
     /// Both UDP multicast and mDNS simultaneously
     Both,
-}
-
-impl Default for DiscoveryTransport {
-    fn default() -> Self {
-        Self::UdpMulticast
-    }
 }
 
 impl FromStr for DiscoveryTransport {
@@ -78,19 +73,10 @@ pub struct DtnConfig {
 }
 
 pub fn rnd_node_name() -> String {
-    // generate a random node name starting with a character
-    let mut rng = thread_rng();
-    let mut result_str = String::new();
-
-    // Get a random letter
-    let first_char = rng.gen_range(b'a'..=b'z') as char;
-    result_str.push(first_char);
-
-    // Get 9 more random characters
-    for _ in 0..9 {
-        let next_char = thread_rng().sample_iter(&Alphanumeric).next().unwrap() as char;
-        result_str.push(next_char);
-    }
+    // generate a random node name starting with a letter
+    let mut rng = rand::rng();
+    let mut result_str = String::from(rng.random_range(b'a'..=b'z') as char);
+    result_str.push_str(&Alphanumeric.sample_string(&mut rng, 9));
     result_str
 }
 
@@ -212,14 +198,14 @@ impl From<PathBuf> for DtnConfig {
             }
         }
         if let Ok(endpoints) = s.get_table("endpoints.local") {
-            for (_k, v) in endpoints.iter() {
+            for v in endpoints.values() {
                 let eid = v.clone().into_string().unwrap();
                 debug!("EID: {:?}", eid);
                 dtncfg.endpoints.push(eid);
             }
         }
         if let Ok(clas) = s.get_table("convergencylayers.cla") {
-            for (_k, v) in clas.iter() {
+            for v in clas.values() {
                 let mut tab = v.clone().into_table().unwrap();
                 let cla_id = tab.remove("id").unwrap().into_string().unwrap();
                 match CLAsAvailable::from_str(cla_id.as_str()) {
@@ -263,7 +249,7 @@ impl From<PathBuf> for DtnConfig {
             }
         }
         if let Ok(services) = s.get_table("services.service") {
-            for (_k, v) in services.iter() {
+            for v in services.values() {
                 let tab = v.clone().into_table().unwrap();
                 let service_tag: u8 =
                     tab["tag"].clone().into_string().unwrap().parse().expect(
@@ -285,7 +271,7 @@ impl From<PathBuf> for DtnConfig {
             }
         }
         if let Ok(discovery_destinations) = s.get_table("discovery_destinations.target") {
-            for (_k, v) in discovery_destinations.iter() {
+            for v in discovery_destinations.values() {
                 let tab = v.clone().into_table().unwrap();
                 let destination = tab["destination"].clone().into_string().unwrap();
                 dtncfg
@@ -422,7 +408,7 @@ impl DtnConfig {
                     return Err(std::io::Error::new(
                         std::io::ErrorKind::InvalidInput,
                         String::from("Only IP destinations supported at the moment"),
-                    ))
+                    ));
                 }
             }
         }

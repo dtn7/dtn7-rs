@@ -1,7 +1,7 @@
 use crate::cla::ConvergenceLayerAgent;
 use crate::core::{DtnPeer, PeerType};
 use crate::routing::RoutingNotifcation;
-use crate::{peers_add, peers_remove, peers_touch, routing_notify, CLAS, CONFIG, DTNCORE};
+use crate::{CLAS, CONFIG, DTNCORE, peers_add, peers_remove, peers_touch, routing_notify};
 use anyhow::Result;
 use log::{debug, error, info, trace, warn};
 use std::collections::HashMap;
@@ -11,7 +11,7 @@ use tokio::time::interval;
 const MDNS_SERVICE_TYPE: &str = "_dtn._udp.local.";
 
 pub async fn spawn_mdns_discovery() -> Result<()> {
-    use mdns_sd::ServiceDaemon;
+    use mdns_sd::{IfKind, ServiceDaemon};
 
     let config = CONFIG.lock();
     let nodeid = config.nodeid.clone();
@@ -19,20 +19,32 @@ pub async fn spawn_mdns_discovery() -> Result<()> {
     let interval_duration = config.announcement_interval;
     drop(config);
 
-    info!("Starting mDNS discovery for service type: {}", MDNS_SERVICE_TYPE);
+    info!(
+        "Starting mDNS discovery for service type: {}",
+        MDNS_SERVICE_TYPE
+    );
 
     // Create mDNS daemon
     let mdns = ServiceDaemon::new().expect("Failed to create mDNS daemon");
+
+    // Loopback interfaces are enabled by default since mdns-sd 0.17,
+    // which would announce 127.0.0.1 and ::1 as our addresses to peers.
+    mdns.disable_interface(vec![IfKind::LoopbackV4, IfKind::LoopbackV6])
+        .expect("Failed to disable mDNS on loopback interfaces");
 
     // Build and register our service
     let service_info = build_mdns_service_info(&nodeid, &eid);
     mdns.register(service_info)
         .expect("Failed to register mDNS service");
 
-    info!("Registered mDNS service type: {} (Node: {})", MDNS_SERVICE_TYPE, nodeid);
+    info!(
+        "Registered mDNS service type: {} (Node: {})",
+        MDNS_SERVICE_TYPE, nodeid
+    );
 
     // Browse for other DTN nodes
-    let receiver = mdns.browse(MDNS_SERVICE_TYPE)
+    let receiver = mdns
+        .browse(MDNS_SERVICE_TYPE)
         .expect("Failed to browse for mDNS services");
 
     // Spawn listener task
@@ -95,10 +107,14 @@ fn build_mdns_service_info(nodeid: &str, eid: &bp7::EndpointID) -> mdns_sd::Serv
 
     // Add available CLAs with their ports
     let clas = CLAS.lock();
-    let cla_props: Vec<(String, String)> = clas.iter()
+    let cla_props: Vec<(String, String)> = clas
+        .iter()
         .enumerate()
         .map(|(idx, cla)| {
-            (format!("cla{}", idx), format!("{}:{}", cla.name(), cla.port()))
+            (
+                format!("cla{}", idx),
+                format!("{}:{}", cla.name(), cla.port()),
+            )
         })
         .collect();
     drop(clas);
@@ -109,7 +125,8 @@ fn build_mdns_service_info(nodeid: &str, eid: &bp7::EndpointID) -> mdns_sd::Serv
 
     // Add custom services
     let services = DTNCORE.lock().service_list.clone();
-    let svc_props: Vec<(String, String)> = services.iter()
+    let svc_props: Vec<(String, String)> = services
+        .iter()
         .map(|(tag, payload)| (format!("svc{}", tag), payload.clone()))
         .collect();
 
@@ -118,9 +135,7 @@ fn build_mdns_service_info(nodeid: &str, eid: &bp7::EndpointID) -> mdns_sd::Serv
     }
 
     // Convert to format mdns-sd expects
-    let props_ref: Vec<(&str, &str)> = properties.iter()
-        .map(|(k, v)| (*k, v.as_str()))
-        .collect();
+    let props_ref: Vec<(&str, &str)> = properties.iter().map(|(k, v)| (*k, v.as_str())).collect();
 
     // Use a dummy port (actual CLAs have their own ports)
     // The hostname will be <nodeid>.local
@@ -142,7 +157,7 @@ async fn handle_mdns_event(event: mdns_sd::ServiceEvent) -> Result<()> {
     match event {
         ServiceEvent::ServiceResolved(info) => {
             trace!("mDNS service resolved: {:?}", info);
-            handle_mdns_peer_discovered(info).await?;
+            handle_mdns_peer_discovered(&info).await?;
         }
         ServiceEvent::ServiceRemoved(_, fullname) => {
             debug!("mDNS service removed: {}", fullname);
@@ -154,14 +169,15 @@ async fn handle_mdns_event(event: mdns_sd::ServiceEvent) -> Result<()> {
             debug!("mDNS ServiceFound event (keepalive): {}", fullname);
             if let Some(instance_name) = fullname.split('.').next() {
                 // Extract node name from EID (e.g., "dtn://node1/" -> "node1")
-                let node_name = if instance_name.starts_with("dtn://") && instance_name.ends_with('/') {
-                    &instance_name[6..instance_name.len()-1]
-                } else {
-                    instance_name
-                };
+                let node_name =
+                    if instance_name.starts_with("dtn://") && instance_name.ends_with('/') {
+                        &instance_name[6..instance_name.len() - 1]
+                    } else {
+                        instance_name
+                    };
 
                 // Silently ignore if peer doesn't exist yet - ServiceResolved will add it
-                if let Ok(_) = peers_touch(node_name) {
+                if peers_touch(node_name).is_ok() {
                     debug!("Successfully touched peer: {}", node_name);
                 }
             }
@@ -172,17 +188,22 @@ async fn handle_mdns_event(event: mdns_sd::ServiceEvent) -> Result<()> {
         ServiceEvent::SearchStopped(_) => {
             warn!("mDNS search stopped");
         }
+        // ServiceEvent is non_exhaustive
+        other => {
+            debug!("Unhandled mDNS event: {:?}", other);
+        }
     }
 
     Ok(())
 }
 
-async fn handle_mdns_peer_discovered(info: mdns_sd::ServiceInfo) -> Result<()> {
+async fn handle_mdns_peer_discovered(info: &mdns_sd::ResolvedService) -> Result<()> {
     // Extract EID from TXT records
-    let eid_str = info.get_property_val_str("eid")
+    let eid_str = info
+        .get_property_val_str("eid")
         .ok_or_else(|| anyhow::anyhow!("No EID in mDNS service info"))?;
 
-    let eid: bp7::EndpointID = bp7::eid::EndpointID::try_from(eid_str.as_ref())
+    let eid: bp7::EndpointID = bp7::eid::EndpointID::try_from(eid_str)
         .map_err(|e| anyhow::anyhow!("Invalid EID in mDNS service: {:?}", e))?;
 
     // Don't add ourselves
@@ -196,13 +217,12 @@ async fn handle_mdns_peer_discovered(info: mdns_sd::ServiceInfo) -> Result<()> {
     let mut clas = Vec::new();
     for prop in info.get_properties().iter() {
         let key = prop.key();
-        if key.starts_with("cla") {
-            if let Some(val) = info.get_property_val_str(key) {
-                if let Some((name, port_str)) = val.split_once(':') {
-                    let port = port_str.parse().ok();
-                    clas.push((name.to_string(), port));
-                }
-            }
+        if key.starts_with("cla")
+            && let Some(val) = info.get_property_val_str(key)
+            && let Some((name, port_str)) = val.split_once(':')
+        {
+            let port = port_str.parse().ok();
+            clas.push((name.to_string(), port));
         }
     }
 
@@ -210,35 +230,43 @@ async fn handle_mdns_peer_discovered(info: mdns_sd::ServiceInfo) -> Result<()> {
     let mut services = HashMap::new();
     for prop in info.get_properties().iter() {
         let key = prop.key();
-        if key.starts_with("svc") {
-            if let Ok(tag) = key.strip_prefix("svc").unwrap_or("").parse::<u8>() {
-                if let Some(val) = info.get_property_val_str(key) {
-                    services.insert(tag, val.to_string());
-                }
-            }
+        if key.starts_with("svc")
+            && let Ok(tag) = key.strip_prefix("svc").unwrap_or("").parse::<u8>()
+            && let Some(val) = info.get_property_val_str(key)
+        {
+            services.insert(tag, val.to_string());
         }
     }
 
     // Get IP addresses from mDNS response
-    let addresses: Vec<IpAddr> = info.get_addresses().iter().cloned().collect();
+    let addresses: Vec<IpAddr> = info
+        .get_addresses()
+        .iter()
+        .map(|ip| ip.to_ip_addr())
+        .collect();
 
     if addresses.is_empty() {
         return Err(anyhow::anyhow!("No addresses in mDNS service info"));
     }
 
     // Log all discovered addresses
-    let addr_str = addresses.iter()
+    let addr_str = addresses
+        .iter()
         .map(|a| a.to_string())
         .collect::<Vec<_>>()
         .join(", ");
 
     // Prefer IPv4 over IPv6 link-local addresses for better reachability
-    let addr = addresses.iter()
+    let addr = *addresses
+        .iter()
         .find(|ip| ip.is_ipv4())
-        .or_else(|| addresses.iter().find(|ip| !ip.to_string().starts_with("fe80::")))
+        .or_else(|| {
+            addresses
+                .iter()
+                .find(|ip| !ip.to_string().starts_with("fe80::"))
+        })
         .or_else(|| addresses.first())
-        .ok_or_else(|| anyhow::anyhow!("No valid address in mDNS service info"))?
-        .clone();
+        .ok_or_else(|| anyhow::anyhow!("No valid address in mDNS service info"))?;
 
     debug!("Selected address {} from [{}]", addr, addr_str);
 
@@ -271,7 +299,9 @@ async fn handle_mdns_peer_discovered(info: mdns_sd::ServiceInfo) -> Result<()> {
 
 async fn handle_mdns_peer_removed(fullname: &str) -> Result<()> {
     // Extract instance name (nodeid) from fullname
-    let instance = fullname.split('.').next()
+    let instance = fullname
+        .split('.')
+        .next()
         .ok_or_else(|| anyhow::anyhow!("Invalid mDNS fullname"))?;
 
     info!("Removing peer discovered via mDNS: {}", instance);

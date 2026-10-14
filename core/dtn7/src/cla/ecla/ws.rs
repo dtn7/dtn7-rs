@@ -1,11 +1,11 @@
 use super::Connector;
-use crate::cla::ecla::processing::{handle_connect, handle_disconnect, handle_packet};
 use crate::cla::ecla::Packet;
+use crate::cla::ecla::processing::{handle_connect, handle_disconnect, handle_packet};
 use crate::lazy_static;
 use async_trait::async_trait;
 use axum::extract::ws::{Message, WebSocket};
-use futures_util::{future, stream::TryStreamExt, SinkExt, StreamExt};
-use log::{error, warn, info, debug, trace};
+use futures_util::{SinkExt, StreamExt, future, stream::TryStreamExt};
+use log::{debug, error, info, trace, warn};
 use serde_json::Result;
 use std::collections::HashMap;
 use std::sync::atomic::{AtomicUsize, Ordering};
@@ -45,7 +45,6 @@ pub async fn handle_connection(ws: WebSocket) {
 
     // Process incoming messages from the websocket client
     let broadcast_incoming = incoming.try_for_each(|msg| {
-
         let packet: Result<Packet>;
         {
             // Get own peer
@@ -59,15 +58,14 @@ pub async fn handle_connection(ws: WebSocket) {
             // Try to convert the message to text
             let msg_text = match msg.to_text() {
                 Ok(text) => {
-                    trace!(
-                        "Received a message from ECLA id {}: {}",
-                        id,
-                        text.trim()
-                    );
+                    trace!("Received a message from ECLA id {}: {}", id, text.trim());
                     text.trim()
-                },
+                }
                 Err(e) => {
-                    warn!("Failed to convert message to text from ECLA id {}: {}", id, e);
+                    warn!(
+                        "Failed to convert message to text from ECLA id {}: {}",
+                        id, e
+                    );
                     return future::ok(());
                 }
             };
@@ -130,8 +128,8 @@ impl Connector for WebsocketConnector {
 
         let peer_map = PEER_MAP.lock().unwrap();
         if let Some(target) = peer_map.get(dest) {
-            let data = serde_json::to_string(&packet);
-            return target.tx.try_send(Message::Text(data.unwrap())).is_ok();
+            let data = serde_json::to_string(&packet).unwrap();
+            return target.tx.try_send(Message::Text(data.into())).is_ok();
         }
 
         false

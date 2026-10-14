@@ -1,7 +1,7 @@
-use anyhow::{bail, Result};
-use clap::{crate_authors, crate_version, value_parser, Arg, ArgAction};
+use anyhow::{Result, bail};
+use clap::{Arg, ArgAction, crate_authors, crate_version, value_parser};
 use dtn7::client::data::{BundlePack, DtnPeer};
-use dtn7::client::erouting::{ws_client, Packet, ResponseSenderForBundle, Sender};
+use dtn7::client::erouting::{Packet, ResponseSenderForBundle, Sender, ws_client};
 use futures_util::{future, pin_mut};
 use lazy_static::lazy_static;
 use log::{debug, error, info};
@@ -75,7 +75,7 @@ impl EpidemicStrategy {
         let mut selected_clas: Vec<Sender> = Vec::new();
         let mut delete_afterwards = false;
 
-        for (_, p) in PEERS.lock().unwrap().iter() {
+        for p in PEERS.lock().unwrap().values() {
             for c in p.cla_list.iter() {
                 if clas.contains(&c.0) && !self.contains(bp.id(), &p.node_name()) {
                     self.add(bp.id().to_string(), p.node_name().clone());
@@ -121,7 +121,7 @@ impl EpidemicStrategy {
 // The flooding strategy is very simple. It sends the bundle to all available peers.
 fn flooding_strategy(clas: Vec<String>, _: BundlePack) -> (Vec<Sender>, bool) {
     let mut selected_clas = Vec::new();
-    for (_, p) in PEERS.lock().unwrap().iter() {
+    for p in PEERS.lock().unwrap().values() {
         for c in p.cla_list.iter() {
             if clas.contains(&c.0) {
                 selected_clas.push(Sender {
@@ -210,13 +210,12 @@ async fn serve(strategy: String, addr: &str) -> Result<()> {
                     }
                 }
                 Packet::IncomingBundle(packet) => {
-                    if strategy == "epidemic" {
-                        if let Some(eid) = packet.bndl.previous_node() {
-                            if let Some(node_name) = eid.node() {
-                                epidemic_router.incoming_bundle(&packet.bndl.id(), &node_name);
-                            }
-                        };
-                    }
+                    if strategy == "epidemic"
+                        && let Some(eid) = packet.bndl.previous_node()
+                        && let Some(node_name) = eid.node()
+                    {
+                        epidemic_router.incoming_bundle(&packet.bndl.id(), &node_name);
+                    };
                 }
                 Packet::IncomingBundleWithoutPreviousNode(packet) => {
                     if strategy == "epidemic" {
@@ -301,8 +300,9 @@ async fn main() -> Result<()> {
     let routing_types = ["flooding", "epidemic"];
 
     if matches.contains_id("debug") {
-        std::env::set_var("RUST_LOG", "debug");
-        pretty_env_logger::init_timed();
+        pretty_env_logger::formatted_timed_builder()
+            .parse_filters("debug")
+            .init();
     }
 
     if !matches.contains_id("type") || !matches.contains_id("addr") {

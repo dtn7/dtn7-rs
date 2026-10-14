@@ -1,6 +1,6 @@
 use super::RoutingAgent;
-use crate::routing::RoutingCmd;
 use crate::PEERS;
+use crate::routing::RoutingCmd;
 use async_trait::async_trait;
 use log::{debug, trace};
 use tokio::sync::mpsc;
@@ -28,7 +28,7 @@ impl FloodingRoutingAgent {
                     super::RoutingCmd::SenderForBundle(_bp, reply) => {
                         let mut clas = Vec::new();
                         debug!("checking PEERS due to SenderForBundle request");
-                        for (_, p) in (*PEERS.lock()).iter() {
+                        for p in (*PEERS.lock()).values() {
                             trace!("checking peer {:?} (p.first_cla={:?})", p, p.first_cla());
                             if let Some(cla) = p.first_cla() {
                                 clas.push(cla);

@@ -1,13 +1,13 @@
 use std::convert::TryFrom;
 
 use super::{httpd, janitor};
-use crate::cla::ecla::processing::start_ecla;
 use crate::cla::ConvergenceLayerAgent;
+use crate::cla::ecla::processing::start_ecla;
 use crate::core::application_agent::SimpleApplicationAgent;
 use crate::dtnconfig::DtnConfig;
 use crate::ipnd::neighbour_discovery;
-use crate::{cla_add, peers_add, STATS};
 use crate::{CLAS, CONFIG, DTNCORE, STORE};
+use crate::{STATS, cla_add, peers_add};
 use bp7::EndpointID;
 use log::{error, info, warn};
 
@@ -124,7 +124,10 @@ pub async fn start_dtnd(cfg: DtnConfig) -> anyhow::Result<()> {
     if clas.is_empty() {
         warn!("No CLAs configured!");
         if CONFIG.lock().ecla_enable {
-            info!("... but ECLA mode is enabled! (port={})", CONFIG.lock().ecla_tcp_port);
+            info!(
+                "... but ECLA mode is enabled! (port={})",
+                CONFIG.lock().ecla_tcp_port
+            );
         }
     }
 
@@ -160,10 +163,11 @@ pub async fn start_dtnd(cfg: DtnConfig) -> anyhow::Result<()> {
 
     let dn = CONFIG.lock().disable_neighbour_discovery;
     let interval = CONFIG.lock().announcement_interval.as_micros();
-    if !dn && interval != 0 {
-        if let Err(errmsg) = neighbour_discovery::spawn_neighbour_discovery().await {
-            error!("Error spawning service discovery: {:?}", errmsg);
-        }
+    if !dn
+        && interval != 0
+        && let Err(errmsg) = neighbour_discovery::spawn_neighbour_discovery().await
+    {
+        error!("Error spawning service discovery: {:?}", errmsg);
     }
 
     if CONFIG.lock().ecla_enable {

@@ -4,7 +4,7 @@ use super::RoutingAgent;
 use crate::cla::ClaSenderTask;
 use crate::core::bundlepack::BundlePack;
 use crate::routing::RoutingCmd;
-use crate::{RoutingNotifcation, CONFIG, PEERS};
+use crate::{CONFIG, PEERS, RoutingNotifcation};
 use async_trait::async_trait;
 use log::{debug, info, warn};
 use tokio::sync::mpsc;
@@ -54,7 +54,7 @@ impl SprayAndWaitRoutingAgentCore {
                 remaining_copies: self.l,
                 nodes: Vec::new(),
             };
-            debug!("Adding new bundle {} from this host", &bundle_id);
+            debug!("Adding new bundle {} from this host", bundle_id);
             self.history.insert(bundle_id, meta);
         } else {
             // this is a bundle from another host, thus, we have only one copy
@@ -62,7 +62,7 @@ impl SprayAndWaitRoutingAgentCore {
                 remaining_copies: 1,
                 nodes: Vec::new(),
             };
-            debug!("Adding bundle {} from foreign host", &bundle_id);
+            debug!("Adding bundle {} from foreign host", bundle_id);
             self.history.insert(bundle_id, meta);
         }
     }
@@ -110,7 +110,7 @@ fn handle_notification(core: &mut SprayAndWaitRoutingAgentCore, notification: Ro
                     warn!(
                         "Removed {} from bid {} entry, duplicate entries, should be 1!",
                         meta.nodes.len(),
-                        &bid
+                        bid
                     );
                 }
                 meta.remaining_copies += 1;
@@ -134,7 +134,7 @@ async fn handle_sender_for_bundle(
     let mut delete_afterwards = false;
 
     if let Some(meta) = core.history.get_mut(bp.id()) {
-        for (_, p) in (*PEERS.lock()).iter() {
+        for p in (*PEERS.lock()).values() {
             let peer_node_id = p.eid.node_id().unwrap();
             if peer_node_id == core.local_node || meta.nodes.contains(&peer_node_id) {
                 // skip if the peer is ourself or if we already sent the bundle to this peer

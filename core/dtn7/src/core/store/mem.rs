@@ -1,6 +1,6 @@
 use super::BundleStore;
 use crate::core::bundlepack::{BundlePack, Constraint};
-use anyhow::{bail, Result};
+use anyhow::{Result, bail};
 use bp7::Bundle;
 use log::debug;
 use std::collections::{HashMap, HashSet};
