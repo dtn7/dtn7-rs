@@ -120,7 +120,7 @@ impl Client {
             }
         });
 
-        let (err_sender, err_receiver) = unbounded::<ecla::Error>();
+        let (err_sender, mut err_receiver) = unbounded::<ecla::Error>();
 
         // Read from websocket
         let from_ws = {
@@ -169,12 +169,11 @@ impl Client {
             })
         };
 
-        // from_ws and err_receiver use methods (for_each, try_next) that require to be pinned to
-        // the stacked in order to work.
-        pin_mut!(from_ws, err_receiver);
+        // from_ws has to be pinned to the stack, since future::select requires Unpin futures.
+        pin_mut!(from_ws);
         future::select(to_ws, from_ws).await;
 
-        if let Ok(Some(err)) = err_receiver.try_next() {
+        if let Ok(err) = err_receiver.try_recv() {
             bail!("{}", err.reason);
         }
 
