@@ -33,8 +33,10 @@ async fn http_pull_from_node(
     debug!("pulling bundles from {} / {}", eid, addr);
     tokio::task::spawn_blocking(move || {
         // get digest of remote node
-        let response =
-            attohttpc::get(format!("http://{}:{}/status/bundles/digest", addr, port)).send();
+        let response = attohttpc::get(format!("http://{}:{}/status/bundles/digest", addr, port))
+            .send()
+            // e.g. 404 if the remote is not a dtn7 node
+            .and_then(attohttpc::Response::error_for_status);
         let digest = match response {
             Ok(digest) => digest.text().unwrap(),
             Err(e) => {
@@ -53,7 +55,10 @@ async fn http_pull_from_node(
             );
         }
         // get list of bundles from remote node
-        let response = attohttpc::get(format!("http://{}:{}/status/bundles", addr, port)).send();
+        let response = attohttpc::get(format!("http://{}:{}/status/bundles", addr, port))
+            .send()
+            // e.g. 404 if the remote is not a dtn7 node
+            .and_then(attohttpc::Response::error_for_status);
         let bid_list = match response {
             Ok(bid_list) => bid_list.text().unwrap(),
             Err(e) => {
@@ -75,11 +80,17 @@ async fn http_pull_from_node(
         // fetch missing bundles from remote node
         for bid in missing {
             transfers += 1;
-            let response =
-                attohttpc::get(format!("http://{}:{}/download?{}", addr, port, bid)).send();
+            let response = attohttpc::get(format!("http://{}:{}/download?{}", addr, port, bid))
+                .send()
+                .and_then(attohttpc::Response::error_for_status);
 
             let bundle_buf = match response {
                 Ok(bundle) => bundle.bytes().unwrap(),
+                // e.g. 404 if the bundle was deleted on the remote since we fetched the list
+                Err(e) if matches!(e.kind(), attohttpc::ErrorKind::StatusCode(_)) => {
+                    warn!("could not get bundle {} from remote: {}", bid, e);
+                    continue;
+                }
                 Err(e) => {
                     error!("could not get bundle from remote: {}", e);
                     return TransferResult::Failure;
