@@ -221,12 +221,12 @@ async fn handle_hop_count_block(mut bundle: Bundle) -> Result<Bundle> {
                 .expect("hop count data missing from hop count block");
             debug!(
                 "Bundle contains an hop count block: {} {} {}",
-                &bid, hc_limit, hc_count
+                bid, hc_limit, hc_count
             );
             if hc.hop_count_exceeded() {
                 warn!(
                     "Bundle contains an exceeded hop count block: {} {} {}",
-                    &bid, hc_limit, hc_count
+                    bid, hc_limit, hc_count
                 );
                 delete(bundle.into(), HOP_LIMIT_EXCEEDED).await?;
                 bail!("hop count exceeded");
@@ -324,7 +324,7 @@ pub async fn forward(mut bp: BundlePack) -> Result<()> {
     }
 
     if nodes.is_empty() {
-        trace!("No new peers for forwarding of bundle {}", &bp.id());
+        trace!("No new peers for forwarding of bundle {}", bp.id());
         if delete_afterwards {
             store_remove(&bpid)?;
         }
@@ -362,19 +362,19 @@ pub async fn forward(mut bp: BundlePack) -> Result<()> {
                 let start_time = Instant::now();
                 debug!(
                     "Sending bundle to a CLA: {} {} {}",
-                    &bpid, n.dest, n.cla_name
+                    bpid, n.dest, n.cla_name
                 );
                 if let Err(err) = n.transfer(bd).await {
                     info!(
                         "Sending bundle {} via {} to {} ({}) failed after {:?}",
-                        &bpid,
+                        bpid,
                         n.cla_name,
                         n.dest,
                         n.next_hop,
                         start_time.elapsed()
                     );
                     STATS.lock().failed += 1;
-                    debug!("Error while transferring bundle {}: {}", &bpid, err);
+                    debug!("Error while transferring bundle {}: {}", bpid, err);
                     let mut failed_peer = None;
 
                     if let Err(err) = routing_notify(RoutingNotifcation::SendingFailed(
@@ -390,7 +390,7 @@ pub async fn forward(mut bp: BundlePack) -> Result<()> {
                     if let Some(peer_entry) = (*PEERS.lock()).get_mut(&n.next_hop.node().unwrap()) {
                         debug!(
                             "Reporting failed sending to peer: {}",
-                            &n.next_hop.node().unwrap()
+                            n.next_hop.node().unwrap()
                         );
                         peer_entry.report_fail();
                         if peer_entry.failed_too_much() && peer_entry.con_type == PeerType::Dynamic
@@ -411,7 +411,7 @@ pub async fn forward(mut bp: BundlePack) -> Result<()> {
                 } else {
                     info!(
                         "Bundle send success: id={} dest={} cla={} in {:?}",
-                        &bpid,
+                        bpid,
                         n.dest,
                         n.cla_name,
                         start_time.elapsed()

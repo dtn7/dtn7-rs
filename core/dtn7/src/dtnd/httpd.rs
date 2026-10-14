@@ -525,7 +525,7 @@ async fn send_post(
 
     debug!(
         "Sending bundle {} to {}",
-        &bndl.id(),
+        bndl.id(),
         bndl.primary.destination
     );
     let bid = bndl.id();

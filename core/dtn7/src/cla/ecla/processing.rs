@@ -249,7 +249,7 @@ pub fn handle_connect(connector_name: String, from: String) {
 /// When a module disconnects in a connector this function should be called. It will remove the
 /// client from the internal module registry and remove the CLA if the module was already fully registered.
 pub fn handle_disconnect(addr: String) {
-    info!("ECLA {} disconnected", &addr);
+    info!("ECLA {} disconnected", addr);
 
     if let Some(module) = MODULE_MAP.lock().unwrap().get(&addr) {
         if let ModuleState::Active = module.state {
