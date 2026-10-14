@@ -43,6 +43,8 @@ pub async fn http_send_bundles(remote: String, ready: ByteBuffer) -> TransferRes
             .timeout(PUSH_TIMEOUT)
             .bytes(ready)
             .send()
+            // the remote rejects bundles it cannot decode with an error status
+            .and_then(attohttpc::Response::error_for_status)
     });
 
     match tokio::time::timeout(PUSH_TIMEOUT, request).await {
