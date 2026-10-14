@@ -5,6 +5,7 @@ use super::*;
 use bp7::EndpointID;
 use rand::distr::{Alphanumeric, SampleString};
 use sha1::{Digest, Sha1};
+use std::fmt::Write;
 use std::{convert::TryFrom, net::IpAddr};
 use thiserror::Error;
 use url::Url;
@@ -188,7 +189,14 @@ pub fn get_digest_of_bids(bids: &[String]) -> String {
     for bid in bids {
         hasher.update(bid.as_bytes());
     }
-    format!("{:x}", hasher.finalize())
+    let digest = hasher.finalize();
+
+    let mut hex = String::with_capacity(2 * digest.len());
+    for byte in &digest {
+        // writing to a String cannot fail
+        let _ = write!(hex, "{byte:02x}");
+    }
+    hex
 }
 
 #[cfg(test)]
@@ -203,5 +211,17 @@ mod tests {
         assert!(!is_valid_node_name(""));
         assert!(!is_valid_node_name("1node"));
         assert!(!is_valid_node_name("node-"));
+    }
+
+    #[test]
+    fn digest_of_bids_is_lowercase_sha1_hex() {
+        assert_eq!(
+            get_digest_of_bids(&[]),
+            "da39a3ee5e6b4b0d3255bfef95601890afd80709"
+        );
+        assert_eq!(
+            get_digest_of_bids(&["a".into(), "b".into()]),
+            "da23614e02469a0d7c7bd1bdab5c9c474b1904dc"
+        );
     }
 }
