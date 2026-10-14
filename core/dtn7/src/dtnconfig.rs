@@ -1,11 +1,11 @@
 use crate::cla::CLAsAvailable;
-use crate::core::helpers::is_valid_node_name;
 use crate::core::DtnPeer;
+use crate::core::helpers::is_valid_node_name;
 use bp7::EndpointID;
 use config::{Config, File};
 use log::{debug, error};
-use rand::distr::{Alphanumeric, SampleString};
 use rand::RngExt;
+use rand::distr::{Alphanumeric, SampleString};
 use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, HashMap};
 use std::net::SocketAddr;
@@ -408,7 +408,7 @@ impl DtnConfig {
                     return Err(std::io::Error::new(
                         std::io::ErrorKind::InvalidInput,
                         String::from("Only IP destinations supported at the moment"),
-                    ))
+                    ));
                 }
             }
         }

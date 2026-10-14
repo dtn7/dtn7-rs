@@ -3,7 +3,7 @@ use crate::cla::ecla;
 use crate::cla::ecla::ws_client::Command::SendPacket;
 use anyhow::bail;
 use futures::channel::mpsc::unbounded;
-use futures_util::{future, pin_mut, SinkExt, StreamExt};
+use futures_util::{SinkExt, StreamExt, future, pin_mut};
 use log::{error, info, warn};
 use serde_json::Result;
 use std::str::FromStr;

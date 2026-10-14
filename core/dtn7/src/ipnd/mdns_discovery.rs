@@ -1,7 +1,7 @@
 use crate::cla::ConvergenceLayerAgent;
 use crate::core::{DtnPeer, PeerType};
 use crate::routing::RoutingNotifcation;
-use crate::{peers_add, peers_remove, peers_touch, routing_notify, CLAS, CONFIG, DTNCORE};
+use crate::{CLAS, CONFIG, DTNCORE, peers_add, peers_remove, peers_touch, routing_notify};
 use anyhow::Result;
 use log::{debug, error, info, trace, warn};
 use std::collections::HashMap;

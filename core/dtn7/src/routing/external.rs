@@ -1,5 +1,5 @@
-use super::erouting::processing::{notify, sender_for_bundle};
 use super::RoutingAgent;
+use super::erouting::processing::{notify, sender_for_bundle};
 use crate::routing::RoutingCmd;
 use async_trait::async_trait;
 use tokio::sync::mpsc;

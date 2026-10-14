@@ -1,13 +1,13 @@
-use anyhow::{bail, Result};
+use anyhow::{Result, bail};
 use bp7::*;
-use clap::{crate_authors, crate_version, Parser};
+use clap::{Parser, crate_authors, crate_version};
 use dtn7_plus::client::DtnClient;
 use std::convert::TryFrom;
 use std::io::prelude::*;
 use std::process::Command;
 use tempfile::NamedTempFile;
-use tungstenite::protocol::WebSocketConfig;
 use tungstenite::Message;
+use tungstenite::protocol::WebSocketConfig;
 
 fn write_temp_file(data: &[u8], verbose: bool) -> Result<NamedTempFile> {
     let mut data_file = NamedTempFile::new()?;

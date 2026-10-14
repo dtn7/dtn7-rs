@@ -1,7 +1,7 @@
-use anyhow::{bail, Result};
-use clap::{crate_authors, crate_version, value_parser, Arg, ArgAction};
+use anyhow::{Result, bail};
+use clap::{Arg, ArgAction, crate_authors, crate_version, value_parser};
 use dtn7::client::data::{BundlePack, DtnPeer};
-use dtn7::client::erouting::{ws_client, Packet, ResponseSenderForBundle, Sender};
+use dtn7::client::erouting::{Packet, ResponseSenderForBundle, Sender, ws_client};
 use futures_util::{future, pin_mut};
 use lazy_static::lazy_static;
 use log::{debug, error, info};

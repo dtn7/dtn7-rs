@@ -2,7 +2,7 @@ use crate::cla::ConvergenceLayerAgent;
 use crate::core::{DtnPeer, PeerType};
 use crate::ipnd::{beacon::Beacon, services::*};
 use crate::routing::RoutingNotifcation;
-use crate::{peers_add, peers_touch, routing_notify, CLAS, CONFIG, DTNCORE};
+use crate::{CLAS, CONFIG, DTNCORE, peers_add, peers_touch, routing_notify};
 use anyhow::Result;
 use log::{debug, error, info, trace};
 use socket2::{Domain, Socket, Type};
@@ -112,14 +112,12 @@ async fn udp_announcer(socket: UdpSocket, _v6: bool) {
             if destination.ip().is_multicast() {
                 trace!(
                     "Sending beacon\n{}\nto multicast address {}",
-                    pkt,
-                    destination
+                    pkt, destination
                 );
             } else {
                 trace!(
                     "Sending beacon\n{}\nto unicast address {}",
-                    pkt,
-                    destination
+                    pkt, destination
                 );
             }
             match socket

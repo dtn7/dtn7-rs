@@ -13,11 +13,11 @@ use crate::core::stats::{NodeStats, RegistrationInformation};
 use crate::core::store::BundleStore;
 use crate::routing::RoutingAgentsEnum;
 use crate::{
-    routing_notify, store_delete_expired, store_get_bundle, store_get_metadata, CLAS, DTNCORE,
+    CLAS, DTNCORE, routing_notify, store_delete_expired, store_get_bundle, store_get_metadata,
 };
-pub use crate::{store_has_item, store_push_bundle};
-use crate::{RoutingNotifcation, CONFIG};
+use crate::{CONFIG, RoutingNotifcation};
 use crate::{PEERS, STORE};
+pub use crate::{store_has_item, store_push_bundle};
 use application_agent::ApplicationAgent;
 use bp7::EndpointID;
 use log::{error, info, trace, warn};

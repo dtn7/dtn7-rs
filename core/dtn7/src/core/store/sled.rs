@@ -1,7 +1,7 @@
 use super::BundleStore;
-use crate::core::bundlepack::{BundlePack, Constraint};
 use crate::CONFIG;
-use anyhow::{bail, Result};
+use crate::core::bundlepack::{BundlePack, Constraint};
+use anyhow::{Result, bail};
 use bp7::Bundle;
 use log::{debug, error};
 use std::collections::HashSet;
