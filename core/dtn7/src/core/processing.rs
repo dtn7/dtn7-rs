@@ -1,30 +1,30 @@
+use crate::CONFIG;
+use crate::DTNCORE;
 use crate::core::bpsec::{self, ProcessingStep, Verdict};
 use crate::core::bundlepack::*;
 use crate::core::*;
 use crate::routing::RoutingNotification;
 use crate::store_push_bundle;
 use crate::store_remove;
-use crate::CONFIG;
-use crate::DTNCORE;
-use crate::{is_local_node_id, STATS};
+use crate::{STATS, is_local_node_id};
 use crate::{routing_notify, routing_sender_for_bundle, store_add_bundle_if_unknown};
 
+use bp7::CanonicalData;
 use bp7::administrative_record::*;
 use bp7::bundle::*;
 use bp7::flags::*;
-use bp7::CanonicalData;
 use bp7::{
-    CanonicalBlockType, BUNDLE_AGE_BLOCK, HOP_COUNT_BLOCK, PAYLOAD_BLOCK, PREVIOUS_NODE_BLOCK,
+    BUNDLE_AGE_BLOCK, CanonicalBlockType, HOP_COUNT_BLOCK, PAYLOAD_BLOCK, PREVIOUS_NODE_BLOCK,
 };
 
-use anyhow::{bail, Result};
+use anyhow::{Result, bail};
 use lazy_static::lazy_static;
 use log::trace;
 use log::{debug, info, warn};
 use parking_lot::Mutex;
 use std::collections::HashSet;
-use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::SystemTime;
 use std::time::UNIX_EPOCH;
 use tokio::sync::mpsc::channel;
@@ -782,7 +782,10 @@ async fn send_status_report(
     // Don't respond to other administrative records or anonymous bundles. The bundle
     // itself is checked, as not every store keeps the administrative flag in its metadata.
     if bndl.is_administrative_record() || bndl.primary.source == EndpointID::none() {
-        warn!("status report sending denied for dtn:none sources/administrative bundles themselves: {}", bp.id());
+        warn!(
+            "status report sending denied for dtn:none sources/administrative bundles themselves: {}",
+            bp.id()
+        );
         return;
     }
 

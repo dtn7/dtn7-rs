@@ -1,9 +1,9 @@
 use super::RoutingAgent;
+use crate::DtnPeer;
+use crate::PEERS;
 use crate::cla::ClaSenderTask;
 use crate::core::bundlepack::BundlePack;
 use crate::routing::{RoutingCmd, RoutingNotification};
-use crate::DtnPeer;
-use crate::PEERS;
 use async_trait::async_trait;
 use log::{debug, trace};
 use std::collections::{HashMap, HashSet};

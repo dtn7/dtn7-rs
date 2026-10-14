@@ -1,6 +1,6 @@
 use std::fmt::Display;
 
-use crate::{RoutingNotification, CONFIG, PEERS};
+use crate::{CONFIG, PEERS, RoutingNotification};
 
 use super::{RoutingAgent, RoutingCmd};
 use async_trait::async_trait;

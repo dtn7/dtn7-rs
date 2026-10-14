@@ -6,9 +6,9 @@ pub mod sink;
 pub mod sprayandwait;
 pub mod static_routing;
 
+use crate::BundleID;
 use crate::cla::ClaSenderTask;
 use crate::core::bundlepack::BundlePack;
-use crate::BundleID;
 use async_trait::async_trait;
 use bp7::Bundle;
 use bp7::EndpointID;

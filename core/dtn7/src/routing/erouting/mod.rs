@@ -1,4 +1,4 @@
-use crate::{peers_get_for_node, BundleID, BundlePack, DtnPeer, PeerAddress, RoutingNotification};
+use crate::{BundleID, BundlePack, DtnPeer, PeerAddress, RoutingNotification, peers_get_for_node};
 use anyhow::Context;
 use bp7::{Bundle, EndpointID};
 use serde::{Deserialize, Serialize};

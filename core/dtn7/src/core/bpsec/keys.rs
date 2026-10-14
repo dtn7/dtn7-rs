@@ -2,7 +2,7 @@
 //! runtime.
 
 use super::config::{BpsecConfig, SecurityRule};
-use anyhow::{bail, Context, Result};
+use anyhow::{Context, Result, bail};
 use log::{debug, warn};
 use parking_lot::RwLock;
 use std::collections::HashMap;
@@ -222,19 +222,23 @@ mod tests {
         let dir = key_dir(&[("hmac.key", "0011"), ("aes.key", &aes256)]);
         let keys = KeySet::load(dir.path()).unwrap();
 
-        assert!(keys
-            .check_rules(&[rule(SecurityOperation::Bib, "hmac")])
-            .is_ok());
-        assert!(keys
-            .check_rules(&[rule(SecurityOperation::Bcb, "aes")])
-            .is_ok());
-        assert!(keys
-            .check_rules(&[rule(SecurityOperation::Bib, "missing")])
-            .is_err());
+        assert!(
+            keys.check_rules(&[rule(SecurityOperation::Bib, "hmac")])
+                .is_ok()
+        );
+        assert!(
+            keys.check_rules(&[rule(SecurityOperation::Bcb, "aes")])
+                .is_ok()
+        );
+        assert!(
+            keys.check_rules(&[rule(SecurityOperation::Bib, "missing")])
+                .is_err()
+        );
         // default AES-256-GCM needs 32 bytes
-        assert!(keys
-            .check_rules(&[rule(SecurityOperation::Bcb, "hmac")])
-            .is_err());
+        assert!(
+            keys.check_rules(&[rule(SecurityOperation::Bcb, "hmac")])
+                .is_err()
+        );
 
         let mut aes128 = rule(SecurityOperation::Bcb, "aes");
         aes128.context.aes_variant = Some(AesVariant::Aes128);
