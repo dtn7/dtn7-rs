@@ -11,7 +11,7 @@ use tokio::time::interval;
 const MDNS_SERVICE_TYPE: &str = "_dtn._udp.local.";
 
 pub async fn spawn_mdns_discovery() -> Result<()> {
-    use mdns_sd::ServiceDaemon;
+    use mdns_sd::{IfKind, ServiceDaemon};
 
     let config = CONFIG.lock();
     let nodeid = config.nodeid.clone();
@@ -26,6 +26,11 @@ pub async fn spawn_mdns_discovery() -> Result<()> {
 
     // Create mDNS daemon
     let mdns = ServiceDaemon::new().expect("Failed to create mDNS daemon");
+
+    // Loopback interfaces are enabled by default since mdns-sd 0.17,
+    // which would announce 127.0.0.1 and ::1 as our addresses to peers.
+    mdns.disable_interface(vec![IfKind::LoopbackV4, IfKind::LoopbackV6])
+        .expect("Failed to disable mDNS on loopback interfaces");
 
     // Build and register our service
     let service_info = build_mdns_service_info(&nodeid, &eid);
@@ -152,7 +157,7 @@ async fn handle_mdns_event(event: mdns_sd::ServiceEvent) -> Result<()> {
     match event {
         ServiceEvent::ServiceResolved(info) => {
             trace!("mDNS service resolved: {:?}", info);
-            handle_mdns_peer_discovered(info).await?;
+            handle_mdns_peer_discovered(&info).await?;
         }
         ServiceEvent::ServiceRemoved(_, fullname) => {
             debug!("mDNS service removed: {}", fullname);
@@ -183,12 +188,16 @@ async fn handle_mdns_event(event: mdns_sd::ServiceEvent) -> Result<()> {
         ServiceEvent::SearchStopped(_) => {
             warn!("mDNS search stopped");
         }
+        // ServiceEvent is non_exhaustive
+        other => {
+            debug!("Unhandled mDNS event: {:?}", other);
+        }
     }
 
     Ok(())
 }
 
-async fn handle_mdns_peer_discovered(info: mdns_sd::ServiceInfo) -> Result<()> {
+async fn handle_mdns_peer_discovered(info: &mdns_sd::ResolvedService) -> Result<()> {
     // Extract EID from TXT records
     let eid_str = info
         .get_property_val_str("eid")
@@ -232,7 +241,11 @@ async fn handle_mdns_peer_discovered(info: mdns_sd::ServiceInfo) -> Result<()> {
     }
 
     // Get IP addresses from mDNS response
-    let addresses: Vec<IpAddr> = info.get_addresses().iter().cloned().collect();
+    let addresses: Vec<IpAddr> = info
+        .get_addresses()
+        .iter()
+        .map(|ip| ip.to_ip_addr())
+        .collect();
 
     if addresses.is_empty() {
         return Err(anyhow::anyhow!("No addresses in mDNS service info"));
