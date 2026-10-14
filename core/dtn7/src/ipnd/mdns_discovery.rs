@@ -217,13 +217,12 @@ async fn handle_mdns_peer_discovered(info: &mdns_sd::ResolvedService) -> Result<
     let mut clas = Vec::new();
     for prop in info.get_properties().iter() {
         let key = prop.key();
-        if key.starts_with("cla") {
-            if let Some(val) = info.get_property_val_str(key) {
-                if let Some((name, port_str)) = val.split_once(':') {
-                    let port = port_str.parse().ok();
-                    clas.push((name.to_string(), port));
-                }
-            }
+        if key.starts_with("cla")
+            && let Some(val) = info.get_property_val_str(key)
+            && let Some((name, port_str)) = val.split_once(':')
+        {
+            let port = port_str.parse().ok();
+            clas.push((name.to_string(), port));
         }
     }
 
@@ -231,12 +230,11 @@ async fn handle_mdns_peer_discovered(info: &mdns_sd::ResolvedService) -> Result<
     let mut services = HashMap::new();
     for prop in info.get_properties().iter() {
         let key = prop.key();
-        if key.starts_with("svc") {
-            if let Ok(tag) = key.strip_prefix("svc").unwrap_or("").parse::<u8>() {
-                if let Some(val) = info.get_property_val_str(key) {
-                    services.insert(tag, val.to_string());
-                }
-            }
+        if key.starts_with("svc")
+            && let Ok(tag) = key.strip_prefix("svc").unwrap_or("").parse::<u8>()
+            && let Some(val) = info.get_property_val_str(key)
+        {
+            services.insert(tag, val.to_string());
         }
     }
 

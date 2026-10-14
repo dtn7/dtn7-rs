@@ -163,10 +163,11 @@ pub async fn start_dtnd(cfg: DtnConfig) -> anyhow::Result<()> {
 
     let dn = CONFIG.lock().disable_neighbour_discovery;
     let interval = CONFIG.lock().announcement_interval.as_micros();
-    if !dn && interval != 0 {
-        if let Err(errmsg) = neighbour_discovery::spawn_neighbour_discovery().await {
-            error!("Error spawning service discovery: {:?}", errmsg);
-        }
+    if !dn
+        && interval != 0
+        && let Err(errmsg) = neighbour_discovery::spawn_neighbour_discovery().await
+    {
+        error!("Error spawning service discovery: {:?}", errmsg);
     }
 
     if CONFIG.lock().ecla_enable {

@@ -82,10 +82,10 @@ async fn main() -> Result<()> {
                     info!("Got ForwardData {} -> {}", fwd.src, dst[0]);
 
                     let id = usize::from_str(dst[0]).unwrap_or(conns.len());
-                    if id < conns.len() {
-                        if let Err(err) = conns[id].send(ForwardData(fwd.clone())).await {
-                            error!("couldn't pass packet to client packet channel: {}", err)
-                        }
+                    if id < conns.len()
+                        && let Err(err) = conns[id].send(ForwardData(fwd.clone())).await
+                    {
+                        error!("couldn't pass packet to client packet channel: {}", err)
                     }
                 }
                 Packet::Beacon(pdp) => {
