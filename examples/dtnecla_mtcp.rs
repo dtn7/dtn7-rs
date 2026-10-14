@@ -152,8 +152,9 @@ async fn main() -> Result<()> {
         .get_matches();
 
     if matches.get_flag("debug") {
-        std::env::set_var("RUST_LOG", "debug");
-        pretty_env_logger::init_timed();
+        pretty_env_logger::formatted_timed_builder()
+            .parse_filters("debug")
+            .init();
     }
 
     let (tx, mut rx) = mpsc::channel::<Packet>(100);

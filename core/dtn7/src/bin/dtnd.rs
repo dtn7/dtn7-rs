@@ -302,14 +302,15 @@ Tag 255 takes 5 arguments and is interpreted as address. Usage: -S 255:'Samplest
         )
         .get_matches();
 
-    if std::env::var("RUST_LOG").is_err() {
-        if matches.get_flag("debug") || cfg.debug {
-            std::env::set_var("RUST_LOG", "dtn7=debug,dtnd=debug");
-        } else {
-            std::env::set_var("RUST_LOG", "dtn7=info,dtnd=info");
-        }
+    let mut logger = pretty_env_logger::formatted_timed_builder();
+    if let Ok(filters) = std::env::var("RUST_LOG") {
+        logger.parse_filters(&filters);
+    } else if matches.get_flag("debug") || cfg.debug {
+        logger.parse_filters("dtn7=debug,dtnd=debug");
+    } else {
+        logger.parse_filters("dtn7=info,dtnd=info");
     }
-    pretty_env_logger::init_timed();
+    logger.init();
 
     if matches.get_flag("ipv6") {
         cfg.v6 = true;

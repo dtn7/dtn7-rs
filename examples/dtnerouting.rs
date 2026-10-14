@@ -301,8 +301,9 @@ async fn main() -> Result<()> {
     let routing_types = ["flooding", "epidemic"];
 
     if matches.contains_id("debug") {
-        std::env::set_var("RUST_LOG", "debug");
-        pretty_env_logger::init_timed();
+        pretty_env_logger::formatted_timed_builder()
+            .parse_filters("debug")
+            .init();
     }
 
     if !matches.contains_id("type") || !matches.contains_id("addr") {
