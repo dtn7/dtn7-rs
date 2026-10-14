@@ -74,7 +74,7 @@ num-derive = "0.5.1"
 num-traits = "0.2.19"
 thiserror = "2.0.21"
 dtn7-codegen = { path = "../codegen", version = "0.1.2" }
-sha1 = "0.10.7"
+sha1 = "0.11.0"
 glob-match = "0.2.1"
 tower-http = { version = "0.3.5", features = ["cors"] }
 mdns-sd = "0.13.11"

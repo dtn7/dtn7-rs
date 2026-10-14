@@ -5,6 +5,7 @@ use super::*;
 use bp7::EndpointID;
 use rand::distr::{Alphanumeric, SampleString};
 use sha1::{Digest, Sha1};
+use std::fmt::Write;
 use std::{convert::TryFrom, net::IpAddr};
 use thiserror::Error;
 use url::Url;
@@ -185,5 +186,12 @@ pub fn get_digest_of_bids(bids: &[String]) -> String {
     for bid in bids {
         hasher.update(bid.as_bytes());
     }
-    format!("{:x}", hasher.finalize())
+    let digest = hasher.finalize();
+
+    let mut hex = String::with_capacity(2 * digest.len());
+    for byte in &digest {
+        // writing to a String cannot fail
+        let _ = write!(hex, "{byte:02x}");
+    }
+    hex
 }
