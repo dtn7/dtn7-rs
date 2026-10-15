@@ -10,6 +10,35 @@ use std::collections::HashMap;
 use std::panic;
 use std::{convert::TryInto, process};
 
+fn parse_colon_settings(raw: &str) -> Result<HashMap<String, String>, String> {
+    let mut settings = HashMap::new();
+    if raw.is_empty() {
+        return Ok(settings);
+    }
+
+    let mut current_key: Option<String> = None;
+    for segment in raw.split(':') {
+        if let Some((key, value)) = segment.split_once('=') {
+            if key.is_empty() {
+                return Err(format!("invalid empty setting key in '{}'", raw));
+            }
+            current_key = Some(key.to_string());
+            settings.insert(key.to_string(), value.to_string());
+        } else if let Some(key) = &current_key {
+            if let Some(current_value) = settings.get_mut(key) {
+                current_value.push(':');
+                current_value.push_str(segment);
+            }
+        } else {
+            return Err(format!(
+                "invalid setting segment '{}' in '{}'",
+                segment, raw
+            ));
+        }
+    }
+    Ok(settings)
+}
+
 #[tokio::main]
 async fn main() -> Result<(), std::io::Error> {
     #[cfg(feature = "tracing")]
@@ -426,14 +455,16 @@ Tag 255 takes 5 arguments and is interpreted as address. Usage: -S 255:'Samplest
 
     if let Some(clas) = matches.get_many::<String>("cla") {
         for cla in clas {
-            let mut cla_split: Vec<&str> = cla.split(':').collect();
-            let id_str = cla_split.remove(0);
+            let (id_str, raw_settings) = cla
+                .split_once(':')
+                .map_or((cla.as_str(), ""), |(id, settings)| (id, settings));
             if let Ok(cla_agent) = id_str.parse::<CLAsAvailable>() {
-                let mut local_config = HashMap::new();
-                for config in cla_split {
-                    let config_split: Vec<&str> = config.split('=').collect();
-                    local_config.insert(config_split[0].into(), config_split[1].into());
-                }
+                let local_config = parse_colon_settings(raw_settings).map_err(|err| {
+                    std::io::Error::new(
+                        std::io::ErrorKind::InvalidInput,
+                        format!("Invalid CLA config '{}': {}", cla, err),
+                    )
+                })?;
                 cfg.clas.push((cla_agent, local_config));
             }
         }
@@ -441,10 +472,16 @@ Tag 255 takes 5 arguments and is interpreted as address. Usage: -S 255:'Samplest
 
     if let Some(extensions) = matches.get_many::<String>("global") {
         for ext in extensions {
-            let mut ext_split: Vec<&str> = ext.split(':').collect();
-            let id_str = ext_split.remove(0);
+            let (id_str, raw_settings) = ext
+                .split_once(':')
+                .map_or((ext.as_str(), ""), |(id, settings)| (id, settings));
             if let Ok(cla_agent) = id_str.parse::<CLAsAvailable>() {
-                let config_split: Vec<&str> = ext_split[0].split('=').collect();
+                let parsed_settings = parse_colon_settings(raw_settings).map_err(|err| {
+                    std::io::Error::new(
+                        std::io::ErrorKind::InvalidInput,
+                        format!("Invalid global CLA config '{}': {}", ext, err),
+                    )
+                })?;
                 let cla_settings = {
                     match cfg.cla_global_settings.get_mut(&cla_agent) {
                         Some(settings) => settings,
@@ -454,7 +491,9 @@ Tag 255 takes 5 arguments and is interpreted as address. Usage: -S 255:'Samplest
                         }
                     }
                 };
-                cla_settings.insert(config_split[0].into(), config_split[1].into());
+                for (k, v) in parsed_settings {
+                    cla_settings.insert(k, v);
+                }
             }
         }
     }

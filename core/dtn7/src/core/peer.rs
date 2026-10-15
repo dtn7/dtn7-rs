@@ -158,11 +158,12 @@ impl DtnPeer {
         for cla in &self.cla_list {
             for cla_instance in &(*CLAS.lock()) {
                 if cla.0 == cla_instance.name() && cla_instance.accepting() {
-                    let dest = format!(
-                        "{}:{}",
-                        self.addr,
-                        cla.1.unwrap_or_else(|| cla_instance.port())
-                    );
+                    let port = cla.1.unwrap_or_else(|| cla_instance.port());
+                    let dest = match self.addr {
+                        PeerAddress::Ip(IpAddr::V6(addr)) => format!("[{}]:{}", addr, port),
+                        PeerAddress::Ip(IpAddr::V4(addr)) => format!("{}:{}", addr, port),
+                        _ => format!("{}:{}", self.addr, port),
+                    };
                     return Some(ClaSenderTask {
                         tx: cla_instance.channel(),
                         dest,
