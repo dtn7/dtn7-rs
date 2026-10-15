@@ -56,6 +56,12 @@ interval = "2s"
 peer-timeout = "20s"
 port = 3003
 
+# Discovery transport mechanism:
+# - "udp-multicast" (default): Legacy IPND over UDP multicast
+# - "mdns": Modern mDNS/DNS-SD service discovery (no port conflicts!)
+# - "both": Run both UDP multicast and mDNS simultaneously
+transport = "udp-multicast"
+
 [convergencylayers]
 global.tcp.refuse-existing-bundles = true
 

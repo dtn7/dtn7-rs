@@ -6,12 +6,43 @@ use config::{Config, File};
 use log::{debug, error};
 use rand::distributions::Alphanumeric;
 use rand::{thread_rng, Rng};
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, HashMap};
 use std::net::SocketAddr;
 use std::path::PathBuf;
 use std::str::FromStr;
 use std::{convert::TryInto, time::Duration};
+
+/// Discovery transport mechanism
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum DiscoveryTransport {
+    /// UDP multicast (legacy IPND)
+    UdpMulticast,
+    /// mDNS/DNS-SD service discovery
+    Mdns,
+    /// Both UDP multicast and mDNS simultaneously
+    Both,
+}
+
+impl Default for DiscoveryTransport {
+    fn default() -> Self {
+        Self::UdpMulticast
+    }
+}
+
+impl FromStr for DiscoveryTransport {
+    type Err = String;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s.to_lowercase().as_str() {
+            "udp-multicast" | "udp" => Ok(Self::UdpMulticast),
+            "mdns" | "dns-sd" => Ok(Self::Mdns),
+            "both" => Ok(Self::Both),
+            _ => Err(format!("Unknown discovery transport: {}", s)),
+        }
+    }
+}
 
 #[derive(Debug, Default, Clone, Serialize)]
 pub struct DtnConfig {
@@ -26,6 +57,7 @@ pub struct DtnConfig {
     pub webport: u16,
     pub announcement_interval: Duration,
     pub disable_neighbour_discovery: bool,
+    pub discovery_transport: DiscoveryTransport,
     pub discovery_destinations: BTreeMap<String, u32>,
     pub discovery_listen_port: u16,
     pub janitor_interval: Duration,
@@ -156,6 +188,13 @@ impl From<PathBuf> for DtnConfig {
         };
         debug!("discovery-interval: {:?}", dtncfg.announcement_interval);
 
+        dtncfg.discovery_transport = if let Ok(transport) = s.get_string("discovery.transport") {
+            DiscoveryTransport::from_str(&transport).unwrap_or_default()
+        } else {
+            dtncfg.discovery_transport
+        };
+        debug!("discovery-transport: {:?}", dtncfg.discovery_transport);
+
         dtncfg.peer_timeout = if let Ok(interval) = s.get_string("discovery.peer-timeout") {
             humantime::parse_duration(&interval).unwrap_or_else(|_| Duration::new(0, 0))
         } else {
@@ -277,6 +316,7 @@ impl DtnConfig {
             host_eid: local_node_id,
             announcement_interval: "2s".parse::<humantime::Duration>().unwrap().into(),
             disable_neighbour_discovery: false,
+            discovery_transport: DiscoveryTransport::default(),
             discovery_destinations: BTreeMap::new(),
             discovery_listen_port: 3003,
             webport: 3000,
@@ -309,6 +349,7 @@ impl DtnConfig {
         self.webport = cfg.webport;
         self.announcement_interval = cfg.announcement_interval;
         self.disable_neighbour_discovery = cfg.disable_neighbour_discovery;
+        self.discovery_transport = cfg.discovery_transport;
         self.discovery_destinations = cfg.discovery_destinations;
         self.discovery_listen_port = cfg.discovery_listen_port;
         self.janitor_interval = cfg.janitor_interval;
