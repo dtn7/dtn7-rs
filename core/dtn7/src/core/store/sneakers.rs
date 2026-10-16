@@ -12,6 +12,8 @@ use std::fmt::Debug;
 #[derive(Debug, Clone)]
 pub struct SneakersBundleStore {
     store: SneakerWorld,
+    /// IDs of removed bundles, the sneakers database does not keep their entries
+    deleted: HashSet<String>,
 }
 
 impl SneakersBundleStore {
@@ -62,7 +64,9 @@ impl BundleStore for SneakersBundleStore {
             meta.add_constraint(Constraint::Deleted);
             self.update_metadata(&meta)?;
         }
-        self.store.remove(bid)
+        self.store.remove(bid)?;
+        self.deleted.insert(bid.to_string());
+        Ok(())
     }
 
     fn count(&self) -> u64 {
@@ -73,6 +77,9 @@ impl BundleStore for SneakersBundleStore {
     }
     fn has_item(&self, bid: &str) -> bool {
         self.store.db.exists(bid)
+    }
+    fn is_known(&self, bid: &str) -> bool {
+        self.deleted.contains(bid) || self.store.db.exists(bid)
     }
     fn filter(&self, criteria: &HashSet<bundlepack::Constraint>) -> Vec<String> {
         let crit = convert_hashset_to_constraints(criteria);
@@ -158,7 +165,10 @@ impl SneakersBundleStore {
             SneakerWorld::open(wd.to_string_lossy().as_ref()).expect("open sneaker bundle store");
         debug!("syncing store fs/db");
         store.sync().expect("sync sneaker bundle store failed");
-        SneakersBundleStore { store }
+        SneakersBundleStore {
+            store,
+            deleted: HashSet::new(),
+        }
     }
 }
 

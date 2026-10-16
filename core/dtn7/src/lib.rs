@@ -170,7 +170,7 @@ pub fn store_push_bundle(bndl: &Bundle) -> Result<()> {
 
 pub fn store_add_bundle_if_unknown(bndl: &Bundle) -> Result<bool> {
     let store = &mut (*STORE.lock());
-    if !store.has_item(bndl.id().as_str()) {
+    if !store.is_known(bndl.id().as_str()) {
         store.push(bndl)?;
         Ok(true)
     } else {
@@ -202,6 +202,10 @@ pub fn store_update_metadata(bp: &BundlePack) -> Result<()> {
 }
 pub fn store_has_item(bid: &str) -> bool {
     (*STORE.lock()).has_item(bid)
+}
+/// Returns true if the bundle is stored or was already deleted, see BundleStore::is_known
+pub fn store_is_known(bid: &str) -> bool {
+    (*STORE.lock()).is_known(bid)
 }
 pub fn store_get_bundle(bpid: &str) -> Option<Bundle> {
     (*STORE.lock()).get_bundle(bpid)

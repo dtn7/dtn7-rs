@@ -59,6 +59,10 @@ impl BundleStore for InMemoryBundleStore {
     fn has_item(&self, bid: &str) -> bool {
         self.bundles.contains_key(bid)
     }
+    fn is_known(&self, bid: &str) -> bool {
+        // metadata is kept with a Deleted constraint after removal
+        self.metadata.contains_key(bid)
+    }
     fn filter(&self, criteria: &HashSet<Constraint>) -> Vec<String> {
         self.metadata
             .values()

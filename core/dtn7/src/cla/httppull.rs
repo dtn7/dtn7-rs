@@ -2,7 +2,7 @@ use std::collections::HashMap;
 use std::convert::TryFrom;
 
 use crate::core::helpers::get_complete_digest;
-use crate::{store_has_item, CONFIG};
+use crate::{store_is_known, CONFIG};
 
 use super::TransferResult;
 use super::{ConvergenceLayerAgent, HelpStr};
@@ -67,7 +67,7 @@ async fn http_pull_from_node(
         let mut missing = Vec::new();
 
         for bid in bids {
-            if !store_has_item(&bid) {
+            if !store_is_known(&bid) {
                 missing.push(bid);
             }
         }

@@ -187,6 +187,31 @@ async fn peers_without_node_name_are_ignored() {
     assert_eq!(dtn7::peers_count(), before);
 }
 
+/// Bundles deleted from the store must not be accepted again.
+async fn deleted_bundles_are_not_accepted_again() {
+    let bndl = bundle(
+        "dtn://deleted-sender/app",
+        eid("dtn://deleted-receiver/app"),
+        vec![new_payload_block(
+            BlockControlFlags::empty(),
+            b"payload".to_vec(),
+        )],
+    );
+    let bid = bndl.id();
+    dtn7::core::processing::receive(bndl.clone()).await.unwrap();
+    assert!(dtn7::store_has_item(&bid));
+    dtn7::store_remove(&bid).unwrap();
+
+    let dups = dtn7::STATS.lock().dups;
+    dtn7::core::processing::receive(bndl).await.unwrap();
+    assert!(
+        !dtn7::store_has_item(&bid),
+        "deleted bundle was stored again"
+    );
+    assert!(dtn7::store_is_known(&bid));
+    assert_eq!(dtn7::STATS.lock().dups, dups + 1);
+}
+
 // The daemon uses process-wide globals and a routing agent bound to the runtime,
 // so all checks run sequentially within a single test.
 #[tokio::test]
@@ -195,4 +220,5 @@ async fn processing_and_routing() {
     bundles_to_dtn_none_are_rejected().await;
     routing_agents_survive_bad_requests().await;
     peers_without_node_name_are_ignored().await;
+    deleted_bundles_are_not_accepted_again().await;
 }

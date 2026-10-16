@@ -38,7 +38,11 @@ pub trait BundleStore: Debug {
     fn remove(&mut self, bid: &str) -> Result<()>;
     fn count(&self) -> u64;
     fn all_ids(&self) -> Vec<String>;
+    /// Returns true if the bundle itself is currently stored.
     fn has_item(&self, bid: &str) -> bool;
+    /// Returns true if the bundle is stored or was stored and deleted before,
+    /// deleted bundles must not be accepted again.
+    fn is_known(&self, bid: &str) -> bool;
     fn pending(&self) -> Vec<String>;
     fn forwarding(&self) -> Vec<String> {
         let criteria: HashSet<Constraint> = vec![Constraint::ForwardPending].into_iter().collect();

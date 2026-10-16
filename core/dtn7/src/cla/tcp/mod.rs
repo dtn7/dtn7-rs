@@ -402,7 +402,7 @@ impl TcpSession {
                                         String::from_utf8(extension.data.to_vec())
                                     {
                                         debug!("transfer extension: bundle id: {}", bundle_id);
-                                        if (*STORE.lock()).has_item(&bundle_id) {
+                                        if (*STORE.lock()).is_known(&bundle_id) {
                                             debug!("refusing bundle, already in store");
                                             TcpClPacket::XferRefuse(XferRefuseData {
                                                 reason: XferRefuseReasonCode::NotAcceptable,

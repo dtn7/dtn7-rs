@@ -82,6 +82,16 @@ impl BundleStore for SledBundleStore {
             false
         }
     }
+    fn is_known(&self, bid: &str) -> bool {
+        // metadata is kept with a Deleted constraint after removal
+        match self.metadata.contains_key(bid) {
+            Ok(known) => known,
+            Err(err) => {
+                error!("could not query sled database: {:?}", err);
+                false
+            }
+        }
+    }
     fn filter(&self, criteria: &HashSet<Constraint>) -> Vec<String> {
         self.metadata
             .iter()
