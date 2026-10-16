@@ -26,6 +26,15 @@ async fn udp_receiver(socket: UdpSocket) -> Result<(), io::Error> {
                 }
             };
 
+            let Some(node_name) = deserialized.eid().node() else {
+                debug!(
+                    "Ignoring beacon without node name from {}: {}",
+                    peer,
+                    deserialized.eid()
+                );
+                continue;
+            };
+
             // Creates a new peer from received beacon
             let dtnpeer = DtnPeer::new(
                 deserialized.eid().clone(),
@@ -54,7 +63,7 @@ async fn udp_receiver(socket: UdpSocket) -> Result<(), io::Error> {
                     size
                 );
                 // TODO: check if any fields have changed and update not only timestamp
-                if let Err(e) = peers_touch(deserialized.eid().node().unwrap().as_ref()) {
+                if let Err(e) = peers_touch(&node_name) {
                     error!("Failed to touch peer: {}", e);
                 }
             }

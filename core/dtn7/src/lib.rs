@@ -14,7 +14,7 @@ use crate::routing::{RoutingAgent, RoutingCmd};
 use bp7::{Bundle, EndpointID};
 use cla::{CLAEnum, ClaSenderTask};
 pub use dtnconfig::DtnConfig;
-use log::{debug, error, info};
+use log::{debug, error, info, warn};
 
 pub use crate::core::{DtnCore, DtnPeer};
 pub use crate::routing::RoutingNotifcation;
@@ -106,12 +106,14 @@ pub fn get_sequence(destination: &str) -> u32 {
 }
 /// adds a new peer to the DTN core
 /// return true if peer was seen first time
-/// return false if peer was already known
+/// return false if peer was already known or has no node name (e.g., dtn:none)
 pub fn peers_add(peer: DtnPeer) -> bool {
-    debug!("Adding peer eid={}", peer.eid.node().unwrap());
-    (*PEERS.lock())
-        .insert(peer.eid.node().unwrap(), peer)
-        .is_none()
+    let Some(node) = peer.eid.node() else {
+        warn!("Ignoring peer without node name: eid={}", peer.eid);
+        return false;
+    };
+    debug!("Adding peer eid={}", node);
+    (*PEERS.lock()).insert(node, peer).is_none()
 }
 
 pub fn peers_remove(peer_id: &str) {

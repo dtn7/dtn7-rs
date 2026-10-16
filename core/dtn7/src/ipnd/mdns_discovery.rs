@@ -242,6 +242,10 @@ async fn handle_mdns_peer_discovered(info: mdns_sd::ServiceInfo) -> Result<()> {
 
     debug!("Selected address {} from [{}]", addr, addr_str);
 
+    let node_name = eid
+        .node()
+        .ok_or_else(|| anyhow::anyhow!("mDNS peer {} has no node name", eid))?;
+
     // Create peer
     let peer = DtnPeer::new(
         eid.clone(),
@@ -253,7 +257,7 @@ async fn handle_mdns_peer_discovered(info: mdns_sd::ServiceInfo) -> Result<()> {
     );
 
     let is_new = peers_add(peer);
-    if let Err(e) = peers_touch(eid.node().unwrap().as_ref()) {
+    if let Err(e) = peers_touch(&node_name) {
         warn!("Failed to touch peer after add: {}", e);
     }
 
