@@ -249,11 +249,11 @@ pub fn update_bundle_age(bundle: &mut Bundle) -> Option<u64> {
         let bp = store_get_metadata(&bid)?;
 
         if let CanonicalData::BundleAge(age) = block.data() {
-            let offset = SystemTime::now()
+            let offset = (SystemTime::now()
                 .duration_since(UNIX_EPOCH)
                 .expect("Time went backwards")
-                .as_millis() as u64
-                - bp.received_time;
+                .as_millis() as u64)
+                .saturating_sub(bp.received_time);
             new_age = age + offset;
         }
         if new_age != 0 {
@@ -265,7 +265,8 @@ pub fn update_bundle_age(bundle: &mut Bundle) -> Option<u64> {
 }
 async fn handle_bundle_age_block(mut bundle: Bundle) -> Result<Bundle> {
     if let Some(age) = update_bundle_age(&mut bundle) {
-        if std::time::Duration::from_micros(age) >= bundle.primary.lifetime {
+        // bundle age is given in milliseconds (RFC 9171, 4.4.2)
+        if std::time::Duration::from_millis(age) >= bundle.primary.lifetime {
             warn!("Dropping bundle, age exceeds lifetime: {}", bundle.id());
             delete(bundle.into(), LIFETIME_EXPIRED).await?;
             bail!("age block lifetime exceeded");
@@ -695,4 +696,54 @@ async fn send_status_report(
     //send_bundle(out_bndl).await;
     //dispatch(out_bndl.into()).await;
     //send_through_task_async(out_bndl).await;
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use bp7::canonical::{new_bundle_age_block, new_payload_block};
+    use bp7::primary::PrimaryBlockBuilder;
+    use std::convert::TryFrom;
+    use std::time::Duration;
+
+    fn bundle_with_age(age_ms: u64, lifetime: Duration) -> Bundle {
+        let src = EndpointID::try_from("dtn://age-sender/app".to_string()).unwrap();
+        let dst = EndpointID::try_from("dtn://age-receiver/app".to_string()).unwrap();
+        let primary = PrimaryBlockBuilder::default()
+            .destination(dst)
+            .source(src.clone())
+            .report_to(src)
+            .creation_timestamp(bp7::CreationTimestamp::now())
+            .lifetime(lifetime)
+            .build()
+            .unwrap();
+        Bundle {
+            primary,
+            canonicals: vec![
+                new_bundle_age_block(2, BlockControlFlags::empty(), age_ms),
+                new_payload_block(BlockControlFlags::empty(), b"age".to_vec()),
+            ],
+        }
+    }
+
+    #[tokio::test]
+    async fn bundle_age_is_interpreted_as_milliseconds() {
+        // 5000 ms of age exceed a lifetime of 3 s
+        let bndl = bundle_with_age(5000, Duration::from_secs(3));
+        store_push_bundle(&bndl).unwrap();
+        assert!(handle_bundle_age_block(bndl).await.is_err());
+
+        // 1000 ms of age are within a lifetime of 3 s
+        let bndl = bundle_with_age(1000, Duration::from_secs(3));
+        store_push_bundle(&bndl).unwrap();
+        let mut bndl = handle_bundle_age_block(bndl).await.unwrap();
+        match bndl
+            .extension_block_by_type_mut(BUNDLE_AGE_BLOCK)
+            .unwrap()
+            .data()
+        {
+            CanonicalData::BundleAge(age) => assert!(*age >= 1000 && *age < 3000),
+            other => panic!("unexpected bundle age data: {:?}", other),
+        }
+    }
 }
