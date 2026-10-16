@@ -26,6 +26,10 @@ use tokio::sync::mpsc::channel;
 // transmit an outbound bundle.
 pub async fn send_bundle(bndl: Bundle) {
     tokio::spawn(async move {
+        if let Err(err) = check_bundle_sanity(&bndl) {
+            warn!("Transmission failed: {}", err);
+            return;
+        }
         if let Err(err) = store_push_bundle(&bndl) {
             warn!("Transmission failed: {}", err);
             return;
@@ -93,8 +97,21 @@ pub async fn transmit(mut bp: BundlePack) -> Result<()> {
     Ok(())
 }
 
+/// Rejects bundles that cannot be processed safely, e.g., bundles without a
+/// destination node (dtn:none), which can neither be delivered nor forwarded.
+fn check_bundle_sanity(bndl: &Bundle) -> Result<()> {
+    if bndl.primary.destination.node().is_none() {
+        bail!("bundle {} has no valid destination", bndl.id());
+    }
+    Ok(())
+}
+
 // handle received/incoming bundles.
 pub async fn receive(mut bndl: Bundle) -> Result<()> {
+    if let Err(err) = check_bundle_sanity(&bndl) {
+        STATS.lock().broken += 1;
+        return Err(err);
+    }
     if store_add_bundle_if_unknown(&bndl)? {
         info!("Received new bundle: {}", bndl.id());
         STATS.lock().incoming += 1;

@@ -142,7 +142,7 @@ async fn handle_sender_for_bundle(
             }
             if meta.remaining_copies < 2 {
                 // we are done with this bundle, only direct delivery remains
-                if bp.destination.node().unwrap() == p.node_name() {
+                if bp.destination.node().as_deref() == Some(p.node_name().as_str()) {
                     // direct delivery possible
                     debug!(
                         "Attempting direct delivery of bundle {} to {}",

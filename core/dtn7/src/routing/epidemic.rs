@@ -89,7 +89,7 @@ async fn handle_routing_cmd(mut rx: mpsc::Receiver<RoutingCmd>) {
                     if !core.contains(bp.id(), &p.node_name()) {
                         if let Some(cla) = p.first_cla() {
                             core.add(bp.id().to_string(), p.node_name().clone());
-                            if bp.destination.node().unwrap() == p.node_name() {
+                            if bp.destination.node().as_deref() == Some(p.node_name().as_str()) {
                                 // direct delivery possible
                                 debug!(
                                     "Attempting direct delivery of bundle {} to {}",
