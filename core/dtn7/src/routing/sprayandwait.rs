@@ -22,7 +22,7 @@ pub struct SprayAndWaitRoutingAgent {
 pub struct SaWBundleData {
     /// the number of copies we have left to spread
     remaining_copies: usize,
-    /// the list of nodes that have already received the bundle
+    /// the node names of the peers that have already received the bundle
     nodes: Vec<String>,
 }
 
@@ -48,6 +48,11 @@ impl SprayAndWaitRoutingAgentCore {
     }
     /// Prepare new bundles for spreading.
     pub fn handle_new_bundle(&mut self, bundle_id: String) {
+        if self.history.contains_key(&bundle_id) {
+            // keep the remaining copies and the nodes that already received the bundle
+            debug!("Bundle {} already known", &bundle_id);
+            return;
+        }
         if bundle_id.starts_with(&self.local_node) {
             // this is our own bundle, thus, we have l copies to spread
             let meta = SaWBundleData {
@@ -102,18 +107,20 @@ fn handle_notification(core: &mut SprayAndWaitRoutingAgentCore, notification: Ro
         RoutingNotifcation::SendingFailed(bid, next_hop_node_name) => {
             // If a transmission fails we have to remove the node from the list of already received nodes
             // and increase the number of remaining copies again.
+            // Direct deliveries do not consume a copy and are not listed, so nothing is
+            // returned for them.
             if let Some(meta) = core.history.get_mut(&bid) {
                 let old_size = meta.nodes.len();
                 meta.nodes
-                    .retain(|node_name| node_name.contains(&next_hop_node_name));
-                if old_size != meta.nodes.len() + 1 {
+                    .retain(|node_name| node_name != &next_hop_node_name);
+                let removed = old_size - meta.nodes.len();
+                if removed > 1 {
                     warn!(
-                        "Removed {} from bid {} entry, duplicate entries, should be 1!",
-                        meta.nodes.len(),
-                        &bid
+                        "Removed {} entries of {} from bid {}, duplicate entries, should be 1!",
+                        removed, next_hop_node_name, &bid
                     );
                 }
-                meta.remaining_copies += 1;
+                meta.remaining_copies += removed;
             }
         }
         RoutingNotifcation::IncomingBundle(bndl) => {
@@ -138,7 +145,9 @@ async fn handle_sender_for_bundle(
             let Some(peer_node_id) = p.eid.node_id() else {
                 continue;
             };
-            if peer_node_id == core.local_node || meta.nodes.contains(&peer_node_id) {
+            // node names match the next hop names of SendingFailed notifications
+            let peer_node_name = p.node_name();
+            if peer_node_id == core.local_node || meta.nodes.contains(&peer_node_name) {
                 // skip if the peer is ourself or if we already sent the bundle to this peer
                 continue;
             }
@@ -167,7 +176,7 @@ async fn handle_sender_for_bundle(
             if let Some(cla) = p.first_cla() {
                 clas.push(cla);
                 meta.remaining_copies -= 1;
-                meta.nodes.push(peer_node_id.clone());
+                meta.nodes.push(peer_node_name);
             }
             debug!(
                 "Relaying bundle {} to {}, {} copies remaining",
@@ -220,5 +229,60 @@ async fn handle_routing_cmd(mut rx: mpsc::Receiver<RoutingCmd>) {
                 handle_notification(&mut core, notification);
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn core_with(
+        bid: &str,
+        remaining_copies: usize,
+        nodes: &[&str],
+    ) -> SprayAndWaitRoutingAgentCore {
+        let mut core = SprayAndWaitRoutingAgentCore::new(MAX_COPIES);
+        core.history.insert(
+            bid.to_string(),
+            SaWBundleData {
+                remaining_copies,
+                nodes: nodes.iter().map(|n| n.to_string()).collect(),
+            },
+        );
+        core
+    }
+
+    #[test]
+    fn sending_failed_returns_copy_of_failed_node_only() {
+        let mut core = core_with("bid", 0, &["node2", "node20", "node3"]);
+        handle_notification(
+            &mut core,
+            RoutingNotifcation::SendingFailed("bid".into(), "node2".into()),
+        );
+        let meta = &core.history["bid"];
+        assert_eq!(meta.nodes, vec!["node20", "node3"]);
+        assert_eq!(meta.remaining_copies, 1);
+    }
+
+    #[test]
+    fn sending_failed_for_unlisted_node_keeps_copies() {
+        // e.g., a failed direct delivery, which did not consume a copy
+        let mut core = core_with("bid", 0, &["node3"]);
+        handle_notification(
+            &mut core,
+            RoutingNotifcation::SendingFailed("bid".into(), "node2".into()),
+        );
+        let meta = &core.history["bid"];
+        assert_eq!(meta.nodes, vec!["node3"]);
+        assert_eq!(meta.remaining_copies, 0);
+    }
+
+    #[test]
+    fn known_bundles_are_not_reset() {
+        let mut core = core_with("bid", 2, &["node3"]);
+        core.handle_new_bundle("bid".into());
+        let meta = &core.history["bid"];
+        assert_eq!(meta.nodes, vec!["node3"]);
+        assert_eq!(meta.remaining_copies, 2);
     }
 }
