@@ -17,7 +17,7 @@ use crate::{
 };
 pub use crate::{store_has_item, store_push_bundle};
 use crate::{RoutingNotifcation, CONFIG};
-use crate::{PEERS, STORE};
+use crate::{PEERS, STATS, STORE};
 use application_agent::ApplicationAgent;
 use bp7::EndpointID;
 use log::{error, warn, info, trace};
@@ -54,8 +54,11 @@ impl DtnStatistics {
             node: nodestats,
         }
     }
+    /// Refreshes the node statistics from DTNCORE and STORE.
+    ///
+    /// Must not be called while holding the global STATS lock, as other code paths
+    /// lock STATS while holding DTNCORE/STORE. Operate on a clone instead.
     pub fn update_node_stats(&mut self) {
-        println!("Updating node stats");
         self.node.error_info.failed_forwards_bundle_count = self.failed;
         self.node.registrations.clear();
         let eids = (*DTNCORE.lock()).eids();
@@ -82,6 +85,14 @@ impl DtnStatistics {
         //     (*STORE.lock()).reassembly_pending().len() as u64;
     }
 }
+/// Returns a snapshot of the global statistics with refreshed node stats.
+pub fn node_statistics() -> DtnStatistics {
+    // clone first so STATS is not locked while update_node_stats() locks DTNCORE/STORE
+    let mut stats = STATS.lock().clone();
+    stats.update_node_stats();
+    stats
+}
+
 #[derive(Debug)]
 pub struct DtnCore {
     pub endpoints: Vec<ApplicationAgentEnum>,

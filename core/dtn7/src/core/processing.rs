@@ -501,9 +501,15 @@ pub async fn local_delivery(mut bp: BundlePack) -> Result<()> {
         bp.add_constraint(Constraint::ForwardPending);
     }
     bp.sync()?;
-    if let Some(aa) = (*DTNCORE.lock()).get_endpoint_mut(&bp.destination) {
+    let delivered = if let Some(aa) = (*DTNCORE.lock()).get_endpoint_mut(&bp.destination) {
         info!("Delivering {}", bp.id());
         aa.push(&bndl);
+        true
+    } else {
+        false
+    };
+    // STATS must not be locked while holding DTNCORE (lock order: STATS -> DTNCORE)
+    if delivered {
         STATS.lock().delivered += 1;
     }
     Ok(())

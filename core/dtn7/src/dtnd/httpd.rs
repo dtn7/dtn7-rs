@@ -299,9 +299,7 @@ async fn status_peers() -> String {
 }
 //#[get("/status/info")]
 async fn status_info() -> String {
-    STATS.lock().update_node_stats();
-    let stats = &(*STATS.lock()).clone();
-    serde_json::to_string_pretty(&stats).unwrap()
+    serde_json::to_string_pretty(&crate::core::node_statistics()).unwrap()
 }
 //#[get("/cts", guard = "fn_guard_localhost")]
 async fn get_creation_timestamp() -> String {
