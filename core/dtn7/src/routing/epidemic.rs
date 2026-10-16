@@ -1,5 +1,8 @@
 use super::RoutingAgent;
+use crate::cla::ClaSenderTask;
+use crate::core::bundlepack::BundlePack;
 use crate::routing::{RoutingCmd, RoutingNotifcation};
+use crate::DtnPeer;
 use crate::PEERS;
 use async_trait::async_trait;
 use log::{debug, trace};
@@ -73,6 +76,43 @@ impl EpidemicRoutingAgentCore {
             self.add(bundle_id.to_string(), node_name.to_string());
         }
     }
+
+    /// Selects the peers that have not received the bundle yet, or only the destination
+    /// peer if direct delivery is possible. Only the selected peers are recorded as sent.
+    fn senders_for_bundle<'a>(
+        &mut self,
+        bp: &BundlePack,
+        peers: impl IntoIterator<Item = &'a DtnPeer>,
+    ) -> (Vec<ClaSenderTask>, bool) {
+        let mut selected: Vec<(String, ClaSenderTask)> = Vec::new();
+        let mut delete_afterwards = false;
+        for p in peers {
+            trace!("checking peer {:?} (node_name={})", p, p.node_name());
+            if self.contains(bp.id(), &p.node_name()) {
+                continue;
+            }
+            if let Some(cla) = p.first_cla() {
+                if bp.destination.node().as_deref() == Some(p.node_name().as_str()) {
+                    // direct delivery possible
+                    debug!(
+                        "Attempting direct delivery of bundle {} to {}",
+                        bp.id(),
+                        p.node_name()
+                    );
+                    delete_afterwards = true;
+                    selected = vec![(p.node_name(), cla)];
+                    break;
+                }
+                selected.push((p.node_name(), cla));
+            }
+        }
+        let mut clas = Vec::with_capacity(selected.len());
+        for (node_name, cla) in selected {
+            self.add(bp.id().to_string(), node_name);
+            clas.push(cla);
+        }
+        (clas, delete_afterwards)
+    }
 }
 
 async fn handle_routing_cmd(mut rx: mpsc::Receiver<RoutingCmd>) {
@@ -82,30 +122,8 @@ async fn handle_routing_cmd(mut rx: mpsc::Receiver<RoutingCmd>) {
         match cmd {
             super::RoutingCmd::SenderForBundle(bp, reply) => {
                 debug!("checking PEERS due to SenderForBundle request (bp={})", bp);
-                let mut clas = Vec::new();
-                let mut delete_afterwards = false;
-                for (_, p) in (*PEERS.lock()).iter() {
-                    trace!("checking peer {:?} (node_name={})", p, p.node_name());
-                    if !core.contains(bp.id(), &p.node_name()) {
-                        if let Some(cla) = p.first_cla() {
-                            core.add(bp.id().to_string(), p.node_name().clone());
-                            if bp.destination.node().as_deref() == Some(p.node_name().as_str()) {
-                                // direct delivery possible
-                                debug!(
-                                    "Attempting direct delivery of bundle {} to {}",
-                                    bp.id(),
-                                    p.node_name()
-                                );
-                                delete_afterwards = true;
-                                clas.clear();
-                                clas.push(cla);
-                                break;
-                            } else {
-                                clas.push(cla);
-                            }
-                        }
-                    }
-                }
+                let (clas, delete_afterwards) =
+                    core.senders_for_bundle(&bp, (*PEERS.lock()).values());
 
                 tokio::spawn(async move {
                     // the requester may already be gone (e.g., timed out), which is not an error here
@@ -161,5 +179,64 @@ impl std::fmt::Display for EpidemicRoutingAgent {
 impl RoutingAgent for EpidemicRoutingAgent {
     fn channel(&self) -> Sender<RoutingCmd> {
         self.tx.clone()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::cla::dummy::DummyConvergenceLayer;
+    use crate::core::peer::{PeerAddress, PeerType};
+    use bp7::EndpointID;
+    use std::convert::TryFrom;
+
+    fn peer(name: &str) -> DtnPeer {
+        DtnPeer::new(
+            EndpointID::try_from(format!("dtn://{}/", name)).unwrap(),
+            PeerAddress::Ip("127.0.0.1".parse().unwrap()),
+            PeerType::Static,
+            None,
+            vec![("dummy".into(), None)],
+            HashMap::new(),
+        )
+    }
+
+    fn bundle_pack(dst: &str) -> BundlePack {
+        let bndl = bp7::bundle::new_std_payload_bundle(
+            EndpointID::try_from("dtn://epidemic-src/app".to_string()).unwrap(),
+            EndpointID::try_from(dst.to_string()).unwrap(),
+            b"epidemic".to_vec(),
+        );
+        BundlePack::from(&bndl)
+    }
+
+    #[tokio::test]
+    async fn direct_delivery_only_records_destination() {
+        crate::cla_add(DummyConvergenceLayer::new(None).into());
+        let peers = [peer("relay1"), peer("dest"), peer("relay2")];
+        let bp = bundle_pack("dtn://dest/inbox");
+
+        let mut core = EpidemicRoutingAgentCore::new();
+        let (clas, delete_afterwards) = core.senders_for_bundle(&bp, peers.iter());
+        assert_eq!(clas.len(), 1);
+        assert_eq!(clas[0].next_hop, peers[1].eid);
+        assert!(delete_afterwards);
+        assert!(core.contains(bp.id(), "dest"));
+        assert!(!core.contains(bp.id(), "relay1"));
+        assert!(!core.contains(bp.id(), "relay2"));
+    }
+
+    #[tokio::test]
+    async fn relays_are_recorded_and_not_selected_again() {
+        crate::cla_add(DummyConvergenceLayer::new(None).into());
+        let peers = [peer("relay1"), peer("relay2")];
+        let bp = bundle_pack("dtn://elsewhere/inbox");
+
+        let mut core = EpidemicRoutingAgentCore::new();
+        let (clas, delete_afterwards) = core.senders_for_bundle(&bp, peers.iter());
+        assert_eq!(clas.len(), 2);
+        assert!(!delete_afterwards);
+        let (clas, _) = core.senders_for_bundle(&bp, peers.iter());
+        assert!(clas.is_empty());
     }
 }
