@@ -108,7 +108,8 @@ async fn handle_routing_cmd(mut rx: mpsc::Receiver<RoutingCmd>) {
                 }
 
                 tokio::spawn(async move {
-                    reply.send((clas, delete_afterwards)).unwrap();
+                    // the requester may already be gone (e.g., timed out), which is not an error here
+                    let _ = reply.send((clas, delete_afterwards));
                 });
             }
             super::RoutingCmd::Shutdown => {
@@ -116,7 +117,8 @@ async fn handle_routing_cmd(mut rx: mpsc::Receiver<RoutingCmd>) {
             }
             super::RoutingCmd::Command(_cmd) => {}
             super::RoutingCmd::GetData(_, tx) => {
-                tx.send(format!("{:?}", core.history)).unwrap();
+                // the requester may already be gone (e.g., timed out), which is not an error here
+                let _ = tx.send(format!("{:?}", core.history));
             }
             super::RoutingCmd::Notify(notification) => match notification {
                 RoutingNotifcation::SendingFailed(bid, cla_sender) => {

@@ -36,7 +36,8 @@ impl FloodingRoutingAgent {
                         }
 
                         tokio::spawn(async move {
-                            reply.send((clas, false)).unwrap();
+                            // the requester may already be gone (e.g., timed out), which is not an error here
+                            let _ = reply.send((clas, false));
                         });
                     }
                     super::RoutingCmd::Shutdown => {
@@ -44,7 +45,8 @@ impl FloodingRoutingAgent {
                     }
                     super::RoutingCmd::Command(_cmd) => {}
                     super::RoutingCmd::GetData(_, tx) => {
-                        tx.send("unimplemented!".to_string()).unwrap();
+                        // the requester may already be gone (e.g., timed out), which is not an error here
+                        let _ = tx.send("unimplemented!".to_string());
                     }
                     super::RoutingCmd::Notify(_) => {}
                 }

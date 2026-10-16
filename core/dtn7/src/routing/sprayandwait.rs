@@ -135,7 +135,9 @@ async fn handle_sender_for_bundle(
 
     if let Some(meta) = core.history.get_mut(bp.id()) {
         for (_, p) in (*PEERS.lock()).iter() {
-            let peer_node_id = p.eid.node_id().unwrap();
+            let Some(peer_node_id) = p.eid.node_id() else {
+                continue;
+            };
             if peer_node_id == core.local_node || meta.nodes.contains(&peer_node_id) {
                 // skip if the peer is ourself or if we already sent the bundle to this peer
                 continue;
@@ -178,20 +180,25 @@ async fn handle_sender_for_bundle(
         warn!("Bundle {} not found", bp.id());
     }
     tokio::spawn(async move {
-        reply.send((clas, delete_afterwards)).unwrap();
+        // the requester may already be gone (e.g., timed out), which is not an error here
+        let _ = reply.send((clas, delete_afterwards));
     });
 }
 async fn handle_routing_cmd(mut rx: mpsc::Receiver<RoutingCmd>) {
     let settings = CONFIG.lock().routing_settings.clone();
 
-    let max_copies = if let Some(settings) = settings.get("sprayandwait") {
-        settings
-            .get("num_copies")
-            .unwrap_or(&format!("{}", MAX_COPIES))
-            .parse::<usize>()
-            .unwrap()
-    } else {
-        MAX_COPIES
+    let max_copies = match settings
+        .get("sprayandwait")
+        .and_then(|settings| settings.get("num_copies"))
+    {
+        Some(num_copies) => num_copies.parse::<usize>().unwrap_or_else(|_| {
+            warn!(
+                "invalid sprayandwait.num_copies '{}', using default of {}",
+                num_copies, MAX_COPIES
+            );
+            MAX_COPIES
+        }),
+        None => MAX_COPIES,
     };
     info!("configured to allow {} copies", max_copies);
 
@@ -206,7 +213,8 @@ async fn handle_routing_cmd(mut rx: mpsc::Receiver<RoutingCmd>) {
             }
             super::RoutingCmd::Command(_cmd) => {}
             super::RoutingCmd::GetData(_, tx) => {
-                tx.send(format!("{:?}", core.history)).unwrap();
+                // the requester may already be gone (e.g., timed out), which is not an error here
+                let _ = tx.send(format!("{:?}", core.history));
             }
             super::RoutingCmd::Notify(notification) => {
                 handle_notification(&mut core, notification);

@@ -5,7 +5,7 @@ use crate::{RoutingNotifcation, CONFIG, PEERS};
 use super::{RoutingAgent, RoutingCmd};
 use async_trait::async_trait;
 use glob_match::glob_match;
-use log::{debug, info};
+use log::{debug, error, info, warn};
 use tokio::sync::mpsc;
 use tokio::sync::mpsc::Sender;
 
@@ -76,16 +76,41 @@ fn parse_route_from_str(s: &str) -> Option<StaticRouteEntry> {
         return None;
     }
     let mut parts = s.split_whitespace();
-    let idx = parts.next().unwrap().parse::<u16>().unwrap();
-    let src = parts.next().unwrap();
-    let dst = parts.next().unwrap();
-    let via = parts.next().unwrap();
+    let (Some(idx), Some(src), Some(dst), Some(via)) =
+        (parts.next(), parts.next(), parts.next(), parts.next())
+    else {
+        warn!("Ignoring malformed static route: {}", s);
+        return None;
+    };
+    let Ok(idx) = idx.parse::<u16>() else {
+        warn!("Ignoring static route with invalid index: {}", s);
+        return None;
+    };
     Some(StaticRouteEntry {
         idx,
         src: src.to_string(),
         dst: dst.to_string(),
         via: via.to_string(),
     })
+}
+
+/// Loads all routes from the given file, returns `None` if the file could not be read.
+fn load_routes(routes_file: &str) -> Option<Vec<StaticRouteEntry>> {
+    let routes = match std::fs::read_to_string(routes_file) {
+        Ok(routes) => routes,
+        Err(err) => {
+            error!("Could not read static routes from {}: {}", routes_file, err);
+            return None;
+        }
+    };
+    let mut route_entries = vec![];
+    for line in routes.lines() {
+        if let Some(entry) = parse_route_from_str(line) {
+            debug!("Adding static route: {}", entry);
+            route_entries.push(entry);
+        }
+    }
+    Some(route_entries)
 }
 
 async fn handle_routing_notification(notification: RoutingNotifcation) {
@@ -107,14 +132,7 @@ async fn handle_routing_cmd(mut rx: mpsc::Receiver<RoutingCmd>) {
 
     if let Some(static_settings) = settings.get("static") {
         if let Some(routes_file) = static_settings.get("routes") {
-            // open file and read routes line by line
-            let routes = std::fs::read_to_string(routes_file).unwrap();
-            for line in routes.lines() {
-                if let Some(entry) = parse_route_from_str(line) {
-                    debug!("Adding static route: {}", entry);
-                    route_entries.push(entry);
-                }
-            }
+            route_entries = load_routes(routes_file).unwrap_or_default();
         }
     }
 
@@ -150,7 +168,8 @@ async fn handle_routing_cmd(mut rx: mpsc::Receiver<RoutingCmd>) {
                 if clas.is_empty() {
                     debug!("No route found for bundle {}", bp);
                 }
-                reply.send((clas, delete_afterwards)).unwrap();
+                // the requester may already be gone (e.g., timed out), which is not an error here
+                let _ = reply.send((clas, delete_afterwards));
             }
             super::RoutingCmd::Shutdown => {
                 break;
@@ -161,16 +180,10 @@ async fn handle_routing_cmd(mut rx: mpsc::Receiver<RoutingCmd>) {
                     if let Some(static_settings) = settings.get("static") {
                         if let Some(routes_file) = static_settings.get("routes") {
                             info!("Reloading static routes from {}", routes_file);
-                            // open file and read routes line by line
-                            let routes = std::fs::read_to_string(routes_file).unwrap();
-                            let mut route_entries = vec![];
-                            for line in routes.lines() {
-                                if let Some(entry) = parse_route_from_str(line) {
-                                    debug!("Adding static route: {}", entry);
-                                    route_entries.push(entry);
-                                }
+                            // keep the current routes if the file cannot be read
+                            if let Some(route_entries) = load_routes(routes_file) {
+                                core.routes = route_entries;
                             }
-                            core.routes = route_entries;
                         }
                     }
                 } else {
@@ -182,11 +195,45 @@ async fn handle_routing_cmd(mut rx: mpsc::Receiver<RoutingCmd>) {
                     .routes
                     .iter()
                     .fold(String::new(), |acc, r| acc + &format!("{}\n", r));
-                tx.send(routes_as_str).unwrap();
+                // the requester may already be gone (e.g., timed out), which is not an error here
+                let _ = tx.send(routes_as_str);
             }
             super::RoutingCmd::Notify(notification) => {
                 handle_routing_notification(notification).await;
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn parse_valid_route() {
+        let route = parse_route_from_str("1 dtn://src/* dtn://dst/* dtn://via/").unwrap();
+        assert_eq!(route.idx, 1);
+        assert_eq!(route.src, "dtn://src/*");
+        assert_eq!(route.dst, "dtn://dst/*");
+        assert_eq!(route.via, "dtn://via/");
+    }
+
+    #[test]
+    fn malformed_routes_are_ignored() {
+        for line in [
+            "",
+            "# comment",
+            "1",
+            "1 dtn://src/* dtn://dst/*",
+            "x dtn://src/* dtn://dst/* dtn://via/",
+            "70000 dtn://src/* dtn://dst/* dtn://via/",
+        ] {
+            assert!(parse_route_from_str(line).is_none(), "{}", line);
+        }
+    }
+
+    #[test]
+    fn missing_routes_file_is_not_fatal() {
+        assert!(load_routes("/nonexistent/dtn7/static-routes.txt").is_none());
     }
 }

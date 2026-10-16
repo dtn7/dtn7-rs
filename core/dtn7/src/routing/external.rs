@@ -24,7 +24,8 @@ impl ExternalRoutingAgent {
                 match cmd {
                     super::RoutingCmd::SenderForBundle(bp, reply) => {
                         tokio::spawn(async move {
-                            reply.send(sender_for_bundle(&bp).await).unwrap();
+                            // the requester may already be gone (e.g., timed out), which is not an error here
+                            let _ = reply.send(sender_for_bundle(&bp).await);
                         });
                     }
                     super::RoutingCmd::Shutdown => {
@@ -32,7 +33,8 @@ impl ExternalRoutingAgent {
                     }
                     super::RoutingCmd::Command(_cmd) => {}
                     super::RoutingCmd::GetData(_, tx) => {
-                        tx.send("unimplemented!".to_string()).unwrap();
+                        // the requester may already be gone (e.g., timed out), which is not an error here
+                        let _ = tx.send("unimplemented!".to_string());
                     }
                     super::RoutingCmd::Notify(notification) => {
                         notify(notification);

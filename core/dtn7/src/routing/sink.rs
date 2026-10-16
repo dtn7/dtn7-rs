@@ -21,14 +21,16 @@ impl SinkRoutingAgent {
             while let Some(cmd) = rx.recv().await {
                 match cmd {
                     super::RoutingCmd::SenderForBundle(_bp, reply) => {
-                        reply.send((vec![], false)).unwrap();
+                        // the requester may already be gone (e.g., timed out), which is not an error here
+                        let _ = reply.send((vec![], false));
                     }
                     super::RoutingCmd::Shutdown => {
                         break;
                     }
                     super::RoutingCmd::Command(_cmd) => {}
                     super::RoutingCmd::GetData(_, tx) => {
-                        tx.send("unimplemented!".to_string()).unwrap();
+                        // the requester may already be gone (e.g., timed out), which is not an error here
+                        let _ = tx.send("unimplemented!".to_string());
                     }
                     super::RoutingCmd::Notify(_) => {}
                 }
