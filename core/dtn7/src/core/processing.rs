@@ -124,8 +124,7 @@ pub async fn receive(mut bndl: Bundle) -> Result<()> {
         send_status_report(&bp, RECEIVED_BUNDLE, NO_INFORMATION).await;
     }
     let mut remove_idx = Vec::new();
-    let mut index = 0;
-    for cb in bndl.canonicals.iter() {
+    for (index, cb) in bndl.canonicals.iter().enumerate() {
         if cb.block_type < 11 {
             // TODO: fix magic number to check for a known block type
             continue;
@@ -166,10 +165,10 @@ pub async fn receive(mut bndl: Bundle) -> Result<()> {
             );
             remove_idx.push(index);
         }
-        index += 1;
     }
-    for i in remove_idx {
-        // Remove canoncial blocks marked for deletion
+    // Remove canonical blocks marked for deletion, highest index first so that
+    // earlier removals do not shift the remaining indices.
+    for i in remove_idx.into_iter().rev() {
         bndl.canonicals.remove(i);
     }
     if let Err(err) = store_push_bundle(&bndl) {
