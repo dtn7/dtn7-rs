@@ -52,8 +52,11 @@ type SessionMap = HashMap<SocketAddr, mpsc::Sender<(ByteBuffer, oneshot::Sender<
 
 const KEEPALIVE: u16 = 30;
 const SEGMENT_MRU: u64 = 64000;
-const TRANSFER_MRU: u64 = 64000;
+/// Maximum size of a single (reassembled) incoming transfer, i.e., a bundle.
+const TRANSFER_MRU: u64 = 128 * 1024 * 1024;
 const INTERNAL_CHANNEL_BUFFER: usize = 200;
+/// Number of already parsed incoming packets buffered per session.
+const RECEIVE_PACKET_BUFFER: usize = 16;
 
 lazy_static! {
     pub static ref TCP_CONNECTIONS: Mutex<SessionMap> = Mutex::new(HashMap::new());
@@ -85,7 +88,6 @@ struct TcpConnection {
 }
 
 struct TcpSession {
-    reader: BufReader<OwnedReadHalf>,
     writer: BufWriter<OwnedWriteHalf>,
     addr: SocketAddr,
     refuse_existing_bundles: bool,
@@ -109,7 +111,32 @@ enum SendState {
 }
 
 impl TcpSession {
-    async fn run(mut self) {
+    /// Reads packets in a dedicated task. TcpClPacket::read is not cancellation safe,
+    /// so it must not be polled directly inside select!, otherwise a partially read
+    /// packet would be lost whenever another branch completes first.
+    fn spawn_reader(
+        mut reader: BufReader<OwnedReadHalf>,
+    ) -> (
+        mpsc::Receiver<Result<TcpClPacket, TcpClError>>,
+        tokio::task::JoinHandle<()>,
+    ) {
+        let (tx, rx) = mpsc::channel(RECEIVE_PACKET_BUFFER);
+        let handle = tokio::spawn(async move {
+            loop {
+                let res = TcpClPacket::read(&mut reader).await;
+                let failed = res.is_err();
+                if tx.send(res).await.is_err() || failed {
+                    break;
+                }
+            }
+        });
+        (rx, handle)
+    }
+
+    async fn run(mut self, reader: BufReader<OwnedReadHalf>) {
+        let (mut rx_packets, reader_task) = Self::spawn_reader(reader);
+        // a keepalive interval of zero disables keepalives (RFC 9174, 4.3)
+        let keepalive_enabled = self.remote_session_data.keepalive > 0;
         let mut keepalive_sent = false;
         let mut keepalive_received = false;
         let mut state = (ReceiveState::Idle, SendState::Idle);
@@ -138,9 +165,9 @@ impl TcpSession {
             ));
             tokio::pin!(sleep);
             tokio::select! {
-                received_packet = TcpClPacket::read(&mut self.reader) => {
+                received_packet = rx_packets.recv() => {
                     match received_packet {
-                        Ok(packet) => {
+                        Some(Ok(packet)) => {
                             if packet == TcpClPacket::KeepAlive {
                                 if !keepalive_sent {
                                     if let Err(err) = TcpClPacket::KeepAlive.write(&mut self.writer).await {
@@ -164,8 +191,12 @@ impl TcpSession {
                                 keepalive_sent = false;
                             }
                         },
-                        Err(err) => {
+                        Some(Err(err)) => {
                             error!("Failed parsing package: {:?}", err);
+                            state = (ReceiveState::Terminated, SendState::Terminated);
+                        },
+                        None => {
+                            error!("packet reader stopped");
                             state = (ReceiveState::Terminated, SendState::Terminated);
                         },
                     }
@@ -189,7 +220,7 @@ impl TcpSession {
                     keepalive_sent = false;
                     keepalive_received = false;
                 }
-                _ = sleep => {
+                _ = sleep, if keepalive_enabled => {
                     if !keepalive_sent {
                         // 1st time send keepalive
                         if let Err(err) = TcpClPacket::KeepAlive.write(&mut self.writer).await {
@@ -209,6 +240,7 @@ impl TcpSession {
                 }
             };
         }
+        reader_task.abort();
     }
     async fn terminate_session(&mut self, reason: SessTermReasonCode) -> (ReceiveState, SendState) {
         if let Err(err) = TcpClPacket::SessTerm(SessTermData {
@@ -296,8 +328,15 @@ impl TcpSession {
                         if tid != data.tid {
                             return Err(TcpSessionError::Protocol(packet).into());
                         }
+                        if buffer.len() as u64 + data.buf.len() as u64 > TRANSFER_MRU {
+                            bail!(
+                                "transfer {} exceeds transfer MRU of {} bytes",
+                                tid,
+                                TRANSFER_MRU
+                            );
+                        }
 
-                        buffer.append(&mut data.buf.to_vec());
+                        buffer.extend_from_slice(&data.buf);
                         trace!("Sending XferAck: TID={}", data.tid);
                         TcpClPacket::XferAck(XferAckData {
                             tid: data.tid,
@@ -516,6 +555,9 @@ impl TcpConnection {
         let response = TcpClPacket::read(&mut self.reader).await?;
         debug!("Received session parameters");
         if let TcpClPacket::SessInit(mut data) = response {
+            if data.segment_mru == 0 {
+                bail!("invalid segment MRU of 0 announced by {}", self.addr);
+            }
             let keepalive = sess_init_data.keepalive.min(data.keepalive);
             sess_init_data.keepalive = keepalive;
             data.keepalive = keepalive;
@@ -570,10 +612,23 @@ impl TcpConnection {
         debug!("Negotiating session parameters, {}", self.addr);
         match self.negotiate_session().await {
             Ok((local_parameters, remote_parameters)) => {
-                // TODO: validate node id
-                let remote_eid = EndpointID::try_from(remote_parameters.node_id.as_ref())
-                    .expect("Invalid node id in tcpcl session");
-                if !active && !peers_known(remote_eid.node().unwrap().as_ref()) {
+                let remote_eid = match EndpointID::try_from(remote_parameters.node_id.as_ref()) {
+                    Ok(eid) => eid,
+                    Err(err) => bail!(
+                        "Invalid node id '{}' from {}: {}",
+                        remote_parameters.node_id,
+                        self.addr,
+                        err
+                    ),
+                };
+                let Some(remote_node) = remote_eid.node() else {
+                    bail!(
+                        "Node id '{}' from {} has no node name",
+                        remote_parameters.node_id,
+                        self.addr
+                    );
+                };
+                if !active && !peers_known(&remote_node) {
                     let peer = DtnPeer::new(
                         remote_eid.clone(),
                         crate::PeerAddress::Ip(self.addr.ip()),
@@ -590,7 +645,6 @@ impl TcpConnection {
                     remote_parameters.node_id, self.addr, self.refuse_existing_bundles
                 );
                 let session = TcpSession {
-                    reader: self.reader,
                     writer: self.writer,
                     addr: self.addr,
                     refuse_existing_bundles: self.refuse_existing_bundles,
@@ -599,7 +653,7 @@ impl TcpConnection {
                     last_tid: 0u64,
                     rx_session_queue,
                 };
-                session.run().await;
+                session.run(self.reader).await;
             }
             Err(err) => bail!("Failed to negotiate session for {}: {}", self.addr, err),
         }
@@ -976,5 +1030,142 @@ mod tests {
             dbg!(&result);
             assert!(packet == result);
         }
+    }
+}
+
+#[cfg(test)]
+mod session_tests {
+    use super::*;
+    use tokio::io::AsyncWriteExt;
+    use tokio::task::JoinHandle;
+
+    type FakePeer = (BufReader<OwnedReadHalf>, BufWriter<OwnedWriteHalf>);
+    type SessionQueue = mpsc::Sender<(ByteBuffer, oneshot::Sender<TransferResult>)>;
+
+    /// Starts an active session against a fake peer which announces the given parameters.
+    async fn start_session(
+        keepalive: u16,
+        segment_mru: u64,
+        node_id: &str,
+    ) -> (FakePeer, SessionQueue, JoinHandle<anyhow::Result<()>>) {
+        let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let addr = listener.local_addr().unwrap();
+        let client = TcpStream::connect(addr).await.unwrap();
+        let (server, _) = listener.accept().await.unwrap();
+
+        let (rx, tx) = client.into_split();
+        let connection = TcpConnection {
+            reader: BufReader::new(rx),
+            writer: BufWriter::new(tx),
+            addr,
+            refuse_existing_bundles: false,
+        };
+        let (queue_tx, queue_rx) = mpsc::channel(8);
+        let session = tokio::spawn(connection.connect(queue_rx, true));
+
+        let (rx, tx) = server.into_split();
+        let mut reader = BufReader::new(rx);
+        let mut writer = BufWriter::new(tx);
+        let mut contact_header = [0u8; 6];
+        reader.read_exact(&mut contact_header).await.unwrap();
+        assert_eq!(&contact_header[0..4], b"dtn!");
+        TcpClPacket::ContactHeader(ContactHeaderFlags::default())
+            .write(&mut writer)
+            .await
+            .unwrap();
+        let sess_init = TcpClPacket::read(&mut reader).await.unwrap();
+        assert!(matches!(sess_init, TcpClPacket::SessInit(_)));
+        TcpClPacket::SessInit(SessInitData {
+            keepalive,
+            segment_mru,
+            transfer_mru: TRANSFER_MRU,
+            node_id: node_id.into(),
+        })
+        .write(&mut writer)
+        .await
+        .unwrap();
+
+        ((reader, writer), queue_tx, session)
+    }
+
+    async fn session_result(session: JoinHandle<anyhow::Result<()>>) -> anyhow::Result<()> {
+        time::timeout(Duration::from_secs(5), session)
+            .await
+            .expect("session did not finish")
+            .expect("session task panicked")
+    }
+
+    #[tokio::test]
+    async fn zero_segment_mru_is_rejected() {
+        let (_peer, _queue, session) = start_session(30, 0, "dtn://peer/").await;
+        assert!(session_result(session).await.is_err());
+    }
+
+    #[tokio::test]
+    async fn invalid_node_id_is_rejected_without_panic() {
+        let (_peer, _queue, session) = start_session(30, 64000, "not a node id").await;
+        assert!(session_result(session).await.is_err());
+
+        let (_peer, _queue, session) = start_session(30, 64000, "dtn:none").await;
+        assert!(session_result(session).await.is_err());
+    }
+
+    #[tokio::test]
+    async fn zero_keepalive_disables_keepalives() {
+        let ((mut reader, _writer), _queue, session) = start_session(0, 64000, "dtn://peer/").await;
+        // with keepalives disabled the session must stay silent and must not time out
+        let res = time::timeout(Duration::from_millis(500), TcpClPacket::read(&mut reader)).await;
+        assert!(res.is_err(), "unexpected packet received: {:?}", res);
+        assert!(!session.is_finished(), "session terminated unexpectedly");
+        session.abort();
+    }
+
+    #[tokio::test]
+    async fn outgoing_bundle_does_not_corrupt_partially_read_packet() {
+        let ((mut reader, mut writer), queue, session) =
+            start_session(30, 64000, "dtn://peer/").await;
+
+        let mut incoming = Vec::new();
+        TcpClPacket::XferSeg(XferSegData {
+            flags: XferSegmentFlags::START | XferSegmentFlags::END,
+            tid: 7,
+            len: 4,
+            buf: Bytes::from_static(b"abcd"),
+            extensions: Vec::new(),
+        })
+        .write(&mut incoming)
+        .await
+        .unwrap();
+
+        // send the first part of the incoming segment, so the session starts reading it
+        writer.write_all(&incoming[..6]).await.unwrap();
+        writer.flush().await.unwrap();
+        time::sleep(Duration::from_millis(100)).await;
+
+        // queue an outgoing bundle while the incoming packet is only partially received
+        let (reply_tx, _reply_rx) = oneshot::channel();
+        queue.send((b"outgoing".to_vec(), reply_tx)).await.unwrap();
+        time::sleep(Duration::from_millis(100)).await;
+
+        // now complete the incoming segment
+        writer.write_all(&incoming[6..]).await.unwrap();
+        writer.flush().await.unwrap();
+
+        let mut got_outgoing = false;
+        let mut got_ack = false;
+        while !(got_outgoing && got_ack) {
+            let packet = time::timeout(Duration::from_secs(3), TcpClPacket::read(&mut reader))
+                .await
+                .expect("timed out waiting for session packets")
+                .expect("session closed the connection");
+            match packet {
+                TcpClPacket::XferSeg(seg) if seg.buf.as_ref() == b"outgoing" => got_outgoing = true,
+                TcpClPacket::XferAck(ack) if ack.tid == 7 && ack.len == 4 => got_ack = true,
+                TcpClPacket::SessTerm(data) => panic!("session terminated: {:?}", data),
+                _ => {}
+            }
+        }
+        assert!(!session.is_finished());
+        session.abort();
     }
 }

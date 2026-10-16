@@ -111,8 +111,9 @@ impl TcpClPacket {
                                 let flag = reader.read_u8().await?;
                                 let item_type = reader.read_u16().await?;
                                 let item_length = reader.read_u16().await?;
-                                ext_len =
-                                    ext_len - MINIMUM_EXTENSION_ITEM_SIZE - item_length as u32;
+                                ext_len = ext_len
+                                    .checked_sub(MINIMUM_EXTENSION_ITEM_SIZE + item_length as u32)
+                                    .ok_or(TcpClError::MalformedTransferExtension)?;
                                 let mut data = vec![0; item_length as usize];
                                 reader.read_exact(&mut data).await?;
                                 if let Some(item_type) =
@@ -136,6 +137,10 @@ impl TcpClPacket {
                     }
                     let len = reader.read_u64().await?;
                     debug!("Reading xfer segment with len {}", len);
+                    // never allocate more than our advertised segment MRU
+                    if len > super::SEGMENT_MRU {
+                        return Err(TcpClError::SegmentTooLarge(len));
+                    }
                     let mut data = vec![0; len as usize];
                     if len > 0 {
                         reader.read_exact(&mut data).await?;
@@ -246,4 +251,59 @@ pub(crate) enum TcpClError {
     InvalidMagic,
     #[error("unsupported version in contact header")]
     UnsupportedVersion,
+    #[error("transfer extension items exceed their announced length")]
+    MalformedTransferExtension,
+    #[error("transfer segment of {0} bytes exceeds segment MRU")]
+    SegmentTooLarge(u64),
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[tokio::test]
+    async fn oversized_segment_is_rejected_without_allocating() {
+        let mut buf = vec![MessageType::XferSegment as u8, XferSegmentFlags::END.bits()];
+        buf.extend_from_slice(&1u64.to_be_bytes()); // tid
+        buf.extend_from_slice(&u64::MAX.to_be_bytes()); // len
+        let mut slice = buf.as_slice();
+        match TcpClPacket::read(&mut slice).await {
+            Err(TcpClError::SegmentTooLarge(len)) => assert_eq!(len, u64::MAX),
+            other => panic!("expected SegmentTooLarge, got {:?}", other),
+        }
+    }
+
+    #[tokio::test]
+    async fn segment_at_mru_is_accepted() {
+        let packet = TcpClPacket::XferSeg(XferSegData {
+            flags: XferSegmentFlags::START | XferSegmentFlags::END,
+            tid: 1,
+            len: super::super::SEGMENT_MRU,
+            buf: vec![0x42; super::super::SEGMENT_MRU as usize].into(),
+            extensions: Vec::new(),
+        });
+        let mut buf = Vec::new();
+        packet.write(&mut buf).await.unwrap();
+        let mut slice = buf.as_slice();
+        assert_eq!(TcpClPacket::read(&mut slice).await.unwrap(), packet);
+    }
+
+    #[tokio::test]
+    async fn transfer_extension_exceeding_announced_length_is_rejected() {
+        let mut buf = vec![
+            MessageType::XferSegment as u8,
+            (XferSegmentFlags::START | XferSegmentFlags::END).bits(),
+        ];
+        buf.extend_from_slice(&1u64.to_be_bytes()); // tid
+        buf.extend_from_slice(&MINIMUM_EXTENSION_ITEM_SIZE.to_be_bytes()); // ext_len
+        buf.push(0); // item flags
+        buf.extend_from_slice(&1u16.to_be_bytes()); // item type
+        buf.extend_from_slice(&100u16.to_be_bytes()); // item length > ext_len
+        buf.extend_from_slice(&[0u8; 100]);
+        let mut slice = buf.as_slice();
+        match TcpClPacket::read(&mut slice).await {
+            Err(TcpClError::MalformedTransferExtension) => {}
+            other => panic!("expected MalformedTransferExtension, got {:?}", other),
+        }
+    }
 }
