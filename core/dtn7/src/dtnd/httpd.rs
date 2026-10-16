@@ -419,6 +419,10 @@ async fn insert_get(extract::RawQuery(query): extract::RawQuery) -> Result<Strin
         if let Ok(hexstr) = bp7::helpers::unhexify(&bundle) {
             let b_len = hexstr.len();
             if let Ok(bndl) = bp7::Bundle::try_from(hexstr) {
+                if let Err(err) = crate::core::processing::validate_bundle(&bndl) {
+                    warn!("Rejecting bundle from /insert: {}", err);
+                    return Err(StatusCode::BAD_REQUEST);
+                }
                 debug!(
                     "Sending bundle {} to {}",
                     bndl.id(),
@@ -446,6 +450,10 @@ async fn insert_post(body: bytes::Bytes) -> Result<String, (StatusCode, &'static
     let b_len = bytes.len();
     trace!("Received: {:?} bytes", b_len);
     if let Ok(bndl) = bp7::Bundle::try_from(bytes.to_vec()) {
+        if let Err(err) = crate::core::processing::validate_bundle(&bndl) {
+            warn!("Rejecting bundle from /insert: {}", err);
+            return Err((StatusCode::BAD_REQUEST, "Invalid bundle!"));
+        }
         debug!(
             "Sending bundle {} to {}",
             bndl.id(),

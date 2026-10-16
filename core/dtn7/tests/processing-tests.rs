@@ -212,6 +212,79 @@ async fn deleted_bundles_are_not_accepted_again() {
     assert_eq!(dtn7::STATS.lock().dups, dups + 1);
 }
 
+fn payload() -> CanonicalBlock {
+    new_payload_block(BlockControlFlags::empty(), b"payload".to_vec())
+}
+
+fn valid_bundle() -> Bundle {
+    bundle(
+        "dtn://valid-sender/app",
+        eid("dtn://valid-receiver/app"),
+        vec![
+            new_hop_count_block(2, BlockControlFlags::empty(), 32),
+            payload(),
+        ],
+    )
+}
+
+/// Received bundles are fully validated (RFC 9171, 4).
+async fn invalid_bundles_are_rejected() {
+    use dtn7::core::processing::validate_bundle;
+
+    assert!(validate_bundle(&valid_bundle()).is_ok());
+
+    let mut with_crc = valid_bundle();
+    with_crc.set_crc(bp7::crc::CRC_32);
+    with_crc.calculate_crc();
+    assert!(validate_bundle(&with_crc).is_ok());
+
+    // primary block modified after the CRC was calculated
+    let mut corrupted = with_crc.clone();
+    corrupted.primary.lifetime = Duration::from_secs(1);
+    assert!(validate_bundle(&corrupted).is_err());
+
+    let mut payload_not_last = valid_bundle();
+    payload_not_last.canonicals.reverse();
+    assert!(validate_bundle(&payload_not_last).is_err());
+
+    let mut duplicate_block_numbers = valid_bundle();
+    duplicate_block_numbers
+        .canonicals
+        .insert(0, unknown_block(200, 2, BlockControlFlags::empty()));
+    assert!(validate_bundle(&duplicate_block_numbers).is_err());
+
+    let no_payload = bundle(
+        "dtn://invalid-sender/app",
+        eid("dtn://invalid-receiver/app"),
+        vec![new_hop_count_block(2, BlockControlFlags::empty(), 32)],
+    );
+    assert!(validate_bundle(&no_payload).is_err());
+
+    // invalid bundles are neither stored nor processed
+    let bid = payload_not_last.id();
+    assert!(dtn7::core::processing::receive(payload_not_last)
+        .await
+        .is_err());
+    assert!(!dtn7::store_is_known(&bid));
+}
+
+/// Bundles from nodes without a clock must carry a bundle age block (RFC 9171, 4.3.1).
+async fn clockless_bundles_require_bundle_age_block() {
+    use dtn7::core::processing::validate_bundle;
+
+    let mut with_age = valid_bundle();
+    with_age.primary.creation_timestamp = CreationTimestamp::with_time_and_seq(0, 1);
+    with_age.canonicals.insert(
+        0,
+        bp7::canonical::new_bundle_age_block(3, BlockControlFlags::empty(), 0),
+    );
+    assert!(validate_bundle(&with_age).is_ok());
+
+    let mut without_age = valid_bundle();
+    without_age.primary.creation_timestamp = CreationTimestamp::with_time_and_seq(0, 2);
+    assert!(validate_bundle(&without_age).is_err());
+}
+
 // The daemon uses process-wide globals and a routing agent bound to the runtime,
 // so all checks run sequentially within a single test.
 #[tokio::test]
@@ -221,4 +294,6 @@ async fn processing_and_routing() {
     routing_agents_survive_bad_requests().await;
     peers_without_node_name_are_ignored().await;
     deleted_bundles_are_not_accepted_again().await;
+    invalid_bundles_are_rejected().await;
+    clockless_bundles_require_bundle_age_block().await;
 }

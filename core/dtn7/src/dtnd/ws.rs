@@ -341,6 +341,11 @@ impl WsAASession {
                 match self.mode {
                     WsReceiveMode::Bundle => {
                         if let Ok(bndl) = serde_cbor::from_slice::<bp7::Bundle>(&bin) {
+                            if let Err(err) = crate::core::processing::validate_bundle(&bndl) {
+                                warn!("Rejecting bundle from WS: {}", err);
+                                ws_reply_text!(socket, format!("400 invalid bundle: {}", err));
+                                return Ok(());
+                            }
                             debug!(
                                 "Sending bundle {} to {} from WS",
                                 bndl.id(),

@@ -26,7 +26,7 @@ use tokio::sync::mpsc::channel;
 // transmit an outbound bundle.
 pub async fn send_bundle(bndl: Bundle) {
     tokio::spawn(async move {
-        if let Err(err) = check_bundle_sanity(&bndl) {
+        if let Err(err) = validate_bundle(&bndl) {
             warn!("Transmission failed: {}", err);
             return;
         }
@@ -97,18 +97,44 @@ pub async fn transmit(mut bp: BundlePack) -> Result<()> {
     Ok(())
 }
 
-/// Rejects bundles that cannot be processed safely, e.g., bundles without a
-/// destination node (dtn:none), which can neither be delivered nor forwarded.
-fn check_bundle_sanity(bndl: &Bundle) -> Result<()> {
+/// Validates a bundle entering this node, either received from a peer or
+/// submitted by a local application (RFC 9171, 4).
+///
+/// Rejects malformed bundles as well as bundles without a destination node
+/// (dtn:none), which can neither be delivered nor forwarded.
+pub fn validate_bundle(bndl: &Bundle) -> Result<()> {
     if bndl.primary.destination.node().is_none() {
         bail!("bundle {} has no valid destination", bndl.id());
+    }
+    if let Err(errors) = bndl.validate() {
+        // bp7 inverts the creation timestamp check and rejects bundles without a
+        // clock that carry the mandatory bundle age block, it is checked below instead
+        let errors: Vec<_> = errors
+            .into_iter()
+            .filter(|err| {
+                !matches!(err, bp7::error::Error::BundleError(msg)
+                    if msg.starts_with("Creation Timestamp is zero"))
+            })
+            .collect();
+        if !errors.is_empty() {
+            bail!("bundle {} is invalid: {:?}", bndl.id(), errors);
+        }
+    }
+    // a bundle without creation time must carry a bundle age block (RFC 9171, 4.3.1)
+    if bndl.primary.creation_timestamp.dtntime() == 0
+        && bndl.extension_block_by_type(BUNDLE_AGE_BLOCK).is_none()
+    {
+        bail!(
+            "bundle {} has no creation time and no bundle age block",
+            bndl.id()
+        );
     }
     Ok(())
 }
 
 // handle received/incoming bundles.
 pub async fn receive(mut bndl: Bundle) -> Result<()> {
-    if let Err(err) = check_bundle_sanity(&bndl) {
+    if let Err(err) = validate_bundle(&bndl) {
         STATS.lock().broken += 1;
         return Err(err);
     }
