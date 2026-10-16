@@ -52,8 +52,9 @@ type SessionMap = HashMap<SocketAddr, mpsc::Sender<(ByteBuffer, oneshot::Sender<
 
 const KEEPALIVE: u16 = 30;
 const SEGMENT_MRU: u64 = 64000;
-/// Maximum size of a single (reassembled) incoming transfer, i.e., a bundle.
-const TRANSFER_MRU: u64 = 128 * 1024 * 1024;
+/// Default maximum size of a single (reassembled) incoming transfer, i.e., a bundle.
+/// Can be changed with the `transfer-mru` setting.
+const DEFAULT_TRANSFER_MRU: u64 = 128 * 1024 * 1024;
 const INTERNAL_CHANNEL_BUFFER: usize = 200;
 /// Number of already parsed incoming packets buffered per session.
 const RECEIVE_PACKET_BUFFER: usize = 16;
@@ -85,6 +86,8 @@ struct TcpConnection {
     writer: BufWriter<OwnedWriteHalf>,
     addr: SocketAddr,
     refuse_existing_bundles: bool,
+    /// transfer MRU announced to the peer
+    transfer_mru: u64,
 }
 
 struct TcpSession {
@@ -92,7 +95,7 @@ struct TcpSession {
     addr: SocketAddr,
     refuse_existing_bundles: bool,
     remote_session_data: SessInitData,
-    _local_session_data: SessInitData,
+    local_session_data: SessInitData,
     last_tid: u64,
     rx_session_queue: mpsc::Receiver<(Vec<u8>, Sender<TransferResult>)>,
 }
@@ -100,6 +103,8 @@ struct TcpSession {
 enum ReceiveState {
     Idle,
     Receiving(Vec<u8>, u64),
+    /// Transfer with the given id was refused, its remaining segments are dropped.
+    Discarding(u64),
     Terminated,
 }
 
@@ -290,6 +295,30 @@ impl TcpSession {
             }
         }
     }
+    /// Refuses a transfer exceeding our transfer MRU (RFC 9174, 5.2.4) and
+    /// discards its remaining segments, the session itself stays open.
+    async fn refuse_oversized_transfer(
+        &mut self,
+        tid: u64,
+        flags: XferSegmentFlags,
+    ) -> anyhow::Result<ReceiveState> {
+        warn!(
+            "Refusing transfer {} from {}, exceeds transfer MRU of {} bytes",
+            tid, self.addr, self.local_session_data.transfer_mru
+        );
+        // the bundle has to be fragmented to fit into our transfer MRU
+        TcpClPacket::XferRefuse(XferRefuseData {
+            reason: XferRefuseReasonCode::NoResources,
+            tid,
+        })
+        .write(&mut self.writer)
+        .await?;
+        if flags.contains(XferSegmentFlags::END) {
+            Ok(ReceiveState::Idle)
+        } else {
+            Ok(ReceiveState::Discarding(tid))
+        }
+    }
     /// Receive a new packet.
     /// Returns once transfer is finished and session is idle again.
     /// Result indicates whether connection is closed (true).
@@ -318,6 +347,12 @@ impl TcpSession {
                     "Received XferSeg: TID={} LEN={} FLAGS={:?}",
                     data.tid, data.len, data.flags
                 );
+                // a segment of another transfer ends discarding a refused transfer
+                let receive_state = match receive_state {
+                    ReceiveState::Discarding(tid) if tid != data.tid => ReceiveState::Idle,
+                    receive_state => receive_state,
+                };
+                let transfer_mru = self.local_session_data.transfer_mru;
                 match receive_state {
                     ReceiveState::Receiving(mut buffer, tid) => {
                         // transfer already started
@@ -328,12 +363,9 @@ impl TcpSession {
                         if tid != data.tid {
                             return Err(TcpSessionError::Protocol(packet).into());
                         }
-                        if buffer.len() as u64 + data.buf.len() as u64 > TRANSFER_MRU {
-                            bail!(
-                                "transfer {} exceeds transfer MRU of {} bytes",
-                                tid,
-                                TRANSFER_MRU
-                            );
+                        if buffer.len() as u64 + data.buf.len() as u64 > transfer_mru {
+                            let state = self.refuse_oversized_transfer(tid, data.flags).await?;
+                            return Ok((state, send_state));
                         }
 
                         buffer.extend_from_slice(&data.buf);
@@ -384,6 +416,11 @@ impl TcpSession {
                                 }
                             }
                         }
+                        if data.buf.len() as u64 > transfer_mru {
+                            let state =
+                                self.refuse_oversized_transfer(data.tid, data.flags).await?;
+                            return Ok((state, send_state));
+                        }
                         let vec = data.buf.to_vec();
                         trace!("Sending XferAck: TID={}", data.tid);
                         TcpClPacket::XferAck(XferAckData {
@@ -397,6 +434,14 @@ impl TcpSession {
                             Ok((self.process_bundle(vec, data.tid).await?, send_state))
                         } else {
                             Ok((ReceiveState::Receiving(vec, data.tid), send_state))
+                        }
+                    }
+                    ReceiveState::Discarding(tid) => {
+                        trace!("Discarding segment of refused transfer {}", tid);
+                        if data.flags.contains(XferSegmentFlags::END) {
+                            Ok((ReceiveState::Idle, send_state))
+                        } else {
+                            Ok((ReceiveState::Discarding(tid), send_state))
                         }
                     }
                     _ => Err(TcpSessionError::Protocol(packet).into()),
@@ -459,8 +504,21 @@ impl TcpSession {
         &mut self,
         data: (ByteBuffer, tokio::sync::oneshot::Sender<TransferResult>),
     ) -> anyhow::Result<SendState> {
-        self.last_tid += 1;
         let (bndl_buf, tx_result) = data;
+        // the peer does not accept transfers larger than its transfer MRU (RFC 9174, 5.2.2)
+        if bndl_buf.len() as u64 > self.remote_session_data.transfer_mru {
+            warn!(
+                "Bundle of {} bytes exceeds transfer MRU of {} bytes announced by {}",
+                bndl_buf.len(),
+                self.remote_session_data.transfer_mru,
+                self.addr
+            );
+            if tx_result.send(TransferResult::Failure).is_err() {
+                error!("Failed to send response");
+            }
+            return Ok(SendState::Idle);
+        }
+        self.last_tid += 1;
 
         if self.refuse_existing_bundles {
             let bundle = Bundle::try_from(bndl_buf.as_slice())?;
@@ -545,7 +603,7 @@ impl TcpConnection {
         let mut sess_init_data = SessInitData {
             keepalive: KEEPALIVE,
             segment_mru: SEGMENT_MRU,
-            transfer_mru: TRANSFER_MRU,
+            transfer_mru: self.transfer_mru,
             node_id,
         };
 
@@ -649,7 +707,7 @@ impl TcpConnection {
                     addr: self.addr,
                     refuse_existing_bundles: self.refuse_existing_bundles,
                     remote_session_data: remote_parameters,
-                    _local_session_data: local_parameters,
+                    local_session_data: local_parameters,
                     last_tid: 0u64,
                     rx_session_queue,
                 };
@@ -664,6 +722,7 @@ impl TcpConnection {
 pub struct Listener {
     tcp_listener: TcpListener,
     refuse_existing_bundles: bool,
+    transfer_mru: u64,
 }
 
 impl Listener {
@@ -678,6 +737,7 @@ impl Listener {
                         writer: BufWriter::new(tx),
                         addr,
                         refuse_existing_bundles: self.refuse_existing_bundles,
+                        transfer_mru: self.transfer_mru,
                     };
                     // establish session and insert into shared session list
                     let (tx_session_queue, rx_session_queue) =
@@ -703,6 +763,7 @@ async fn tcp_send_bundles(
     dest: String,
     bundle: ByteBuffer,
     refuse_existing_bundles: bool,
+    transfer_mru: u64,
     reply: Sender<TransferResult>,
 ) -> anyhow::Result<()> {
     let addr: SocketAddr = dest.parse().unwrap();
@@ -747,6 +808,7 @@ async fn tcp_send_bundles(
                     writer: BufWriter::new(tx),
                     addr,
                     refuse_existing_bundles,
+                    transfer_mru,
                 };
                 tokio::spawn(connection.connect(rx_session_queue, true));
             }
@@ -793,6 +855,7 @@ impl TcpConvergenceLayer {
             .unwrap_or(false);
         let refuse_existing_bundles =
             local_refuse_existing_bundles.unwrap_or(global_refuse_existing_bundles);
+        let transfer_mru = Self::transfer_mru_setting(local_settings);
         debug!(
             "Extension settings: {:?}",
             CONFIG.lock().cla_global_settings
@@ -812,6 +875,7 @@ impl TcpConvergenceLayer {
                                 remote.clone(),
                                 data,
                                 refuse_existing_bundles,
+                                transfer_mru,
                                 reply,
                             )
                             .await
@@ -831,7 +895,31 @@ impl TcpConvergenceLayer {
             local_addr,
             local_port: port,
             refuse_existing_bundles,
+            transfer_mru,
             tx,
+        }
+    }
+
+    /// Maximum transfer size from the local or global `transfer-mru` setting in bytes.
+    fn transfer_mru_setting(local_settings: Option<&HashMap<String, String>>) -> u64 {
+        let local = local_settings.and_then(|settings| settings.get("transfer-mru").cloned());
+        let global = CONFIG
+            .lock()
+            .cla_global_settings
+            .get(&super::CLAsAvailable::TcpConvergenceLayer)
+            .and_then(|settings| settings.get("transfer-mru").cloned());
+        match local.or(global) {
+            Some(value) => match value.parse::<u64>() {
+                Ok(transfer_mru) if transfer_mru > 0 => transfer_mru,
+                _ => {
+                    warn!(
+                        "Invalid tcp transfer-mru '{}', using default of {} bytes",
+                        value, DEFAULT_TRANSFER_MRU
+                    );
+                    DEFAULT_TRANSFER_MRU
+                }
+            },
+            None => DEFAULT_TRANSFER_MRU,
         }
     }
 }
@@ -842,6 +930,7 @@ pub struct TcpConvergenceLayer {
     local_addr: String,
     local_port: u16,
     refuse_existing_bundles: bool,
+    transfer_mru: u64,
     tx: mpsc::Sender<super::ClaCmd>,
 }
 
@@ -854,6 +943,7 @@ impl ConvergenceLayerAgent for TcpConvergenceLayer {
         let listener = Listener {
             tcp_listener,
             refuse_existing_bundles: self.refuse_existing_bundles,
+            transfer_mru: self.transfer_mru,
         };
         tokio::spawn(listener.run());
     }
@@ -873,11 +963,11 @@ impl ConvergenceLayerAgent for TcpConvergenceLayer {
 
 impl HelpStr for TcpConvergenceLayer {
     fn local_help_str() -> &'static str {
-        "port=4556:refuse-existing-bundles=true|false:bind=0.0.0.0"
+        "port=4556:refuse-existing-bundles=true|false:transfer-mru=134217728:bind=0.0.0.0"
     }
 
     fn global_help_str() -> &'static str {
-        "refuse-existing-bundles=true|false"
+        "refuse-existing-bundles=true|false:transfer-mru=134217728"
     }
 }
 
@@ -1048,6 +1138,24 @@ mod session_tests {
         segment_mru: u64,
         node_id: &str,
     ) -> (FakePeer, SessionQueue, JoinHandle<anyhow::Result<()>>) {
+        start_session_with_mru(
+            keepalive,
+            segment_mru,
+            node_id,
+            DEFAULT_TRANSFER_MRU,
+            DEFAULT_TRANSFER_MRU,
+        )
+        .await
+    }
+
+    /// Like start_session() with explicit transfer MRUs of the local node and the fake peer.
+    async fn start_session_with_mru(
+        keepalive: u16,
+        segment_mru: u64,
+        node_id: &str,
+        local_transfer_mru: u64,
+        remote_transfer_mru: u64,
+    ) -> (FakePeer, SessionQueue, JoinHandle<anyhow::Result<()>>) {
         let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
         let addr = listener.local_addr().unwrap();
         let client = TcpStream::connect(addr).await.unwrap();
@@ -1059,6 +1167,7 @@ mod session_tests {
             writer: BufWriter::new(tx),
             addr,
             refuse_existing_bundles: false,
+            transfer_mru: local_transfer_mru,
         };
         let (queue_tx, queue_rx) = mpsc::channel(8);
         let session = tokio::spawn(connection.connect(queue_rx, true));
@@ -1073,12 +1182,14 @@ mod session_tests {
             .write(&mut writer)
             .await
             .unwrap();
-        let sess_init = TcpClPacket::read(&mut reader).await.unwrap();
-        assert!(matches!(sess_init, TcpClPacket::SessInit(_)));
+        match TcpClPacket::read(&mut reader).await.unwrap() {
+            TcpClPacket::SessInit(data) => assert_eq!(data.transfer_mru, local_transfer_mru),
+            other => panic!("expected SessInit, got {:?}", other),
+        }
         TcpClPacket::SessInit(SessInitData {
             keepalive,
             segment_mru,
-            transfer_mru: TRANSFER_MRU,
+            transfer_mru: remote_transfer_mru,
             node_id: node_id.into(),
         })
         .write(&mut writer)
@@ -1167,5 +1278,172 @@ mod session_tests {
         }
         assert!(!session.is_finished());
         session.abort();
+    }
+
+    async fn send_segment(
+        writer: &mut BufWriter<OwnedWriteHalf>,
+        tid: u64,
+        flags: XferSegmentFlags,
+        len: usize,
+    ) {
+        TcpClPacket::XferSeg(XferSegData {
+            flags,
+            tid,
+            len: len as u64,
+            buf: vec![0x42; len].into(),
+            extensions: Vec::new(),
+        })
+        .write(writer)
+        .await
+        .unwrap();
+    }
+
+    /// Reads packets until `pred` matches, fails on session termination or timeout.
+    async fn expect_packet(
+        reader: &mut BufReader<OwnedReadHalf>,
+        mut pred: impl FnMut(&TcpClPacket) -> bool,
+    ) -> Vec<TcpClPacket> {
+        let mut seen = Vec::new();
+        loop {
+            let packet = time::timeout(Duration::from_secs(3), TcpClPacket::read(reader))
+                .await
+                .unwrap_or_else(|_| panic!("timed out, received so far: {:?}", seen))
+                .expect("session closed the connection");
+            if let TcpClPacket::SessTerm(data) = &packet {
+                panic!("session terminated: {:?}", data);
+            }
+            let matched = pred(&packet);
+            seen.push(packet);
+            if matched {
+                return seen;
+            }
+        }
+    }
+
+    fn is_ack(packet: &TcpClPacket, tid: u64) -> bool {
+        matches!(packet, TcpClPacket::XferAck(ack) if ack.tid == tid)
+    }
+
+    fn is_refuse(packet: &TcpClPacket, tid: u64) -> bool {
+        matches!(packet, TcpClPacket::XferRefuse(refuse)
+            if refuse.tid == tid && refuse.reason == XferRefuseReasonCode::NoResources)
+    }
+
+    #[tokio::test]
+    async fn transfer_exceeding_transfer_mru_is_refused_and_session_kept() {
+        let ((mut reader, mut writer), _queue, session) =
+            start_session_with_mru(30, 64000, "dtn://peer/", 10, DEFAULT_TRANSFER_MRU).await;
+
+        // 8 bytes fit into the transfer MRU of 10 bytes
+        send_segment(&mut writer, 3, XferSegmentFlags::START, 8).await;
+        writer.flush().await.unwrap();
+        expect_packet(&mut reader, |p| is_ack(p, 3)).await;
+
+        // 16 bytes do not, the rest of the transfer is discarded
+        send_segment(&mut writer, 3, XferSegmentFlags::empty(), 8).await;
+        send_segment(&mut writer, 3, XferSegmentFlags::END, 8).await;
+        // a following transfer is processed normally
+        send_segment(
+            &mut writer,
+            4,
+            XferSegmentFlags::START | XferSegmentFlags::END,
+            4,
+        )
+        .await;
+        writer.flush().await.unwrap();
+
+        let seen = expect_packet(&mut reader, |p| is_ack(p, 4)).await;
+        assert!(
+            seen.iter().any(|p| is_refuse(p, 3)),
+            "no refuse in {:?}",
+            seen
+        );
+        assert!(
+            !seen.iter().any(|p| is_ack(p, 3)),
+            "refused transfer acked: {:?}",
+            seen
+        );
+        assert!(!session.is_finished());
+        session.abort();
+    }
+
+    #[tokio::test]
+    async fn first_segment_exceeding_transfer_mru_is_refused() {
+        let ((mut reader, mut writer), _queue, session) =
+            start_session_with_mru(30, 64000, "dtn://peer/", 10, DEFAULT_TRANSFER_MRU).await;
+
+        send_segment(
+            &mut writer,
+            5,
+            XferSegmentFlags::START | XferSegmentFlags::END,
+            20,
+        )
+        .await;
+        send_segment(
+            &mut writer,
+            6,
+            XferSegmentFlags::START | XferSegmentFlags::END,
+            4,
+        )
+        .await;
+        writer.flush().await.unwrap();
+
+        let seen = expect_packet(&mut reader, |p| is_ack(p, 6)).await;
+        assert!(is_refuse(&seen[0], 5), "expected refuse first: {:?}", seen);
+        assert!(
+            !seen.iter().any(|p| is_ack(p, 5)),
+            "refused transfer acked: {:?}",
+            seen
+        );
+        assert!(!session.is_finished());
+        session.abort();
+    }
+
+    #[tokio::test]
+    async fn bundles_exceeding_remote_transfer_mru_are_not_sent() {
+        let ((mut reader, _writer), queue, session) =
+            start_session_with_mru(30, 64000, "dtn://peer/", DEFAULT_TRANSFER_MRU, 10).await;
+
+        let (reply_tx, reply_rx) = oneshot::channel();
+        queue.send((vec![0x42; 20], reply_tx)).await.unwrap();
+        let result = time::timeout(Duration::from_secs(3), reply_rx)
+            .await
+            .expect("no transfer result")
+            .unwrap();
+        assert_eq!(result, TransferResult::Failure);
+
+        // the oversized bundle must not have been sent, a fitting one is
+        let (reply_tx, _reply_rx) = oneshot::channel();
+        queue.send((vec![0x42; 5], reply_tx)).await.unwrap();
+        let packet = time::timeout(Duration::from_secs(3), TcpClPacket::read(&mut reader))
+            .await
+            .expect("timed out waiting for segment")
+            .unwrap();
+        match packet {
+            TcpClPacket::XferSeg(seg) => assert_eq!(seg.buf.len(), 5),
+            other => panic!("expected XferSeg, got {:?}", other),
+        }
+        assert!(!session.is_finished());
+        session.abort();
+    }
+
+    #[tokio::test]
+    async fn transfer_mru_setting() {
+        let settings: HashMap<String, String> =
+            [("transfer-mru".to_string(), "1000".to_string())].into();
+        assert_eq!(TcpConvergenceLayer::new(Some(&settings)).transfer_mru, 1000);
+
+        for invalid in ["0", "-1", "lots"] {
+            let settings: HashMap<String, String> =
+                [("transfer-mru".to_string(), invalid.to_string())].into();
+            assert_eq!(
+                TcpConvergenceLayer::new(Some(&settings)).transfer_mru,
+                DEFAULT_TRANSFER_MRU
+            );
+        }
+        assert_eq!(
+            TcpConvergenceLayer::new(None).transfer_mru,
+            DEFAULT_TRANSFER_MRU
+        );
     }
 }
