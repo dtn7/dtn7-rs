@@ -410,7 +410,18 @@ async fn security_rules_are_enforced_on_reception() {
     dtn7::core::processing::receive(unsigned).await.unwrap();
     assert!(is_deleted(&bid), "unsigned bundle was not deleted");
 
+    let status = dtn7::core::bpsec::status();
+    assert!(status.active);
+    assert_eq!(status.keys, 1);
+    let statistics = status.rules[0].statistics;
+    assert_eq!(
+        (statistics.accepted, statistics.failed, statistics.missing),
+        (1, 1, 1)
+    );
+    assert_eq!(statistics.dropped, 2);
+
     dtn7::core::bpsec::init(&BpsecConfig::default()).unwrap();
+    assert!(!dtn7::core::bpsec::status().active);
 }
 
 // The daemon uses process-wide globals and a routing agent bound to the runtime,

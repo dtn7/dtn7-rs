@@ -389,6 +389,11 @@ async fn http_bpsec_reload_keys() -> Result<String, (StatusCode, String)> {
     ))
 }
 
+/// The BPSec security rules with their statistics, without key material
+async fn status_bpsec() -> String {
+    serde_json::to_string_pretty(&crate::core::bpsec::status()).unwrap()
+}
+
 async fn http_peers_add(
     Query(params): Query<HashMap<String, String>>,
 ) -> Result<String, (StatusCode, &'static str)> {
@@ -795,6 +800,8 @@ fn local_only_routes(cors: CorsLayer) -> Router {
         .route("/routing/cmd", get(http_routing_cmd).post(http_routing_cmd))
         .route("/routing/getdata", get(http_routing_getdata))
         .route("/bpsec/keys/reload", post(http_bpsec_reload_keys))
+        // reveals the security policy of this node
+        .route("/status/bpsec", get(status_bpsec))
         .route("/send", post(send_post))
         .layer(DefaultBodyLimit::disable())
         .route("/delete", get(delete).delete(delete))
@@ -947,7 +954,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn websocket_routes_are_only_reachable_from_localhost() {
+    async fn local_routes_are_only_reachable_from_localhost() {
         use tower::ServiceExt;
 
         let (routing, ecla_enable) = {
@@ -964,7 +971,7 @@ mod tests {
             config.ecla_enable = ecla_enable;
         }
 
-        for path in ["/ws/erouting", "/ws/ecla"] {
+        for path in ["/ws/erouting", "/ws/ecla", "/status/bpsec"] {
             for (client, forbidden) in [("10.0.0.1", true), ("127.0.0.1", false)] {
                 let mut request = http::Request::get(path)
                     .body(axum::body::Body::empty())

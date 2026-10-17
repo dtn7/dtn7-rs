@@ -1,0 +1,104 @@
+//! Counters of the security operations per security rule, shown by `/status/bpsec`.
+
+use serde::Serialize;
+use std::collections::HashMap;
+
+/// What a security rule did with a bundle
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Event {
+    Signed,
+    Verified,
+    Accepted,
+    /// The rule demanded a security operation the bundle lacks
+    Missing,
+    /// A security operation failed
+    Failed,
+    /// The bundle was dropped due to a missing or failed operation
+    Dropped,
+}
+
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize)]
+pub struct RuleStatistics {
+    pub signed: u64,
+    pub verified: u64,
+    pub accepted: u64,
+    pub missing: u64,
+    pub failed: u64,
+    pub dropped: u64,
+}
+
+impl RuleStatistics {
+    fn record(&mut self, event: Event) {
+        let counter = match event {
+            Event::Signed => &mut self.signed,
+            Event::Verified => &mut self.verified,
+            Event::Accepted => &mut self.accepted,
+            Event::Missing => &mut self.missing,
+            Event::Failed => &mut self.failed,
+            Event::Dropped => &mut self.dropped,
+        };
+        *counter += 1;
+    }
+
+    fn add(&mut self, other: &RuleStatistics) {
+        self.signed += other.signed;
+        self.verified += other.verified;
+        self.accepted += other.accepted;
+        self.missing += other.missing;
+        self.failed += other.failed;
+        self.dropped += other.dropped;
+    }
+}
+
+/// Statistics of all security rules, by rule name
+#[derive(Debug, Clone, Default)]
+pub struct Statistics {
+    rules: HashMap<String, RuleStatistics>,
+}
+
+impl Statistics {
+    pub fn record(&mut self, rule: &str, event: Event) {
+        self.rules
+            .entry(rule.to_string())
+            .or_default()
+            .record(event);
+    }
+
+    pub fn rule(&self, rule: &str) -> RuleStatistics {
+        self.rules.get(rule).copied().unwrap_or_default()
+    }
+
+    /// Adds the counters of other statistics, e.g., those of a single bundle.
+    pub fn merge(&mut self, other: &Statistics) {
+        for (rule, statistics) in &other.rules {
+            self.rules.entry(rule.clone()).or_default().add(statistics);
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn events_are_counted_per_rule() {
+        let mut bundle = Statistics::default();
+        bundle.record("sign", Event::Signed);
+        bundle.record("accept", Event::Failed);
+        bundle.record("accept", Event::Dropped);
+
+        let mut total = Statistics::default();
+        total.merge(&bundle);
+        total.merge(&bundle);
+        assert_eq!(total.rule("sign").signed, 2);
+        assert_eq!(
+            total.rule("accept"),
+            RuleStatistics {
+                failed: 2,
+                dropped: 2,
+                ..Default::default()
+            }
+        );
+        assert_eq!(total.rule("unknown"), RuleStatistics::default());
+    }
+}

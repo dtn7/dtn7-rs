@@ -11,15 +11,22 @@ pub mod enforcement;
 pub mod keys;
 #[cfg(feature = "bpsec")]
 pub mod policy;
+pub mod statistics;
 
 use anyhow::Result;
 use bp7::administrative_record::StatusReportReason;
 use bp7::Bundle;
-use config::BpsecConfig;
+use config::{BpsecConfig, SecurityRule};
 use log::info;
+use serde::Serialize;
+use statistics::RuleStatistics;
 
 #[cfg(feature = "bpsec")]
-use {config::SecurityRule, parking_lot::RwLock, std::sync::Arc};
+use {
+    parking_lot::{Mutex, RwLock},
+    statistics::Statistics,
+    std::sync::Arc,
+};
 
 #[cfg(feature = "bpsec")]
 lazy_static::lazy_static! {
@@ -27,6 +34,8 @@ lazy_static::lazy_static! {
     pub static ref KEYS: keys::KeyStore = keys::KeyStore::default();
     /// Security rules in use, set by init()
     static ref RULES: RwLock<Arc<Vec<SecurityRule>>> = RwLock::default();
+    /// What the security rules did since init()
+    static ref STATISTICS: Mutex<Statistics> = Mutex::default();
 }
 
 /// Where in the bundle processing the security rules are enforced
@@ -65,6 +74,7 @@ pub fn init(config: &BpsecConfig) -> Result<()> {
             info!("BPSec: inactive, no security rules configured");
         }
         *RULES.write() = Arc::new(config.rules.clone());
+        *STATISTICS.lock() = Statistics::default();
         Ok(())
     }
     #[cfg(not(feature = "bpsec"))]
@@ -89,12 +99,66 @@ pub fn enforce(step: ProcessingStep, bundle: &mut Bundle) -> Verdict {
             return Verdict::Process;
         }
         let node = crate::CONFIG.lock().host_eid.clone();
-        enforcement::enforce(&rules, &KEYS.current(), &node, step, bundle)
+        // counted per bundle, so the global statistics are not locked during the
+        // security operations
+        let mut statistics = Statistics::default();
+        let verdict = enforcement::enforce(
+            &rules,
+            &KEYS.current(),
+            &node,
+            step,
+            bundle,
+            &mut statistics,
+        );
+        STATISTICS.lock().merge(&statistics);
+        verdict
     }
     #[cfg(not(feature = "bpsec"))]
     {
         let _ = (step, bundle);
         Verdict::Process
+    }
+}
+
+/// State of the security rules, without key material
+#[derive(Debug, Clone, Serialize)]
+pub struct Status {
+    pub active: bool,
+    /// Number of loaded keys
+    pub keys: usize,
+    pub rules: Vec<RuleStatus>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct RuleStatus {
+    #[serde(flatten)]
+    pub rule: SecurityRule,
+    pub statistics: RuleStatistics,
+}
+
+/// Returns the security rules in use with their statistics.
+pub fn status() -> Status {
+    #[cfg(feature = "bpsec")]
+    {
+        let rules = RULES.read().clone();
+        let statistics = STATISTICS.lock().clone();
+        Status {
+            active: !rules.is_empty(),
+            keys: KEYS.current().len(),
+            rules: rules
+                .iter()
+                .map(|rule| RuleStatus {
+                    rule: rule.clone(),
+                    statistics: statistics.rule(&rule.name),
+                })
+                .collect(),
+        }
+    }
+    #[cfg(not(feature = "bpsec"))]
+    Status {
+        active: false,
+        keys: 0,
+        rules: Vec::new(),
     }
 }
 

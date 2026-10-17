@@ -4,6 +4,7 @@
 use super::config::{FailureAction, SecurityContext, SecurityRule, ShaVariant};
 use super::keys::KeySet;
 use super::policy::{self, ActionKind, SecurityAction};
+use super::statistics::{Event, Statistics};
 use super::{ProcessingStep, Verdict};
 use bp7::administrative_record::{
     StatusReportReason, FAILED_SECURITY_OPERATION, MISSING_SECURITY_OPERATION,
@@ -20,13 +21,15 @@ const ACCEPTED_TARGET_CRC: bp7::crc::CrcRawType = bp7::crc::CRC_32;
 /// change the bundle in place, e.g., by adding or removing BIBs. If an operation fails,
 /// the failure action of its rule decides whether the bundle is dropped.
 ///
-/// `node` is the endpoint ID of this node, used as security source of new BIBs.
+/// `node` is the endpoint ID of this node, used as security source of new BIBs. What the
+/// rules did is recorded in `statistics`.
 pub fn enforce(
     rules: &[SecurityRule],
     keys: &KeySet,
     node: &EndpointID,
     step: ProcessingStep,
     bundle: &mut Bundle,
+    statistics: &mut Statistics,
 ) -> Verdict {
     let actions = policy::evaluate(rules, step, bundle);
     if actions.is_empty() {
@@ -35,6 +38,9 @@ pub fn enforce(
     for action in actions {
         let rule = action.rule;
         let Err(failure) = apply(&action, keys, node, bundle) else {
+            if let Some(event) = success_event(&action.kind) {
+                statistics.record(&rule.name, event);
+            }
             debug!(
                 "BPSec rule {}: {:?} succeeded for bundle {}",
                 rule.name,
@@ -50,8 +56,12 @@ pub fn enforce(
             bundle.id(),
             failure
         );
+        statistics.record(&rule.name, failure.event());
         match rule.on_failure {
-            FailureAction::Drop => return Verdict::Drop(failure.reason()),
+            FailureAction::Drop => {
+                statistics.record(&rule.name, Event::Dropped);
+                return Verdict::Drop(failure.reason());
+            }
             FailureAction::RemoveOperation => remove_operation(&action.kind, bundle),
             FailureAction::Log => {}
         }
@@ -76,6 +86,13 @@ enum Failure {
 }
 
 impl Failure {
+    fn event(&self) -> Event {
+        match self {
+            Failure::Missing => Event::Missing,
+            _ => Event::Failed,
+        }
+    }
+
     /// Status report reason for bundles dropped due to this failure (RFC 9172, 7.1)
     fn reason(&self) -> StatusReportReason {
         match self {
@@ -136,6 +153,18 @@ fn apply(
         Ok(())
     } else {
         Err(Failure::NotVerified)
+    }
+}
+
+fn success_event(kind: &ActionKind) -> Option<Event> {
+    match kind {
+        ActionKind::Sign { .. } => Some(Event::Signed),
+        ActionKind::Verify { .. } => Some(Event::Verified),
+        ActionKind::Accept { .. } => Some(Event::Accepted),
+        // never succeed: missing operations always fail and BCBs are not supported yet
+        ActionKind::Missing { .. } | ActionKind::Encrypt { .. } | ActionKind::Decrypt { .. } => {
+            None
+        }
     }
 }
 
@@ -241,13 +270,22 @@ mod tests {
             &eid("dtn://node1/"),
             Transmit,
             &mut bundle,
+            &mut Statistics::default(),
         );
         assert_eq!(verdict, Verdict::Process);
         bundle
     }
 
     fn receive(rules: &[SecurityRule], keys: &KeySet, bundle: &mut Bundle) -> Verdict {
-        enforce(rules, keys, &eid("dtn://node2/"), Receive, bundle)
+        let mut statistics = Statistics::default();
+        enforce(
+            rules,
+            keys,
+            &eid("dtn://node2/"),
+            Receive,
+            bundle,
+            &mut statistics,
+        )
     }
 
     #[test]
@@ -331,7 +369,7 @@ mod tests {
         assert_eq!(
             bib_count(&bundle),
             1,
-            "the failed BIB of the payload is kept"
+            "only the failed BIB of the payload is removed"
         );
 
         let mut bundle = signed();
@@ -371,7 +409,42 @@ mod tests {
             &eid("dtn://node1/"),
             Forward,
             &mut bundle(),
+            &mut Statistics::default(),
         );
         assert_eq!(verdict, Verdict::Drop(FAILED_SECURITY_OPERATION));
+    }
+
+    #[test]
+    fn operations_are_counted_per_rule() {
+        let targets = [SecurityTarget::Payload, SecurityTarget::Primary];
+        let rules = [
+            rule(SecurityRole::Acceptor, &targets, FailureAction::Drop),
+            rule(SecurityRole::Verifier, &targets, FailureAction::Log),
+        ];
+        let mut statistics = Statistics::default();
+        let mut receive = |bundle: &mut Bundle| {
+            enforce(
+                &rules,
+                &keys(KEY),
+                &eid("dtn://node2/"),
+                Receive,
+                bundle,
+                &mut statistics,
+            )
+        };
+        receive(&mut signed());
+        let mut tampered = signed();
+        tampered.primary.lifetime = std::time::Duration::from_secs(1);
+        receive(&mut tampered);
+        receive(&mut bundle());
+
+        // the acceptor handles all BIBs as the first matching rule
+        let acceptor = statistics.rule("Acceptor");
+        // the tampered primary block is covered by both BIBs, the first failure drops
+        // the bundle, as does the first missing BIB of the unsigned bundle
+        assert_eq!(acceptor.accepted, 2);
+        assert_eq!((acceptor.failed, acceptor.missing), (1, 1));
+        assert_eq!(acceptor.dropped, 2);
+        assert_eq!(statistics.rule("Verifier"), Default::default());
     }
 }

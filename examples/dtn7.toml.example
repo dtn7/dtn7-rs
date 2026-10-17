@@ -137,6 +137,7 @@ tcp_port = 0
 # [bpsec]
 # # one <key id>.key file per key with the hex encoded key, keep them private (chmod 600)
 # # keys can be reloaded at runtime: curl -X POST http://127.0.0.1:3000/bpsec/keys/reload
+# # rules and their statistics: curl http://127.0.0.1:3000/status/bpsec
 # keys = "/etc/dtn7/keys"
 #
 # [[bpsec.rule]]
