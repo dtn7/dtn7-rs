@@ -760,14 +760,9 @@ async fn download_hex(
     }
 }
 
-pub async fn spawn_httpd() -> Result<()> {
-    let cors = CorsLayer::new()
-        // allow `GET` and `POST` when accessing the resource
-        .allow_methods([http::Method::GET, http::Method::POST, http::Method::DELETE])
-        // allow requests from any origin
-        .allow_origin(Any);
-
-    let mut app_local_only = Router::new()
+/// Routes only reachable from localhost, e.g., to send bundles or control the node.
+fn local_only_routes(cors: CorsLayer) -> Router {
+    let mut routes = Router::new()
         .route("/peers/add", get(http_peers_add))
         .route("/peers/del", get(http_peers_delete))
         .route("/routing/cmd", get(http_routing_cmd).post(http_routing_cmd))
@@ -791,12 +786,10 @@ pub async fn spawn_httpd() -> Result<()> {
             }),
         )
         .route("/debug/rnd_bundle", get(debug_rnd_bundle))
-        .route("/debug/rnd_peer", get(debug_rnd_peer))
-        .layer(from_extractor::<RequireLocalhost>())
-        .layer(cors.clone());
+        .route("/debug/rnd_peer", get(debug_rnd_peer));
 
     if CONFIG.lock().routing == "external" {
-        app_local_only = app_local_only.route(
+        routes = routes.route(
             "/ws/erouting",
             get(|ws: WebSocketUpgrade| async move {
                 ws.on_upgrade(crate::routing::erouting::processing::handle_connection)
@@ -805,13 +798,28 @@ pub async fn spawn_httpd() -> Result<()> {
     }
 
     if CONFIG.lock().ecla_enable {
-        app_local_only = app_local_only.route(
+        routes = routes.route(
             "/ws/ecla",
             get(|ws: WebSocketUpgrade| async move {
                 ws.on_upgrade(crate::cla::ecla::ws::handle_connection)
             }),
         )
     }
+
+    // layers only apply to the routes added before them
+    routes
+        .layer(from_extractor::<RequireLocalhost>())
+        .layer(cors)
+}
+
+pub async fn spawn_httpd() -> Result<()> {
+    let cors = CorsLayer::new()
+        // allow `GET` and `POST` when accessing the resource
+        .allow_methods([http::Method::GET, http::Method::POST, http::Method::DELETE])
+        // allow requests from any origin
+        .allow_origin(Any);
+
+    let app_local_only = local_only_routes(cors.clone());
 
     let app = app_local_only
         .route("/", get(index))
@@ -874,6 +882,43 @@ mod tests {
         ]))
         .await;
         assert_eq!(res.unwrap_err().0, StatusCode::BAD_REQUEST);
+    }
+
+    #[tokio::test]
+    async fn websocket_routes_are_only_reachable_from_localhost() {
+        use tower::ServiceExt;
+
+        let (routing, ecla_enable) = {
+            let mut config = CONFIG.lock();
+            let previous = (config.routing.clone(), config.ecla_enable);
+            config.routing = "external".into();
+            config.ecla_enable = true;
+            previous
+        };
+        let routes = local_only_routes(CorsLayer::new());
+        {
+            let mut config = CONFIG.lock();
+            config.routing = routing;
+            config.ecla_enable = ecla_enable;
+        }
+
+        for path in ["/ws/erouting", "/ws/ecla"] {
+            for (client, forbidden) in [("10.0.0.1", true), ("127.0.0.1", false)] {
+                let mut request = http::Request::get(path)
+                    .body(axum::body::Body::empty())
+                    .unwrap();
+                let addr = SocketAddr::new(client.parse().unwrap(), 4242);
+                request.extensions_mut().insert(ConnectInfo(addr));
+                let response = routes.clone().oneshot(request).await.unwrap();
+                assert_eq!(
+                    response.status() == StatusCode::FORBIDDEN,
+                    forbidden,
+                    "{} from {}",
+                    path,
+                    client
+                );
+            }
+        }
     }
 
     #[tokio::test]
