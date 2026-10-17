@@ -366,9 +366,10 @@ async fn http_peers_add(
     Query(params): Query<HashMap<String, String>>,
 ) -> Result<String, (StatusCode, &'static str)> {
     if let Some(peer_str) = params.get("p") {
-        let peer_type =
-            PeerType::try_from(params.get("p_t").unwrap_or(&"DYNAMIC".to_owned()).as_str())
-                .unwrap();
+        let peer_type = params.get("p_t").map_or("DYNAMIC", |p_t| p_t.as_str());
+        let Ok(peer_type) = PeerType::try_from(peer_type) else {
+            return Err((StatusCode::BAD_REQUEST, "Invalid peer type p_t"));
+        };
         let mut peer = if let Ok(parsed_peer) = crate::core::helpers::parse_peer_url(peer_str) {
             parsed_peer
         } else {
@@ -485,7 +486,10 @@ async fn send_post(
 
     for (k, v) in query_params.iter() {
         if k == "dst" {
-            dst = v.as_str().try_into().unwrap();
+            let Ok(eid) = v.as_str().try_into() else {
+                return Err((StatusCode::BAD_REQUEST, "Invalid destination endpoint id!"));
+            };
+            dst = eid;
         } else if k == "lifetime" {
             if let Ok(dur) = humantime::parse_duration(v) {
                 lifetime = dur;
@@ -847,4 +851,34 @@ pub async fn spawn_httpd() -> Result<()> {
     .serve(app.into_make_service_with_connect_info::<SocketAddr>());
     server.await?;
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn query(params: &[(&str, &str)]) -> Query<HashMap<String, String>> {
+        Query(
+            params
+                .iter()
+                .map(|(k, v)| (k.to_string(), v.to_string()))
+                .collect(),
+        )
+    }
+
+    #[tokio::test]
+    async fn peers_add_rejects_invalid_peer_type() {
+        let res = http_peers_add(query(&[
+            ("p", "tcp://127.0.0.1:4556/node1"),
+            ("p_t", "nope"),
+        ]))
+        .await;
+        assert_eq!(res.unwrap_err().0, StatusCode::BAD_REQUEST);
+    }
+
+    #[tokio::test]
+    async fn send_rejects_invalid_destination() {
+        let res = send_post(query(&[("dst", "not an eid")]), bytes::Bytes::new()).await;
+        assert_eq!(res.unwrap_err().0, StatusCode::BAD_REQUEST);
+    }
 }
