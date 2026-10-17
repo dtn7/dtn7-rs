@@ -62,7 +62,7 @@ pub fn plain_serialization() {
     for e in &unwrapped {
         print!("{:02x?} ", e);
     }
-    println!("Beacon size: {}", &unwrapped.len());
+    println!("Beacon size: {}", unwrapped.len());
     println!();
 
     let deserialized: Beacon = match serde_cbor::from_slice(&unwrapped) {
@@ -105,7 +105,7 @@ pub fn serialization_with_service_block() {
     }
 
     println!();
-    println!("{}", &unwrapped.len());
+    println!("{}", unwrapped.len());
     println!();
 
     let deserialized: Beacon = match serde_cbor::from_slice(&unwrapped) {
@@ -113,7 +113,7 @@ pub fn serialization_with_service_block() {
         Err(e) => panic!("deserialization error: {}", e),
     };
 
-    println!("{}", &deserialized);
+    println!("{}", deserialized);
 
     assert_eq!(beacon, deserialized);
 }
@@ -138,7 +138,7 @@ pub fn serialization_with_beacon_period() {
     }
 
     println!();
-    println!("Beacon size: {}", &unwrapped.len());
+    println!("Beacon size: {}", unwrapped.len());
 
     let deserialized: Beacon = match serde_cbor::from_slice(&unwrapped) {
         Ok(pkt) => pkt,
@@ -296,15 +296,17 @@ pub fn check_time_for_deserialization_of_5000_beacons() {
     println!("Deserialization finished after: {}ns", afterd - startd);
 }
 
-/// Peer validity tests are ignored
-/// They work but they make running cargo test take more time since they are time based
-/// Additionally, when they are run in conjunction with the other tests sometimes they fail, probably because of some weird interactions between the test threads
-/// that lead to weird behaviour in the sleeping threads
-/// That said, they work flawlessly when run individually, they are just ignored out of weird behaviour in conjunction with the others and because of convenience when running the other tests
+/// Peer validity tests are ignored as they are time based and take about a minute.
+/// Each test sets the peer timeout in the global config it relies on, so run them
+/// sequentially: `cargo test --test beacon-test -- --ignored --test-threads=1`
+///
+/// The peers are made dynamic explicitly, rnd_peer() may return static peers, which never expire.
 #[test]
 #[ignore]
 pub fn peer_validity_with_default_no_period() {
-    let peer = helpers::rnd_peer();
+    set_peer_timeout(false, Duration::from_secs(20));
+    let mut peer = helpers::rnd_peer();
+    peer.con_type = PeerType::Dynamic;
     assert!(peer.still_valid());
     thread::sleep(Duration::from_secs(5));
     assert!(peer.still_valid());
@@ -315,7 +317,9 @@ pub fn peer_validity_with_default_no_period() {
 #[test]
 #[ignore]
 pub fn peer_validity_with_default_period() {
+    set_peer_timeout(false, Duration::from_secs(20));
     let mut peer = helpers::rnd_peer();
+    peer.con_type = PeerType::Dynamic;
     peer.period = Some(Duration::from_secs(5));
     assert!(peer.still_valid());
     thread::sleep(Duration::from_secs(5));
@@ -328,9 +332,9 @@ pub fn peer_validity_with_default_period() {
 #[ignore]
 pub fn peer_validity_with_custom() {
     let mut peer = helpers::rnd_peer();
+    peer.con_type = PeerType::Dynamic;
     peer.period = Some(Duration::from_secs(5));
-    CONFIG.lock().custom_timeout = true;
-    CONFIG.lock().peer_timeout = Duration::from_secs(15);
+    set_peer_timeout(true, Duration::from_secs(15));
     assert!(peer.still_valid());
     thread::sleep(Duration::from_secs(11));
     assert!(peer.still_valid());
@@ -339,6 +343,12 @@ pub fn peer_validity_with_custom() {
 }
 
 // Convenience functions for testing purposes
+
+fn set_peer_timeout(custom_timeout: bool, peer_timeout: Duration) {
+    let mut config = CONFIG.lock();
+    config.custom_timeout = custom_timeout;
+    config.peer_timeout = peer_timeout;
+}
 
 /// Generates a random beacon
 pub fn rnd_beacon() -> Beacon {
