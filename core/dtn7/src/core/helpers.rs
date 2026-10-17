@@ -159,6 +159,9 @@ pub fn parse_peer_url(peer_url: &str) -> Result<DtnPeer, ParsePeerUrlError> {
 /// - must contain only letters, digits, and .-_
 /// - must end with a letter or digit
 pub fn is_valid_node_name(name: &str) -> bool {
+    if name.is_empty() {
+        return false;
+    }
     let mut chars = name.chars();
     let valid_dtn = chars.next().unwrap().is_alphabetic()
         && chars.all(|c| c.is_ascii_alphanumeric() || c == '_' || c == '-' || c == '.')
@@ -192,4 +195,19 @@ pub fn get_digest_of_bids(bids: &[String]) -> String {
         hasher.update(bid.as_bytes());
     }
     format!("{:x}", hasher.finalize())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn node_names() {
+        assert!(is_valid_node_name("node1"));
+        assert!(is_valid_node_name("node-1.example"));
+        assert!(is_valid_node_name("23"));
+        assert!(!is_valid_node_name(""));
+        assert!(!is_valid_node_name("1node"));
+        assert!(!is_valid_node_name("node-"));
+    }
 }
