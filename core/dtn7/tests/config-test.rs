@@ -98,7 +98,7 @@ key = "hmac-sensors"
     let rule = &config.bpsec.rules[0];
     assert_eq!(rule.role, SecurityRole::Acceptor);
     assert_eq!(rule.operation, SecurityOperation::Bib);
-    assert_eq!(rule.destination, "*");
+    assert_eq!(rule.destination, "**");
 
     assert!(!load_config("no-bpsec", "").bpsec.is_active());
 }

@@ -22,10 +22,11 @@ pub struct BpsecConfig {
 pub struct SecurityRule {
     pub name: String,
     pub role: SecurityRole,
-    /// Glob pattern for the bundle source, e.g., "dtn://node1/*"
+    /// Glob pattern for the bundle source, e.g., "dtn://node1/*". `*` matches within a
+    /// path segment of the endpoint ID, `**` across segments.
     #[serde(default = "match_all")]
     pub source: String,
-    /// Glob pattern for the bundle destination
+    /// Glob pattern for the bundle destination, see `source`
     #[serde(default = "match_all")]
     pub destination: String,
     pub operation: SecurityOperation,
@@ -39,7 +40,7 @@ pub struct SecurityRule {
 }
 
 fn match_all() -> String {
-    "*".to_string()
+    "**".to_string()
 }
 
 /// Role of this node in a security operation (RFC 9172, 2.2)
@@ -160,6 +161,13 @@ impl SecurityRule {
             SecurityOperation::Bcb if self.targets.contains(&SecurityTarget::Primary) => {
                 bail!("bpsec rule {}: BCBs can not target the primary block", name)
             }
+            // a BCB can not be checked without decrypting it
+            SecurityOperation::Bcb if self.role == SecurityRole::Verifier => {
+                bail!(
+                    "bpsec rule {}: BCBs can not be verified, only accepted",
+                    name
+                )
+            }
             _ => {}
         }
         let removes_blocks = matches!(
@@ -221,7 +229,7 @@ mod tests {
         assert_eq!(config.keys, Some(PathBuf::from("/etc/dtn7/keys")));
         let rule = &config.rules[0];
         assert_eq!(rule.role, SecurityRole::Source);
-        assert_eq!(rule.source, "*");
+        assert_eq!(rule.source, "**");
         assert_eq!(rule.destination, "dtn://*/sensors");
         assert_eq!(
             rule.targets,
@@ -254,6 +262,12 @@ mod tests {
             // encrypted primary block
             SIGN_RULE
                 .replace("\"bib\"", "\"bcb\"")
+                .replace("context = { sha-variant = \"sha512\" }", ""),
+            // BCBs can only be accepted
+            SIGN_RULE
+                .replace("\"source\"", "\"verifier\"")
+                .replace("\"bib\"", "\"bcb\"")
+                .replace("[\"payload\", \"primary\"]", "[\"payload\"]")
                 .replace("context = { sha-variant = \"sha512\" }", ""),
             // sources can not remove blocks
             SIGN_RULE.replace(

@@ -142,8 +142,9 @@ tcp_port = 0
 # [[bpsec.rule]]
 # name = "sign-sensors"
 # role = "source"                  # source | verifier | acceptor
-# source = "dtn://node1/*"         # glob, "*" if not given
-# destination = "dtn://*/sensors"  # glob, "*" if not given
+# # globs: * matches within an endpoint path segment, ** across segments ("**" if not given)
+# source = "dtn://node1/*"
+# destination = "dtn://*/sensors"
 # operation = "bib"                # bib (BIB-HMAC-SHA2) | bcb (BCB-AES-GCM)
 # targets = ["payload", "primary"] # BCBs can not target the primary block
 # key = "hmac-sensors"             # uses hmac-sensors.key

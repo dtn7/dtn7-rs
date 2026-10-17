@@ -6,6 +6,8 @@
 pub mod config;
 #[cfg(feature = "bpsec")]
 pub mod keys;
+#[cfg(feature = "bpsec")]
+pub mod policy;
 
 use anyhow::Result;
 use config::BpsecConfig;
