@@ -154,7 +154,8 @@ impl DtnPeer {
             .duration_since(UNIX_EPOCH)
             .expect("time went backwards")
             .as_secs();
-        now - self.last_contact < max_silence
+        // the clock may have been set back since the last contact
+        now.saturating_sub(self.last_contact) < max_silence
     }
 
     /// Return the peers DTN node name (without URI scheme)
@@ -270,5 +271,16 @@ mod tests {
             PeerAddress::Ip("10.0.0.1".parse().unwrap()),
         ));
         assert_eq!(known.con_type, PeerType::Static);
+    }
+
+    #[test]
+    fn last_contact_in_the_future_does_not_panic() {
+        let mut dynamic = peer(
+            PeerType::Dynamic,
+            PeerAddress::Ip("10.0.0.1".parse().unwrap()),
+        );
+        // e.g., after the clock was set back
+        dynamic.last_contact += 3600;
+        assert!(dynamic.still_valid());
     }
 }

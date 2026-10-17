@@ -185,8 +185,10 @@ async fn web_peers() -> Html<String> {
         .values()
         .map(|p| {
             let time_since = if p.con_type == PeerType::Dynamic {
-                humantime::format_duration(std::time::Duration::new(now - p.last_contact, 0))
-                    .to_string()
+                humantime::format_duration(std::time::Duration::from_secs(
+                    now.saturating_sub(p.last_contact),
+                ))
+                .to_string()
             } else {
                 "n/a".to_string()
             };
