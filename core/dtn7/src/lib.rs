@@ -104,7 +104,7 @@ pub fn get_sequence(destination: &str) -> u32 {
         0
     }
 }
-/// adds a new peer to the DTN core
+/// adds a new peer to the DTN core or updates an already known one, see DtnPeer::update
 /// return true if peer was seen first time
 /// return false if peer was already known or has no node name (e.g., dtn:none)
 pub fn peers_add(peer: DtnPeer) -> bool {
@@ -112,8 +112,16 @@ pub fn peers_add(peer: DtnPeer) -> bool {
         warn!("Ignoring peer without node name: eid={}", peer.eid);
         return false;
     };
-    debug!("Adding peer eid={}", node);
-    (*PEERS.lock()).insert(node, peer).is_none()
+    let mut peers = PEERS.lock();
+    if let Some(known_peer) = peers.get_mut(&node) {
+        debug!("Updating peer eid={}", node);
+        known_peer.update(peer);
+        false
+    } else {
+        debug!("Adding peer eid={}", node);
+        peers.insert(node, peer);
+        true
+    }
 }
 
 pub fn peers_remove(peer_id: &str) {

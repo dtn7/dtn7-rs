@@ -176,6 +176,21 @@ impl DtnPeer {
         &self.addr
     }
 
+    /// Updates a known peer with the information of a newly discovered or added one.
+    ///
+    /// A static peer stays static and its failed transmissions are kept, so
+    /// discovery beacons neither turn it into a dynamic peer nor reset its failures.
+    pub fn update(&mut self, peer: DtnPeer) {
+        if self.con_type != PeerType::Static {
+            self.con_type = peer.con_type;
+        }
+        self.addr = peer.addr;
+        self.period = peer.period;
+        self.cla_list = peer.cla_list;
+        self.services = peer.services;
+        self.last_contact = peer.last_contact;
+    }
+
     pub fn report_fail(&mut self) {
         self.fails += 1;
     }
@@ -186,5 +201,55 @@ impl DtnPeer {
 
     pub fn failed_too_much(&self) -> bool {
         self.fails > 3
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::convert::TryFrom;
+
+    fn peer(con_type: PeerType, addr: PeerAddress) -> DtnPeer {
+        DtnPeer::new(
+            EndpointID::try_from("dtn://peer-test/".to_string()).unwrap(),
+            addr,
+            con_type,
+            None,
+            vec![("tcp".into(), Some(4556))],
+            HashMap::new(),
+        )
+    }
+
+    #[test]
+    fn update_keeps_static_peers_static() {
+        let mut known = peer(
+            PeerType::Static,
+            PeerAddress::Ip("10.0.0.1".parse().unwrap()),
+        );
+        known.report_fail();
+        let mut discovered = peer(
+            PeerType::Dynamic,
+            PeerAddress::Ip("10.0.0.2".parse().unwrap()),
+        );
+        discovered.period = Some(Duration::from_secs(2));
+
+        known.update(discovered);
+        assert_eq!(known.con_type, PeerType::Static);
+        assert_eq!(known.fails, 1);
+        assert_eq!(known.addr, PeerAddress::Ip("10.0.0.2".parse().unwrap()));
+        assert_eq!(known.period, Some(Duration::from_secs(2)));
+    }
+
+    #[test]
+    fn update_can_make_dynamic_peers_static() {
+        let mut known = peer(
+            PeerType::Dynamic,
+            PeerAddress::Ip("10.0.0.1".parse().unwrap()),
+        );
+        known.update(peer(
+            PeerType::Static,
+            PeerAddress::Ip("10.0.0.1".parse().unwrap()),
+        ));
+        assert_eq!(known.con_type, PeerType::Static);
     }
 }
