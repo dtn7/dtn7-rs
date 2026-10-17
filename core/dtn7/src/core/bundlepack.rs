@@ -132,6 +132,16 @@ impl BundlePack {
         if self.lifetime == 0 {
             return false;
         }
+        if self.creation_time == 0 {
+            // The creating node had no clock, the lifetime refers to the bundle age
+            // (RFC 9171, 4.2.6). The time spent on this node is a lower bound for the
+            // age, the exact age is checked via the bundle age block when forwarding.
+            let now = SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .expect("Time went backwards")
+                .as_millis() as u64;
+            return now.saturating_sub(self.received_time) > self.lifetime;
+        }
         let now = bp7::CreationTimestamp::now().dtntime();
         (self.creation_time + self.lifetime) < now
     }
@@ -171,5 +181,38 @@ impl BundlePack {
 impl From<&[u8]> for BundlePack {
     fn from(buf: &[u8]) -> Self {
         serde_cbor::from_slice(buf).expect("unexpected error converting cbor buffer to BundlePack")
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::convert::TryFrom;
+
+    fn now_ms() -> u64 {
+        SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_millis() as u64
+    }
+
+    fn clockless_bundle_pack(lifetime_ms: u64, received_ms_ago: u64) -> BundlePack {
+        let bndl = bp7::bundle::new_std_payload_bundle(
+            EndpointID::try_from("dtn://expiry-src/app".to_string()).unwrap(),
+            EndpointID::try_from("dtn://expiry-dst/app".to_string()).unwrap(),
+            b"expiry".to_vec(),
+        );
+        let mut bp = BundlePack::from(&bndl);
+        bp.creation_time = 0;
+        bp.lifetime = lifetime_ms;
+        bp.received_time = now_ms() - received_ms_ago;
+        bp
+    }
+
+    #[test]
+    fn clockless_bundle_expires_relative_to_reception() {
+        assert!(!clockless_bundle_pack(60_000, 0).has_expired());
+        assert!(!clockless_bundle_pack(60_000, 30_000).has_expired());
+        assert!(clockless_bundle_pack(60_000, 61_000).has_expired());
     }
 }
