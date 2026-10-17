@@ -8,8 +8,8 @@
 # If you copy one of the examples into a new project, you should be using
 # [dependencies] instead, and delete the **path**.
 [dev-dependencies]
-  bp7 = { version = "0.11.0", default-features = false }
-  dtn7-plus = { version = "0.8.0", default-features = false, features = [
+  bp7 = { version = "0.12.0", default-features = false }
+  dtn7-plus = { version = "0.9.0", default-features = false, features = [
     "client",
   ] }
   clap = { version = "4.0.27", features = ["cargo", "derive"] }
