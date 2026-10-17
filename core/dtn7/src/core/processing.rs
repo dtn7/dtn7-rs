@@ -445,34 +445,20 @@ pub async fn forward(mut bp: BundlePack) -> Result<()> {
                     );
                     STATS.lock().failed += 1;
                     debug!("Error while transferring bundle {}: {}", &bpid, err);
-                    let mut failed_peer = None;
 
-                    if let Err(err) = routing_notify(RoutingNotifcation::SendingFailed(
-                        bpid,
-                        n.next_hop.node().unwrap(),
-                    ))
-                    .await
+                    let next_hop = n.next_hop.node().unwrap_or_default();
+                    if let Err(err) =
+                        routing_notify(RoutingNotifcation::SendingFailed(bpid, next_hop.clone()))
+                            .await
                     {
                         error!("Error while sending failed notification: {}", err);
                     }
-
-                    //debug!("current peers: {:?}", (*PEERS.lock()).keys());
-                    if let Some(peer_entry) = (*PEERS.lock()).get_mut(&n.next_hop.node().unwrap()) {
-                        debug!(
-                            "Reporting failed sending to peer: {}",
-                            &n.next_hop.node().unwrap()
-                        );
-                        peer_entry.report_fail();
-                        if peer_entry.failed_too_much() && peer_entry.con_type == PeerType::Dynamic
+                    if let Some(dropped_peer) = report_failed_transmission(&next_hop) {
+                        if let Err(err) =
+                            routing_notify(RoutingNotifcation::DroppedPeer(dropped_peer.eid)).await
                         {
-                            failed_peer = Some(peer_entry.node_name());
+                            error!("Error while sending dropped peer notification: {}", err);
                         }
-                    }
-                    if let Some(peer) = failed_peer {
-                        let peers_before = (*PEERS.lock()).len();
-                        (*PEERS.lock()).remove(&peer);
-                        let peers_after = (*PEERS.lock()).len();
-                        debug!("Removing peer {} from list of neighbors due to too many failed transmissions ({}/{})", peer, peers_before, peers_after);
                     }
                     // TODO: send status report?
                     // if (*CONFIG.lock()).generate_service_reports {
@@ -490,7 +476,7 @@ pub async fn forward(mut bp: BundlePack) -> Result<()> {
                     bundle_sent.store(true, Ordering::Relaxed);
                     if let Err(err) = routing_notify(RoutingNotifcation::SendingSucceeded(
                         bpid,
-                        n.next_hop.node().unwrap(),
+                        n.next_hop.node().unwrap_or_default(),
                     ))
                     .await
                     {
@@ -540,6 +526,24 @@ pub async fn forward(mut bp: BundlePack) -> Result<()> {
         }
     }
     Ok(())
+}
+
+/// Counts a failed transmission to the given peer. Dynamic peers failing too often
+/// are removed from the list of known peers and returned.
+fn report_failed_transmission(node_name: &str) -> Option<DtnPeer> {
+    let mut peers = PEERS.lock();
+    let peer = peers.get_mut(node_name)?;
+    debug!("Reporting failed sending to peer: {}", node_name);
+    peer.report_fail();
+    if peer.failed_too_much() && peer.con_type == PeerType::Dynamic {
+        debug!(
+            "Removing peer {} from list of neighbors due to too many failed transmissions",
+            node_name
+        );
+        peers.remove(node_name)
+    } else {
+        None
+    }
 }
 
 pub async fn local_delivery(mut bp: BundlePack) -> Result<()> {
@@ -806,6 +810,33 @@ mod tests {
                 new_payload_block(BlockControlFlags::empty(), b"age".to_vec()),
             ],
         }
+    }
+
+    fn add_peer(name: &str, con_type: PeerType, fails: u16) {
+        let mut peer = DtnPeer::new(
+            EndpointID::try_from(format!("dtn://{}/", name)).unwrap(),
+            "127.0.0.1".parse::<std::net::IpAddr>().unwrap().into(),
+            con_type,
+            None,
+            Vec::new(),
+            std::collections::HashMap::new(),
+        );
+        peer.fails = fails;
+        crate::peers_add(peer);
+    }
+
+    #[test]
+    fn dynamic_peers_failing_too_often_are_dropped() {
+        add_peer("failing-dynamic", PeerType::Dynamic, 3);
+        let dropped = report_failed_transmission("failing-dynamic").expect("peer not dropped");
+        assert_eq!(dropped.node_name(), "failing-dynamic");
+        assert!(!crate::peers_known("failing-dynamic"));
+
+        add_peer("failing-static", PeerType::Static, 3);
+        assert!(report_failed_transmission("failing-static").is_none());
+        assert!(crate::peers_known("failing-static"));
+
+        assert!(report_failed_transmission("unknown-peer").is_none());
     }
 
     #[test]
