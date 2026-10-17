@@ -50,7 +50,7 @@ impl SprayAndWaitRoutingAgentCore {
     pub fn handle_new_bundle(&mut self, bundle_id: String) {
         if self.history.contains_key(&bundle_id) {
             // keep the remaining copies and the nodes that already received the bundle
-            debug!("Bundle {} already known", &bundle_id);
+            debug!("Bundle {} already known", bundle_id);
             return;
         }
         if bundle_id.starts_with(&self.local_node) {
@@ -59,7 +59,7 @@ impl SprayAndWaitRoutingAgentCore {
                 remaining_copies: self.l,
                 nodes: Vec::new(),
             };
-            debug!("Adding new bundle {} from this host", &bundle_id);
+            debug!("Adding new bundle {} from this host", bundle_id);
             self.history.insert(bundle_id, meta);
         } else {
             // this is a bundle from another host, thus, we have only one copy
@@ -67,7 +67,7 @@ impl SprayAndWaitRoutingAgentCore {
                 remaining_copies: 1,
                 nodes: Vec::new(),
             };
-            debug!("Adding bundle {} from foreign host", &bundle_id);
+            debug!("Adding bundle {} from foreign host", bundle_id);
             self.history.insert(bundle_id, meta);
         }
     }
@@ -117,7 +117,7 @@ fn handle_notification(core: &mut SprayAndWaitRoutingAgentCore, notification: Ro
                 if removed > 1 {
                     warn!(
                         "Removed {} entries of {} from bid {}, duplicate entries, should be 1!",
-                        removed, next_hop_node_name, &bid
+                        removed, next_hop_node_name, bid
                     );
                 }
                 meta.remaining_copies += removed;
