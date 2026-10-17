@@ -256,11 +256,11 @@ pub async fn receive(mut bndl: Bundle) -> Result<()> {
 pub async fn dispatch(bp: BundlePack) -> Result<()> {
     info!("Dispatching bundle: {}", bp.id());
 
-    if let Err(err) = routing_notify(RoutingNotifcation::IncomingBundle(
-        store_get_bundle(bp.id()).unwrap(),
-    ))
-    .await
-    {
+    // the bundle may have been removed concurrently, e.g., by the janitor
+    let Some(bndl) = store_get_bundle(bp.id()) else {
+        bail!("bundle not found: {}", bp.id());
+    };
+    if let Err(err) = routing_notify(RoutingNotifcation::IncomingBundle(bndl)).await {
         error!("Error while sending incoming bundle notification: {}", err);
     }
 
