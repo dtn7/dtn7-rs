@@ -70,6 +70,37 @@ async fn get_data_with_dropped_requester(agent: &Sender<RoutingCmd>) {
         .unwrap();
 }
 
+/// Block type of BPSec integrity blocks (RFC 9172, 3.7), as bp7 only defines it with
+/// its bpsec feature.
+const INTEGRITY_BLOCK: u64 = 11;
+
+/// Reserved block types are not processed by this node, so their block processing
+/// control flags apply, while BPSec blocks are only known with the bpsec feature.
+async fn reserved_and_security_block_types() {
+    let bndl = bundle(
+        "dtn://blocktype-sender/app",
+        eid("dtn://blocktype-receiver/app"),
+        vec![
+            unknown_block(2, 3, BlockControlFlags::BLOCK_REMOVE),
+            unknown_block(INTEGRITY_BLOCK, 4, BlockControlFlags::BLOCK_REMOVE),
+            new_payload_block(BlockControlFlags::empty(), b"payload".to_vec()),
+        ],
+    );
+    let bid = bndl.id();
+
+    dtn7::core::processing::receive(bndl).await.unwrap();
+
+    let stored = dtn7::store_get_bundle(&bid).expect("bundle not stored");
+    let block_types: Vec<u64> = stored.canonicals.iter().map(|c| c.block_type).collect();
+    assert!(!block_types.contains(&2), "reserved block type kept");
+    assert_eq!(
+        block_types.contains(&INTEGRITY_BLOCK),
+        cfg!(feature = "bpsec"),
+        "unexpected handling of the BIB: {:?}",
+        block_types
+    );
+}
+
 /// Unknown blocks flagged for removal must be removed, all others kept.
 async fn unknown_blocks_are_removed_by_index() {
     let bndl = bundle(
@@ -312,6 +343,7 @@ async fn missing_primary_crc_is_rejected_only_when_strict() {
 #[tokio::test]
 async fn processing_and_routing() {
     unknown_blocks_are_removed_by_index().await;
+    reserved_and_security_block_types().await;
     bundles_to_dtn_none_are_rejected().await;
     routing_agents_survive_bad_requests().await;
     peers_without_node_name_are_ignored().await;

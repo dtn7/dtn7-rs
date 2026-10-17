@@ -13,7 +13,7 @@ readme = "README.md"
 
 [features]
 
-default = ["store_sled", "store_sneakers"]
+default = ["store_sled", "store_sneakers", "bpsec"]
 # Bundle Protocol Security (RFC 9172), inactive without configured security rules
 bpsec = ["bp7/bpsec"]
 tracing = ["console-subscriber"]

@@ -12,7 +12,9 @@ use bp7::administrative_record::*;
 use bp7::bundle::*;
 use bp7::flags::*;
 use bp7::CanonicalData;
-use bp7::BUNDLE_AGE_BLOCK;
+use bp7::{
+    CanonicalBlockType, BUNDLE_AGE_BLOCK, HOP_COUNT_BLOCK, PAYLOAD_BLOCK, PREVIOUS_NODE_BLOCK,
+};
 
 use anyhow::{bail, Result};
 use lazy_static::lazy_static;
@@ -162,6 +164,18 @@ fn is_missing_primary_crc(err: &bp7::error::Error) -> bool {
         if msg.starts_with("Primary Block has no CRC"))
 }
 
+/// Returns true for the block types this node processes. All other blocks are handled
+/// according to their block processing control flags (RFC 9171, 4.2.4).
+fn is_known_block_type(block_type: CanonicalBlockType) -> bool {
+    match block_type {
+        PAYLOAD_BLOCK | PREVIOUS_NODE_BLOCK | BUNDLE_AGE_BLOCK | HOP_COUNT_BLOCK => true,
+        // BPSec blocks are only known if this node implements BPSec (RFC 9172, 5)
+        #[cfg(feature = "bpsec")]
+        bp7::security::INTEGRITY_BLOCK | bp7::security::CONFIDENTIALITY_BLOCK => true,
+        _ => false,
+    }
+}
+
 // handle received/incoming bundles.
 pub async fn receive(mut bndl: Bundle) -> Result<()> {
     if let Err(err) = validate_bundle(&bndl) {
@@ -198,8 +212,7 @@ pub async fn receive(mut bndl: Bundle) -> Result<()> {
     }
     let mut remove_idx = Vec::new();
     for (index, cb) in bndl.canonicals.iter().enumerate() {
-        if cb.block_type < 11 {
-            // TODO: fix magic number to check for a known block type
+        if is_known_block_type(cb.block_type) {
             continue;
         }
         warn!(
