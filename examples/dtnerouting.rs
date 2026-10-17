@@ -75,7 +75,7 @@ impl EpidemicStrategy {
         let mut selected_clas: Vec<Sender> = Vec::new();
         let mut delete_afterwards = false;
 
-        for (_, p) in PEERS.lock().unwrap().iter() {
+        for p in PEERS.lock().unwrap().values() {
             for c in p.cla_list.iter() {
                 if clas.contains(&c.0) && !self.contains(bp.id(), &p.node_name()) {
                     self.add(bp.id().to_string(), p.node_name().clone());
@@ -121,7 +121,7 @@ impl EpidemicStrategy {
 // The flooding strategy is very simple. It sends the bundle to all available peers.
 fn flooding_strategy(clas: Vec<String>, _: BundlePack) -> (Vec<Sender>, bool) {
     let mut selected_clas = Vec::new();
-    for (_, p) in PEERS.lock().unwrap().iter() {
+    for p in PEERS.lock().unwrap().values() {
         for c in p.cla_list.iter() {
             if clas.contains(&c.0) {
                 selected_clas.push(Sender {

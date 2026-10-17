@@ -158,16 +158,20 @@ impl Beacon {
 // Implementation of the Display trait for Beacons for proper formatting
 impl std::fmt::Display for Beacon {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let temp = format!("{:010b}", self.flags);
-        let output = if self.beacon_period.is_some() {
-            format!("Version: {:#x}\tFlags: {}\tBeaconSequenceNumber: {}\nEID: {}\nServiceBlock:\n{}\nBeaconPeriod: {:#?}",
-        self.version, temp, self.beacon_sequence_number, self.eid, self.service_block, self.beacon_period.unwrap())
-        } else {
-            format!("Version: {:#x}\tFlags: {}\tBeaconSequenceNumber: {}\nEID: {}\nServiceBlock:\n{}\nBeaconPeriod: None",
-        self.version, temp, self.beacon_sequence_number, self.eid, self.service_block)
+        let beacon_period = match self.beacon_period {
+            Some(period) => format!("{:#?}", period),
+            None => "None".to_string(),
         };
-
-        write!(f, "{}", output)
+        write!(
+            f,
+            "Version: {:#x}\tFlags: {:010b}\tBeaconSequenceNumber: {}\nEID: {}\nServiceBlock:\n{}\nBeaconPeriod: {}",
+            self.version,
+            self.flags,
+            self.beacon_sequence_number,
+            self.eid,
+            self.service_block,
+            beacon_period
+        )
     }
 }
 
@@ -202,9 +206,8 @@ impl Serialize for Beacon {
         if !self.service_block.is_empty() {
             seq.serialize_element(&self.service_block)?;
         }
-        if self.beacon_period.is_some() {
-            let period_number = self.beacon_period.unwrap().as_secs();
-            seq.serialize_element(&period_number)?;
+        if let Some(period) = self.beacon_period {
+            seq.serialize_element(&period.as_secs())?;
         }
         seq.end()
     }

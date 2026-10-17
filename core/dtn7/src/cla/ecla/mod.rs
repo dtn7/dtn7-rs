@@ -127,6 +127,8 @@ pub enum ConnectorEnum {
     TCPConnector,
 }
 
+// enum_dispatch copies the #[must_use] that async_trait adds to async methods
+#[allow(clippy::double_must_use)]
 #[async_trait]
 #[enum_dispatch(ConnectorEnum)]
 /// Trait to implement transport connector (e.g. WebSocket, TCP, ...) over which ecla modules can connect to.

@@ -23,7 +23,7 @@ impl NodeStats {
         mib.node_state.bp_versions = vec![7]; // Bundle Protocol version - fixed to 7 for now
 
         // mib.error_info.failed_forwards_bundle_count = (*STATS.lock()).failed;
-        return mib;
+        mib
     }
 }
 

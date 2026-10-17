@@ -70,7 +70,7 @@ impl DtnStatistics {
                 let registration = RegistrationInformation {
                     eid: eid.clone(),
                     active: aa.delivery_addr().is_some(),
-                    singleton: singleton,
+                    singleton,
                     default_failure_action: stats::FailureAction::Defer,
                 };
                 self.node.registrations.push(registration);
@@ -205,7 +205,7 @@ pub async fn process_bundles() {
         .collect();
 
     // process them in chronological order
-    forwarding_bundles.sort_unstable_by(|a, b| a.creation_time.cmp(&b.creation_time));
+    forwarding_bundles.sort_unstable_by_key(|a| a.creation_time);
 
     let num_bundles = forwarding_bundles.len();
 

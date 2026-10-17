@@ -120,7 +120,7 @@ async fn http_pull_bundles() {
     let local_digest = get_complete_digest();
 
     let peers = crate::PEERS.lock().clone();
-    for (_, p) in peers.iter() {
+    for p in peers.values() {
         let peer = p.clone();
         let local_digest = local_digest.clone();
         let mut port = 3000;

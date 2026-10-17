@@ -70,6 +70,8 @@ impl ClaSenderTask {
     }
 }
 
+// enum_dispatch copies the #[must_use] that async_trait adds to async methods
+#[allow(clippy::double_must_use)]
 #[async_trait]
 #[enum_dispatch(CLAEnum)]
 pub trait ConvergenceLayerAgent: Debug + Display {

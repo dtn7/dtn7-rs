@@ -14,21 +14,16 @@ use std::str::FromStr;
 use std::{convert::TryInto, time::Duration};
 
 /// Discovery transport mechanism
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 pub enum DiscoveryTransport {
     /// UDP multicast (legacy IPND)
+    #[default]
     UdpMulticast,
     /// mDNS/DNS-SD service discovery
     Mdns,
     /// Both UDP multicast and mDNS simultaneously
     Both,
-}
-
-impl Default for DiscoveryTransport {
-    fn default() -> Self {
-        Self::UdpMulticast
-    }
 }
 
 impl FromStr for DiscoveryTransport {
@@ -212,14 +207,14 @@ impl From<PathBuf> for DtnConfig {
             }
         }
         if let Ok(endpoints) = s.get_table("endpoints.local") {
-            for (_k, v) in endpoints.iter() {
+            for v in endpoints.values() {
                 let eid = v.clone().into_string().unwrap();
                 debug!("EID: {:?}", eid);
                 dtncfg.endpoints.push(eid);
             }
         }
         if let Ok(clas) = s.get_table("convergencylayers.cla") {
-            for (_k, v) in clas.iter() {
+            for v in clas.values() {
                 let mut tab = v.clone().into_table().unwrap();
                 let cla_id = tab.remove("id").unwrap().into_string().unwrap();
                 match CLAsAvailable::from_str(cla_id.as_str()) {
@@ -263,7 +258,7 @@ impl From<PathBuf> for DtnConfig {
             }
         }
         if let Ok(services) = s.get_table("services.service") {
-            for (_k, v) in services.iter() {
+            for v in services.values() {
                 let tab = v.clone().into_table().unwrap();
                 let service_tag: u8 =
                     tab["tag"].clone().into_string().unwrap().parse().expect(
@@ -285,7 +280,7 @@ impl From<PathBuf> for DtnConfig {
             }
         }
         if let Ok(discovery_destinations) = s.get_table("discovery_destinations.target") {
-            for (_k, v) in discovery_destinations.iter() {
+            for v in discovery_destinations.values() {
                 let tab = v.clone().into_table().unwrap();
                 let destination = tab["destination"].clone().into_string().unwrap();
                 dtncfg

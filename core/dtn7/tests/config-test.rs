@@ -38,12 +38,12 @@ fn config_test() {
 
     let endpoints = s.get_table("endpoints.local");
 
-    for (_k, v) in endpoints.unwrap().iter() {
+    for v in endpoints.unwrap().values() {
         println!("EID: {:?}", v.clone().into_string().unwrap());
     }
 
     let clas = s.get_table("convergencylayers.cla");
-    for (_k, v) in clas.unwrap().iter() {
+    for v in clas.unwrap().values() {
         let tab = v.clone().into_table().unwrap();
         println!("CLA: {:?}", tab["id"].clone().into_string().unwrap());
     }

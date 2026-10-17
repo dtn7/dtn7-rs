@@ -1001,8 +1001,7 @@ mod tests {
         if buf.len() > config.transfer_mru as usize {
             bail!("bundle too big");
         }
-        let fitting = u64::from(buf.len() as u64 % config.segment_mru != 0);
-        let num_segs = (buf.len() as u64 / config.segment_mru) + fitting;
+        let num_segs = (buf.len() as u64).div_ceil(config.segment_mru);
 
         for i in 0..num_segs {
             let mut flags = XferSegmentFlags::empty();
@@ -1050,8 +1049,7 @@ mod tests {
         //        let data_raw: [u8; data_len] = [0; data_len];
         let data_raw: Vec<u8> = vec![0x90; data_len as usize];
 
-        let fitting = u64::from(data_len % segment_mru != 0);
-        let num_expected_segs = ((data_len / segment_mru) + fitting) as usize;
+        let num_expected_segs = data_len.div_ceil(segment_mru) as usize;
 
         //let data = Bytes::copy_from_slice(&data_raw);
         let data = Bytes::copy_from_slice(&data_raw);

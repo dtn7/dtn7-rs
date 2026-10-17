@@ -136,7 +136,7 @@ fn main() -> anyhow::Result<()> {
                         println!(
                             "[{}] {} → {}",
                             now,
-                            bndl.primary.source.to_string(),
+                            bndl.primary.source,
                             String::from_utf8_lossy(data)
                         );
                     } else {

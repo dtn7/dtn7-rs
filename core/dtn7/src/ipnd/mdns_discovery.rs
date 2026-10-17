@@ -154,14 +154,13 @@ async fn handle_mdns_event(event: mdns_sd::ServiceEvent) -> Result<()> {
             debug!("mDNS ServiceFound event (keepalive): {}", fullname);
             if let Some(instance_name) = fullname.split('.').next() {
                 // Extract node name from EID (e.g., "dtn://node1/" -> "node1")
-                let node_name = if instance_name.starts_with("dtn://") && instance_name.ends_with('/') {
-                    &instance_name[6..instance_name.len()-1]
-                } else {
-                    instance_name
-                };
+                let node_name = instance_name
+                    .strip_prefix("dtn://")
+                    .and_then(|name| name.strip_suffix('/'))
+                    .unwrap_or(instance_name);
 
                 // Silently ignore if peer doesn't exist yet - ServiceResolved will add it
-                if let Ok(_) = peers_touch(node_name) {
+                if peers_touch(node_name).is_ok() {
                     debug!("Successfully touched peer: {}", node_name);
                 }
             }
@@ -182,7 +181,7 @@ async fn handle_mdns_peer_discovered(info: mdns_sd::ServiceInfo) -> Result<()> {
     let eid_str = info.get_property_val_str("eid")
         .ok_or_else(|| anyhow::anyhow!("No EID in mDNS service info"))?;
 
-    let eid: bp7::EndpointID = bp7::eid::EndpointID::try_from(eid_str.as_ref())
+    let eid: bp7::EndpointID = bp7::eid::EndpointID::try_from(eid_str)
         .map_err(|e| anyhow::anyhow!("Invalid EID in mDNS service: {:?}", e))?;
 
     // Don't add ourselves
@@ -237,8 +236,8 @@ async fn handle_mdns_peer_discovered(info: mdns_sd::ServiceInfo) -> Result<()> {
         .find(|ip| ip.is_ipv4())
         .or_else(|| addresses.iter().find(|ip| !ip.to_string().starts_with("fe80::")))
         .or_else(|| addresses.first())
-        .ok_or_else(|| anyhow::anyhow!("No valid address in mDNS service info"))?
-        .clone();
+        .copied()
+        .ok_or_else(|| anyhow::anyhow!("No valid address in mDNS service info"))?;
 
     debug!("Selected address {} from [{}]", addr, addr_str);
 

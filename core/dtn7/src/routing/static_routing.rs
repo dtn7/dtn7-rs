@@ -153,7 +153,7 @@ async fn handle_routing_cmd(mut rx: mpsc::Receiver<RoutingCmd>) {
                             "Found route: {}, looking for valid peer ({})",
                             route, route.via
                         );
-                        for (_, p) in (*PEERS.lock()).iter() {
+                        for p in (*PEERS.lock()).values() {
                             if p.eid.to_string() == route.via {
                                 if let Some(cla) = p.first_cla() {
                                     clas.push(cla);

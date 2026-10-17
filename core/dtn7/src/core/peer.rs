@@ -128,25 +128,22 @@ impl DtnPeer {
         if self.con_type == PeerType::Static {
             return true;
         }
-        // If a custom peer timeout was specified force remove all peers after specified amount of time
-        // Or if no custom peer timeout was specified force remove all peers after default peer timeout
-        // that didn't advertise a BeaconPeriod
-        let timeout = CONFIG.lock().peer_timeout.as_secs();
-        let custom = CONFIG.lock().custom_timeout;
-        if (custom && timeout > 0) || self.period.is_none() {
-            let now = SystemTime::now()
-                .duration_since(UNIX_EPOCH)
-                .expect("time went backwards")
-                .as_secs();
-            now - self.last_contact < timeout
-        // Else if a received beacon contains a BeaconPeriod remove this peer after 2 * received BeaconPeriod
-        } else {
-            let now = SystemTime::now()
-                .duration_since(UNIX_EPOCH)
-                .expect("Time went backwards")
-                .as_secs();
-            now - self.last_contact < self.period.unwrap().as_secs() * 2
-        }
+        let (timeout, custom_timeout) = {
+            let config = CONFIG.lock();
+            (config.peer_timeout.as_secs(), config.custom_timeout)
+        };
+        // A custom peer timeout applies to all peers. Otherwise, peers advertising a
+        // beacon period are removed after twice that period, all others after the
+        // default peer timeout.
+        let max_silence = match self.period {
+            Some(period) if !(custom_timeout && timeout > 0) => period.as_secs() * 2,
+            _ => timeout,
+        };
+        let now = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .expect("time went backwards")
+            .as_secs();
+        now - self.last_contact < max_silence
     }
 
     /// Return the peers DTN node name (without URI scheme)
