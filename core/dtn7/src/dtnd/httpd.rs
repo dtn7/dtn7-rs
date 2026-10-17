@@ -362,6 +362,33 @@ async fn http_routing_getdata(
     }
 }
 
+/// Reloads the BPSec keys from the configured key directory, keeping the current keys
+/// if the new ones can not be loaded or do not fit the security rules.
+async fn http_bpsec_reload_keys() -> Result<String, (StatusCode, String)> {
+    #[cfg(feature = "bpsec")]
+    {
+        let config = CONFIG.lock().bpsec.clone();
+        match crate::core::bpsec::KEYS.reload(&config) {
+            Ok(loaded) => {
+                info!("Reloaded {} BPSec keys", loaded);
+                Ok(format!("Reloaded {} keys", loaded))
+            }
+            Err(err) => {
+                warn!(
+                    "Reloading BPSec keys failed, keeping current keys: {:#}",
+                    err
+                );
+                Err((StatusCode::INTERNAL_SERVER_ERROR, format!("{:#}", err)))
+            }
+        }
+    }
+    #[cfg(not(feature = "bpsec"))]
+    Err((
+        StatusCode::NOT_IMPLEMENTED,
+        "dtn7 was built without the bpsec feature".to_string(),
+    ))
+}
+
 async fn http_peers_add(
     Query(params): Query<HashMap<String, String>>,
 ) -> Result<String, (StatusCode, &'static str)> {
@@ -767,6 +794,7 @@ fn local_only_routes(cors: CorsLayer) -> Router {
         .route("/peers/del", get(http_peers_delete))
         .route("/routing/cmd", get(http_routing_cmd).post(http_routing_cmd))
         .route("/routing/getdata", get(http_routing_getdata))
+        .route("/bpsec/keys/reload", post(http_bpsec_reload_keys))
         .route("/send", post(send_post))
         .layer(DefaultBodyLimit::disable())
         .route("/delete", get(delete).delete(delete))
@@ -882,6 +910,40 @@ mod tests {
         ]))
         .await;
         assert_eq!(res.unwrap_err().0, StatusCode::BAD_REQUEST);
+    }
+
+    #[cfg(feature = "bpsec")]
+    #[tokio::test]
+    async fn bpsec_keys_are_reloaded_on_request() {
+        use crate::core::bpsec::config::*;
+
+        let dir = tempfile::tempdir().unwrap();
+        let key_file = dir.path().join("hmac.key");
+        std::fs::write(&key_file, "0011").unwrap();
+        CONFIG.lock().bpsec = BpsecConfig {
+            keys: Some(dir.path().to_path_buf()),
+            rules: vec![SecurityRule {
+                name: "accept".into(),
+                role: SecurityRole::Acceptor,
+                source: "*".into(),
+                destination: "*".into(),
+                operation: SecurityOperation::Bib,
+                targets: vec![SecurityTarget::Payload],
+                key: "hmac".into(),
+                context: SecurityContext::default(),
+                on_failure: FailureAction::Drop,
+            }],
+        };
+
+        assert_eq!(http_bpsec_reload_keys().await.unwrap(), "Reloaded 1 keys");
+
+        std::fs::write(&key_file, "not hex").unwrap();
+        let err = http_bpsec_reload_keys().await.unwrap_err();
+        assert_eq!(err.0, StatusCode::INTERNAL_SERVER_ERROR);
+        let keys = crate::core::bpsec::KEYS.current();
+        assert_eq!(keys.get("hmac").unwrap().bytes(), &[0x00, 0x11]);
+
+        CONFIG.lock().bpsec = BpsecConfig::default();
     }
 
     #[tokio::test]

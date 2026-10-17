@@ -132,3 +132,20 @@ group.0 = "dtn://hometown/~weather" # atm ignored
 enabled  = false
 # If the TCP Port is not 0 ECLA clients can also connect via TCP to that port
 tcp_port = 0
+
+# BPSec (RFC 9172) security rules, BPSec is inactive without rules
+# [bpsec]
+# # one <key id>.key file per key with the hex encoded key, keep them private (chmod 600)
+# # keys can be reloaded at runtime: curl -X POST http://127.0.0.1:3000/bpsec/keys/reload
+# keys = "/etc/dtn7/keys"
+#
+# [[bpsec.rule]]
+# name = "sign-sensors"
+# role = "source"                  # source | verifier | acceptor
+# source = "dtn://node1/*"         # glob, "*" if not given
+# destination = "dtn://*/sensors"  # glob, "*" if not given
+# operation = "bib"                # bib (BIB-HMAC-SHA2) | bcb (BCB-AES-GCM)
+# targets = ["payload", "primary"] # BCBs can not target the primary block
+# key = "hmac-sensors"             # uses hmac-sensors.key
+# context = { sha-variant = "sha384" } # bib: sha256 | sha384 | sha512, bcb: aes-variant = aes128 | aes256
+# on-failure = "drop"              # drop | remove-target | remove-operation | log

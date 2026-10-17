@@ -15,7 +15,7 @@ readme = "README.md"
 
 default = ["store_sled", "store_sneakers", "bpsec"]
 # Bundle Protocol Security (RFC 9172), inactive without configured security rules
-bpsec = ["bp7/bpsec"]
+bpsec = ["bp7/bpsec", "dep:zeroize"]
 tracing = ["console-subscriber"]
 deadlock_detection = ["parking_lot/deadlock_detection"]
 store_sled = ["sled"]
@@ -79,6 +79,7 @@ thiserror = "1.0.31"
 dtn7-codegen = { path = "../codegen", version = "0.1.2" }
 sha1 = "0.10.5"
 glob-match = "0.2.1"
+zeroize = { version = "1.8.1", optional = true }
 tower-http = { version = "0.3.4", features = ["cors"] }
 mdns-sd = "0.11"
 
