@@ -8,7 +8,7 @@ pub mod tcp;
 pub mod udp;
 
 use self::http::HttpConvergenceLayer;
-use anyhow::Result;
+use anyhow::{Context, Result};
 use async_trait::async_trait;
 use bp7::{ByteBuffer, EndpointID};
 use dtn7_codegen::init_cla_subsystem;
@@ -18,6 +18,7 @@ use external::ExternalConvergenceLayer;
 use httppull::HttpPullConvergenceLayer;
 use mtcp::MtcpConvergenceLayer;
 use serde::{Deserialize, Serialize};
+use std::net::SocketAddr;
 use std::str::FromStr;
 use std::{
     collections::HashMap,
@@ -45,6 +46,16 @@ pub enum TransferResult {
 pub enum ClaCmd {
     Transfer(String, ByteBuffer, oneshot::Sender<TransferResult>),
     Shutdown,
+}
+
+/// Resolves a transfer destination such as "10.0.0.1:4556", "[fe80::1]:4556" or
+/// "node1.example.org:4556" to a socket address.
+pub async fn resolve_destination(dest: &str) -> Result<SocketAddr> {
+    tokio::net::lookup_host(dest)
+        .await
+        .with_context(|| format!("could not resolve {}", dest))?
+        .next()
+        .with_context(|| format!("no address found for {}", dest))
 }
 
 #[derive(Debug, Clone)]
@@ -93,5 +104,20 @@ pub trait HelpStr {
     }
     fn global_help_str() -> &'static str {
         "<>"
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[tokio::test]
+    async fn destinations_are_resolved() {
+        let v4: SocketAddr = "127.0.0.1:4556".parse().unwrap();
+        let v6: SocketAddr = "[::1]:4556".parse().unwrap();
+        assert_eq!(resolve_destination("127.0.0.1:4556").await.unwrap(), v4);
+        assert_eq!(resolve_destination("[::1]:4556").await.unwrap(), v6);
+        assert!(resolve_destination("localhost:4556").await.is_ok());
+        assert!(resolve_destination("no port").await.is_err());
     }
 }

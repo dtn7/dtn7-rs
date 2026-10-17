@@ -4,7 +4,7 @@ use bp7::EndpointID;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fmt::Display;
-use std::net::IpAddr;
+use std::net::{IpAddr, SocketAddr};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 #[derive(Debug, Serialize, Deserialize, Clone, Copy, PartialEq, Eq)]
@@ -42,6 +42,17 @@ impl From<IpAddr> for PeerAddress {
 impl From<String> for PeerAddress {
     fn from(addr: String) -> Self {
         PeerAddress::Generic(addr)
+    }
+}
+
+impl PeerAddress {
+    /// Returns the address combined with the given port, e.g., "10.0.0.1:4556",
+    /// "[fe80::1]:4556" or "node1.example.org:4556".
+    pub fn with_port(&self, port: u16) -> String {
+        match self {
+            PeerAddress::Ip(ip) => SocketAddr::new(*ip, port).to_string(),
+            _ => format!("{}:{}", self, port),
+        }
     }
 }
 
@@ -155,11 +166,9 @@ impl DtnPeer {
         for cla in &self.cla_list {
             for cla_instance in &(*CLAS.lock()) {
                 if cla.0 == cla_instance.name() && cla_instance.accepting() {
-                    let dest = format!(
-                        "{}:{}",
-                        self.addr,
-                        cla.1.unwrap_or_else(|| cla_instance.port())
-                    );
+                    let dest = self
+                        .addr
+                        .with_port(cla.1.unwrap_or_else(|| cla_instance.port()));
                     return Some(ClaSenderTask {
                         tx: cla_instance.channel(),
                         dest,
@@ -218,6 +227,16 @@ mod tests {
             vec![("tcp".into(), Some(4556))],
             HashMap::new(),
         )
+    }
+
+    #[test]
+    fn address_with_port() {
+        let v4 = PeerAddress::Ip("10.0.0.1".parse().unwrap());
+        let v6 = PeerAddress::Ip("fe80::1".parse().unwrap());
+        let host = PeerAddress::Generic("node1.example.org".into());
+        assert_eq!(v4.with_port(4556), "10.0.0.1:4556");
+        assert_eq!(v6.with_port(4556), "[fe80::1]:4556");
+        assert_eq!(host.with_port(4556), "node1.example.org:4556");
     }
 
     #[test]

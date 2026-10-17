@@ -289,10 +289,18 @@ impl MtcpConvergenceLayer {
                             remote
                         );
                         if !data.is_empty() {
-                            let peeraddr: SocketAddr = remote.parse().unwrap();
-                            debug!("forwarding to {:?}", peeraddr);
                             tokio::spawn(async move {
-                                reply.send(mtcp_send_bundles(peeraddr, vec![data])).unwrap();
+                                let result = match super::resolve_destination(&remote).await {
+                                    Ok(peeraddr) => {
+                                        debug!("forwarding to {:?}", peeraddr);
+                                        mtcp_send_bundles(peeraddr, vec![data])
+                                    }
+                                    Err(err) => {
+                                        error!("{}", err);
+                                        TransferResult::Failure
+                                    }
+                                };
+                                let _ = reply.send(result);
                             });
                         } else {
                             debug!("Nothing to forward.");

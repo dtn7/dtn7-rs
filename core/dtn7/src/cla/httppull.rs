@@ -20,11 +20,10 @@ pub struct HttpPullConvergenceLayer {
 }
 
 /// pulls missing bundles from node
-/// addr can be either an IP or a DNS name
+/// addr is the node's IP or DNS name including the port, see PeerAddress::with_port
 async fn http_pull_from_node(
     eid: EndpointID,
     addr: String,
-    port: u16,
     local_digest: String,
 ) -> TransferResult {
     let now = std::time::Instant::now();
@@ -33,8 +32,7 @@ async fn http_pull_from_node(
     debug!("pulling bundles from {} / {}", eid, addr);
     tokio::task::spawn_blocking(move || {
         // get digest of remote node
-        let response =
-            attohttpc::get(format!("http://{}:{}/status/bundles/digest", addr, port)).send();
+        let response = attohttpc::get(format!("http://{}/status/bundles/digest", addr)).send();
         let digest = match response {
             Ok(digest) => digest.text().unwrap(),
             Err(e) => {
@@ -53,7 +51,7 @@ async fn http_pull_from_node(
             );
         }
         // get list of bundles from remote node
-        let response = attohttpc::get(format!("http://{}:{}/status/bundles", addr, port)).send();
+        let response = attohttpc::get(format!("http://{}/status/bundles", addr)).send();
         let bid_list = match response {
             Ok(bid_list) => bid_list.text().unwrap(),
             Err(e) => {
@@ -75,8 +73,7 @@ async fn http_pull_from_node(
         // fetch missing bundles from remote node
         for bid in missing {
             transfers += 1;
-            let response =
-                attohttpc::get(format!("http://{}:{}/download?{}", addr, port, bid)).send();
+            let response = attohttpc::get(format!("http://{}/download?{}", addr, bid)).send();
 
             let bundle_buf = match response {
                 Ok(bundle) => bundle.bytes().unwrap(),
@@ -132,12 +129,13 @@ async fn http_pull_bundles() {
                 }
             }
         }
+        let addr = peer.addr.with_port(port);
         if CONFIG.lock().parallel_bundle_processing {
             tokio::spawn(async move {
-                http_pull_from_node(peer.eid, peer.addr.to_string(), port, local_digest).await;
+                http_pull_from_node(peer.eid, addr, local_digest).await;
             });
         } else {
-            http_pull_from_node(peer.eid, peer.addr.to_string(), port, local_digest).await;
+            http_pull_from_node(peer.eid, addr, local_digest).await;
         }
     }
     debug!("finished pulling bundles from peers");

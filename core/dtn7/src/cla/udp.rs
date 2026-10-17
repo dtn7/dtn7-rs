@@ -45,7 +45,12 @@ pub async fn udp_send_bundles(addr: SocketAddr, bundles: Vec<ByteBuffer>) -> Tra
     let num_bundles = bundles.len();
     let total_bytes: usize = bundles.iter().map(|b| b.len()).sum();
 
-    let sock = UdpSocket::bind("0.0.0.0:0").await;
+    let local_addr = if addr.is_ipv6() {
+        "[::]:0"
+    } else {
+        "0.0.0.0:0"
+    };
+    let sock = UdpSocket::bind(local_addr).await;
     if sock.is_err() {
         error!("Error binding UDP socket for sending");
         return TransferResult::Failure;
@@ -107,12 +112,18 @@ impl UdpConvergenceLayer {
                             remote
                         );
                         if !data.is_empty() {
-                            let peeraddr: SocketAddr = remote.parse().unwrap();
-                            debug!("forwarding to {:?}", peeraddr);
                             tokio::spawn(async move {
-                                reply
-                                    .send(udp_send_bundles(peeraddr, vec![data]).await)
-                                    .unwrap();
+                                let result = match super::resolve_destination(&remote).await {
+                                    Ok(peeraddr) => {
+                                        debug!("forwarding to {:?}", peeraddr);
+                                        udp_send_bundles(peeraddr, vec![data]).await
+                                    }
+                                    Err(err) => {
+                                        error!("{}", err);
+                                        TransferResult::Failure
+                                    }
+                                };
+                                let _ = reply.send(result);
                             });
                         } else {
                             debug!("Nothing to forward.");

@@ -5,7 +5,7 @@ use bp7::ByteBuffer;
 use dtn7_codegen::cla;
 use hyper::{client::HttpConnector, Body, Client, Method, Request};
 use log::{debug, error};
-use std::{collections::HashMap, net::SocketAddr, time::Instant};
+use std::{collections::HashMap, time::Instant};
 use tokio::sync::mpsc;
 
 use super::{HelpStr, TransferResult};
@@ -25,11 +25,10 @@ pub async fn http_send_bundles(
     if !ready.is_empty() {
         let now = Instant::now();
         //let client = hyper::client::Client::new();
-        let peeraddr: SocketAddr = remote.parse().unwrap();
         let buf_len = ready.len();
-        debug!("forwarding to {:?}", peeraddr);
+        debug!("forwarding to {}", remote);
         //for b in &ready {
-        let req_url = format!("http://{}:{}/push", peeraddr.ip(), peeraddr.port());
+        let req_url = format!("http://{}/push", remote);
         let req = Request::builder()
             .method(Method::POST)
             .uri(req_url)
@@ -43,7 +42,7 @@ pub async fn http_send_bundles(
                     "Transmission time: {:?} for {} bytes to {}",
                     now.elapsed(),
                     buf_len,
-                    peeraddr
+                    remote
                 ),
                 Err(e) => {
                     error!("could not push bundle to remote: {}", e);

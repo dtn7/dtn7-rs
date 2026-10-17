@@ -766,7 +766,13 @@ async fn tcp_send_bundles(
     transfer_mru: u64,
     reply: Sender<TransferResult>,
 ) -> anyhow::Result<()> {
-    let addr: SocketAddr = dest.parse().unwrap();
+    let addr = match super::resolve_destination(&dest).await {
+        Ok(addr) => addr,
+        Err(err) => {
+            let _ = reply.send(TransferResult::Failure);
+            return Err(err);
+        }
+    };
 
     debug!("Locking connection for {}", addr);
     let (sender, receiver) = {
