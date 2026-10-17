@@ -217,16 +217,17 @@ impl TcpClPacket {
                 }
             }
         } else if mtype == b'd' {
-            let mut buf: [u8; 6] = [0; 6];
+            // the first byte of the magic "dtn!" was already read as message type
+            let mut buf: [u8; 5] = [0; 5];
             reader.read_exact(&mut buf).await?;
-            if &buf[0..4] != b"dtn!" {
+            if &buf[0..3] != b"tn!" {
                 return Err(TcpClError::InvalidMagic);
             }
-            if buf[4] != 4 {
+            if buf[3] != 4 {
                 return Err(TcpClError::UnsupportedVersion);
             }
             Ok(TcpClPacket::ContactHeader(
-                ContactHeaderFlags::from_bits_truncate(buf[5]),
+                ContactHeaderFlags::from_bits_truncate(buf[4]),
             ))
         } else {
             // unknown  code
@@ -260,6 +261,16 @@ pub(crate) enum TcpClError {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[tokio::test]
+    async fn contact_header_roundtrip() {
+        let packet = TcpClPacket::ContactHeader(ContactHeaderFlags::default());
+        let mut buf = Vec::new();
+        packet.write(&mut buf).await.unwrap();
+        let mut slice = buf.as_slice();
+        assert_eq!(TcpClPacket::read(&mut slice).await.unwrap(), packet);
+        assert!(slice.is_empty(), "contact header not fully consumed");
+    }
 
     #[tokio::test]
     async fn oversized_segment_is_rejected_without_allocating() {
