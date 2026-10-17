@@ -16,7 +16,7 @@ pub enum PeerType {
 impl std::convert::TryFrom<&str> for PeerType {
     type Error = ();
     fn try_from(value: &str) -> Result<Self, Self::Error> {
-        match dbg!(value.to_lowercase().as_str()) {
+        match value.to_lowercase().as_str() {
             "static" => Ok(Self::Static),
             "dynamic" => Ok(Self::Dynamic),
             _ => Err(()),
