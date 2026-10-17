@@ -82,17 +82,20 @@ fn carry_out(
     statistics: &mut Statistics,
 ) -> Result<(), Verdict> {
     let rule = action.rule;
-    let Err(failure) = apply(action, keys, node, bundle) else {
-        if let Some(event) = success_event(&action.kind) {
-            statistics.record(&rule.name, event);
+    let failure = match apply(action, keys, node, bundle) {
+        Ok(blocks) => {
+            if let Some(event) = success_event(&action.kind) {
+                statistics.record_n(&rule.name, event, blocks);
+            }
+            debug!(
+                "BPSec rule {}: {:?} succeeded for bundle {}",
+                rule.name,
+                action.kind,
+                bundle.id()
+            );
+            return Ok(());
         }
-        debug!(
-            "BPSec rule {}: {:?} succeeded for bundle {}",
-            rule.name,
-            action.kind,
-            bundle.id()
-        );
-        return Ok(());
+        Err(failure) => failure,
     };
     warn!(
         "BPSec rule {}: {:?} failed for bundle {}: {}",
@@ -161,15 +164,24 @@ impl From<BpsecError> for Failure {
     }
 }
 
+/// Carries out a security action, returning the number of security blocks added,
+/// checked or removed.
 fn apply(
     action: &SecurityAction,
     keys: &KeySet,
     node: &EndpointID,
     bundle: &mut Bundle,
-) -> Result<(), Failure> {
+) -> Result<u64, Failure> {
     let rule = action.rule;
-    let verified = match action.kind {
-        ActionKind::Missing { .. } => return Err(Failure::Missing),
+    let verified = |verified| {
+        if verified {
+            Ok(1)
+        } else {
+            Err(Failure::NotVerified)
+        }
+    };
+    match action.kind {
+        ActionKind::Missing { .. } => Err(Failure::Missing),
         ActionKind::Sign { target } => {
             let parameters = bib_parameters(&rule.context);
             bpsec::sign(
@@ -179,25 +191,22 @@ fn apply(
                 node.clone(),
                 parameters,
             )?;
-            true
+            Ok(1)
         }
-        ActionKind::Verify { bib } => bpsec::verify(bundle, bib, key(keys, rule)?)?,
-        ActionKind::Accept { bib } => {
-            bpsec::accept(bundle, bib, key(keys, rule)?, ACCEPTED_TARGET_CRC)?
-        }
+        ActionKind::Verify { bib } => verified(bpsec::verify(bundle, bib, key(keys, rule)?)?),
+        ActionKind::Accept { bib } => verified(bpsec::accept(
+            bundle,
+            bib,
+            key(keys, rule)?,
+            ACCEPTED_TARGET_CRC,
+        )?),
         ActionKind::Encrypt { target } => {
-            encrypt(bundle, target, rule, key(keys, rule)?, node)?;
-            true
+            Ok(encrypt(bundle, target, rule, key(keys, rule)?, node)?)
         }
         ActionKind::Decrypt { bcb } => {
             bpsec::decrypt(bundle, bcb, key(keys, rule)?, ACCEPTED_TARGET_CRC)?;
-            true
+            Ok(1)
         }
-    };
-    if verified {
-        Ok(())
-    } else {
-        Err(Failure::NotVerified)
     }
 }
 
@@ -233,25 +242,27 @@ fn bib_parameters(context: &SecurityContext) -> BibSecurityContextParameter {
 /// Encrypts a target with a BCB, after encrypting the BIBs protecting it, as BIBs have to
 /// be encrypted along with their targets (RFC 9172, 3.9). Each block gets its own BCB with
 /// a new random IV, as reusing an IV with the same key breaks AES-GCM (RFC 9173, 4.6).
-/// The bundle is only changed if all encryptions succeed.
+/// The bundle is only changed if all encryptions succeed. Returns the number of BCBs added.
 fn encrypt(
     bundle: &mut Bundle,
     target: u64,
     rule: &SecurityRule,
     key: &[u8],
     node: &EndpointID,
-) -> Result<(), BpsecError> {
+) -> Result<u64, BpsecError> {
     let bibs = policy::bibs_of(bundle, target);
     if bibs.is_empty() {
-        return encrypt_block(bundle, target, rule, key, node);
+        encrypt_block(bundle, target, rule, key, node)?;
+        return Ok(1);
     }
     // a copy, so a failure leaves no BIB encrypted without its target
     let mut encrypted = bundle.clone();
-    for block in bibs.into_iter().chain([target]) {
-        encrypt_block(&mut encrypted, block, rule, key, node)?;
+    let blocks: Vec<u64> = bibs.into_iter().chain([target]).collect();
+    for block in &blocks {
+        encrypt_block(&mut encrypted, *block, rule, key, node)?;
     }
     *bundle = encrypted;
-    Ok(())
+    Ok(blocks.len() as u64)
 }
 
 fn encrypt_block(
@@ -389,15 +400,18 @@ mod tests {
             bcb_rule(SecurityRole::Source, bcb_key, FailureAction::Drop),
         ];
         let mut bundle = bundle();
+        let mut statistics = Statistics::default();
         let verdict = enforce(
             &rules,
             &keys(KEY),
             &eid("dtn://node1/"),
             Transmit,
             &mut bundle,
-            &mut Statistics::default(),
+            &mut statistics,
         );
         assert_eq!(verdict, Verdict::Process);
+        // one BCB for the payload, one for its BIB
+        assert_eq!(statistics.rule("Source-bcb").encrypted, 2);
         // the bundle survives encoding, as on its way to the next node
         Bundle::try_from(bundle.to_cbor()).unwrap()
     }

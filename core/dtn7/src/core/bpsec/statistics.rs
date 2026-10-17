@@ -32,7 +32,7 @@ pub struct RuleStatistics {
 }
 
 impl RuleStatistics {
-    fn record(&mut self, event: Event) {
+    fn add_events(&mut self, event: Event, count: u64) {
         let counter = match event {
             Event::Signed => &mut self.signed,
             Event::Verified => &mut self.verified,
@@ -43,7 +43,7 @@ impl RuleStatistics {
             Event::Failed => &mut self.failed,
             Event::Dropped => &mut self.dropped,
         };
-        *counter += 1;
+        *counter += count;
     }
 
     fn add(&mut self, other: &RuleStatistics) {
@@ -66,10 +66,15 @@ pub struct Statistics {
 
 impl Statistics {
     pub fn record(&mut self, rule: &str, event: Event) {
+        self.record_n(rule, event, 1);
+    }
+
+    /// Records an event several times, e.g., one per security block.
+    pub fn record_n(&mut self, rule: &str, event: Event, count: u64) {
         self.rules
             .entry(rule.to_string())
             .or_default()
-            .record(event);
+            .add_events(event, count);
     }
 
     pub fn rule(&self, rule: &str) -> RuleStatistics {
