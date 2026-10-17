@@ -1,4 +1,5 @@
 use crate::cla::CLAsAvailable;
+use crate::core::bpsec::config::BpsecConfig;
 use crate::core::helpers::is_valid_node_name;
 use crate::core::DtnPeer;
 use bp7::EndpointID;
@@ -74,6 +75,7 @@ pub struct DtnConfig {
     /// (RFC 9171, 4.3.1). Older dtn7 versions create such bundles, so they are
     /// accepted by default.
     pub strict_validation: bool,
+    pub bpsec: BpsecConfig,
 }
 
 pub fn rnd_node_name() -> String {
@@ -159,6 +161,12 @@ impl From<PathBuf> for DtnConfig {
             }
         }
         debug!("routing options: {:?}", dtncfg.routing_settings);
+
+        dtncfg.bpsec = match s.get::<BpsecConfig>("bpsec") {
+            Ok(bpsec) => bpsec,
+            Err(config::ConfigError::NotFound(_)) => BpsecConfig::default(),
+            Err(err) => panic!("invalid [bpsec] configuration: {}", err),
+        };
 
         dtncfg.workdir = if let Ok(wd) = s.get_string("workdir") {
             PathBuf::from(wd)
@@ -340,6 +348,7 @@ impl DtnConfig {
             ecla_tcp_port: 0,
             parallel_bundle_processing: false,
             strict_validation: false,
+            bpsec: BpsecConfig::default(),
         }
     }
     pub fn set(&mut self, cfg: DtnConfig) {
@@ -373,6 +382,7 @@ impl DtnConfig {
         self.ecla_tcp_port = cfg.ecla_tcp_port;
         self.parallel_bundle_processing = cfg.parallel_bundle_processing;
         self.strict_validation = cfg.strict_validation;
+        self.bpsec = cfg.bpsec;
     }
 
     /// Helper function that adds discovery destinations to a config struct

@@ -1,4 +1,5 @@
 pub mod application_agent;
+pub mod bpsec;
 pub mod bundlepack;
 pub mod helpers;
 pub mod peer;

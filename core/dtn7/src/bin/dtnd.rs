@@ -5,7 +5,7 @@ use dtn7::cla::CLAsAvailable;
 use dtn7::core::helpers::is_valid_node_name;
 use dtn7::dtnd::daemon::*;
 use dtn7::DtnConfig;
-use log::info;
+use log::{error, info};
 use std::collections::HashMap;
 use std::panic;
 use std::{convert::TryInto, process};
@@ -511,6 +511,9 @@ Tag 255 takes 5 arguments and is interpreted as address. Usage: -S 255:'Samplest
     //DtnConfig::from(std::path::PathBuf::from(cfgfile));
     //}
     info!("starting dtnd");
-    start_dtnd(cfg).await.unwrap();
+    if let Err(err) = start_dtnd(cfg).await {
+        error!("{:#}", err);
+        std::process::exit(1);
+    }
     Ok(())
 }

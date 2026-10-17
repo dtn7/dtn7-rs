@@ -74,3 +74,31 @@ fn config_keys_from_example_are_used() {
     assert!(!config.generate_status_reports);
     assert!(!config.strict_validation);
 }
+
+#[test]
+fn bpsec_rules_are_read() {
+    use dtn7::core::bpsec::config::{SecurityOperation, SecurityRole};
+
+    let config = load_config(
+        "bpsec",
+        r#"
+[bpsec]
+keys = "/etc/dtn7/keys"
+
+[[bpsec.rule]]
+name = "accept-sensors"
+role = "acceptor"
+source = "dtn://sensor*/*"
+operation = "bib"
+targets = ["payload"]
+key = "hmac-sensors"
+"#,
+    );
+    assert!(config.bpsec.is_active());
+    let rule = &config.bpsec.rules[0];
+    assert_eq!(rule.role, SecurityRole::Acceptor);
+    assert_eq!(rule.operation, SecurityOperation::Bib);
+    assert_eq!(rule.destination, "*");
+
+    assert!(!load_config("no-bpsec", "").bpsec.is_active());
+}

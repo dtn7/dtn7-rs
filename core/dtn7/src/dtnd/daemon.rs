@@ -68,6 +68,9 @@ pub async fn start_dtnd(cfg: DtnConfig) -> anyhow::Result<()> {
         (*CONFIG.lock()).set(cfg);
     }
 
+    let bpsec = CONFIG.lock().bpsec.clone();
+    crate::core::bpsec::init(&bpsec)?;
+
     STATS.lock().node.node_state.last_up_time = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .unwrap_or_default()
