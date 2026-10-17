@@ -2,12 +2,12 @@ use anyhow::{bail, Result};
 use bp7::*;
 use clap::{crate_authors, crate_version, Parser};
 use dtn7_plus::client::DtnClient;
+use dtn7_plus::client::Message;
 use std::convert::TryFrom;
 use std::io::prelude::*;
 use std::process::Command;
 use tempfile::NamedTempFile;
 use tungstenite::protocol::WebSocketConfig;
-use tungstenite::Message;
 
 fn write_temp_file(data: &[u8], verbose: bool) -> Result<NamedTempFile> {
     let mut data_file = NamedTempFile::new()?;
@@ -92,11 +92,9 @@ fn main() -> anyhow::Result<()> {
     );
 
     client.register_application_endpoint(&args.endpoint)?;
-    let config = WebSocketConfig {
-        max_message_size: Some(1024 * 1024 * 128), // 128 MB
-        max_frame_size: Some(1024 * 1024 * 128),   // 128 MB
-        ..Default::default()
-    };
+    let config = WebSocketConfig::default()
+        .max_message_size(Some(1024 * 1024 * 128)) // 128 MB
+        .max_frame_size(Some(1024 * 1024 * 128)); // 128 MB
     let mut wscon = client.ws_with_config(config)?;
 
     wscon.write_text("/bundle")?;
@@ -124,7 +122,7 @@ fn main() -> anyhow::Result<()> {
             }
             Message::Binary(bin) => {
                 let bndl: Bundle =
-                    Bundle::try_from(bin).expect("Error decoding bundle from server");
+                    Bundle::try_from(bin.as_ref()).expect("Error decoding bundle from server");
                 if bndl.is_administrative_record() {
                     eprintln!("[!] Handling of administrative records not yet implemented!");
                 } else if let Some(data) = bndl.payload() {

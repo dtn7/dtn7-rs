@@ -13,8 +13,8 @@ use crate::{lazy_static, RoutingNotifcation};
 use crate::{peers_add, DtnPeer};
 use bp7::{Bundle, ByteBuffer};
 use log::{debug, error, info};
-use serde::__private::TryFrom;
 use std::collections::HashMap;
+use std::convert::TryFrom;
 use std::sync::{Arc, Mutex};
 use tokio::time::interval;
 
