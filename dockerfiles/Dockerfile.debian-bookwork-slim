@@ -1,11 +1,12 @@
-FROM docker.io/rust:1.76 as builder
+# bookworm, as the binaries run on debian bookworm
+FROM docker.io/rust:1.90-bookworm AS builder
 
 WORKDIR /root/
 COPY . dtn7
 RUN cd dtn7 && \
   cargo install --locked --bins --examples --root /usr/local --path examples && \
   cargo install --locked --bins --examples --root /usr/local --path core/dtn7
-RUN cargo install --locked --bins --examples --root /usr/local dtn7-plus --git https://github.com/dtn7/dtn7-plus-rs  --rev 010202e56 dtn7-plus
+RUN cargo install --locked --bins --root /usr/local dtn7-plus --version 0.9.0
 
 FROM docker.io/debian:bookworm-slim
 

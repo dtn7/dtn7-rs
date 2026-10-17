@@ -1,4 +1,4 @@
-FROM docker.io/rust:1.76.0-alpine as builder
+FROM docker.io/rust:1.90-alpine AS builder
 
 WORKDIR /root/
 RUN apk add musl-dev
