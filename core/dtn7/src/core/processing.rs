@@ -15,13 +15,42 @@ use bp7::CanonicalData;
 use bp7::BUNDLE_AGE_BLOCK;
 
 use anyhow::{bail, Result};
+use lazy_static::lazy_static;
 use log::trace;
 use log::{debug, info, warn};
+use parking_lot::Mutex;
+use std::collections::HashSet;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use std::time::SystemTime;
 use std::time::UNIX_EPOCH;
 use tokio::sync::mpsc::channel;
+
+lazy_static! {
+    /// IDs of the bundles currently being forwarded
+    static ref FORWARDING: Mutex<HashSet<String>> = Mutex::new(HashSet::new());
+}
+
+/// Marks a bundle as being forwarded until it is dropped. This prevents forwarding
+/// the same bundle concurrently, e.g., by dispatch() and the janitor.
+struct ForwardingGuard(String);
+
+impl ForwardingGuard {
+    /// Returns None if the bundle is already being forwarded.
+    fn acquire(bid: &str) -> Option<ForwardingGuard> {
+        if FORWARDING.lock().insert(bid.to_string()) {
+            Some(ForwardingGuard(bid.to_string()))
+        } else {
+            None
+        }
+    }
+}
+
+impl Drop for ForwardingGuard {
+    fn drop(&mut self) {
+        FORWARDING.lock().remove(&self.0);
+    }
+}
 
 // transmit an outbound bundle.
 pub async fn send_bundle(bndl: Bundle) {
@@ -345,6 +374,10 @@ pub async fn forward(mut bp: BundlePack) -> Result<()> {
     let bpid = bp.id().to_string();
 
     trace!("Forward request for bundle: {}", bpid);
+    let Some(_forwarding) = ForwardingGuard::acquire(&bpid) else {
+        debug!("Bundle {} is already being forwarded", bpid);
+        return Ok(());
+    };
 
     bp.add_constraint(Constraint::ForwardPending);
     bp.remove_constraint(Constraint::DispatchPending);
@@ -773,6 +806,17 @@ mod tests {
                 new_payload_block(BlockControlFlags::empty(), b"age".to_vec()),
             ],
         }
+    }
+
+    #[test]
+    fn bundle_is_not_forwarded_concurrently() {
+        let first = ForwardingGuard::acquire("dtn://guard-test/-1-0");
+        assert!(first.is_some());
+        assert!(ForwardingGuard::acquire("dtn://guard-test/-1-0").is_none());
+        assert!(ForwardingGuard::acquire("dtn://guard-test/-2-0").is_some());
+
+        drop(first);
+        assert!(ForwardingGuard::acquire("dtn://guard-test/-1-0").is_some());
     }
 
     #[tokio::test]
