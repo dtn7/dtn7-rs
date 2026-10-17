@@ -77,6 +77,10 @@ pub struct SecurityContext {
     pub sha_variant: Option<ShaVariant>,
     /// Only for BCBs, AES-256-GCM if not given
     pub aes_variant: Option<AesVariant>,
+    /// Only for BCBs: the key of the rule is a key encryption key, wrapping a random
+    /// content encryption key per BCB (AES key wrap, RFC 9173, 4.3.3)
+    #[serde(default)]
+    pub wrapped_key: bool,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -110,9 +114,9 @@ pub enum FailureAction {
     /// Delete the bundle
     #[default]
     Drop,
-    /// Remove the failed security operation, keeping its targets, only for verifiers and
-    /// acceptors. The primary and payload blocks can not be removed, so removing the
-    /// target is no option.
+    /// Remove the failed BIB, keeping its targets, only for BIB verifiers and acceptors.
+    /// BCBs can not be removed without decrypting them, and the primary and payload
+    /// block, the only targets, can not be removed either.
     RemoveOperation,
     /// Only log the failure and process the bundle as usual
     Log,
@@ -154,6 +158,9 @@ impl SecurityRule {
             SecurityOperation::Bib if self.context.aes_variant.is_some() => {
                 bail!("bpsec rule {}: aes-variant is only valid for BCBs", name)
             }
+            SecurityOperation::Bib if self.context.wrapped_key => {
+                bail!("bpsec rule {}: wrapped-key is only valid for BCBs", name)
+            }
             SecurityOperation::Bcb if self.context.sha_variant.is_some() => {
                 bail!("bpsec rule {}: sha-variant is only valid for BIBs", name)
             }
@@ -168,6 +175,12 @@ impl SecurityRule {
                     name
                 )
             }
+            SecurityOperation::Bcb if self.on_failure == FailureAction::RemoveOperation => {
+                bail!(
+                    "bpsec rule {}: BCBs can not be removed without decrypting them",
+                    name
+                )
+            }
             _ => {}
         }
         if self.role == SecurityRole::Source && self.on_failure == FailureAction::RemoveOperation {
@@ -176,21 +189,20 @@ impl SecurityRule {
                 name
             );
         }
-        if self.operation == SecurityOperation::Bcb {
-            bail!("bpsec rule {}: BCBs are not supported yet", name);
-        }
         Ok(())
     }
 
-    /// Length of the keys this rule requires, if the security context demands one.
-    pub fn required_key_len(&self) -> Option<usize> {
+    /// AES variant of a BCB rule
+    pub fn aes_variant(&self) -> AesVariant {
+        self.context.aes_variant.unwrap_or(AesVariant::Aes256)
+    }
+
+    /// Lengths of the keys this rule accepts, if the security context demands any.
+    pub fn valid_key_lengths(&self) -> Option<Vec<usize>> {
         match self.operation {
-            SecurityOperation::Bcb => Some(
-                self.context
-                    .aes_variant
-                    .unwrap_or(AesVariant::Aes256)
-                    .key_len(),
-            ),
+            // AES key wrap with AES-128, AES-192 or AES-256 (RFC 3394)
+            SecurityOperation::Bcb if self.context.wrapped_key => Some(vec![16, 24, 32]),
+            SecurityOperation::Bcb => Some(vec![self.aes_variant().key_len()]),
             SecurityOperation::Bib => None,
         }
     }
@@ -268,12 +280,17 @@ mod tests {
                 .replace("\"bib\"", "\"bcb\"")
                 .replace("[\"payload\", \"primary\"]", "[\"payload\"]")
                 .replace("context = { sha-variant = \"sha512\" }", ""),
-            // BCBs are not supported yet
+            // BIB with a wrapped key
+            SIGN_RULE.replace("sha-variant = \"sha512\"", "wrapped-key = true"),
+            // BCBs can not be removed
             SIGN_RULE
                 .replace("\"source\"", "\"acceptor\"")
                 .replace("\"bib\"", "\"bcb\"")
                 .replace("[\"payload\", \"primary\"]", "[\"payload\"]")
-                .replace("context = { sha-variant = \"sha512\" }", ""),
+                .replace(
+                    "context = { sha-variant = \"sha512\" }",
+                    "on-failure = \"remove-operation\"",
+                ),
             // sources can not remove blocks
             SIGN_RULE.replace(
                 "context =",
@@ -288,6 +305,23 @@ mod tests {
         let mut duplicate_names = parse(SIGN_RULE).unwrap();
         duplicate_names.rules.push(duplicate_names.rules[0].clone());
         assert!(duplicate_names.validate().is_err());
+    }
+
+    #[test]
+    fn encryption_rules_are_parsed() {
+        let toml = SIGN_RULE
+            .replace("\"bib\"", "\"bcb\"")
+            .replace("[\"payload\", \"primary\"]", "[\"payload\"]")
+            .replace(
+                "sha-variant = \"sha512\"",
+                "aes-variant = \"aes128\", wrapped-key = true",
+            );
+        let config = parse(&toml).unwrap();
+        assert!(config.validate().is_ok());
+        let rule = &config.rules[0];
+        assert!(rule.context.wrapped_key);
+        assert_eq!(rule.aes_variant(), AesVariant::Aes128);
+        assert_eq!(rule.valid_key_lengths(), Some(vec![16, 24, 32]));
     }
 
     #[test]

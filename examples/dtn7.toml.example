@@ -142,14 +142,25 @@ tcp_port = 0
 #
 # [[bpsec.rule]]
 # name = "sign-sensors"
-# role = "source"                  # source (signs) | verifier (checks) | acceptor (checks and removes)
+# role = "source"                  # source (signs/encrypts) | verifier (checks BIBs) | acceptor (checks and removes)
 # # globs: * matches within an endpoint path segment, ** across segments ("**" if not given)
 # source = "dtn://node1/*"
 # destination = "dtn://*/sensors"
-# operation = "bib"                # bib (BIB-HMAC-SHA2), bcb (BCB-AES-GCM) is not supported yet
-# targets = ["payload", "primary"]
+# operation = "bib"                # bib (BIB-HMAC-SHA2) | bcb (BCB-AES-GCM)
+# targets = ["payload", "primary"] # BCBs can only target the payload
 # key = "hmac-sensors"             # uses hmac-sensors.key
 # context = { sha-variant = "sha384" } # sha256 | sha384 | sha512
 # # on failed or missing security operations at verifiers and acceptors: delete the
-# # bundle, remove the failed BIB or only log the failure; sources can only drop or log
+# # bundle, remove the failed BIB (BIBs only) or only log the failure; sources can only
+# # drop or log
 # on-failure = "drop"              # drop | remove-operation | log
+#
+# [[bpsec.rule]]
+# name = "decrypt-sensors"
+# role = "acceptor"
+# destination = "dtn://node2/sensors"
+# operation = "bcb"
+# targets = ["payload"]
+# key = "kek-sensors"
+# # aes128 | aes256, wrapped-key: the key wraps a random key per BCB (AES key wrap)
+# context = { aes-variant = "aes256", wrapped-key = true }

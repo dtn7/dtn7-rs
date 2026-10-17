@@ -9,6 +9,8 @@ pub enum Event {
     Signed,
     Verified,
     Accepted,
+    Encrypted,
+    Decrypted,
     /// The rule demanded a security operation the bundle lacks
     Missing,
     /// A security operation failed
@@ -22,6 +24,8 @@ pub struct RuleStatistics {
     pub signed: u64,
     pub verified: u64,
     pub accepted: u64,
+    pub encrypted: u64,
+    pub decrypted: u64,
     pub missing: u64,
     pub failed: u64,
     pub dropped: u64,
@@ -33,6 +37,8 @@ impl RuleStatistics {
             Event::Signed => &mut self.signed,
             Event::Verified => &mut self.verified,
             Event::Accepted => &mut self.accepted,
+            Event::Encrypted => &mut self.encrypted,
+            Event::Decrypted => &mut self.decrypted,
             Event::Missing => &mut self.missing,
             Event::Failed => &mut self.failed,
             Event::Dropped => &mut self.dropped,
@@ -44,6 +50,8 @@ impl RuleStatistics {
         self.signed += other.signed;
         self.verified += other.verified;
         self.accepted += other.accepted;
+        self.encrypted += other.encrypted;
+        self.decrypted += other.decrypted;
         self.missing += other.missing;
         self.failed += other.failed;
         self.dropped += other.dropped;

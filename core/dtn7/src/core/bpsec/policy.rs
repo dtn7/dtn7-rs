@@ -47,6 +47,8 @@ struct SecurityBlock {
     number: u64,
     operation: SecurityOperation,
     targets: Vec<u64>,
+    /// BCBs only: the BCB encrypts BIBs, whose targets are unknown until decrypted
+    encrypts_bibs: bool,
 }
 
 /// Returns the security actions for a bundle at a processing step, in the order they
@@ -148,6 +150,9 @@ fn source_actions<'a>(
 /// of the primary block last. Targets without the required operation are reported as
 /// missing; a target encrypted by a BCB may have an encrypted BIB, so it is not missing
 /// a BIB.
+///
+/// The targets of encrypted BIBs are unknown until decrypted, so BCBs encrypting BIBs are
+/// decrypted by the first matching BCB rule, regardless of its targets.
 fn receiver_actions<'a>(
     rules: impl Iterator<Item = &'a SecurityRule>,
     existing: &[SecurityBlock],
@@ -162,7 +167,8 @@ fn receiver_actions<'a>(
         let targets = target_numbers(rule);
         let protecting = existing.iter().filter(|block| {
             block.operation == rule.operation
-                && block.targets.iter().any(|target| targets.contains(target))
+                && (block.encrypts_bibs
+                    || block.targets.iter().any(|target| targets.contains(target)))
         });
         for block in protecting {
             if !handled.insert(block.number) {
@@ -221,9 +227,26 @@ fn targets_of(blocks: &[SecurityBlock], operation: SecurityOperation) -> HashSet
         .collect()
 }
 
+/// Returns the block numbers of the unencrypted BIBs protecting a target.
+pub fn bibs_of(bundle: &Bundle, target: u64) -> Vec<u64> {
+    security_blocks(bundle)
+        .into_iter()
+        .filter(|block| {
+            block.operation == SecurityOperation::Bib && block.targets.contains(&target)
+        })
+        .map(|block| block.number)
+        .collect()
+}
+
 /// Decodes the BIBs and BCBs of a bundle. Undecodable blocks are skipped, as are BIBs
 /// encrypted by a BCB, which can only be decoded after decryption.
 fn security_blocks(bundle: &Bundle) -> Vec<SecurityBlock> {
+    let bibs: HashSet<u64> = bundle
+        .canonicals
+        .iter()
+        .filter(|block| block.block_type == INTEGRITY_BLOCK)
+        .map(|block| block.block_number)
+        .collect();
     let decoded: Vec<SecurityBlock> = bundle
         .canonicals
         .iter()
@@ -240,6 +263,8 @@ fn security_blocks(bundle: &Bundle) -> Vec<SecurityBlock> {
             Some(SecurityBlock {
                 number: block.block_number,
                 operation,
+                encrypts_bibs: operation == SecurityOperation::Bcb
+                    && asb.security_targets.iter().any(|t| bibs.contains(t)),
                 targets: asb.security_targets,
             })
         })
@@ -293,13 +318,8 @@ mod tests {
 
     /// Encrypts the target and, first, the BIBs protecting it (RFC 9172, 3.9).
     fn encrypted(mut bundle: Bundle, target: u64) -> (Bundle, u64) {
-        let bibs: Vec<u64> = security_blocks(&bundle)
-            .into_iter()
-            .filter(|block| block.operation == Bib && block.targets.contains(&target))
-            .map(|block| block.number)
-            .collect();
         let mut bcb = 0;
-        for block in bibs.into_iter().chain([target]) {
+        for block in bibs_of(&bundle, target).into_iter().chain([target]) {
             bcb = bp7::bpsec::encrypt(
                 &mut bundle,
                 block,
@@ -479,16 +499,22 @@ mod tests {
 
     #[test]
     fn encrypted_targets_are_not_missing_their_bib() {
-        // the BIB of the payload is encrypted along with it
+        // the BIB of the payload is encrypted along with it, by its own BCB
         let (bundle, _) = signed(bundle(), &[PAYLOAD_BLOCK_NUMBER]);
         let (bundle, bcb) = encrypted(bundle, PAYLOAD_BLOCK_NUMBER);
         let rules = [
             rule("accept-bib", Acceptor, Bib, &[Payload]),
             rule("decrypt", Acceptor, Bcb, &[Payload]),
         ];
+        // encrypted() encrypts the BIB first, its BCB has the preceding block number
+        let bib_bcb = bcb - 1;
+        // the BCB of the BIB is decrypted by the BCB rule as well
         assert_eq!(
             kinds(&evaluate(&rules, Receive, &bundle)),
-            vec![ActionKind::Decrypt { bcb }]
+            vec![
+                ActionKind::Decrypt { bcb: bib_bcb },
+                ActionKind::Decrypt { bcb }
+            ]
         );
     }
 }

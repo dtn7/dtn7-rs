@@ -76,12 +76,12 @@ impl KeySet {
             let Some(key) = self.get(&rule.key) else {
                 bail!("bpsec rule {} uses unknown key {}", rule.name, rule.key);
             };
-            if let Some(len) = rule.required_key_len() {
-                if key.bytes().len() != len {
+            if let Some(lengths) = rule.valid_key_lengths() {
+                if !lengths.contains(&key.bytes().len()) {
                     bail!(
-                        "bpsec rule {} requires a key of {} bytes, key {} has {} bytes",
+                        "bpsec rule {} requires a key of {:?} bytes, key {} has {} bytes",
                         rule.name,
-                        len,
+                        lengths,
                         rule.key,
                         key.bytes().len()
                     );
@@ -238,7 +238,13 @@ mod tests {
 
         let mut aes128 = rule(SecurityOperation::Bcb, "aes");
         aes128.context.aes_variant = Some(AesVariant::Aes128);
-        assert!(keys.check_rules(&[aes128]).is_err());
+        assert!(keys.check_rules(&[aes128.clone()]).is_err());
+        // key encryption keys may have any AES key length
+        aes128.context.wrapped_key = true;
+        assert!(keys.check_rules(&[aes128]).is_ok());
+        let mut wrapped = rule(SecurityOperation::Bcb, "hmac");
+        wrapped.context.wrapped_key = true;
+        assert!(keys.check_rules(&[wrapped]).is_err());
     }
 
     #[test]
