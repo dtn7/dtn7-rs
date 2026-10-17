@@ -136,27 +136,7 @@ pub fn validate_bundle(bndl: &Bundle) -> Result<()> {
         bail!("bundle {} has no valid destination", bndl.id());
     }
     if let Err(errors) = bndl.validate() {
-        // bp7 inverts the creation timestamp check and rejects bundles without a
-        // clock that carry the mandatory bundle age block, it is checked below instead
-        let errors: Vec<_> = errors
-            .into_iter()
-            .filter(|err| {
-                !matches!(err, bp7::error::Error::BundleError(msg)
-                    if msg.starts_with("Creation Timestamp is zero"))
-            })
-            .collect();
-        if !errors.is_empty() {
-            bail!("bundle {} is invalid: {:?}", bndl.id(), errors);
-        }
-    }
-    // a bundle without creation time must carry a bundle age block (RFC 9171, 4.3.1)
-    if bndl.primary.creation_timestamp.dtntime() == 0
-        && bndl.extension_block_by_type(BUNDLE_AGE_BLOCK).is_none()
-    {
-        bail!(
-            "bundle {} has no creation time and no bundle age block",
-            bndl.id()
-        );
+        bail!("bundle {} is invalid: {:?}", bndl.id(), errors);
     }
     Ok(())
 }
