@@ -1,6 +1,101 @@
 # Changelog
 All notable changes to this project will be documented in this file.
 
+## [0.22.0] - 2026-10-17
+
+### Bug Fixes
+
+- Bind IPv6 discovery listener to all interfaces instead of loopback (#83)
+- Refresh peer last_contact on inbound bundles (#84)
+- Remove flagged unknown blocks at their actual index
+- Interpret bundle age block in milliseconds
+- Prevent deadlock between local delivery and /status/info
+- Reject bundles without a destination node
+- Ignore discovered peers without a node name
+- Keep routing agents alive on gone requesters and bad config
+- Harden sessions against malformed input and lost reads
+- Do not accept deleted bundles again
+- Return spray and wait copies only for the failed node
+- Only record epidemic peers that are actually sent to
+- Expire bundles without creation time relative to reception
+- Keep static peers static when they are rediscovered
+- Support peers with IPv6 addresses and host names
+- Do not forward the same bundle concurrently
+- Handle bundles removed before dispatching
+- Tolerate clocks set back after a peer's last contact
+- Reject invalid peer types and destinations
+- Reject empty node names
+- Notify routing agents about peers dropped after failures
+- Check the bundle itself before sending status reports
+- Skip external routing notifications for unknown peers
+- Parse contact headers read as packets correctly
+- Handle BPSec and reserved block types per RFC 9171
+- Read generate-status-reports as documented
+- Restrict external routing and ECLA websockets to localhost
+- Count encrypted BCBs instead of encrypt actions
+
+### Documentation
+
+- Various improvements (#74)
+- User guide and HTTP API endpoints
+
+### Feat
+
+- Ipnd listen port configurable (#67)
+
+### Features
+
+- Added graphml2docker helper to create docker compose scenarios with dtn7
+- Dtnrecv now supports dynamically (un)registering of local endpoints (#65)
+- Routing agents can now trigger deletions of bundles with an empty CLA sender list
+- Websocket maximum message size increased to 128mb and large uploads via rest interface now allowed
+- Send HTTP api call now also supports setting the bundle processing control flags
+- Added CCSDS 734.20-O-1 Bundle Protocol Orange Book compliant management information
+- Improved node statistics
+- Mdns discovery (#79)
+- Honor transfer MRU and make it configurable
+- Validate bundles entering the node
+- Optional strict validation of primary block CRCs
+- Security rule configuration
+- Key store with runtime reload
+- Policy engine
+- Enforce security rules in bundle processing
+- Statistics per security rule and /status/bpsec
+- Block confidentiality with BCB-AES-GCM
+
+### Miscellaneous Tasks
+
+- Bump mio from 0.8.4 to 0.8.11 in /fuzz (#60)
+- Updated dependencies
+- Updated GitHub Actions workflows
+- Bump tokio from 1.36.0 to 1.44.2 in /fuzz (#68)
+- Bump rand from 0.8.5 to 0.8.6 in /fuzz (#81)
+- Bump github.com/gorilla/websocket in /examples/go/dtnecho (#86)
+- Pleased clippy
+- Pleased clippy
+- Remove leftover dbg! from peer type parsing
+- Upgraded bp7 to 0.11.0, dtn7-plus to 0.8.0 and d7sneakers to 0.4.0
+- Pleased clippy
+- Upgraded bp7 to 0.12.0, dtn7-plus to 0.9.0 and d7sneakers to 0.5.0
+
+### Refactor
+
+- Moved connectivity helpers for docker compose scenarios to bash helper lib
+- Changed logging for websocket buffer flushing from debug to trace level
+- Typos and adjustments (#72)
+- Rely on bp7 to validate bundles without creation time
+
+### Testing
+
+- Added transfer benchmark script local_benchmark.sh
+- Cover bundle processing and routing agent robustness
+- Make peer validity tests deterministic
+- BPSec scenario with three nodes
+
+### Build
+
+- Build images with Rust 1.90 and released dtn7-plus
+
 ## [0.21.0] - 2024-03-27
 
 ### Features
