@@ -338,6 +338,81 @@ async fn missing_primary_crc_is_rejected_only_when_strict() {
     assert!(strict_with_crc.is_ok());
 }
 
+/// Received bundles are checked against the security rules: bundles with a valid BIB are
+/// stored without it, tampered or unsigned bundles are deleted.
+#[cfg(feature = "bpsec")]
+async fn security_rules_are_enforced_on_reception() {
+    use dtn7::core::bpsec::config::*;
+
+    const KEY: &str = "00112233445566778899aabbccddeeff";
+    let keys = tempfile::tempdir().unwrap();
+    std::fs::write(keys.path().join("hmac.key"), KEY).unwrap();
+    let config = BpsecConfig {
+        keys: Some(keys.path().into()),
+        rules: vec![SecurityRule {
+            name: "accept-payload".into(),
+            role: SecurityRole::Acceptor,
+            source: "dtn://bpsec-sender/**".into(),
+            destination: "**".into(),
+            operation: SecurityOperation::Bib,
+            targets: vec![SecurityTarget::Payload],
+            key: "hmac".into(),
+            context: SecurityContext::default(),
+            on_failure: FailureAction::Drop,
+        }],
+    };
+    dtn7::core::bpsec::init(&config).unwrap();
+
+    let signed = |payload: &[u8]| {
+        let mut bndl = bundle(
+            "dtn://bpsec-sender/app",
+            eid("dtn://bpsec-receiver/app"),
+            vec![new_payload_block(
+                BlockControlFlags::empty(),
+                payload.to_vec(),
+            )],
+        );
+        let key = bp7::helpers::unhexify(KEY).unwrap();
+        bp7::bpsec::sign(
+            &mut bndl,
+            &[1],
+            &key,
+            eid("dtn://bpsec-sender/"),
+            Default::default(),
+        )
+        .unwrap();
+        bndl
+    };
+    let is_deleted = |bid: &str| dtn7::store_is_known(bid) && !dtn7::store_has_item(bid);
+
+    let valid = signed(b"valid");
+    let bid = valid.id();
+    dtn7::core::processing::receive(valid).await.unwrap();
+    assert!(!is_deleted(&bid));
+    let stored = dtn7::store_get_bundle(&bid).unwrap();
+    assert!(stored.decode_bibs().is_empty(), "accepted BIB was kept");
+
+    let mut tampered = signed(b"tampered");
+    tampered
+        .extension_block_by_type_mut(bp7::PAYLOAD_BLOCK)
+        .unwrap()
+        .set_data(CanonicalData::Data(b"changed".to_vec()));
+    let bid = tampered.id();
+    dtn7::core::processing::receive(tampered).await.unwrap();
+    assert!(is_deleted(&bid), "tampered bundle was not deleted");
+
+    let unsigned = bundle(
+        "dtn://bpsec-sender/app",
+        eid("dtn://bpsec-receiver/app"),
+        vec![payload()],
+    );
+    let bid = unsigned.id();
+    dtn7::core::processing::receive(unsigned).await.unwrap();
+    assert!(is_deleted(&bid), "unsigned bundle was not deleted");
+
+    dtn7::core::bpsec::init(&BpsecConfig::default()).unwrap();
+}
+
 // The daemon uses process-wide globals and a routing agent bound to the runtime,
 // so all checks run sequentially within a single test.
 #[tokio::test]
@@ -351,4 +426,6 @@ async fn processing_and_routing() {
     invalid_bundles_are_rejected().await;
     clockless_bundles_require_bundle_age_block().await;
     missing_primary_crc_is_rejected_only_when_strict().await;
+    #[cfg(feature = "bpsec")]
+    security_rules_are_enforced_on_reception().await;
 }

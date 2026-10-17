@@ -1,3 +1,4 @@
+use crate::core::bpsec::{self, ProcessingStep, Verdict};
 use crate::core::bundlepack::*;
 use crate::core::*;
 use crate::routing::RoutingNotifcation;
@@ -55,10 +56,17 @@ impl Drop for ForwardingGuard {
 }
 
 // transmit an outbound bundle.
-pub async fn send_bundle(bndl: Bundle) {
+pub async fn send_bundle(mut bndl: Bundle) {
     tokio::spawn(async move {
         if let Err(err) = validate_bundle(&bndl) {
             warn!("Transmission failed: {}", err);
+            return;
+        }
+        if let Verdict::Drop(_) = bpsec::enforce(ProcessingStep::Transmit, &mut bndl) {
+            warn!(
+                "Transmission failed: bundle {} violates the security policy",
+                bndl.id()
+            );
             return;
         }
         if let Err(err) = store_push_bundle(&bndl) {
@@ -257,6 +265,11 @@ pub async fn receive(mut bndl: Bundle) -> Result<()> {
     for i in remove_idx.into_iter().rev() {
         bndl.canonicals.remove(i);
     }
+    if let Verdict::Drop(reason) = bpsec::enforce(ProcessingStep::Receive, &mut bndl) {
+        info!("Bundle violates the security policy: {}", bp.id());
+        delete(bp, reason).await?;
+        return Ok(());
+    }
     if let Err(err) = store_push_bundle(&bndl) {
         bail!("error adding received bundle: {} {}", bndl.id(), err);
     }
@@ -434,6 +447,12 @@ pub async fn forward(mut bp: BundlePack) -> Result<()> {
         trace!("Handle bundle age block");
         // Handle bundle age block
         bndl = handle_bundle_age_block(bndl).await?;
+
+        // only the copy sent is changed, retries start from the stored bundle
+        if let Verdict::Drop(reason) = bpsec::enforce(ProcessingStep::Forward, &mut bndl) {
+            delete(bp, reason).await?;
+            bail!("bundle {} violates the security policy", bpid);
+        }
 
         let mut wg = Vec::new();
         let bundle_data = bndl.to_cbor();

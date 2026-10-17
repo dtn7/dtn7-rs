@@ -110,9 +110,9 @@ pub enum FailureAction {
     /// Delete the bundle
     #[default]
     Drop,
-    /// Remove the security target block, only for verifiers and acceptors
-    RemoveTarget,
-    /// Remove the security operation, keeping the target, only for verifiers and acceptors
+    /// Remove the failed security operation, keeping its targets, only for verifiers and
+    /// acceptors. The primary and payload blocks can not be removed, so removing the
+    /// target is no option.
     RemoveOperation,
     /// Only log the failure and process the bundle as usual
     Log,
@@ -170,15 +170,14 @@ impl SecurityRule {
             }
             _ => {}
         }
-        let removes_blocks = matches!(
-            self.on_failure,
-            FailureAction::RemoveTarget | FailureAction::RemoveOperation
-        );
-        if self.role == SecurityRole::Source && removes_blocks {
+        if self.role == SecurityRole::Source && self.on_failure == FailureAction::RemoveOperation {
             bail!(
                 "bpsec rule {}: security sources can only drop or log on failures",
                 name
             );
+        }
+        if self.operation == SecurityOperation::Bcb {
+            bail!("bpsec rule {}: BCBs are not supported yet", name);
         }
         Ok(())
     }
@@ -269,10 +268,16 @@ mod tests {
                 .replace("\"bib\"", "\"bcb\"")
                 .replace("[\"payload\", \"primary\"]", "[\"payload\"]")
                 .replace("context = { sha-variant = \"sha512\" }", ""),
+            // BCBs are not supported yet
+            SIGN_RULE
+                .replace("\"source\"", "\"acceptor\"")
+                .replace("\"bib\"", "\"bcb\"")
+                .replace("[\"payload\", \"primary\"]", "[\"payload\"]")
+                .replace("context = { sha-variant = \"sha512\" }", ""),
             // sources can not remove blocks
             SIGN_RULE.replace(
                 "context =",
-                "on-failure = \"remove-target\"\n        context =",
+                "on-failure = \"remove-operation\"\n        context =",
             ),
         ];
         for toml in invalid {

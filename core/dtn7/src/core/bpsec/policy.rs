@@ -4,6 +4,7 @@
 //! carried out by the enforcement.
 
 use super::config::{SecurityOperation, SecurityRole, SecurityRule, SecurityTarget};
+use super::ProcessingStep;
 use bp7::bpsec::{AbstractSecurityBlock, CONFIDENTIALITY_BLOCK, INTEGRITY_BLOCK};
 use bp7::{Bundle, CanonicalData};
 use glob_match::glob_match;
@@ -13,17 +14,6 @@ use std::collections::HashSet;
 const PRIMARY_BLOCK_NUMBER: u64 = 0;
 /// Block number of the payload block (RFC 9171, 4.3.2)
 const PAYLOAD_BLOCK_NUMBER: u64 = 1;
-
-/// Where in the bundle processing the policy is evaluated
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum ProcessingStep {
-    /// A local application sends a bundle
-    Transmit,
-    /// A bundle was received from a peer
-    Receive,
-    /// A bundle is forwarded to a peer
-    Forward,
-}
 
 /// A security operation the policy demands for a bundle
 #[derive(Debug, PartialEq, Eq)]
@@ -109,6 +99,9 @@ fn target_numbers(rule: &SecurityRule) -> Vec<u64> {
 ///
 /// Each target gets its own BIB. A BIB has to be encrypted along with its targets, so a
 /// BIB for several targets would hide the integrity protection of all of them.
+///
+/// The primary block is signed first: signing it removes its CRC, which changes the
+/// primary block covered by the other BIBs (integrity scope flags, RFC 9173, 3.2).
 fn source_actions<'a>(
     rules: impl Iterator<Item = &'a SecurityRule>,
     existing: &[SecurityBlock],
@@ -142,12 +135,19 @@ fn source_actions<'a>(
             }
         }
     }
+    signs.sort_by_key(|action| {
+        action.kind
+            != ActionKind::Sign {
+                target: PRIMARY_BLOCK_NUMBER,
+            }
+    });
     signs.into_iter().chain(encryptions).collect()
 }
 
-/// Verifiers and acceptors handle the security blocks protecting their targets. Targets
-/// without the required operation are reported as missing; a target encrypted by a BCB
-/// may have an encrypted BIB, so it is not missing a BIB.
+/// Verifiers and acceptors handle the security blocks protecting their targets, the BIB
+/// of the primary block last. Targets without the required operation are reported as
+/// missing; a target encrypted by a BCB may have an encrypted BIB, so it is not missing
+/// a BIB.
 fn receiver_actions<'a>(
     rules: impl Iterator<Item = &'a SecurityRule>,
     existing: &[SecurityBlock],
@@ -198,6 +198,14 @@ fn receiver_actions<'a>(
             }
         }
     }
+    // accepting the BIB of the primary block restores its CRC, which changes the primary
+    // block covered by the other BIBs, so it is accepted last
+    verifications.sort_by_key(|action| match action.kind {
+        ActionKind::Accept { bib } => existing
+            .iter()
+            .any(|block| block.number == bib && block.targets.contains(&PRIMARY_BLOCK_NUMBER)),
+        _ => false,
+    });
     missing
         .into_iter()
         .chain(decryptions)
@@ -382,10 +390,10 @@ mod tests {
             kinds(&actions),
             vec![
                 ActionKind::Sign {
-                    target: PAYLOAD_BLOCK_NUMBER
+                    target: PRIMARY_BLOCK_NUMBER
                 },
                 ActionKind::Sign {
-                    target: PRIMARY_BLOCK_NUMBER
+                    target: PAYLOAD_BLOCK_NUMBER
                 },
                 ActionKind::Encrypt {
                     target: PAYLOAD_BLOCK_NUMBER
@@ -395,8 +403,8 @@ mod tests {
         assert!(actions[..2].iter().all(|action| action.rule.name == "sign"));
 
         // a bundle signed and encrypted before needs nothing anymore
-        let (bundle, _) = signed(bundle(), &[PAYLOAD_BLOCK_NUMBER]);
-        let (bundle, _) = signed(bundle, &[PRIMARY_BLOCK_NUMBER]);
+        let (bundle, _) = signed(bundle(), &[PRIMARY_BLOCK_NUMBER]);
+        let (bundle, _) = signed(bundle, &[PAYLOAD_BLOCK_NUMBER]);
         let (bundle, _) = encrypted(bundle, PAYLOAD_BLOCK_NUMBER);
         assert!(evaluate(&rules, Forward, &bundle).is_empty());
     }

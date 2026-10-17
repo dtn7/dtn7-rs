@@ -141,12 +141,14 @@ tcp_port = 0
 #
 # [[bpsec.rule]]
 # name = "sign-sensors"
-# role = "source"                  # source | verifier | acceptor
+# role = "source"                  # source (signs) | verifier (checks) | acceptor (checks and removes)
 # # globs: * matches within an endpoint path segment, ** across segments ("**" if not given)
 # source = "dtn://node1/*"
 # destination = "dtn://*/sensors"
-# operation = "bib"                # bib (BIB-HMAC-SHA2) | bcb (BCB-AES-GCM)
-# targets = ["payload", "primary"] # BCBs can not target the primary block
+# operation = "bib"                # bib (BIB-HMAC-SHA2), bcb (BCB-AES-GCM) is not supported yet
+# targets = ["payload", "primary"]
 # key = "hmac-sensors"             # uses hmac-sensors.key
-# context = { sha-variant = "sha384" } # bib: sha256 | sha384 | sha512, bcb: aes-variant = aes128 | aes256
-# on-failure = "drop"              # drop | remove-target | remove-operation | log
+# context = { sha-variant = "sha384" } # sha256 | sha384 | sha512
+# # on failed or missing security operations at verifiers and acceptors: delete the
+# # bundle, remove the failed BIB or only log the failure; sources can only drop or log
+# on-failure = "drop"              # drop | remove-operation | log
