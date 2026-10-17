@@ -112,7 +112,11 @@ impl From<PathBuf> for DtnConfig {
         if dtncfg.debug {
             //std::env::set_var("RUST_LOG", "dtn7=debug,dtnd=debug");
         }
-        dtncfg.generate_status_reports = s.get_bool("generate_status_reports").unwrap_or(false);
+        // documented as "generate-status-reports", older versions only read the snake case key
+        dtncfg.generate_status_reports = s
+            .get_bool("generate-status-reports")
+            .or_else(|_| s.get_bool("generate_status_reports"))
+            .unwrap_or(false);
         dtncfg.parallel_bundle_processing =
             s.get_bool("parallel-bundle-processing").unwrap_or(false);
         dtncfg.strict_validation = s.get_bool("strict-validation").unwrap_or(false);
