@@ -1,0 +1,22 @@
+# n1 signs and encrypts the bundles it sends to n3
+[bpsec]
+keys = "/etc/dtn7/keys"
+
+[[bpsec.rule]]
+name = "sign"
+role = "source"
+source = "dtn://n1/"
+destination = "dtn://n3/**"
+operation = "bib"
+targets = ["primary", "payload"]
+key = "hmac"
+
+[[bpsec.rule]]
+name = "encrypt"
+role = "source"
+source = "dtn://n1/"
+destination = "dtn://n3/**"
+operation = "bcb"
+targets = ["payload"]
+key = "kek"
+context = { wrapped-key = true }

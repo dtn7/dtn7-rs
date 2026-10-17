@@ -1,0 +1,62 @@
+# BPSec (RFC 9172) in a line of three nodes, built from the local sources:
+# n1 signs and encrypts bundles to n3, n2 verifies them, n3 decrypts and accepts them.
+# Run with ../run.sh, then check with bpsec-3n-check.sh.
+name: bpsec-3n
+
+x-dtn7: &dtn7
+  image: dtn7:bpsec-local
+  build:
+    context: ../../..
+    dockerfile: dockerfiles/Dockerfile.debian-bookwork-slim
+  cap_add:
+    - NET_ADMIN
+  privileged: true
+
+services:
+  n1:
+    <<: *dtn7
+    hostname: n1
+    command: -C mtcp -c /etc/dtn7/dtn7.toml
+    volumes:
+      - ./bpsec/n1.toml:/etc/dtn7/dtn7.toml:ro
+      - ./bpsec/keys:/etc/dtn7/keys:ro
+    networks:
+      bpsec1:
+        ipv4_address: 172.110.0.101
+
+  n2:
+    <<: *dtn7
+    hostname: n2
+    command: -C mtcp -c /etc/dtn7/dtn7.toml
+    volumes:
+      - ./bpsec/n2.toml:/etc/dtn7/dtn7.toml:ro
+      - ./bpsec/keys:/etc/dtn7/keys:ro
+    networks:
+      bpsec1:
+        ipv4_address: 172.110.0.102
+      bpsec2:
+        ipv4_address: 172.210.0.102
+
+  n3:
+    <<: *dtn7
+    hostname: n3
+    command: -C mtcp -c /etc/dtn7/dtn7.toml
+    volumes:
+      - ./bpsec/n3.toml:/etc/dtn7/dtn7.toml:ro
+      - ./bpsec/keys:/etc/dtn7/keys:ro
+    networks:
+      bpsec2:
+        ipv4_address: 172.210.0.103
+
+networks:
+  bpsec1:
+    name: bpsec1
+    ipam:
+      config:
+        - subnet: 172.110.0.0/24
+
+  bpsec2:
+    name: bpsec2
+    ipam:
+      config:
+        - subnet: 172.210.0.0/24

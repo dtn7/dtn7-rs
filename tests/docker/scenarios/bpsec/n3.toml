@@ -1,0 +1,20 @@
+# n3 decrypts and accepts the bundles from n1
+[bpsec]
+keys = "/etc/dtn7/keys"
+
+[[bpsec.rule]]
+name = "decrypt"
+role = "acceptor"
+source = "dtn://n1/**"
+operation = "bcb"
+targets = ["payload"]
+key = "kek"
+context = { wrapped-key = true }
+
+[[bpsec.rule]]
+name = "accept"
+role = "acceptor"
+source = "dtn://n1/**"
+operation = "bib"
+targets = ["primary", "payload"]
+key = "hmac"
