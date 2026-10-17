@@ -158,6 +158,29 @@ $ curl http://127.0.0.1:3000/delete?dtn://node1/-734350088476-0
 Deleted bundle dtn://node1/-734350088476-0
 ```
 
+### **POST** `/bpsec/keys/reload`
+
+Reloads the [BPSec](bpsec.md) keys from the configured key directory.
+If the keys can not be loaded or do not fit the security rules, the current keys are kept and an error is returned.
+
+```
+$ curl -X POST http://127.0.0.1:3000/bpsec/keys/reload
+Reloaded 2 keys
+```
+
+### **GET** `/status/bpsec`
+
+Returns whether [BPSec](bpsec.md) is active, the number of loaded keys and the security rules with their statistics as JSON, without any key material.
+
+```
+$ curl http://127.0.0.1:3000/status/bpsec
+{
+  "active": false,
+  "keys": 0,
+  "rules": []
+}
+```
+
 ### *DEBUG ONLY* **GET** `/debug/rnd_bundle`
 
 This is a debug helper that inserts a random bundle into the local bundle store.

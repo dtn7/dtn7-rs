@@ -21,6 +21,7 @@ Plus:
 * A simple web interface for status information about `dtnd` 
 * A [web-socket interface](doc/http-client-api.md) for application agents
 * Interfaces for external processes to provide [routing strategies](doc/erouting.md) and [convergence layers](doc/ecla.md)
+* Configurable [Bundle Protocol Security (BPSec) - RFC9172](doc/bpsec.md) policies for integrity and confidentiality
 
 The actual BP7 implementation (encoding/decoding) is available as a separate [project](https://github.com/dtn7/bp7-rs).
 
