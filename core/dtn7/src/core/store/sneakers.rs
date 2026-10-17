@@ -137,6 +137,7 @@ impl BundleStore for SneakersBundleStore {
             received_time: meta.time_added_to_db,
             lifetime: meta.lifetime,
             id: bpid.to_owned(),
+            // not stored in the sneakers database, check the bundle itself if needed
             administrative: false,
             size: meta.size as usize,
             constraints: convert_constraints_to_hashset(constraints.unwrap()),

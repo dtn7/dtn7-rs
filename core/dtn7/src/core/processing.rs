@@ -736,17 +736,16 @@ async fn send_status_report(
     status: StatusInformationPos,
     reason: StatusReportReason,
 ) {
-    // Don't respond to other administrative records or anonymous bundles.
-    if bp.administrative || bp.source == EndpointID::none() {
+    let Some(bndl) = store_get_bundle(bp.id()) else {
+        warn!("bundle not found when sending status report: {}", bp.id());
+        return;
+    };
+    // Don't respond to other administrative records or anonymous bundles. The bundle
+    // itself is checked, as not every store keeps the administrative flag in its metadata.
+    if bndl.is_administrative_record() || bndl.primary.source == EndpointID::none() {
         warn!("status report sending denied for dtn:none sources/administrative bundles themselves: {}", bp.id());
         return;
     }
-    let bndl = store_get_bundle(bp.id());
-    if bndl.is_none() {
-        warn!("bundle not found when sending status report: {}", bp.id());
-        return;
-    }
-    let bndl = bndl.unwrap();
 
     // Don't respond to ourself
     if (*DTNCORE.lock()).is_in_endpoints(&bndl.primary.report_to) {
