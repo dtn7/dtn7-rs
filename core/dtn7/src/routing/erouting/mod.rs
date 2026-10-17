@@ -1,4 +1,5 @@
 use crate::{peers_get_for_node, BundleID, BundlePack, DtnPeer, PeerAddress, RoutingNotifcation};
+use anyhow::Context;
 use bp7::{Bundle, EndpointID};
 use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, HashMap};
@@ -50,9 +51,13 @@ pub enum Packet {
     ServiceAdd(AddService),
 }
 
-impl From<RoutingNotifcation> for Packet {
-    fn from(notification: RoutingNotifcation) -> Self {
-        match notification {
+impl TryFrom<RoutingNotifcation> for Packet {
+    type Error = anyhow::Error;
+
+    /// Fails for notifications about peers without node name or peers that are no
+    /// longer known, e.g., because they were removed in the meantime.
+    fn try_from(notification: RoutingNotifcation) -> anyhow::Result<Self> {
+        let packet = match notification {
             RoutingNotifcation::SendingFailed(bid, cla_sender) => {
                 Packet::SendingFailed(SendingFailed { bid, cla_sender })
             }
@@ -69,15 +74,17 @@ impl From<RoutingNotifcation> for Packet {
                 })
             }
             RoutingNotifcation::EncounteredPeer(eid) => Packet::EncounteredPeer(EncounteredPeer {
-                name: eid.node().unwrap(),
-                eid: eid.clone(),
-                peer: peers_get_for_node(&eid).unwrap(),
-            }),
-            RoutingNotifcation::DroppedPeer(eid) => Packet::DroppedPeer(DroppedPeer {
-                name: eid.node().unwrap(),
+                name: eid.node().context("encountered peer without node name")?,
+                peer: peers_get_for_node(&eid)
+                    .with_context(|| format!("encountered peer {} is not known", eid))?,
                 eid,
             }),
-        }
+            RoutingNotifcation::DroppedPeer(eid) => Packet::DroppedPeer(DroppedPeer {
+                name: eid.node().context("dropped peer without node name")?,
+                eid,
+            }),
+        };
+        Ok(packet)
     }
 }
 
@@ -164,4 +171,18 @@ pub struct AddService {
 #[derive(Serialize, Deserialize, Clone)]
 pub struct ServiceState {
     pub service_list: HashMap<u8, String>,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::convert::TryFrom;
+
+    #[test]
+    fn notifications_about_unknown_peers_are_not_converted() {
+        let eid = EndpointID::try_from("dtn://erouting-unknown-peer/".to_string()).unwrap();
+        assert!(Packet::try_from(RoutingNotifcation::EncounteredPeer(eid.clone())).is_err());
+        assert!(Packet::try_from(RoutingNotifcation::DroppedPeer(eid)).is_ok());
+        assert!(Packet::try_from(RoutingNotifcation::DroppedPeer(EndpointID::none())).is_err());
+    }
 }

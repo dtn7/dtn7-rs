@@ -7,7 +7,7 @@ use crate::{
 };
 use axum::extract::ws::{Message, WebSocket};
 use futures_util::{future, SinkExt, StreamExt, TryStreamExt};
-use log::{error, info, trace};
+use log::{debug, error, info, trace};
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 use std::time;
@@ -155,7 +155,10 @@ fn send_packet(p: &Packet) {
 /// Takes the RoutingNotification's, encodes them to serializable structs and then sends them
 /// to the external router if one is connected.
 pub fn notify(notification: RoutingNotifcation) {
-    send_packet(&notification.into());
+    match Packet::try_from(notification) {
+        Ok(packet) => send_packet(&packet),
+        Err(err) => debug!("Not forwarding notification to external router: {}", err),
+    }
 }
 
 fn remove_response_channel(id: &str) {
