@@ -136,9 +136,30 @@ pub fn validate_bundle(bndl: &Bundle) -> Result<()> {
         bail!("bundle {} has no valid destination", bndl.id());
     }
     if let Err(errors) = bndl.validate() {
-        bail!("bundle {} is invalid: {:?}", bndl.id(), errors);
+        let (missing_crc, errors): (Vec<_>, Vec<_>) =
+            errors.into_iter().partition(is_missing_primary_crc);
+        if !errors.is_empty() {
+            bail!("bundle {} is invalid: {:?}", bndl.id(), errors);
+        }
+        if !missing_crc.is_empty() {
+            if CONFIG.lock().strict_validation {
+                bail!(
+                    "bundle {} has no primary block CRC and is not protected by a BIB",
+                    bndl.id()
+                );
+            }
+            debug!("Accepting bundle {} without primary block CRC", bndl.id());
+        }
     }
     Ok(())
+}
+
+/// Bundles without primary block CRC must be protected by a BIB (RFC 9171, 4.3.1).
+/// Older dtn7 versions and bp7's defaults create bundles without primary block CRC,
+/// so these are only rejected with strict validation.
+fn is_missing_primary_crc(err: &bp7::error::Error) -> bool {
+    matches!(err, bp7::error::Error::BundleError(msg)
+        if msg.starts_with("Primary Block has no CRC"))
 }
 
 // handle received/incoming bundles.

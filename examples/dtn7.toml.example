@@ -22,6 +22,10 @@ generate-status-reports = false
 # sequential is the default
 parallel-bundle-processing = false
 
+# reject bundles without primary block CRC that are not protected by a BIB (RFC 9171)
+# older dtn7 versions create such bundles, so they are accepted by default
+strict-validation = false
+
 # the port on which the web interface listens
 # this provides:
 # - a simple web interface with status information

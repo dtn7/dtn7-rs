@@ -416,7 +416,7 @@ impl WsAASession {
                                 )],
                             };
 
-                            bndl.set_crc(bp7::crc::CRC_NO);
+                            bndl.set_crc(bp7::crc::CRC_32);
                             let bid = bndl.id();
                             debug!(
                                 "Sending bundle {} from data frame to {} from WS",

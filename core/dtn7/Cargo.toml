@@ -14,6 +14,8 @@ readme = "README.md"
 [features]
 
 default = ["store_sled", "store_sneakers"]
+# Bundle Protocol Security (RFC 9172), inactive without configured security rules
+bpsec = ["bp7/bpsec"]
 tracing = ["console-subscriber"]
 deadlock_detection = ["parking_lot/deadlock_detection"]
 store_sled = ["sled"]

@@ -70,6 +70,10 @@ pub struct DtnConfig {
     pub ecla_tcp_port: u16,
     pub ecla_enable: bool,
     pub parallel_bundle_processing: bool,
+    /// Reject bundles without primary block CRC that are not protected by a BIB
+    /// (RFC 9171, 4.3.1). Older dtn7 versions create such bundles, so they are
+    /// accepted by default.
+    pub strict_validation: bool,
 }
 
 pub fn rnd_node_name() -> String {
@@ -111,6 +115,7 @@ impl From<PathBuf> for DtnConfig {
         dtncfg.generate_status_reports = s.get_bool("generate_status_reports").unwrap_or(false);
         dtncfg.parallel_bundle_processing =
             s.get_bool("parallel-bundle-processing").unwrap_or(false);
+        dtncfg.strict_validation = s.get_bool("strict-validation").unwrap_or(false);
         dtncfg.unsafe_httpd = s.get_bool("unsafe_httpd").unwrap_or(false);
         dtncfg.v4 = s.get_bool("ipv4").unwrap_or(true);
         debug!("ipv4: {:?}", dtncfg.v4);
@@ -330,6 +335,7 @@ impl DtnConfig {
             ecla_enable: false,
             ecla_tcp_port: 0,
             parallel_bundle_processing: false,
+            strict_validation: false,
         }
     }
     pub fn set(&mut self, cfg: DtnConfig) {
@@ -362,6 +368,7 @@ impl DtnConfig {
         self.ecla_enable = cfg.ecla_enable;
         self.ecla_tcp_port = cfg.ecla_tcp_port;
         self.parallel_bundle_processing = cfg.parallel_bundle_processing;
+        self.strict_validation = cfg.strict_validation;
     }
 
     /// Helper function that adds discovery destinations to a config struct

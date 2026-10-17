@@ -274,6 +274,11 @@ Tag 255 takes 5 arguments and is interpreted as address. Usage: -S 255:'Samplest
                 .help("Generate status report bundles, can lead to a lot of traffic (default: deactivated)")
                 .action(ArgAction::SetTrue),
         ).arg(
+            Arg::new("strict-validation")
+                .long("strict-validation")
+                .help("Reject bundles without primary block CRC that are not protected by a BIB, as created by older dtn7 versions (default: deactivated)")
+                .action(ArgAction::SetTrue),
+        ).arg(
             Arg::new("parallel-bundle-processing")                
                 .long("parallel-bundle-processing")
                 .help("(Re-)Process bundles in parallel, can cause congestion but might be faster (default: deactivated)")
@@ -318,6 +323,7 @@ Tag 255 takes 5 arguments and is interpreted as address. Usage: -S 255:'Samplest
     cfg.v4 = matches.get_flag("ipv4") || cfg.v4;
     cfg.generate_status_reports =
         matches.get_flag("generate-status-reports") || cfg.generate_status_reports;
+    cfg.strict_validation = matches.get_flag("strict-validation") || cfg.strict_validation;
 
     cfg.ecla_enable = matches.get_flag("ecla");
     if let Some(ecla_tcp_port) = matches.get_one::<u16>("eclatcpport") {

@@ -533,7 +533,7 @@ async fn send_post(
         ])
         .build()
         .unwrap();
-    bndl.set_crc(bp7::crc::CRC_NO);
+    bndl.set_crc(bp7::crc::CRC_32);
 
     debug!(
         "Sending bundle {} to {}",

@@ -285,6 +285,28 @@ async fn clockless_bundles_require_bundle_age_block() {
     assert!(validate_bundle(&without_age).is_err());
 }
 
+/// Bundles without primary block CRC and BIB are only rejected with strict validation.
+async fn missing_primary_crc_is_rejected_only_when_strict() {
+    use dtn7::core::processing::validate_bundle;
+
+    let without_crc = valid_bundle();
+    let mut with_crc = valid_bundle();
+    with_crc.set_crc(bp7::crc::CRC_32);
+    with_crc.calculate_crc();
+
+    assert!(validate_bundle(&without_crc).is_ok());
+    assert!(validate_bundle(&with_crc).is_ok());
+
+    dtn7::CONFIG.lock().strict_validation = true;
+    let strict_without_crc = validate_bundle(&without_crc);
+    let strict_with_crc = validate_bundle(&with_crc);
+    dtn7::CONFIG.lock().strict_validation = false;
+
+    // bp7 only checks the primary block CRC with its bpsec feature
+    assert_eq!(strict_without_crc.is_err(), cfg!(feature = "bpsec"));
+    assert!(strict_with_crc.is_ok());
+}
+
 // The daemon uses process-wide globals and a routing agent bound to the runtime,
 // so all checks run sequentially within a single test.
 #[tokio::test]
@@ -296,4 +318,5 @@ async fn processing_and_routing() {
     deleted_bundles_are_not_accepted_again().await;
     invalid_bundles_are_rejected().await;
     clockless_bundles_require_bundle_age_block().await;
+    missing_primary_crc_is_rejected_only_when_strict().await;
 }
