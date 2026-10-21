@@ -34,6 +34,7 @@ fn execute_cmd(
     let output = command
         .arg(bndl.primary.source.to_string())
         .arg(fname_param)
+        .arg(bndl.id().to_string())
         .output()
         .unwrap_or_else(|e| {
             eprintln!("[!] Error executing command: {}", e);
