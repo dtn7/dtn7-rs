@@ -62,6 +62,8 @@ jobs:
     runs-on: ${{ matrix.os }}
     permissions:
       contents: write # upload the release artifacts
+      id-token: write # sign the attestations
+      attestations: write # store the attestations
     strategy:
       fail-fast: false
       matrix:
@@ -123,6 +125,10 @@ jobs:
           archive="dtn7-$RELEASE_VERSION-$TARGET.tar.gz"
           tar -czvf "$archive" "dtn7-$RELEASE_VERSION/"
           shasum -a 512 "$archive" > "$archive.sha512"
+      - name: Attest the build provenance
+        uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
+        with:
+          subject-path: dtn7-${{ env.RELEASE_VERSION }}-${{ matrix.target }}.tar.gz
       - name: Upload the release artifacts
         shell: bash
         run: |

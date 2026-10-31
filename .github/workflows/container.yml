@@ -110,7 +110,9 @@ jobs:
     runs-on: ubuntu-latest
     environment: docker-hub
     permissions:
-      packages: write # push to GHCR
+      packages: write # push to GHCR and the attestations
+      id-token: write # sign the attestations
+      attestations: write # store the attestations
     strategy:
       fail-fast: false
       matrix:
@@ -161,7 +163,23 @@ jobs:
             docker buildx imagetools create "${tags[@]}" "${sources[@]}"
           done
       - name: Inspect the images
+        id: inspect
         shell: bash
         run: |
           docker buildx imagetools inspect "$DOCKERHUB_IMAGE:$VARIANT-$RELEASE_TAG"
           docker buildx imagetools inspect "$GHCR_IMAGE:$VARIANT-$RELEASE_TAG"
+          # Both registries hold the same image, so they have the same digest.
+          digest=$(docker buildx imagetools inspect "$GHCR_IMAGE:$VARIANT-$RELEASE_TAG" --format '{{json .Manifest}}' | jq -r .digest)
+          echo "digest=$digest" >> "$GITHUB_OUTPUT"
+      - name: Attest the build provenance (Docker Hub)
+        uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
+        with:
+          subject-name: docker.io/${{ env.DOCKERHUB_IMAGE }}
+          subject-digest: ${{ steps.inspect.outputs.digest }}
+          push-to-registry: true
+      - name: Attest the build provenance (GHCR)
+        uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
+        with:
+          subject-name: ${{ env.GHCR_IMAGE }}
+          subject-digest: ${{ steps.inspect.outputs.digest }}
+          push-to-registry: true
