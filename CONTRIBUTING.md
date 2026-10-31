@@ -42,3 +42,9 @@ CI ([`.github/workflows/ci.yml`](.github/workflows/ci.yml)) runs the same recipe
 
 Commits follow [Conventional Commits](https://www.conventionalcommits.org/), e.g. `fix(tcpcl): ...` or `feat!: ...`.
 The changelog is generated from them with [git-cliff](https://git-cliff.org/).
+
+## Releases
+
+Maintainers release with `./release.sh vX.Y.Z`, which updates the versions and the changelog, then commits and tags the release.
+Pushing the tag starts [`.github/workflows/cd.yml`](.github/workflows/cd.yml), which creates the GitHub release with binaries for Linux and macOS and publishes the crate to crates.io.
+If it fails, it can be run again for the same tag from the Actions tab, using the current version of the workflow.
