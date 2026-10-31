@@ -36,6 +36,8 @@ The most important ones:
 The fuzz targets in `fuzz/` are a separate Cargo workspace, so a plain `cargo` command at the root skips them.
 The recipes always cover both workspaces.
 
+CI ([`.github/workflows/ci.yml`](.github/workflows/ci.yml)) runs the same recipes for every pull request and every push to `master`.
+
 ## Commit messages
 
 Commits follow [Conventional Commits](https://www.conventionalcommits.org/), e.g. `fix(tcpcl): ...` or `feat!: ...`.

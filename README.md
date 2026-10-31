@@ -2,7 +2,7 @@
 
 [![Crates.io](https://img.shields.io/crates/v/dtn7.svg)](https://crates.io/crates/dtn7)
 [![Docs.rs](https://docs.rs/dtn7/badge.svg)](https://docs.rs/dtn7)
-[![Build status](https://api.travis-ci.org/dtn7/dtn7-rs.svg?branch=master)](https://travis-ci.org/dtn7/dtn7-rs)
+[![CI](https://github.com/dtn7/dtn7-rs/actions/workflows/ci.yml/badge.svg)](https://github.com/dtn7/dtn7-rs/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE-MIT)
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE-APACHE)
 [![Chat](https://img.shields.io/matrix/dtn7:matrix.org)](https://matrix.to/#/#dtn7:matrix.org)
