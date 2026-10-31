@@ -1,0 +1,77 @@
+#:schema https://www.schemastore.org/prek.json
+
+# `prek install` also sets up the pre-push hook, which runs the tests.
+default_install_hook_types = ["pre-commit", "pre-push"]
+
+[[repos]]
+repo = "builtin"
+hooks = [
+  { id = "check-toml" },
+  { id = "check-yaml" },
+  { id = "end-of-file-fixer" },
+  { id = "mixed-line-ending" },
+  { id = "trailing-whitespace" },
+]
+
+[[repos]]
+repo = "https://github.com/crate-ci/typos"
+rev = "v1.51.1"
+hooks = [
+  { id = "typos" },
+]
+
+[[repos]]
+repo = "https://github.com/tombi-toml/tombi-pre-commit"
+rev = "v1.9.8"
+hooks = [
+  { id = "tombi-lint" },
+]
+
+[[repos]]
+repo = "local"
+hooks = [
+  {
+    id = "cargo-fmt",
+    name = "cargo fmt",
+    language = "system",
+    entry = "just fmt",
+    pass_filenames = false,
+    types = ["rust"]
+  },
+  {
+    id = "cargo-clippy",
+    name = "cargo clippy",
+    language = "system",
+    env = { CARGO_BUILD_WARNINGS = "deny" },
+    entry = "just clippy --keep-going",
+    pass_filenames = false,
+    types = ["rust"]
+  },
+  {
+    id = "cargo-doc",
+    name = "cargo doc",
+    language = "system",
+    env = { RUSTDOCFLAGS = "-D warnings" },
+    entry = "just doc",
+    pass_filenames = false,
+    types = ["rust"]
+  },
+  {
+    id = "cargo-test",
+    name = "cargo test",
+    language = "system",
+    entry = "just test",
+    pass_filenames = false,
+    types = ["rust"],
+    stages = ["pre-push"]
+  },
+  {
+    id = "shell-based-integration-test",
+    name = "shell-based integration test",
+    language = "system",
+    entry = "just test-integration",
+    pass_filenames = false,
+    types = ["rust"],
+    stages = ["pre-push"]
+  },
+]
