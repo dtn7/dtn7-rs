@@ -11,24 +11,32 @@ on:
         description: Existing tag to build and release, e.g. v0.22.0
         required: true
 
-permissions:
-  contents: write
+permissions: {}
+
+# Run them one after another.
+concurrency:
+  group: ${{ github.workflow }}-${{ inputs.tag || github.ref_name }}
+  cancel-in-progress: false
 
 env:
   CARGO_TERM_COLOR: always
-  GH_TOKEN: ${{ github.token }}
   RELEASE_TAG: ${{ inputs.tag || github.ref_name }}
 
 jobs:
   create-release:
     name: Create GitHub release
     runs-on: ubuntu-latest
+    permissions:
+      contents: write # create the release
+    env:
+      GH_TOKEN: ${{ github.token }}
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ env.RELEASE_TAG }}
           fetch-depth: 0
+          persist-credentials: false
       - name: Generate a changelog
         uses: orhun/git-cliff-action@a9a95522b26fe6403f7bb24031f21fb573d0f5ff # v4.9.1
         id: git-cliff
@@ -52,6 +60,8 @@ jobs:
     name: Publish ${{ matrix.target }}
     needs: create-release
     runs-on: ${{ matrix.os }}
+    permissions:
+      contents: write # upload the release artifacts
     strategy:
       fail-fast: false
       matrix:
@@ -69,11 +79,16 @@ jobs:
             target: x86_64-apple-darwin
           - os: macos-latest
             target: aarch64-apple-darwin
+    env:
+      TARGET: ${{ matrix.target }}
+      BUILD_CMD: ${{ matrix.cross && 'cross' || 'cargo' }}
+      GH_TOKEN: ${{ github.token }}
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ env.RELEASE_TAG }}
+          persist-credentials: false
       - name: Set the release version
         shell: bash
         run: echo "RELEASE_VERSION=${RELEASE_TAG#v}" >> "$GITHUB_ENV"
@@ -82,8 +97,6 @@ jobs:
         run: |
           rustup toolchain install stable --profile minimal --target "$TARGET"
           rustup default stable
-        env:
-          TARGET: ${{ matrix.target }}
       # Targets that cannot be built natively on the runner are built with cross.
       - name: Install cross
         if: matrix.cross
@@ -93,8 +106,7 @@ jobs:
       - name: Build
         shell: bash
         run: |
-          ${{ matrix.cross && 'cross' || 'cargo' }} build --locked --release \
-            --target ${{ matrix.target }} --bins --examples
+          "$BUILD_CMD" build --locked --release --target "$TARGET" --bins --examples
       - name: Prepare release assets
         shell: bash
         run: |
@@ -102,34 +114,37 @@ jobs:
           mkdir -p release/bin
           cp {LICENSE*,COPYRIGHT,README.md,CHANGELOG.md} release/
           cp -r doc release/doc
-          cp target/${{ matrix.target }}/release/{dtnd,dtntrigger,dtnsend,dtnrecv,dtnquery} release/bin
-          cp target/${{ matrix.target }}/release/examples/{dtnping,dtnecho2} release/examples
-          mv release/ dtn7-${{ env.RELEASE_VERSION }}/
+          cp "target/$TARGET"/release/{dtnd,dtntrigger,dtnsend,dtnrecv,dtnquery} release/bin
+          cp "target/$TARGET"/release/examples/{dtnping,dtnecho2} release/examples
+          mv release/ "dtn7-$RELEASE_VERSION/"
       - name: Create release artifacts
         shell: bash
         run: |
-          tar -czvf dtn7-${{ env.RELEASE_VERSION }}-${{ matrix.target }}.tar.gz \
-            dtn7-${{ env.RELEASE_VERSION }}/
-          shasum -a 512 dtn7-${{ env.RELEASE_VERSION }}-${{ matrix.target }}.tar.gz \
-            > dtn7-${{ env.RELEASE_VERSION }}-${{ matrix.target }}.tar.gz.sha512
+          archive="dtn7-$RELEASE_VERSION-$TARGET.tar.gz"
+          tar -czvf "$archive" "dtn7-$RELEASE_VERSION/"
+          shasum -a 512 "$archive" > "$archive.sha512"
       - name: Upload the release artifacts
         shell: bash
         run: |
-          gh release upload "$RELEASE_TAG" --clobber \
-            dtn7-${{ env.RELEASE_VERSION }}-${{ matrix.target }}.tar.gz \
-            dtn7-${{ env.RELEASE_VERSION }}-${{ matrix.target }}.tar.gz.sha512
+          archive="dtn7-$RELEASE_VERSION-$TARGET.tar.gz"
+          gh release upload "$RELEASE_TAG" --clobber "$archive" "$archive.sha512"
 
   publish-crates-io:
     name: Publish on crates.io
     needs: publish-github
     runs-on: ubuntu-latest
+    environment: crates-io
+    permissions:
+      contents: read # check out the code
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ env.RELEASE_TAG }}
+          persist-credentials: false
       - run: rustup toolchain install stable --profile minimal && rustup default stable
-      - name: Publish the crate
+      # Trusted publishing needs to be configured on crates.io by the crate owner.
+      - name: Publish the crate # zizmor: ignore[use-trusted-publishing]
         run: cargo publish --locked --manifest-path core/dtn7/Cargo.toml
         env:
           CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_TOKEN }}
