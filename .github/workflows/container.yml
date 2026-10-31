@@ -1,4 +1,4 @@
-name: Publish to Docker Hub
+name: Publish container images
 
 on:
   push:
@@ -19,7 +19,7 @@ concurrency:
   cancel-in-progress: false
 
 env:
-  IMAGE: gh0st42/dtn7
+  DOCKERHUB_IMAGE: gh0st42/dtn7
   RELEASE_TAG: ${{ inputs.tag || github.ref_name }}
 
 jobs:
@@ -30,6 +30,7 @@ jobs:
     environment: docker-hub
     permissions:
       contents: read # check out the code
+      packages: write # push to GHCR
     strategy:
       fail-fast: false
       matrix:
@@ -54,6 +55,10 @@ jobs:
         id: rev
         shell: bash
         run: echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+      # GHCR needs a lowercase name, and forks may have uppercase owners.
+      - name: Set the GHCR image name
+        shell: bash
+        run: echo "GHCR_IMAGE=ghcr.io/${GITHUB_REPOSITORY,,}" >> "$GITHUB_ENV"
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
       - name: Log in to Docker Hub
@@ -61,6 +66,12 @@ jobs:
         with:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_PASSWORD }}
+      - name: Log in to GHCR
+        uses: docker/login-action@81c6f93d4bc991e510b342a00b419b3bb4efc5c6 # v4.7.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ github.token }}
       - name: Build and push by digest
         id: build
         uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
@@ -75,7 +86,8 @@ jobs:
             org.opencontainers.image.version=${{ env.RELEASE_TAG }}
             org.opencontainers.image.revision=${{ steps.rev.outputs.sha }}
             org.opencontainers.image.licenses=MIT OR Apache-2.0
-          outputs: type=image,name=${{ env.IMAGE }},push-by-digest=true,name-canonical=true,push=true
+          # The same image goes to both registries.
+          outputs: type=image,"name=${{ env.DOCKERHUB_IMAGE }},${{ env.GHCR_IMAGE }}",push-by-digest=true,name-canonical=true,push=true
       - name: Export the digest
         shell: bash
         run: |
@@ -97,7 +109,8 @@ jobs:
     needs: build
     runs-on: ubuntu-latest
     environment: docker-hub
-    permissions: {}
+    permissions:
+      packages: write # push to GHCR
     strategy:
       fail-fast: false
       matrix:
@@ -111,6 +124,9 @@ jobs:
           path: ${{ runner.temp }}/digests
           pattern: digests-${{ matrix.variant }}-*
           merge-multiple: true
+      - name: Set the GHCR image name
+        shell: bash
+        run: echo "GHCR_IMAGE=ghcr.io/${GITHUB_REPOSITORY,,}" >> "$GITHUB_ENV"
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
       - name: Log in to Docker Hub
@@ -118,19 +134,34 @@ jobs:
         with:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_PASSWORD }}
-      - name: Create and push the multi-platform image
+      - name: Log in to GHCR
+        uses: docker/login-action@81c6f93d4bc991e510b342a00b419b3bb4efc5c6 # v4.7.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ github.token }}
+      - name: Create and push the multi-platform images
         shell: bash
         working-directory: ${{ runner.temp }}/digests
         run: |
-          tags=(-t "$IMAGE:$VARIANT-$RELEASE_TAG" -t "$IMAGE:$VARIANT")
+          names=("$VARIANT-$RELEASE_TAG" "$VARIANT")
           if [ "$VARIANT" = bookworm ]; then
-            tags+=(-t "$IMAGE:latest")
+            names+=(latest)
           fi
           # The files are named after the digests of the per-platform images.
-          sources=()
-          for digest in *; do
-            sources+=("$IMAGE@sha256:$digest")
+          for image in "$DOCKERHUB_IMAGE" "$GHCR_IMAGE"; do
+            tags=()
+            for name in "${names[@]}"; do
+              tags+=(-t "$image:$name")
+            done
+            sources=()
+            for digest in *; do
+              sources+=("$image@sha256:$digest")
+            done
+            docker buildx imagetools create "${tags[@]}" "${sources[@]}"
           done
-          docker buildx imagetools create "${tags[@]}" "${sources[@]}"
-      - name: Inspect the image
-        run: docker buildx imagetools inspect "$IMAGE:$VARIANT-$RELEASE_TAG"
+      - name: Inspect the images
+        shell: bash
+        run: |
+          docker buildx imagetools inspect "$DOCKERHUB_IMAGE:$VARIANT-$RELEASE_TAG"
+          docker buildx imagetools inspect "$GHCR_IMAGE:$VARIANT-$RELEASE_TAG"

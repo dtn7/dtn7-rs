@@ -46,8 +46,9 @@ This will use the exact versions of all dependencies as used in our repository.
 
 Precompiled binaries for common platforms can be found on [GitHub](https://github.com/dtn7/dtn7-rs/releases).
 
-Container images for `linux/amd64` and `linux/arm64` are available on [Docker Hub](https://hub.docker.com/r/gh0st42/dtn7), based on Alpine (`gh0st42/dtn7:alpine`) or Debian (`gh0st42/dtn7:bookworm`, also `latest`).
-Images of a specific release are tagged like `alpine-vX.Y.Z`.
+Container images for `linux/amd64` and `linux/arm64` are available on [Docker Hub](https://hub.docker.com/r/gh0st42/dtn7) (`gh0st42/dtn7`) and the [GitHub Container Registry](https://github.com/dtn7/dtn7-rs/pkgs/container/dtn7-rs) (`ghcr.io/dtn7/dtn7-rs`).
+Images are available in Alpine (`alpine`) and Debian (`bookworm`, also `latest`) variants.
+Release-specific images use tags such as `alpine-vX.Y.Z` and `bookworm-vX.Y.Z`.
 
 ## Usage
 
