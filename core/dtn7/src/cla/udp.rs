@@ -6,7 +6,6 @@ use dtn7_codegen::cla;
 use log::{debug, error, info};
 use std::collections::HashMap;
 use std::net::SocketAddr;
-use std::net::SocketAddrV4;
 use std::time::Instant;
 use tokio::io;
 use tokio::net::UdpSocket;
@@ -15,8 +14,7 @@ use tokio::sync::mpsc;
 use super::HelpStr;
 
 async fn udp_listener(addr: String, port: u16) -> Result<(), io::Error> {
-    let addr: SocketAddrV4 = format!("{}:{}", addr, port).parse().unwrap();
-    let listener = UdpSocket::bind(&addr)
+    let listener = UdpSocket::bind((addr.as_str(), port))
         .await
         .expect("failed to bind udp port");
     debug!("spawning UDP listener on port {}", port);
@@ -97,7 +95,7 @@ impl UdpConvergenceLayer {
         let addr: String = local_settings
             .and_then(|settings| settings.get("bind"))
             .map(|s| s.to_string())
-            .unwrap_or_else(|| "0.0.0.0".to_string());
+            .unwrap_or_else(crate::cla::default_bind_addr);
         let port = local_settings
             .and_then(|settings| settings.get("port"))
             .and_then(|port_str| port_str.parse::<u16>().ok())

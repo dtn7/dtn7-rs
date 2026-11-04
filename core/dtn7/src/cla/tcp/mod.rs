@@ -844,7 +844,7 @@ impl TcpConvergenceLayer {
         let local_addr: String = local_settings
             .and_then(|settings| settings.get("bind"))
             .map(|s| s.to_string())
-            .unwrap_or_else(|| "0.0.0.0".to_string());
+            .unwrap_or_else(crate::cla::default_bind_addr);
         let port = local_settings
             .and_then(|settings| settings.get("port"))
             .and_then(|port_str| port_str.parse::<u16>().ok())
