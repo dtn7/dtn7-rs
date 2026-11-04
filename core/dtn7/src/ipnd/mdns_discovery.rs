@@ -91,51 +91,34 @@ pub async fn spawn_mdns_discovery() -> Result<()> {
 fn build_mdns_service_info(nodeid: &str, eid: &bp7::EndpointID) -> mdns_sd::ServiceInfo {
     use mdns_sd::ServiceInfo;
 
-    let mut properties: Vec<(&str, String)> = Vec::new();
-
-    // Add endpoint ID
-    let eid_str = eid.to_string();
-    properties.push(("eid", eid_str));
-
     // Add timestamp to force mDNS to broadcast updates even when other data hasn't changed
     // This ensures remote nodes receive periodic ServiceResolved events for keepalive
     let timestamp = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .unwrap()
         .as_secs();
-    properties.push(("ts", timestamp.to_string()));
+
+    let mut properties: Vec<(String, String)> = vec![
+        ("eid".to_string(), eid.to_string()),
+        ("ts".to_string(), timestamp.to_string()),
+    ];
 
     // Add available CLAs with their ports
-    let clas = CLAS.lock();
-    let cla_props: Vec<(String, String)> = clas
-        .iter()
-        .enumerate()
-        .map(|(idx, cla)| {
-            (
-                format!("cla{}", idx),
-                format!("{}:{}", cla.name(), cla.port()),
-            )
-        })
-        .collect();
-    drop(clas);
-
-    for (key, val) in cla_props {
-        properties.push((Box::leak(key.into_boxed_str()), val));
-    }
+    properties.extend(CLAS.lock().iter().enumerate().map(|(idx, cla)| {
+        (
+            format!("cla{}", idx),
+            format!("{}:{}", cla.name(), cla.port()),
+        )
+    }));
 
     // Add custom services
-    let services = DTNCORE.lock().service_list.clone();
-    let svc_props: Vec<(String, String)> = services
-        .iter()
-        .map(|(tag, payload)| (format!("svc{}", tag), payload.clone()))
-        .collect();
-
-    for (key, val) in svc_props {
-        properties.push((Box::leak(key.into_boxed_str()), val));
-    }
-
-    // Convert to format mdns-sd expects
-    let props_ref: Vec<(&str, &str)> = properties.iter().map(|(k, v)| (*k, v.as_str())).collect();
+    properties.extend(
+        DTNCORE
+            .lock()
+            .service_list
+            .iter()
+            .map(|(tag, payload)| (format!("svc{}", tag), payload.clone())),
+    );
 
     // Use a dummy port (actual CLAs have their own ports)
     // The hostname will be <nodeid>.local
@@ -145,7 +128,7 @@ fn build_mdns_service_info(nodeid: &str, eid: &bp7::EndpointID) -> mdns_sd::Serv
         &format!("{}.local.", nodeid),
         "",
         0, // Port not used for DTN discovery
-        &props_ref[..],
+        &properties[..],
     )
     .expect("Failed to create ServiceInfo")
     .enable_addr_auto()
