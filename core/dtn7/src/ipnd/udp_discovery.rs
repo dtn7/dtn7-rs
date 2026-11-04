@@ -196,7 +196,7 @@ pub async fn spawn_udp_discovery() -> Result<()> {
         tokio::spawn(udp_announcer(socket2, false));
     }
     if v6 {
-        let addr: SocketAddr = format!("[::1]:{}", port).parse()?;
+        let addr: SocketAddr = format!("[::]:{}", port).parse()?;
         let addr = addr.into();
         let socket = Socket::new(Domain::IPV6, Type::DGRAM, None)?;
         socket.set_reuse_address(true)?;
