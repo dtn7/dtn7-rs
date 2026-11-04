@@ -41,10 +41,11 @@ use humansize::format_size;
 use humansize::DECIMAL;
 use log::{debug, info, trace, warn};
 use serde::Serialize;
+use socket2::{Domain, Socket, Type};
 use std::collections::HashMap;
 use std::convert::{TryFrom, TryInto};
 use std::fmt::Write;
-use std::net::SocketAddr;
+use std::net::{Ipv4Addr, Ipv6Addr, SocketAddr, TcpListener};
 use std::time::Instant;
 use tinytemplate::TinyTemplate;
 use tower_http::cors::Any;
@@ -885,16 +886,28 @@ pub async fn spawn_httpd() -> Result<()> {
     let v4 = CONFIG.lock().v4;
     let v6 = CONFIG.lock().v6;
     //debug!("starting webserver");
-    let server = if v4 && !v6 {
-        axum::Server::bind(&format!("0.0.0.0:{}", port).parse()?)
-    } else if !v4 && v6 {
-        axum::Server::bind(&format!("[::1]:{}", port).parse()?)
-    } else {
-        axum::Server::bind(&format!("[::]:{}", port).parse()?)
-    }
-    .serve(app.into_make_service_with_connect_info::<SocketAddr>());
+    let server = axum::Server::from_tcp(http_listener(port, v4, v6)?)?
+        .serve(app.into_make_service_with_connect_info::<SocketAddr>());
     server.await?;
     Ok(())
+}
+
+/// Listens on all interfaces of the enabled IP versions.
+fn http_listener(port: u16, v4: bool, v6: bool) -> std::io::Result<TcpListener> {
+    if v4 && !v6 {
+        return TcpListener::bind((Ipv4Addr::UNSPECIFIED, port));
+    }
+    let socket = Socket::new(Domain::IPV6, Type::STREAM, None)?;
+    if v6 && !v4 {
+        // otherwise, dual-stack hosts also accept IPv4 connections on [::]
+        socket.set_only_v6(true)?;
+    }
+    // as TcpListener::bind() does
+    #[cfg(not(windows))]
+    socket.set_reuse_address(true)?;
+    socket.bind(&SocketAddr::from((Ipv6Addr::UNSPECIFIED, port)).into())?;
+    socket.listen(1024)?;
+    Ok(socket.into())
 }
 
 #[cfg(test)]
