@@ -69,6 +69,21 @@ jobs:
           read -ra args <<< "$CHECK_ARGS"
           cargo check --all-targets --locked "${args[@]}"
 
+  msrv:
+    name: Check (MSRV)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      # The oldest Rust version that dtn7 supports, from its rust-version field.
+      - run: |
+          msrv=$(sed -n 's/^rust-version = "\(.*\)"$/\1/p' core/dtn7/Cargo.toml)
+          rustup toolchain install "$msrv" --profile minimal && rustup default "$msrv"
+      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
+      # Warnings are not denied, since older compilers may warn about newer lint names.
+      - run: cargo check --workspace --all-targets --locked
+
   test:
     name: Test
     runs-on: ubuntu-latest

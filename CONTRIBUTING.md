@@ -37,6 +37,8 @@ The fuzz targets in `fuzz/` are a separate Cargo workspace, so a plain `cargo` c
 The recipes always cover both workspaces.
 
 CI ([`.github/workflows/ci.yml`](.github/workflows/ci.yml)) runs the same recipes for every pull request and every push to `master`.
+It also checks that the workspace builds with the oldest supported Rust version, the `rust-version` in `core/dtn7/Cargo.toml`.
+When a change needs a newer Rust version, raise `rust-version`, and the Rust version in `dockerfiles/` if it is older.
 
 ## Commit messages
 
