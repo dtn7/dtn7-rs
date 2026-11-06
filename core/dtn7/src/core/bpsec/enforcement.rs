@@ -9,13 +9,13 @@ use super::policy::{self, ActionKind, SecurityAction};
 use super::statistics::{Event, Statistics};
 use super::{ProcessingStep, Verdict};
 use bp7::administrative_record::{
-    StatusReportReason, FAILED_SECURITY_OPERATION, MISSING_SECURITY_OPERATION,
+    FAILED_SECURITY_OPERATION, MISSING_SECURITY_OPERATION, StatusReportReason,
 };
 use bp7::bpsec::{self, BcbSecurityContextParameter, BibSecurityContextParameter, BpsecError};
 use bp7::{Bundle, EndpointID};
 use log::{debug, warn};
-use rand::rngs::OsRng;
-use rand::RngCore;
+use rand::TryRng;
+use rand::rngs::SysRng;
 use std::fmt;
 use zeroize::Zeroizing;
 
@@ -282,19 +282,23 @@ fn encrypt_block(
     };
     // with a wrapped key, the configured key is the key encryption key
     if rule.context.wrapped_key {
-        let content_key = Zeroizing::new(random_bytes(variant.key_len()));
+        let content_key = Zeroizing::new(random_bytes(variant.key_len())?);
         parameters.wrapped_key = Some(bpsec::wrap_key(key, &content_key)?);
     }
-    let iv = random_bytes(bpsec::IV_LEN);
+    let iv = random_bytes(bpsec::IV_LEN)?;
     bpsec::encrypt(bundle, block, key, &iv, node.clone(), parameters)?;
     Ok(())
 }
 
 /// Random bytes from the random number generator of the operating system
-fn random_bytes(len: usize) -> Vec<u8> {
+fn random_bytes(len: usize) -> Result<Vec<u8>, BpsecError> {
     let mut bytes = vec![0; len];
-    OsRng.fill_bytes(&mut bytes);
-    bytes
+    SysRng.try_fill_bytes(&mut bytes).map_err(|e| {
+        BpsecError::OperationFailed(format!(
+            "random number generator of the operating system failed: {e}"
+        ))
+    })?;
+    Ok(bytes)
 }
 
 /// Removes a failed security operation from the bundle, keeping its targets
@@ -321,9 +325,9 @@ fn remove_operation(kind: &ActionKind, bundle: &mut Bundle) {
 mod tests {
     use super::*;
     use crate::core::bpsec::config::{SecurityRole, SecurityTarget};
+    use ProcessingStep::*;
     use std::collections::HashSet;
     use std::convert::TryFrom;
-    use ProcessingStep::*;
 
     fn eid(s: &str) -> EndpointID {
         EndpointID::try_from(s.to_string()).unwrap()

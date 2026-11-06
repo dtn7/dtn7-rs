@@ -1,6 +1,6 @@
 use std::fmt::Display;
 
-use crate::{RoutingNotifcation, CONFIG, PEERS};
+use crate::{CONFIG, PEERS, RoutingNotification};
 
 use super::{RoutingAgent, RoutingCmd};
 use async_trait::async_trait;
@@ -113,13 +113,13 @@ fn load_routes(routes_file: &str) -> Option<Vec<StaticRouteEntry>> {
     Some(route_entries)
 }
 
-async fn handle_routing_notification(notification: RoutingNotifcation) {
+async fn handle_routing_notification(notification: RoutingNotification) {
     debug!("Received notification: {:?}", notification);
     match notification {
-        RoutingNotifcation::SendingFailed(bid, cla_sender) => {
+        RoutingNotification::SendingFailed(bid, cla_sender) => {
             debug!("Sending failed for bundle {} on CLA {}", bid, cla_sender);
         }
-        RoutingNotifcation::SendingSucceeded(bid, cla_sender) => {
+        RoutingNotification::SendingSucceeded(bid, cla_sender) => {
             debug!("Sending succeeded for bundle {} on CLA {}", bid, cla_sender);
         }
         _ => { /* ignore */ }
@@ -130,10 +130,10 @@ async fn handle_routing_cmd(mut rx: mpsc::Receiver<RoutingCmd>) {
     let mut route_entries = vec![];
     let settings = CONFIG.lock().routing_settings.clone();
 
-    if let Some(static_settings) = settings.get("static") {
-        if let Some(routes_file) = static_settings.get("routes") {
-            route_entries = load_routes(routes_file).unwrap_or_default();
-        }
+    if let Some(static_settings) = settings.get("static")
+        && let Some(routes_file) = static_settings.get("routes")
+    {
+        route_entries = load_routes(routes_file).unwrap_or_default();
     }
 
     let mut core: StaticRoutingAgentCore = StaticRoutingAgentCore {
@@ -154,12 +154,12 @@ async fn handle_routing_cmd(mut rx: mpsc::Receiver<RoutingCmd>) {
                             route, route.via
                         );
                         for p in (*PEERS.lock()).values() {
-                            if p.eid.to_string() == route.via {
-                                if let Some(cla) = p.first_cla() {
-                                    clas.push(cla);
-                                    delete_afterwards = !bp.destination.is_non_singleton();
-                                    break 'route_loop;
-                                }
+                            if p.eid.to_string() == route.via
+                                && let Some(cla) = p.first_cla()
+                            {
+                                clas.push(cla);
+                                delete_afterwards = !bp.destination.is_non_singleton();
+                                break 'route_loop;
                             }
                         }
                         debug!("No valid peer found for route {}", route)
@@ -177,13 +177,13 @@ async fn handle_routing_cmd(mut rx: mpsc::Receiver<RoutingCmd>) {
             super::RoutingCmd::Command(cmd) => {
                 if cmd == "reload" {
                     let settings = CONFIG.lock().routing_settings.clone();
-                    if let Some(static_settings) = settings.get("static") {
-                        if let Some(routes_file) = static_settings.get("routes") {
-                            info!("Reloading static routes from {}", routes_file);
-                            // keep the current routes if the file cannot be read
-                            if let Some(route_entries) = load_routes(routes_file) {
-                                core.routes = route_entries;
-                            }
+                    if let Some(static_settings) = settings.get("static")
+                        && let Some(routes_file) = static_settings.get("routes")
+                    {
+                        info!("Reloading static routes from {}", routes_file);
+                        // keep the current routes if the file cannot be read
+                        if let Some(route_entries) = load_routes(routes_file) {
+                            core.routes = route_entries;
                         }
                     }
                 } else {

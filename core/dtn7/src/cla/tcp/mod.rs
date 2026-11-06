@@ -15,17 +15,17 @@ use std::net::SocketAddr;
 use std::time::Instant;
 use thiserror::Error;
 use tokio::net::tcp::{OwnedReadHalf, OwnedWriteHalf};
+use tokio::sync::Mutex;
 use tokio::sync::mpsc;
 use tokio::sync::mpsc::error::SendError;
 use tokio::sync::oneshot::{self, Sender};
-use tokio::sync::Mutex;
 use tokio::time::{self};
 //use std::net::TcpStream;
 use super::tcp::proto::*;
-use crate::core::store::BundleStore;
 use crate::core::PeerType;
-use crate::{peers_add, peers_known, peers_touch, STORE};
-use crate::{DtnPeer, CONFIG};
+use crate::core::store::BundleStore;
+use crate::{CONFIG, DtnPeer};
+use crate::{STORE, peers_add, peers_known, peers_touch};
 use anyhow::bail;
 use bytes::Bytes;
 use lazy_static::lazy_static;
@@ -397,21 +397,19 @@ impl TcpSession {
                             for extension in &data.extensions {
                                 if extension.item_type == TransferExtensionItemType::BundleID
                                     && self.refuse_existing_bundles
-                                {
-                                    if let Ok(bundle_id) =
+                                    && let Ok(bundle_id) =
                                         String::from_utf8(extension.data.to_vec())
-                                    {
-                                        debug!("transfer extension: bundle id: {}", bundle_id);
-                                        if (*STORE.lock()).is_known(&bundle_id) {
-                                            debug!("refusing bundle, already in store");
-                                            TcpClPacket::XferRefuse(XferRefuseData {
-                                                reason: XferRefuseReasonCode::NotAcceptable,
-                                                tid: data.tid,
-                                            })
-                                            .write(&mut self.writer)
-                                            .await?;
-                                            return Ok((receive_state, send_state));
-                                        }
+                                {
+                                    debug!("transfer extension: bundle id: {}", bundle_id);
+                                    if (*STORE.lock()).is_known(&bundle_id) {
+                                        debug!("refusing bundle, already in store");
+                                        TcpClPacket::XferRefuse(XferRefuseData {
+                                            reason: XferRefuseReasonCode::NotAcceptable,
+                                            tid: data.tid,
+                                        })
+                                        .write(&mut self.writer)
+                                        .await?;
+                                        return Ok((receive_state, send_state));
                                     }
                                 }
                             }
@@ -564,7 +562,7 @@ impl TcpSession {
             byte_vec.push(packet_data);
         }
         if byte_vec.is_empty() {
-            warn!("Emtpy bundle transfer, aborting");
+            warn!("Empty bundle transfer, aborting");
             if tx_result.send(TransferResult::Failure).is_err() {
                 error!("Failed to send response");
                 bail!("Failed to send response");
@@ -844,7 +842,7 @@ impl TcpConvergenceLayer {
         let local_addr: String = local_settings
             .and_then(|settings| settings.get("bind"))
             .map(|s| s.to_string())
-            .unwrap_or_else(|| "0.0.0.0".to_string());
+            .unwrap_or_else(crate::cla::default_bind_addr);
         let port = local_settings
             .and_then(|settings| settings.get("port"))
             .and_then(|port_str| port_str.parse::<u16>().ok())
@@ -1065,9 +1063,11 @@ mod tests {
         assert_eq!(segs.len(), num_expected_segs);
 
         assert!(segs[0].flags.contains(XferSegmentFlags::START));
-        assert!(segs[num_expected_segs - 1]
-            .flags
-            .contains(XferSegmentFlags::END));
+        assert!(
+            segs[num_expected_segs - 1]
+                .flags
+                .contains(XferSegmentFlags::END)
+        );
 
         Ok(segs)
     }

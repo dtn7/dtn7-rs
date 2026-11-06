@@ -1,11 +1,11 @@
 use core::fmt;
 use serde::de::{SeqAccess, Visitor};
 use serde::ser::{SerializeSeq, Serializer};
-use serde::{de, Deserialize, Deserializer, Serialize};
+use serde::{Deserialize, Deserializer, Serialize, de};
 use std::{fmt::Debug, time::Duration};
 
 use crate::ipnd::services::ServiceBlock;
-use bp7::{bundle::Block, ByteBuffer, EndpointID};
+use bp7::{ByteBuffer, EndpointID, bundle::Block};
 
 // Draft IPND version is 0x04
 // This implementation uses more enhanced and additional features, also the bundle protocol version

@@ -2,7 +2,7 @@
 
 # Notifications
 
-``dtnd`` is using a general message bus through channels to deliver routing notifications. The sending is done by the ``routing_notify`` (``dtn7/src/lib.rs``) function. The External Routing needs to pass all received ``enum RoutingNotifcation`` from rust to the connected router. This is done by transforming them to JSON encode-able data structures before sending.
+``dtnd`` is using a general message bus through channels to deliver routing notifications. The sending is done by the ``routing_notify`` (``dtn7/src/lib.rs``) function. The External Routing needs to pass all received ``enum RoutingNotification`` from rust to the connected router. This is done by transforming them to JSON encode-able data structures before sending.
 
 ## Adding Notifications
 
@@ -13,13 +13,13 @@ If a new Notification is added it also needs to be added to the external routing
 Let's imagine some kind of new notification was added to the enum.
 
 ```rust
-pub enum RoutingNotifcation {
+pub enum RoutingNotification {
     SendingFailed(String, String),
     IncomingBundle(Bundle),
     IncomingBundleWithoutPreviousNode(String, String),
     EncounteredPeer(EndpointID),
     DroppedPeer(EndpointID),
-    
+
     // Our new notification
     NewNotification(String, i32)
 }
@@ -59,20 +59,20 @@ pub struct NewNotification {
 
 ```
 
-### 3. Add to ``From<RoutingNotifiaction>`` Trait
+### 3. Add to ``From<RoutingNotification>`` Trait
 
 ``dtn7/src/routing/erouting/mod.rs``
 
-Now that the ``Packet`` enum contains the new notification we need to add the conversion from the ``RoutingNotifcation`` to ``Packet`` in the ``from`` function. We need to add a new match in the function.
+Now that the ``Packet`` enum contains the new notification we need to add the conversion from the ``RoutingNotification`` to ``Packet`` in the ``from`` function. We need to add a new match in the function.
 
 ```rust
-impl From<RoutingNotifcation> for Packet {
-    fn from(notification: RoutingNotifcation) -> Self {
+impl From<RoutingNotification> for Packet {
+    fn from(notification: RoutingNotification) -> Self {
         match notification {
             // ... other matches ...
 
             // Our new notification
-            RoutingNotifcation::NewNotification(some_text, some_number) => Packet::NewNotification(NewNotification {
+            RoutingNotification::NewNotification(some_text, some_number) => Packet::NewNotification(NewNotification {
                 some_text: some_text,
                 some_number: some_number,
             }),

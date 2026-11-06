@@ -1,6 +1,6 @@
 # Getting started with dtn7
 
-This document covers the basic usage of `dtn7` (daemon and some of the CLI tools) within the [core network emulator](https://github.com/coreemu/core). 
+This document covers the basic usage of `dtn7` (daemon and some of the CLI tools) within the [core network emulator](https://github.com/coreemu/core).
 An older version of this guide is also available as a youtube video with instructions for macos:
 
 [![Quickstart using dtn7 and coreemu on macOS](https://img.youtube.com/vi/7xwJEZyL_Ns/0.jpg)](https://www.youtube.com/watch?v=7xwJEZyL_Ns)
@@ -9,7 +9,7 @@ An older version of this guide is also available as a youtube video with instruc
 
 - [Install docker](https://docs.docker.com/get-docker/) - needed for testing in an emulated, virtual network
     * On Linux loading of `ebtables` and/or `sch_netem` kernel modules might be necessary (`sudo modprobe ebtables` / `sudo modprobe sch_netem`)
-- For a quick start we are going to use the [dtn7-showroom](https://github.com/dtn7/dtn7-showroom). 
+- For a quick start we are going to use the [dtn7-showroom](https://github.com/dtn7/dtn7-showroom).
 
 
 *Note: Most of the instructions apply to podman as well but depending on your host platform some parameters or security rules might be different.*
@@ -119,7 +119,7 @@ dtnrecv -e incoming
 
 #### Reacting to incoming bundles
 
-It is also possible to automatically trigger an external command for any incoming bundle to a specified endpoint. 
+It is also possible to automatically trigger an external command for any incoming bundle to a specified endpoint.
 To execute the example script (`sink.sh`) enter the following command:
 ```bash
 dtntrigger -e incoming -v -c /shared/sink.sh

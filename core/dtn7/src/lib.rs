@@ -7,9 +7,9 @@ pub mod ipnd;
 pub mod routing;
 
 use crate::cla::CLAsAvailable;
+use crate::core::DtnStatistics;
 use crate::core::bundlepack::BundlePack;
 use crate::core::store::{BundleStore, InMemoryBundleStore};
-use crate::core::DtnStatistics;
 use crate::routing::{RoutingAgent, RoutingCmd};
 use bp7::{Bundle, EndpointID};
 use cla::{CLAEnum, ClaSenderTask};
@@ -17,13 +17,13 @@ pub use dtnconfig::DtnConfig;
 use log::{debug, error, info, warn};
 
 pub use crate::core::{DtnCore, DtnPeer};
-pub use crate::routing::RoutingNotifcation;
+pub use crate::routing::RoutingNotification;
 
 use crate::cla::ConvergenceLayerAgent;
 use crate::core::bundlepack::Constraint;
 use crate::core::peer::PeerAddress;
 use crate::core::store::BundleStoresEnum;
-use anyhow::{bail, Context, Result};
+use anyhow::{Context, Result, bail};
 use lazy_static::*;
 use parking_lot::Mutex;
 use std::collections::{BTreeMap, HashMap};
@@ -260,7 +260,7 @@ pub async fn routing_get_data(param: String) -> Result<String> {
     Ok(res)
 }
 
-pub async fn routing_notify(notification: RoutingNotifcation) -> Result<()> {
+pub async fn routing_notify(notification: RoutingNotification) -> Result<()> {
     let chan = DTNCORE.lock().routing_agent.channel();
     if let Err(err) = chan.send(RoutingCmd::Notify(notification)).await {
         bail!("Error while sending notification: {}", err);

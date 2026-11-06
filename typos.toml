@@ -1,0 +1,11 @@
+[files]
+# Generated from the commit history by git-cliff.
+extend-exclude = ["CHANGELOG.md"]
+
+[default.extend-words]
+# Convergence layer adapters.
+clas = "clas"
+# Neighbour discovery.
+nd = "nd"
+# Start duration.
+startd = "startd"

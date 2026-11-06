@@ -7,7 +7,7 @@ use dtn7::core::bundlepack::BundlePack;
 use dtn7::{CONFIG, DTNCORE};
 use std::convert::TryFrom;
 use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::{mpsc, Arc};
+use std::sync::{Arc, mpsc};
 use std::time::Duration;
 
 const DELIVERIES: usize = 3000;

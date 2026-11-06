@@ -1,6 +1,6 @@
-use anyhow::{bail, Result};
+use anyhow::{Result, bail};
 use bp7::*;
-use clap::{crate_authors, crate_version, Parser};
+use clap::{Parser, crate_authors, crate_version};
 use dtn7_plus::client::DtnClient;
 use dtn7_plus::client::Message;
 use std::convert::TryFrom;

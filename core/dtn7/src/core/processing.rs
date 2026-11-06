@@ -1,30 +1,30 @@
+use crate::CONFIG;
+use crate::DTNCORE;
 use crate::core::bpsec::{self, ProcessingStep, Verdict};
 use crate::core::bundlepack::*;
 use crate::core::*;
-use crate::routing::RoutingNotifcation;
+use crate::routing::RoutingNotification;
 use crate::store_push_bundle;
 use crate::store_remove;
-use crate::CONFIG;
-use crate::DTNCORE;
-use crate::{is_local_node_id, STATS};
+use crate::{STATS, is_local_node_id};
 use crate::{routing_notify, routing_sender_for_bundle, store_add_bundle_if_unknown};
 
+use bp7::CanonicalData;
 use bp7::administrative_record::*;
 use bp7::bundle::*;
 use bp7::flags::*;
-use bp7::CanonicalData;
 use bp7::{
-    CanonicalBlockType, BUNDLE_AGE_BLOCK, HOP_COUNT_BLOCK, PAYLOAD_BLOCK, PREVIOUS_NODE_BLOCK,
+    BUNDLE_AGE_BLOCK, CanonicalBlockType, HOP_COUNT_BLOCK, PAYLOAD_BLOCK, PREVIOUS_NODE_BLOCK,
 };
 
-use anyhow::{bail, Result};
+use anyhow::{Result, bail};
 use lazy_static::lazy_static;
 use log::trace;
 use log::{debug, info, warn};
 use parking_lot::Mutex;
 use std::collections::HashSet;
-use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::SystemTime;
 use std::time::UNIX_EPOCH;
 use tokio::sync::mpsc::channel;
@@ -287,18 +287,24 @@ pub async fn dispatch(bp: BundlePack) -> Result<()> {
     let Some(bndl) = store_get_bundle(bp.id()) else {
         bail!("bundle not found: {}", bp.id());
     };
-    if let Err(err) = routing_notify(RoutingNotifcation::IncomingBundle(bndl)).await {
+    if let Err(err) = routing_notify(RoutingNotification::IncomingBundle(bndl)).await {
         error!("Error while sending incoming bundle notification: {}", err);
     }
 
     if (*DTNCORE.lock()).is_in_endpoints(&bp.destination)
     // TODO: lookup here AND in local delivery, optimize for just one
     {
-        trace!("Destination for {} is local endpoint → local_delivery", bp.id());
+        trace!(
+            "Destination for {} is local endpoint → local_delivery",
+            bp.id()
+        );
         local_delivery(bp.clone()).await?;
     }
     if !is_local_node_id(&bp.destination) {
-        trace!("Destination for {} is NOT local endpoint → forward", bp.id());
+        trace!(
+            "Destination for {} is NOT local endpoint → forward",
+            bp.id()
+        );
         tokio::spawn(forward(bp));
     }
     Ok(())
@@ -306,23 +312,23 @@ pub async fn dispatch(bp: BundlePack) -> Result<()> {
 
 async fn handle_hop_count_block(mut bundle: Bundle) -> Result<Bundle> {
     let bid = bundle.id();
-    if let Some(hc) = bundle.extension_block_by_type_mut(bp7::canonical::HOP_COUNT_BLOCK) {
-        if hc.hop_count_increase() {
-            let (hc_limit, hc_count) = hc
-                .hop_count_get()
-                .expect("hop count data missing from hop count block");
-            debug!(
-                "Bundle contains an hop count block: {} {} {}",
+    if let Some(hc) = bundle.extension_block_by_type_mut(bp7::canonical::HOP_COUNT_BLOCK)
+        && hc.hop_count_increase()
+    {
+        let (hc_limit, hc_count) = hc
+            .hop_count_get()
+            .expect("hop count data missing from hop count block");
+        debug!(
+            "Bundle contains an hop count block: {} {} {}",
+            bid, hc_limit, hc_count
+        );
+        if hc.hop_count_exceeded() {
+            warn!(
+                "Bundle contains an exceeded hop count block: {} {} {}",
                 bid, hc_limit, hc_count
             );
-            if hc.hop_count_exceeded() {
-                warn!(
-                    "Bundle contains an exceeded hop count block: {} {} {}",
-                    bid, hc_limit, hc_count
-                );
-                delete(bundle.into(), HOP_LIMIT_EXCEEDED).await?;
-                bail!("hop count exceeded");
-            }
+            delete(bundle.into(), HOP_LIMIT_EXCEEDED).await?;
+            bail!("hop count exceeded");
         }
     }
     Ok(bundle)
@@ -481,17 +487,16 @@ pub async fn forward(mut bp: BundlePack) -> Result<()> {
 
                     let next_hop = n.next_hop.node().unwrap_or_default();
                     if let Err(err) =
-                        routing_notify(RoutingNotifcation::SendingFailed(bpid, next_hop.clone()))
+                        routing_notify(RoutingNotification::SendingFailed(bpid, next_hop.clone()))
                             .await
                     {
                         error!("Error while sending failed notification: {}", err);
                     }
-                    if let Some(dropped_peer) = report_failed_transmission(&next_hop) {
-                        if let Err(err) =
-                            routing_notify(RoutingNotifcation::DroppedPeer(dropped_peer.eid)).await
-                        {
-                            error!("Error while sending dropped peer notification: {}", err);
-                        }
+                    if let Some(dropped_peer) = report_failed_transmission(&next_hop)
+                        && let Err(err) =
+                            routing_notify(RoutingNotification::DroppedPeer(dropped_peer.eid)).await
+                    {
+                        error!("Error while sending dropped peer notification: {}", err);
                     }
                     // TODO: send status report?
                     // if (*CONFIG.lock()).generate_service_reports {
@@ -507,7 +512,7 @@ pub async fn forward(mut bp: BundlePack) -> Result<()> {
                     );
                     STATS.lock().outgoing += 1;
                     bundle_sent.store(true, Ordering::Relaxed);
-                    if let Err(err) = routing_notify(RoutingNotifcation::SendingSucceeded(
+                    if let Err(err) = routing_notify(RoutingNotification::SendingSucceeded(
                         bpid,
                         n.next_hop.node().unwrap_or_default(),
                     ))
@@ -529,7 +534,7 @@ pub async fn forward(mut bp: BundlePack) -> Result<()> {
                 hc_count -= 1;
                 hc.set_data(bp7::canonical::CanonicalData::HopCount(hc_limit, hc_count));
                 debug!(
-                    "Bundle's hop count block was resetted: {} {} {}",
+                    "Bundle's hop count block was reset: {} {} {}",
                     &bpid, hc_limit, hc_count
                 );
             }
@@ -776,7 +781,10 @@ async fn send_status_report(
     // Don't respond to other administrative records or anonymous bundles. The bundle
     // itself is checked, as not every store keeps the administrative flag in its metadata.
     if bndl.is_administrative_record() || bndl.primary.source == EndpointID::none() {
-        warn!("status report sending denied for dtn:none sources/administrative bundles themselves: {}", bp.id());
+        warn!(
+            "status report sending denied for dtn:none sources/administrative bundles themselves: {}",
+            bp.id()
+        );
         return;
     }
 

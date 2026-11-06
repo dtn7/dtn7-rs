@@ -1,7 +1,7 @@
 //! Configuration of BPSec (RFC 9172) security rules, the `[bpsec]` section of the
 //! configuration file.
 
-use anyhow::{bail, Result};
+use anyhow::{Result, bail};
 use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
 use std::path::PathBuf;

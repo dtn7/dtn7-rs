@@ -36,6 +36,7 @@ else
 fi
 cargo test $TARGET_OPT &&
     filter_output ./tests/local_nodes_dtn.sh &&
+    STATUS_REPORTS="-g" filter_output ./tests/local_nodes_dtn.sh &&
     filter_output ./tests/local_nodes_ipn.sh &&
     filter_output ./tests/local_ping_echo.sh &&
     filter_output ./tests/local_group_test.sh &&
@@ -46,6 +47,7 @@ cargo test $TARGET_OPT &&
     filter_output ./tests/store_delete_singleton.sh &&
     filter_output ./tests/lifetime.sh &&
     filter_output ./tests/cla_chain_test.sh &&
+    filter_output ./tests/cla_ext_test.sh &&
     filter_output ./tests/ecla_test.sh &&
     filter_output ./tests/ecla_test_chain.sh &&
     filter_output ./tests/ecla_test_mtcp.sh &&

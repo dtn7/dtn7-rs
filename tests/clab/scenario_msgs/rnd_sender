@@ -5,7 +5,7 @@ rnd_recipient() {
 }
 
 mkdir txts
-periodic-file-generator txt 16 32 2 4 txts | while read x; do 
+periodic-file-generator txt 16 32 2 4 txts | while read x; do
 DST=$(rnd_recipient)
 TXTFILE=$(echo $x | cut -d " " -f2)
 echo "sending $(hostname) to $DST > $TXTFILE"

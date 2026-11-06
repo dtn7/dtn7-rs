@@ -1,10 +1,10 @@
 #![recursion_limit = "256"]
 
-use clap::{crate_authors, crate_version, value_parser, Arg, ArgAction, Command};
+use clap::{Arg, ArgAction, Command, crate_authors, crate_version, value_parser};
+use dtn7::DtnConfig;
 use dtn7::cla::CLAsAvailable;
 use dtn7::core::helpers::is_valid_node_name;
 use dtn7::dtnd::daemon::*;
-use dtn7::DtnConfig;
 use log::{error, info};
 use std::collections::HashMap;
 use std::panic;
@@ -23,19 +23,21 @@ async fn main() -> Result<(), std::io::Error> {
         use std::time::Duration;
 
         // Create a background thread which checks for deadlocks every 10s
-        thread::spawn(move || loop {
-            thread::sleep(Duration::from_secs(10));
-            let deadlocks = deadlock::check_deadlock();
-            if deadlocks.is_empty() {
-                continue;
-            }
+        thread::spawn(move || {
+            loop {
+                thread::sleep(Duration::from_secs(10));
+                let deadlocks = deadlock::check_deadlock();
+                if deadlocks.is_empty() {
+                    continue;
+                }
 
-            println!("{} deadlocks detected", deadlocks.len());
-            for (i, threads) in deadlocks.iter().enumerate() {
-                println!("Deadlock #{}", i);
-                for t in threads {
-                    println!("Thread Id {:#?}", t.thread_id());
-                    println!("{:#?}", t.backtrace());
+                println!("{} deadlocks detected", deadlocks.len());
+                for (i, threads) in deadlocks.iter().enumerate() {
+                    println!("Deadlock #{}", i);
+                    for t in threads {
+                        println!("Thread Id {:#?}", t.thread_id());
+                        println!("{:#?}", t.backtrace());
+                    }
                 }
             }
         });
@@ -94,7 +96,7 @@ async fn main() -> Result<(), std::io::Error> {
                 .short('i')
                 .long("interval")
                 .value_name("humantime")
-                .help("Sets service discovery interval (0 = deactive, 2s = 2 seconds, 3m = 3 minutes, etc.) Refers to the discovery interval that is advertised when flag -b is set")
+                .help("Sets service discovery interval (0 = deactivated, 2s = 2 seconds, 3m = 3 minutes, etc.) Refers to the discovery interval that is advertised when flag -b is set")
                 .value_parser(value_parser!(String))
                 .action(ArgAction::Set),
         )
@@ -109,7 +111,7 @@ async fn main() -> Result<(), std::io::Error> {
                 .short('j')
                 .long("janitor")
                 .value_name("humantime")
-                .help("Sets janitor interval (0 = deactive, 2s = 2 seconds, 3m = 3 minutes, etc.)")
+                .help("Sets janitor interval (0 = deactivated, 2s = 2 seconds, 3m = 3 minutes, etc.)")
                 .value_parser(value_parser!(String))
                 .action(ArgAction::Set),
         )
@@ -279,7 +281,7 @@ Tag 255 takes 5 arguments and is interpreted as address. Usage: -S 255:'Samplest
                 .help("Reject bundles without primary block CRC that are not protected by a BIB, as created by older dtn7 versions (default: deactivated)")
                 .action(ArgAction::SetTrue),
         ).arg(
-            Arg::new("parallel-bundle-processing")                
+            Arg::new("parallel-bundle-processing")
                 .long("parallel-bundle-processing")
                 .help("(Re-)Process bundles in parallel, can cause congestion but might be faster (default: deactivated)")
                 .action(ArgAction::SetTrue),
@@ -288,7 +290,7 @@ Tag 255 takes 5 arguments and is interpreted as address. Usage: -S 255:'Samplest
             Arg::new("unsafe_httpd")
                 .short('U')
                 .long("unsafe-httpd")
-                .help("Allow httpd RPC calls from anyhwere")
+                .help("Allow httpd RPC calls from anywhere")
                 .action(ArgAction::SetTrue),
         )
         .arg(
@@ -307,14 +309,15 @@ Tag 255 takes 5 arguments and is interpreted as address. Usage: -S 255:'Samplest
         )
         .get_matches();
 
-    if std::env::var("RUST_LOG").is_err() {
-        if matches.get_flag("debug") || cfg.debug {
-            std::env::set_var("RUST_LOG", "dtn7=debug,dtnd=debug");
-        } else {
-            std::env::set_var("RUST_LOG", "dtn7=info,dtnd=info");
-        }
+    let mut logger = pretty_env_logger::formatted_timed_builder();
+    if let Ok(filters) = std::env::var("RUST_LOG") {
+        logger.parse_filters(&filters);
+    } else if matches.get_flag("debug") || cfg.debug {
+        logger.parse_filters("dtn7=debug,dtnd=debug");
+    } else {
+        logger.parse_filters("dtn7=info,dtnd=info");
     }
-    pretty_env_logger::init_timed();
+    logger.init();
 
     if matches.get_flag("ipv6") {
         cfg.v6 = true;
@@ -370,7 +373,8 @@ Tag 255 takes 5 arguments and is interpreted as address. Usage: -S 255:'Samplest
         cfg.discovery_listen_port = *i;
     }
     if let Some(transport) = matches.get_one::<String>("discoverytransport") {
-        cfg.discovery_transport = transport.parse()
+        cfg.discovery_transport = transport
+            .parse()
             .expect("Invalid discovery transport! Use: udp-multicast, mdns, or both");
     }
     if let Some(i) = matches.get_one::<u16>("webport") {
@@ -394,10 +398,10 @@ Tag 255 takes 5 arguments and is interpreted as address. Usage: -S 255:'Samplest
         }
     }
 
-    if let Some(r) = matches.get_one::<String>("routing") {
-        if dtn7::routing::routing_algorithms().contains(&r.as_str()) {
-            cfg.routing = r.into();
-        }
+    if let Some(r) = matches.get_one::<String>("routing")
+        && dtn7::routing::routing_algorithms().contains(&r.as_str())
+    {
+        cfg.routing = r.into();
     }
     if let Some(r_opts) = matches.get_many::<String>("routing_options") {
         for r_opt in r_opts {
@@ -424,10 +428,10 @@ Tag 255 takes 5 arguments and is interpreted as address. Usage: -S 255:'Samplest
         //cfg.routing_options = r_opts.map(|s| s.to_string()).collect();
     }
 
-    if let Some(db) = matches.get_one::<String>("db") {
-        if dtn7::core::store::bundle_stores().contains(&db.as_str()) {
-            cfg.db = db.into();
-        }
+    if let Some(db) = matches.get_one::<String>("db")
+        && dtn7::core::store::bundle_stores().contains(&db.as_str())
+    {
+        cfg.db = db.into();
     }
 
     if let Some(clas) = matches.get_many::<String>("cla") {
@@ -505,7 +509,7 @@ Tag 255 takes 5 arguments and is interpreted as address. Usage: -S 255:'Samplest
         }
     }
 
-    // historic code, still neccessary?!
+    // historic code, still necessary?!
     // Load config second time for logging purposes
     //if let Some(cfgfile) = matches.value_of("config") {
     //DtnConfig::from(std::path::PathBuf::from(cfgfile));

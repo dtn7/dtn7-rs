@@ -1,24 +1,24 @@
-use crate::core::application_agent::ApplicationAgent;
 use crate::CONFIG;
 use crate::DTNCORE;
 use crate::STATS;
+use crate::core::application_agent::ApplicationAgent;
 
-use anyhow::{bail, Result};
+use anyhow::{Result, bail};
 use axum::extract::ws::{Message, WebSocket};
 use bp7::flags::BlockControlFlags;
 use bp7::flags::BundleControlFlags;
 use bp7::{Bundle, CreationTimestamp, EndpointID};
 use dtn7_plus::client::{WsRecvData, WsSendData};
 use futures::{sink::SinkExt, stream::StreamExt};
-use log::{debug, warn, trace};
+use log::{debug, trace, warn};
 use std::collections::HashSet;
 use std::sync::Arc;
 use std::{
     convert::TryFrom,
     time::{Duration, Instant},
 };
-use tokio::sync::mpsc;
 use tokio::sync::Mutex;
+use tokio::sync::mpsc;
 use tokio::time::interval;
 // Begin application agent WebSocket specific stuff
 
@@ -41,7 +41,7 @@ pub enum DataReceiveFormat {
     JSON,
 }
 
-/// WebSocket Applicatin Agent Session
+/// WebSocket Application Agent Session
 #[derive(Debug, Clone)]
 pub struct WsAASession {
     /// Client must send ping at least once per 10 seconds (CLIENT_TIMEOUT),
@@ -104,7 +104,11 @@ pub async fn handle_socket(socket: WebSocket) {
             }
 
             debug!("sending ping");
-            if tx2.send(Message::Ping(b"dtn7".to_vec())).await.is_err() {
+            if tx2
+                .send(Message::Ping(bytes::Bytes::from_static(b"dtn7")))
+                .await
+                .is_err()
+            {
                 break;
             }
         }
@@ -158,7 +162,7 @@ pub async fn handle_socket(socket: WebSocket) {
 
 macro_rules! ws_reply_text {
     ($sock:expr,$msg:expr) => {
-        if let Err(err) = $sock.send(Message::Text($msg.to_string())).await {
+        if let Err(err) = $sock.send(Message::Text($msg.into())).await {
             bail!("err sendin reply: {} -> {}", $msg, err);
         }
     };
@@ -188,7 +192,7 @@ impl WsAASession {
             WsReceiveMode::Data(format) => {
                 if bndl.payload().is_none() {
                     // No payload -> nothing to deliver to client
-                    // In bundle mode delivery happens because custom canoncial bocks could be present
+                    // In bundle mode delivery happens because custom canonical blocks could be present
                     return Ok(());
                 }
                 let recv = WsRecvData {
@@ -209,7 +213,11 @@ impl WsAASession {
                 }
             }
         };
-        if socket.send(Message::Binary(recv_data)).await.is_err() {
+        if socket
+            .send(Message::Binary(recv_data.into()))
+            .await
+            .is_err()
+        {
             bail!("error sending bundle");
         }
         Ok(())
@@ -417,6 +425,7 @@ impl WsAASession {
                             };
 
                             bndl.set_crc(bp7::crc::CRC_32);
+                            bndl.calculate_crc();
                             let bid = bndl.id();
                             debug!(
                                 "Sending bundle {} from data frame to {} from WS",
@@ -477,7 +486,7 @@ impl WsAASession {
                             WsReceiveMode::Data(format) => {
                                 if bundle.payload().is_none() {
                                     // No payload -> nothing to deliver to client
-                                    // In bundle mode delivery happens because custom canoncial bocks could be present
+                                    // In bundle mode delivery happens because custom canonical blocks could be present
                                     continue;
                                 }
                                 let recv = WsRecvData {
@@ -496,7 +505,7 @@ impl WsAASession {
                                 }
                             }
                         };
-                        let job = socket.send(Message::Binary(recv_data)); //.await;
+                        let job = socket.send(Message::Binary(recv_data.into())); //.await;
                         senders.push(job)
                         //ctx.binary(recv_data);
                     }

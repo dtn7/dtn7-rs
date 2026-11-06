@@ -21,4 +21,3 @@ then
         echo -n "..."
 fi
 echo " ($actualsize bytes)"
-

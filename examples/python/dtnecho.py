@@ -91,4 +91,3 @@ def on_message(ws, message):
 # Connect to default port of dtn7 running on the local machine
 wsapp = websocket.WebSocketApp(f"ws://127.0.0.1:{PORT}/ws", on_message=on_message, on_open=on_open)
 wsapp.run_forever()
-

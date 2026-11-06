@@ -54,7 +54,7 @@ networks:
     ipam:
       config:
         - subnet: 172.100.0.0/24
-  
+
   subnet2:
     name: subnet2
     ipam:

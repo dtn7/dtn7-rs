@@ -1,16 +1,16 @@
 use bp7::canonical::{
-    new_canonical_block, new_hop_count_block, new_payload_block, CanonicalBlock, CanonicalData,
+    CanonicalBlock, CanonicalData, new_canonical_block, new_hop_count_block, new_payload_block,
 };
 use bp7::flags::BlockControlFlags;
 use bp7::primary::PrimaryBlockBuilder;
 use bp7::{Bundle, CreationTimestamp, EndpointID};
-use dtn7::cla::dummy::DummyConvergenceLayer;
 use dtn7::cla::ClaSenderTask;
+use dtn7::cla::dummy::DummyConvergenceLayer;
 use dtn7::core::bundlepack::BundlePack;
 use dtn7::core::peer::{DtnPeer, PeerAddress, PeerType};
 use dtn7::routing::epidemic::EpidemicRoutingAgent;
 use dtn7::routing::sprayandwait::SprayAndWaitRoutingAgent;
-use dtn7::routing::{RoutingAgent, RoutingCmd, RoutingNotifcation};
+use dtn7::routing::{RoutingAgent, RoutingCmd, RoutingNotification};
 use std::collections::HashMap;
 use std::convert::TryFrom;
 use std::time::Duration;
@@ -186,7 +186,7 @@ async fn routing_agents_survive_bad_requests() {
 
     let spray = SprayAndWaitRoutingAgent::new().channel();
     spray
-        .send(RoutingCmd::Notify(RoutingNotifcation::IncomingBundle(
+        .send(RoutingCmd::Notify(RoutingNotification::IncomingBundle(
             to_none,
         )))
         .await
@@ -293,9 +293,11 @@ async fn invalid_bundles_are_rejected() {
 
     // invalid bundles are neither stored nor processed
     let bid = payload_not_last.id();
-    assert!(dtn7::core::processing::receive(payload_not_last)
-        .await
-        .is_err());
+    assert!(
+        dtn7::core::processing::receive(payload_not_last)
+            .await
+            .is_err()
+    );
     assert!(!dtn7::store_is_known(&bid));
 }
 
