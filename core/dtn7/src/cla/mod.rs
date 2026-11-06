@@ -48,8 +48,8 @@ pub enum ClaCmd {
     Shutdown,
 }
 
-/// Resolves a transfer destination such as "10.0.0.1:4556", "[fe80::1]:4556" or
-/// "node1.example.org:4556" to a socket address.
+/// Resolves a transfer destination such as `10.0.0.1:4556`, `[fe80::1]:4556` or
+/// `node1.example.org:4556` to a socket address.
 pub async fn resolve_destination(dest: &str) -> Result<SocketAddr> {
     tokio::net::lookup_host(dest)
         .await

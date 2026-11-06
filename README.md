@@ -2,7 +2,7 @@
 
 [![Crates.io](https://img.shields.io/crates/v/dtn7.svg)](https://crates.io/crates/dtn7)
 [![Docs.rs](https://docs.rs/dtn7/badge.svg)](https://docs.rs/dtn7)
-[![Build status](https://api.travis-ci.org/dtn7/dtn7-rs.svg?branch=master)](https://travis-ci.org/dtn7/dtn7-rs)
+[![CI](https://github.com/dtn7/dtn7-rs/actions/workflows/ci.yml/badge.svg)](https://github.com/dtn7/dtn7-rs/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE-MIT)
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE-APACHE)
 [![Chat](https://img.shields.io/matrix/dtn7:matrix.org)](https://matrix.to/#/#dtn7:matrix.org)
@@ -12,13 +12,13 @@ Rust implementation of a disruption-tolerant networking (DTN) daemon for the [Bu
 
 Plus:
 * [TCP Convergence Layer v4 - RFC9174](https://datatracker.ietf.org/doc/rfc9174/)
-* [Minimal TCP Convergence Layer](https://tools.ietf.org/html/draft-ietf-dtn-mtcpcl-01) 
+* [Minimal TCP Convergence Layer](https://tools.ietf.org/html/draft-ietf-dtn-mtcpcl-01)
 * A simple [HTTP Convergence Layer](doc/http-cl.md)
 * A [HTTP pull-based Convergence Layer](doc/http-pull-cl.md)
 * A minimal [UDP Convergence Layer](https://www.ietf.org/archive/id/draft-sipos-dtn-udpcl-01.html) (currently, without the extensions)
 * An IP neighborhood discovery service
 * Convenient command line tools to interact with the daemon
-* A simple web interface for status information about `dtnd` 
+* A simple web interface for status information about `dtnd`
 * A [web-socket interface](doc/http-client-api.md) for application agents
 * Interfaces for external processes to provide [routing strategies](doc/erouting.md) and [convergence layers](doc/ecla.md)
 * Configurable [Bundle Protocol Security (BPSec) - RFC9172](doc/bpsec.md) policies for integrity and confidentiality
@@ -27,8 +27,8 @@ The actual BP7 implementation (encoding/decoding) is available as a separate [pr
 
 Additional dtn extensions and a client library are also [available](https://crates.io/crates/dtn7-plus).
 
-Currently, a service discovery based on IPND but adapted to CBOR and BPv7, TCP, MTCP & HTTP CLs, sprayandwait/flooding/epidemic/static/sink-routing and restful/websocket command interfaces are implemented. 
-Both addressing schemes, *dtn* as well as *ipn* are supported. 
+Currently, a service discovery based on IPND but adapted to CBOR and BPv7, TCP, MTCP & HTTP CLs, sprayandwait/flooding/epidemic/static/sink-routing and restful/websocket command interfaces are implemented.
+Both addressing schemes, *dtn* as well as *ipn* are supported.
 Furthermore, some CLI tools are provided to easily integrate *dtn7* into shell scripts.
 
 **Beware: This code is still under development and thus might change frequently.**
@@ -41,10 +41,16 @@ Installation from source using cargo:
 cargo install --bins --examples dtn7
 ```
 
-In case of compilation issues, try adding `--locked` to the command. 
+In case of compilation issues, try adding `--locked` to the command.
 This will use the exact versions of all dependencies as used in our repository.
 
 Precompiled binaries for common platforms can be found on [GitHub](https://github.com/dtn7/dtn7-rs/releases).
+Their build provenance can be verified with `gh attestation verify <file> -R dtn7/dtn7-rs`.
+
+Container images for `linux/amd64` and `linux/arm64` are available on [Docker Hub](https://hub.docker.com/r/gh0st42/dtn7) (`gh0st42/dtn7`) and the [GitHub Container Registry](https://github.com/dtn7/dtn7-rs/pkgs/container/dtn7-rs) (`ghcr.io/dtn7/dtn7-rs`).
+Images are available in Alpine (`alpine`) and Debian (`bookworm`, also `latest`) variants.
+Release-specific images use tags such as `alpine-vX.Y.Z` and `bookworm-vX.Y.Z`.
+Like the binaries, they can be verified with `gh attestation verify oci://ghcr.io/dtn7/dtn7-rs:alpine -R dtn7/dtn7-rs`.
 
 ## Usage
 
@@ -54,7 +60,7 @@ There is also a more in-depth [getting started guide](doc/getting-started.md) av
 ### Daemon
 
 The main *Bundle Protocol Agent* `dtnd` can be configured either through the CLI (`dtnd --help`) or by providing a [configuration file](examples/dtn7.toml.example).
-Command line options override configuration file settings if both are mixed. 
+Command line options override configuration file settings if both are mixed.
 The daemon does not fork into background but can be easily started as a background service by invoking it with the `nohup` command and `&`.
 
 Example usage for *node1* with *epidemic* routing, *mtcp* convergence layer and the default endpoint *'incoming'*:
@@ -67,7 +73,7 @@ The same but with ipn addressing scheme and a default endpoint at *23.42*:
 $ dtnd -n 23 -r epidemic -C mtcp -e 42
 ```
 
-Configuration can also happen via a config file. 
+Configuration can also happen via a config file.
 For an example take a look at [examples/dtn7.toml.example](examples/dtn7.toml.example).
 
 ### Helpers
@@ -79,16 +85,16 @@ For an example take a look at [examples/dtn7.toml.example](examples/dtn7.toml.ex
 
 ### Example Applications
 
-A simple DTN echo service can be found under `examples/dtnecho2.rs`. 
+A simple DTN echo service can be found under `examples/dtnecho2.rs`.
 
-This service automatically registers its endpoint and listens for any incoming bundles on the local `/echo` endpoint or for *ipn* addresses on service number `7`. 
-Each bundle is sent back to its source with the same payload and lifetime, no delivery report is requested. 
+This service automatically registers its endpoint and listens for any incoming bundles on the local `/echo` endpoint or for *ipn* addresses on service number `7`.
+Each bundle is sent back to its source with the same payload and lifetime, no delivery report is requested.
 
 This service can be used together with `examples/dtnping.rs` for connectivity tests.
 
 ### Example Use-Cases
 
-Under `tests/` are several shell scripts for integration tests that also showcase how to use the different command line utilities. 
+Under `tests/` are several shell scripts for integration tests that also showcase how to use the different command line utilities.
 Furthermore, under `tests/clab` are more complex and dynamic tests that get executed in *Docker* and [*coreemu*](https://github.com/coreemu/core).
 For pure *docker compose* scenarios you can take a look under `tests/docker`.
 
@@ -120,3 +126,5 @@ Licensed under either of <a href="LICENSE-APACHE">Apache License, Version 2.0</a
 
 
 Unless you explicitly state otherwise, any contribution intentionally submitted for inclusion in `dtn7-rs` by you, as defined in the Apache-2.0 license, shall be dual licensed as above, without any additional terms or conditions.
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for how to build, test and lint the code.

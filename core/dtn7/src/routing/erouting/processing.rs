@@ -2,7 +2,7 @@ use super::{Packet, PeerState, RequestSenderForBundle, ResponseSenderForBundle, 
 use crate::cla::ConvergenceLayerAgent;
 use crate::routing::erouting::Error;
 use crate::{
-    cla_names, lazy_static, service_add, BundlePack, ClaSenderTask, RoutingNotifcation, CLAS,
+    cla_names, lazy_static, service_add, BundlePack, ClaSenderTask, RoutingNotification, CLAS,
     DTNCORE, PEERS,
 };
 use axum::extract::ws::{Message, WebSocket};
@@ -154,7 +154,7 @@ fn send_packet(p: &Packet) {
 
 /// Takes the RoutingNotification's, encodes them to serializable structs and then sends them
 /// to the external router if one is connected.
-pub fn notify(notification: RoutingNotifcation) {
+pub fn notify(notification: RoutingNotification) {
     match Packet::try_from(notification) {
         Ok(packet) => send_packet(&packet),
         Err(err) => debug!("Not forwarding notification to external router: {}", err),

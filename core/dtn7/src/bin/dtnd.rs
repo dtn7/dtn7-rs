@@ -94,7 +94,7 @@ async fn main() -> Result<(), std::io::Error> {
                 .short('i')
                 .long("interval")
                 .value_name("humantime")
-                .help("Sets service discovery interval (0 = deactive, 2s = 2 seconds, 3m = 3 minutes, etc.) Refers to the discovery interval that is advertised when flag -b is set")
+                .help("Sets service discovery interval (0 = deactivated, 2s = 2 seconds, 3m = 3 minutes, etc.) Refers to the discovery interval that is advertised when flag -b is set")
                 .value_parser(value_parser!(String))
                 .action(ArgAction::Set),
         )
@@ -109,7 +109,7 @@ async fn main() -> Result<(), std::io::Error> {
                 .short('j')
                 .long("janitor")
                 .value_name("humantime")
-                .help("Sets janitor interval (0 = deactive, 2s = 2 seconds, 3m = 3 minutes, etc.)")
+                .help("Sets janitor interval (0 = deactivated, 2s = 2 seconds, 3m = 3 minutes, etc.)")
                 .value_parser(value_parser!(String))
                 .action(ArgAction::Set),
         )
@@ -279,7 +279,7 @@ Tag 255 takes 5 arguments and is interpreted as address. Usage: -S 255:'Samplest
                 .help("Reject bundles without primary block CRC that are not protected by a BIB, as created by older dtn7 versions (default: deactivated)")
                 .action(ArgAction::SetTrue),
         ).arg(
-            Arg::new("parallel-bundle-processing")                
+            Arg::new("parallel-bundle-processing")
                 .long("parallel-bundle-processing")
                 .help("(Re-)Process bundles in parallel, can cause congestion but might be faster (default: deactivated)")
                 .action(ArgAction::SetTrue),
@@ -288,7 +288,7 @@ Tag 255 takes 5 arguments and is interpreted as address. Usage: -S 255:'Samplest
             Arg::new("unsafe_httpd")
                 .short('U')
                 .long("unsafe-httpd")
-                .help("Allow httpd RPC calls from anyhwere")
+                .help("Allow httpd RPC calls from anywhere")
                 .action(ArgAction::SetTrue),
         )
         .arg(
@@ -370,7 +370,8 @@ Tag 255 takes 5 arguments and is interpreted as address. Usage: -S 255:'Samplest
         cfg.discovery_listen_port = *i;
     }
     if let Some(transport) = matches.get_one::<String>("discoverytransport") {
-        cfg.discovery_transport = transport.parse()
+        cfg.discovery_transport = transport
+            .parse()
             .expect("Invalid discovery transport! Use: udp-multicast, mdns, or both");
     }
     if let Some(i) = matches.get_one::<u16>("webport") {
@@ -505,7 +506,7 @@ Tag 255 takes 5 arguments and is interpreted as address. Usage: -S 255:'Samplest
         }
     }
 
-    // historic code, still neccessary?!
+    // historic code, still necessary?!
     // Load config second time for logging purposes
     //if let Some(cfgfile) = matches.value_of("config") {
     //DtnConfig::from(std::path::PathBuf::from(cfgfile));

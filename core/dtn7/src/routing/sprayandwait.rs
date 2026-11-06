@@ -4,7 +4,7 @@ use super::RoutingAgent;
 use crate::cla::ClaSenderTask;
 use crate::core::bundlepack::BundlePack;
 use crate::routing::RoutingCmd;
-use crate::{RoutingNotifcation, CONFIG, PEERS};
+use crate::{RoutingNotification, CONFIG, PEERS};
 use async_trait::async_trait;
 use log::{debug, info, warn};
 use tokio::sync::mpsc;
@@ -102,9 +102,9 @@ impl RoutingAgent for SprayAndWaitRoutingAgent {
     }
 }
 
-fn handle_notification(core: &mut SprayAndWaitRoutingAgentCore, notification: RoutingNotifcation) {
+fn handle_notification(core: &mut SprayAndWaitRoutingAgentCore, notification: RoutingNotification) {
     match notification {
-        RoutingNotifcation::SendingFailed(bid, next_hop_node_name) => {
+        RoutingNotification::SendingFailed(bid, next_hop_node_name) => {
             // If a transmission fails we have to remove the node from the list of already received nodes
             // and increase the number of remaining copies again.
             // Direct deliveries do not consume a copy and are not listed, so nothing is
@@ -123,10 +123,10 @@ fn handle_notification(core: &mut SprayAndWaitRoutingAgentCore, notification: Ro
                 meta.remaining_copies += removed;
             }
         }
-        RoutingNotifcation::IncomingBundle(bndl) => {
+        RoutingNotification::IncomingBundle(bndl) => {
             core.handle_new_bundle(bndl.id());
         }
-        RoutingNotifcation::IncomingBundleWithoutPreviousNode(bid, _node_name) => {
+        RoutingNotification::IncomingBundleWithoutPreviousNode(bid, _node_name) => {
             core.handle_new_bundle(bid);
         }
         _ => {}
@@ -257,7 +257,7 @@ mod tests {
         let mut core = core_with("bid", 0, &["node2", "node20", "node3"]);
         handle_notification(
             &mut core,
-            RoutingNotifcation::SendingFailed("bid".into(), "node2".into()),
+            RoutingNotification::SendingFailed("bid".into(), "node2".into()),
         );
         let meta = &core.history["bid"];
         assert_eq!(meta.nodes, vec!["node20", "node3"]);
@@ -270,7 +270,7 @@ mod tests {
         let mut core = core_with("bid", 0, &["node3"]);
         handle_notification(
             &mut core,
-            RoutingNotifcation::SendingFailed("bid".into(), "node2".into()),
+            RoutingNotification::SendingFailed("bid".into(), "node2".into()),
         );
         let meta = &core.history["bid"];
         assert_eq!(meta.nodes, vec!["node3"]);

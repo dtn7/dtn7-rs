@@ -8,7 +8,7 @@ services:
     image: gh0st42/dtn7:bookworm
     cap_add:
       - NET_ADMIN
-    networks: 
+    networks:
       subnet-x-1:
         ipv4_address: 172.18.1.2
       subnet-y-1:
@@ -23,7 +23,7 @@ services:
     image: gh0st42/dtn7:bookworm
     cap_add:
       - NET_ADMIN
-    networks: 
+    networks:
       subnet-x-2:
         ipv4_address: 172.18.2.2
       subnet-x-1:
@@ -40,7 +40,7 @@ services:
     image: gh0st42/dtn7:bookworm
     cap_add:
       - NET_ADMIN
-    networks: 
+    networks:
       subnet-x-3:
         ipv4_address: 172.18.3.2
       subnet-x-2:
@@ -57,7 +57,7 @@ services:
     image: gh0st42/dtn7:bookworm
     cap_add:
       - NET_ADMIN
-    networks: 
+    networks:
       subnet-x-3:
         ipv4_address: 172.18.3.3
       subnet-y-10:
@@ -72,7 +72,7 @@ services:
     image: gh0st42/dtn7:bookworm
     cap_add:
       - NET_ADMIN
-    networks: 
+    networks:
       subnet-x-4:
         ipv4_address: 172.18.4.2
       subnet-y-1:
@@ -89,7 +89,7 @@ services:
     image: gh0st42/dtn7:bookworm
     cap_add:
       - NET_ADMIN
-    networks: 
+    networks:
       subnet-x-5:
         ipv4_address: 172.18.5.2
       subnet-x-4:
@@ -108,7 +108,7 @@ services:
     image: gh0st42/dtn7:bookworm
     cap_add:
       - NET_ADMIN
-    networks: 
+    networks:
       subnet-x-6:
         ipv4_address: 172.18.6.2
       subnet-x-5:
@@ -127,7 +127,7 @@ services:
     image: gh0st42/dtn7:bookworm
     cap_add:
       - NET_ADMIN
-    networks: 
+    networks:
       subnet-x-6:
         ipv4_address: 172.18.6.3
       subnet-y-10:
@@ -144,7 +144,7 @@ services:
     image: gh0st42/dtn7:bookworm
     cap_add:
       - NET_ADMIN
-    networks: 
+    networks:
       subnet-x-7:
         ipv4_address: 172.18.7.2
       subnet-y-2:
@@ -161,7 +161,7 @@ services:
     image: gh0st42/dtn7:bookworm
     cap_add:
       - NET_ADMIN
-    networks: 
+    networks:
       subnet-x-8:
         ipv4_address: 172.18.8.2
       subnet-x-7:
@@ -180,7 +180,7 @@ services:
     image: gh0st42/dtn7:bookworm
     cap_add:
       - NET_ADMIN
-    networks: 
+    networks:
       subnet-x-9:
         ipv4_address: 172.18.9.2
       subnet-x-8:
@@ -199,7 +199,7 @@ services:
     image: gh0st42/dtn7:bookworm
     cap_add:
       - NET_ADMIN
-    networks: 
+    networks:
       subnet-x-9:
         ipv4_address: 172.18.9.3
       subnet-y-11:
@@ -216,7 +216,7 @@ services:
     image: gh0st42/dtn7:bookworm
     cap_add:
       - NET_ADMIN
-    networks: 
+    networks:
       subnet-x-10:
         ipv4_address: 172.18.10.2
       subnet-y-3:
@@ -231,7 +231,7 @@ services:
     image: gh0st42/dtn7:bookworm
     cap_add:
       - NET_ADMIN
-    networks: 
+    networks:
       subnet-x-11:
         ipv4_address: 172.18.11.2
       subnet-x-10:
@@ -248,7 +248,7 @@ services:
     image: gh0st42/dtn7:bookworm
     cap_add:
       - NET_ADMIN
-    networks: 
+    networks:
       subnet-x-12:
         ipv4_address: 172.18.12.2
       subnet-x-11:
@@ -265,7 +265,7 @@ services:
     image: gh0st42/dtn7:bookworm
     cap_add:
       - NET_ADMIN
-    networks: 
+    networks:
       subnet-x-12:
         ipv4_address: 172.18.12.3
       subnet-y-12:
@@ -417,4 +417,3 @@ networks:
     ipam:
       config:
         - subnet: 172.19.24.0/24
-

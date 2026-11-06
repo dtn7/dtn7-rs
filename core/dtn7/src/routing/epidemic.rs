@@ -1,7 +1,7 @@
 use super::RoutingAgent;
 use crate::cla::ClaSenderTask;
 use crate::core::bundlepack::BundlePack;
-use crate::routing::{RoutingCmd, RoutingNotifcation};
+use crate::routing::{RoutingCmd, RoutingNotification};
 use crate::DtnPeer;
 use crate::PEERS;
 use async_trait::async_trait;
@@ -139,17 +139,17 @@ async fn handle_routing_cmd(mut rx: mpsc::Receiver<RoutingCmd>) {
                 let _ = tx.send(format!("{:?}", core.history));
             }
             super::RoutingCmd::Notify(notification) => match notification {
-                RoutingNotifcation::SendingFailed(bid, cla_sender) => {
+                RoutingNotification::SendingFailed(bid, cla_sender) => {
                     core.sending_failed(bid.as_str(), cla_sender.as_str());
                 }
-                RoutingNotifcation::IncomingBundle(bndl) => {
+                RoutingNotification::IncomingBundle(bndl) => {
                     if let Some(eid) = bndl.previous_node() {
                         if let Some(node_name) = eid.node() {
                             core.incoming_bundle(&bndl.id(), &node_name);
                         }
                     };
                 }
-                RoutingNotifcation::IncomingBundleWithoutPreviousNode(bid, node_name) => {
+                RoutingNotification::IncomingBundleWithoutPreviousNode(bid, node_name) => {
                     core.incoming_bundle(bid.as_str(), node_name.as_str());
                 }
                 _ => {}

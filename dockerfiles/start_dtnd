@@ -14,7 +14,7 @@ if [ -z "$NODE_ID" ]; then
   NODE=$(hostname -s)
 else
   echo "NODE_ID is set to $NODE_ID, using ipn naming scheme"
-  NODE=$NODE_ID  
+  NODE=$NODE_ID
 fi
 
 echo "Starting DTN daemon with node name $NODE and broadcast parameters $BCAST_PARAM"

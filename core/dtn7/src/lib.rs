@@ -17,7 +17,7 @@ pub use dtnconfig::DtnConfig;
 use log::{debug, error, info, warn};
 
 pub use crate::core::{DtnCore, DtnPeer};
-pub use crate::routing::RoutingNotifcation;
+pub use crate::routing::RoutingNotification;
 
 use crate::cla::ConvergenceLayerAgent;
 use crate::core::bundlepack::Constraint;
@@ -260,7 +260,7 @@ pub async fn routing_get_data(param: String) -> Result<String> {
     Ok(res)
 }
 
-pub async fn routing_notify(notification: RoutingNotifcation) -> Result<()> {
+pub async fn routing_notify(notification: RoutingNotification) -> Result<()> {
     let chan = DTNCORE.lock().routing_agent.channel();
     if let Err(err) = chan.send(RoutingCmd::Notify(notification)).await {
         bail!("Error while sending notification: {}", err);

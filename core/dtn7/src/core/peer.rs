@@ -46,8 +46,8 @@ impl From<String> for PeerAddress {
 }
 
 impl PeerAddress {
-    /// Returns the address combined with the given port, e.g., "10.0.0.1:4556",
-    /// "[fe80::1]:4556" or "node1.example.org:4556".
+    /// Returns the address combined with the given port, e.g., `10.0.0.1:4556`,
+    /// `[fe80::1]:4556` or `node1.example.org:4556`.
     pub fn with_port(&self, port: u16) -> String {
         match self {
             PeerAddress::Ip(ip) => SocketAddr::new(*ip, port).to_string(),

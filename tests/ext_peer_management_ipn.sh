@@ -64,7 +64,7 @@ else
 fi
 
 add_peer $PORT_NODE1 $PEER2 "DYNAMIC"
-echo 
+echo
 
 PEERS=$(get_peers $PORT_NODE1 | wc -l)
 if [ "$PEERS" -eq 1 ]; then
@@ -113,7 +113,7 @@ echo
 
 
 del_peer $PORT_NODE1 $PEER2
-echo 
+echo
 PEERS=$(get_peers $PORT_NODE1)
 if [ "$PEERS" = "{}" ]; then
  echo "Number of peers on node 1: $PEERS"
@@ -128,4 +128,4 @@ wait_for_key $1
 
 cleanup
 
-exit 0 
+exit 0

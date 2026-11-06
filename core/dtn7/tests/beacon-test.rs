@@ -266,7 +266,7 @@ pub fn check_time_for_serialization_of_5000_beacons() {
     let starts = now.elapsed().unwrap().as_nanos();
     println!("Starting serialization after {}ns", starts);
     for x in beacons {
-        serde_cbor::to_vec(&x).expect("A problem occured while serializing");
+        serde_cbor::to_vec(&x).expect("A problem occurred while serializing");
     }
     let afters = now.elapsed().unwrap().as_nanos();
 
@@ -284,7 +284,7 @@ pub fn check_time_for_deserialization_of_5000_beacons() {
     }
 
     for x in beacons {
-        serialized.push(serde_cbor::to_vec(&x).expect("A problem occured while serializing"));
+        serialized.push(serde_cbor::to_vec(&x).expect("A problem occurred while serializing"));
     }
     let now = SystemTime::now();
     let startd = now.elapsed().unwrap().as_nanos();

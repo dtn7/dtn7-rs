@@ -83,7 +83,7 @@ The ``Error`` is emitted when an error occurs. At the Moment the only emitted er
 
 dtnd → external
 
-The ``Timeout`` is emitted when an expected ``ReponseSenderForBundle`` was not received until the timeout (250ms) ran out.
+The ``Timeout`` is emitted when an expected ``ResponseSenderForBundle`` was not received until the timeout (250ms) ran out.
 
 ```json
 {

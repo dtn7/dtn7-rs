@@ -17,11 +17,11 @@ use crate::{
     routing_notify, store_delete_expired, store_get_bundle, store_get_metadata, CLAS, DTNCORE,
 };
 pub use crate::{store_has_item, store_push_bundle};
-use crate::{RoutingNotifcation, CONFIG};
+use crate::{RoutingNotification, CONFIG};
 use crate::{PEERS, STATS, STORE};
 use application_agent::ApplicationAgent;
 use bp7::EndpointID;
-use log::{error, warn, info, trace};
+use log::{error, info, trace, warn};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::time::Instant;
@@ -178,7 +178,7 @@ pub async fn process_peers() {
     });
 
     for eid in dropped {
-        if let Err(err) = routing_notify(RoutingNotifcation::DroppedPeer(eid)).await {
+        if let Err(err) = routing_notify(RoutingNotification::DroppedPeer(eid)).await {
             error!("Error while dropping peer: {}", err);
         }
     }

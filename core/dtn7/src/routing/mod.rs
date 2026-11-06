@@ -16,16 +16,16 @@ use enum_dispatch::enum_dispatch;
 use epidemic::EpidemicRoutingAgent;
 use external::ExternalRoutingAgent;
 use flooding::FloodingRoutingAgent;
+use log::debug;
 use sink::SinkRoutingAgent;
 use sprayandwait::SprayAndWaitRoutingAgent;
 use static_routing::StaticRoutingAgent;
 use std::fmt::Debug;
 use std::fmt::Display;
-use log::debug;
 use tokio::sync::{mpsc, oneshot};
 
 #[derive(Debug)]
-pub enum RoutingNotifcation {
+pub enum RoutingNotification {
     SendingFailed(BundleID, String),
     SendingSucceeded(BundleID, String),
     IncomingBundle(Bundle),
@@ -53,7 +53,7 @@ impl Display for RoutingAgentsEnum {
 
 pub enum RoutingCmd {
     SenderForBundle(BundlePack, oneshot::Sender<(Vec<ClaSenderTask>, bool)>),
-    Notify(RoutingNotifcation),
+    Notify(RoutingNotification),
     Command(String),
     GetData(String, oneshot::Sender<String>),
     Shutdown,

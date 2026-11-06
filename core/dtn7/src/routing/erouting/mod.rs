@@ -1,4 +1,4 @@
-use crate::{peers_get_for_node, BundleID, BundlePack, DtnPeer, PeerAddress, RoutingNotifcation};
+use crate::{peers_get_for_node, BundleID, BundlePack, DtnPeer, PeerAddress, RoutingNotification};
 use anyhow::Context;
 use bp7::{Bundle, EndpointID};
 use serde::{Deserialize, Serialize};
@@ -51,35 +51,35 @@ pub enum Packet {
     ServiceAdd(AddService),
 }
 
-impl TryFrom<RoutingNotifcation> for Packet {
+impl TryFrom<RoutingNotification> for Packet {
     type Error = anyhow::Error;
 
     /// Fails for notifications about peers without node name or peers that are no
     /// longer known, e.g., because they were removed in the meantime.
-    fn try_from(notification: RoutingNotifcation) -> anyhow::Result<Self> {
+    fn try_from(notification: RoutingNotification) -> anyhow::Result<Self> {
         let packet = match notification {
-            RoutingNotifcation::SendingFailed(bid, cla_sender) => {
+            RoutingNotification::SendingFailed(bid, cla_sender) => {
                 Packet::SendingFailed(SendingFailed { bid, cla_sender })
             }
-            RoutingNotifcation::SendingSucceeded(bid, cla_sender) => {
+            RoutingNotification::SendingSucceeded(bid, cla_sender) => {
                 Packet::SendingSucceeded(SendingSucceeded { bid, cla_sender })
             }
-            RoutingNotifcation::IncomingBundle(bndl) => {
+            RoutingNotification::IncomingBundle(bndl) => {
                 Packet::IncomingBundle(IncomingBundle { bndl })
             }
-            RoutingNotifcation::IncomingBundleWithoutPreviousNode(bid, node_name) => {
+            RoutingNotification::IncomingBundleWithoutPreviousNode(bid, node_name) => {
                 Packet::IncomingBundleWithoutPreviousNode(IncomingBundleWithoutPreviousNode {
                     bid,
                     node_name,
                 })
             }
-            RoutingNotifcation::EncounteredPeer(eid) => Packet::EncounteredPeer(EncounteredPeer {
+            RoutingNotification::EncounteredPeer(eid) => Packet::EncounteredPeer(EncounteredPeer {
                 name: eid.node().context("encountered peer without node name")?,
                 peer: peers_get_for_node(&eid)
                     .with_context(|| format!("encountered peer {} is not known", eid))?,
                 eid,
             }),
-            RoutingNotifcation::DroppedPeer(eid) => Packet::DroppedPeer(DroppedPeer {
+            RoutingNotification::DroppedPeer(eid) => Packet::DroppedPeer(DroppedPeer {
                 name: eid.node().context("dropped peer without node name")?,
                 eid,
             }),
@@ -181,8 +181,8 @@ mod tests {
     #[test]
     fn notifications_about_unknown_peers_are_not_converted() {
         let eid = EndpointID::try_from("dtn://erouting-unknown-peer/".to_string()).unwrap();
-        assert!(Packet::try_from(RoutingNotifcation::EncounteredPeer(eid.clone())).is_err());
-        assert!(Packet::try_from(RoutingNotifcation::DroppedPeer(eid)).is_ok());
-        assert!(Packet::try_from(RoutingNotifcation::DroppedPeer(EndpointID::none())).is_err());
+        assert!(Packet::try_from(RoutingNotification::EncounteredPeer(eid.clone())).is_err());
+        assert!(Packet::try_from(RoutingNotification::DroppedPeer(eid)).is_ok());
+        assert!(Packet::try_from(RoutingNotification::DroppedPeer(EndpointID::none())).is_err());
     }
 }

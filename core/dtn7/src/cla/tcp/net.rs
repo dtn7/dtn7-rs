@@ -170,7 +170,7 @@ impl TcpClPacket {
                         let data = XferRefuseData { reason, tid };
                         Ok(TcpClPacket::XferRefuse(data))
                     } else {
-                        Err(TcpClError::UnknownResaonCode(rcode))
+                        Err(TcpClError::UnknownReasonCode(rcode))
                     }
                 }
                 MessageType::Keepalive => Ok(TcpClPacket::KeepAlive),
@@ -181,7 +181,7 @@ impl TcpClPacket {
                         let data = SessTermData { flags, reason };
                         Ok(TcpClPacket::SessTerm(data))
                     } else {
-                        Err(TcpClError::UnknownResaonCode(rcode))
+                        Err(TcpClError::UnknownReasonCode(rcode))
                     }
                 }
                 MessageType::SessInit => {
@@ -212,7 +212,7 @@ impl TcpClPacket {
                         let data = MsgRejectData { reason, header };
                         Ok(TcpClPacket::MsgReject(data))
                     } else {
-                        Err(TcpClError::UnknownResaonCode(reason_code))
+                        Err(TcpClError::UnknownReasonCode(reason_code))
                     }
                 }
             }
@@ -243,7 +243,7 @@ pub(crate) enum TcpClError {
     #[error("unknown packet type ({0}) encountered")]
     UnknownPacketType(u8),
     #[error("unknown reason code ({0}) encountered")]
-    UnknownResaonCode(u8),
+    UnknownReasonCode(u8),
     #[error("session extension items found but unsupported")]
     SessionExtensionItemsUnsupported,
     #[error("unexpected packet received")]

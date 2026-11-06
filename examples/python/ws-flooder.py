@@ -90,7 +90,7 @@ def on_message(ws, message):
             # after the mode was set we subscribe to the echo service previously registered
             ws.send("/subscribe " + service)
         elif message == "200 subscribed":
-            print("succesfully subscribed")
+            print("successfully subscribed")
             # after subscribing we are ready to receive bundles
             recv_data = True
             print("Sending packets")
@@ -104,7 +104,7 @@ def on_message(ws, message):
 
     else:
         if message[0:3] == '200':
-            # text messages starting with '200' inidicate successful transmission
+            # text messages starting with '200' indicate successful transmission
             print(".", end='')
             # print(counter)
             sys.stdout.flush()

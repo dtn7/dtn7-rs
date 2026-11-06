@@ -7,7 +7,7 @@ nodeid = "node1"
 # enable/disable debug output in the logs
 debug = false
 
-# Enables advertisement of the beaon period in discovery beacons
+# Enables advertisement of the beacon period in discovery beacons
 beacon-period = true
 
 # the generation of status reports when requested by bundles

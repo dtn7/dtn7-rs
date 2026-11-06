@@ -7,7 +7,7 @@ prepare_test
 #DB1="-W /tmp/node1 -D sled"
 #DB1="-W /tmp/node1 -D sneakers"
 PORT_NODE1=$(get_current_port)
-start_dtnd -d -j5s -i0 -C tcp:port=2342 -e incoming -r epidemic -n node1 $DB1 
+start_dtnd -d -j5s -i0 -C tcp:port=2342 -e incoming -r epidemic -n node1 $DB1
 
 sleep 1
 

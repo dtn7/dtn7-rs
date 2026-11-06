@@ -1,6 +1,6 @@
 use std::fmt::Display;
 
-use crate::{RoutingNotifcation, CONFIG, PEERS};
+use crate::{RoutingNotification, CONFIG, PEERS};
 
 use super::{RoutingAgent, RoutingCmd};
 use async_trait::async_trait;
@@ -113,13 +113,13 @@ fn load_routes(routes_file: &str) -> Option<Vec<StaticRouteEntry>> {
     Some(route_entries)
 }
 
-async fn handle_routing_notification(notification: RoutingNotifcation) {
+async fn handle_routing_notification(notification: RoutingNotification) {
     debug!("Received notification: {:?}", notification);
     match notification {
-        RoutingNotifcation::SendingFailed(bid, cla_sender) => {
+        RoutingNotification::SendingFailed(bid, cla_sender) => {
             debug!("Sending failed for bundle {} on CLA {}", bid, cla_sender);
         }
-        RoutingNotifcation::SendingSucceeded(bid, cla_sender) => {
+        RoutingNotification::SendingSucceeded(bid, cla_sender) => {
             debug!("Sending succeeded for bundle {} on CLA {}", bid, cla_sender);
         }
         _ => { /* ignore */ }

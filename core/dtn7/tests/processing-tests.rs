@@ -10,7 +10,7 @@ use dtn7::core::bundlepack::BundlePack;
 use dtn7::core::peer::{DtnPeer, PeerAddress, PeerType};
 use dtn7::routing::epidemic::EpidemicRoutingAgent;
 use dtn7::routing::sprayandwait::SprayAndWaitRoutingAgent;
-use dtn7::routing::{RoutingAgent, RoutingCmd, RoutingNotifcation};
+use dtn7::routing::{RoutingAgent, RoutingCmd, RoutingNotification};
 use std::collections::HashMap;
 use std::convert::TryFrom;
 use std::time::Duration;
@@ -186,7 +186,7 @@ async fn routing_agents_survive_bad_requests() {
 
     let spray = SprayAndWaitRoutingAgent::new().channel();
     spray
-        .send(RoutingCmd::Notify(RoutingNotifcation::IncomingBundle(
+        .send(RoutingCmd::Notify(RoutingNotification::IncomingBundle(
             to_none,
         )))
         .await

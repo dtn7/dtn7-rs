@@ -96,7 +96,7 @@ fn main() -> Result<()> {
                     print!(".");
                     std::io::stdout().flush().unwrap();
                 }
-                // flip src and destionation
+                // flip src and destination
                 let src = recv_data.dst.to_owned();
                 let dst = recv_data.src.to_owned();
                 // construct response with copied payload

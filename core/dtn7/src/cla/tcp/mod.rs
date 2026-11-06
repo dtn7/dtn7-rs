@@ -564,7 +564,7 @@ impl TcpSession {
             byte_vec.push(packet_data);
         }
         if byte_vec.is_empty() {
-            warn!("Emtpy bundle transfer, aborting");
+            warn!("Empty bundle transfer, aborting");
             if tx_result.send(TransferResult::Failure).is_err() {
                 error!("Failed to send response");
                 bail!("Failed to send response");

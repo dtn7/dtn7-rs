@@ -7,5 +7,5 @@ fuzz_target!(|data: &[u8]| {
     // fuzzed code goes here
     let mut mpdu: mtcp::MPDUCodec = mtcp::MPDUCodec::new();
 
-    mpdu.decode(&mut bytes::BytesMut::from(data));
+    let _ = mpdu.decode(&mut bytes::BytesMut::from(data));
 });

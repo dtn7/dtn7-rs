@@ -1,7 +1,7 @@
 use crate::cla::ConvergenceLayerAgent;
 use crate::core::{DtnPeer, PeerType};
 use crate::ipnd::{beacon::Beacon, services::*};
-use crate::routing::RoutingNotifcation;
+use crate::routing::RoutingNotification;
 use crate::{peers_add, peers_touch, routing_notify, CLAS, CONFIG, DTNCORE};
 use anyhow::Result;
 use log::{debug, error, info, trace};
@@ -68,7 +68,7 @@ async fn udp_receiver(socket: UdpSocket) -> Result<(), io::Error> {
                 }
             }
             trace!("{}", deserialized);
-            if let Err(err) = routing_notify(RoutingNotifcation::EncounteredPeer(
+            if let Err(err) = routing_notify(RoutingNotification::EncounteredPeer(
                 deserialized.eid().clone(),
             ))
             .await

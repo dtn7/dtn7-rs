@@ -1,7 +1,7 @@
 use crate::core::bpsec::{self, ProcessingStep, Verdict};
 use crate::core::bundlepack::*;
 use crate::core::*;
-use crate::routing::RoutingNotifcation;
+use crate::routing::RoutingNotification;
 use crate::store_push_bundle;
 use crate::store_remove;
 use crate::CONFIG;
@@ -287,18 +287,24 @@ pub async fn dispatch(bp: BundlePack) -> Result<()> {
     let Some(bndl) = store_get_bundle(bp.id()) else {
         bail!("bundle not found: {}", bp.id());
     };
-    if let Err(err) = routing_notify(RoutingNotifcation::IncomingBundle(bndl)).await {
+    if let Err(err) = routing_notify(RoutingNotification::IncomingBundle(bndl)).await {
         error!("Error while sending incoming bundle notification: {}", err);
     }
 
     if (*DTNCORE.lock()).is_in_endpoints(&bp.destination)
     // TODO: lookup here AND in local delivery, optimize for just one
     {
-        trace!("Destination for {} is local endpoint → local_delivery", bp.id());
+        trace!(
+            "Destination for {} is local endpoint → local_delivery",
+            bp.id()
+        );
         local_delivery(bp.clone()).await?;
     }
     if !is_local_node_id(&bp.destination) {
-        trace!("Destination for {} is NOT local endpoint → forward", bp.id());
+        trace!(
+            "Destination for {} is NOT local endpoint → forward",
+            bp.id()
+        );
         tokio::spawn(forward(bp));
     }
     Ok(())
@@ -481,14 +487,14 @@ pub async fn forward(mut bp: BundlePack) -> Result<()> {
 
                     let next_hop = n.next_hop.node().unwrap_or_default();
                     if let Err(err) =
-                        routing_notify(RoutingNotifcation::SendingFailed(bpid, next_hop.clone()))
+                        routing_notify(RoutingNotification::SendingFailed(bpid, next_hop.clone()))
                             .await
                     {
                         error!("Error while sending failed notification: {}", err);
                     }
                     if let Some(dropped_peer) = report_failed_transmission(&next_hop) {
                         if let Err(err) =
-                            routing_notify(RoutingNotifcation::DroppedPeer(dropped_peer.eid)).await
+                            routing_notify(RoutingNotification::DroppedPeer(dropped_peer.eid)).await
                         {
                             error!("Error while sending dropped peer notification: {}", err);
                         }
@@ -507,7 +513,7 @@ pub async fn forward(mut bp: BundlePack) -> Result<()> {
                     );
                     STATS.lock().outgoing += 1;
                     bundle_sent.store(true, Ordering::Relaxed);
-                    if let Err(err) = routing_notify(RoutingNotifcation::SendingSucceeded(
+                    if let Err(err) = routing_notify(RoutingNotification::SendingSucceeded(
                         bpid,
                         n.next_hop.node().unwrap_or_default(),
                     ))
@@ -529,7 +535,7 @@ pub async fn forward(mut bp: BundlePack) -> Result<()> {
                 hc_count -= 1;
                 hc.set_data(bp7::canonical::CanonicalData::HopCount(hc_limit, hc_count));
                 debug!(
-                    "Bundle's hop count block was resetted: {} {} {}",
+                    "Bundle's hop count block was reset: {} {} {}",
                     &bpid, hc_limit, hc_count
                 );
             }

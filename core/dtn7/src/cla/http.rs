@@ -35,7 +35,7 @@ pub async fn http_send_bundles(
             .header("content-type", "application/octet-stream")
             .body(Body::from(ready))
             .unwrap();
-        // TODO: make timout configurable
+        // TODO: make timeout configurable
         match tokio::time::timeout(std::time::Duration::from_secs(5), client.request(req)).await {
             Ok(result) => match result {
                 Ok(_response) => debug!(
