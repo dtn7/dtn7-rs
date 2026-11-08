@@ -1,12 +1,12 @@
 use crate::cla::CLAsAvailable;
+use crate::core::DtnPeer;
 use crate::core::bpsec::config::BpsecConfig;
 use crate::core::helpers::is_valid_node_name;
-use crate::core::DtnPeer;
 use bp7::EndpointID;
 use config::{Config, File};
 use log::{debug, error};
-use rand::distributions::Alphanumeric;
-use rand::{thread_rng, Rng};
+use rand::RngExt;
+use rand::distr::{Alphanumeric, SampleString};
 use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, HashMap};
 use std::net::SocketAddr;
@@ -79,19 +79,10 @@ pub struct DtnConfig {
 }
 
 pub fn rnd_node_name() -> String {
-    // generate a random node name starting with a character
-    let mut rng = thread_rng();
-    let mut result_str = String::new();
-
-    // Get a random letter
-    let first_char = rng.gen_range(b'a'..=b'z') as char;
-    result_str.push(first_char);
-
-    // Get 9 more random characters
-    for _ in 0..9 {
-        let next_char = thread_rng().sample_iter(&Alphanumeric).next().unwrap() as char;
-        result_str.push(next_char);
-    }
+    // generate a random node name starting with a letter
+    let mut rng = rand::rng();
+    let mut result_str = String::from(rng.random_range(b'a'..=b'z') as char);
+    result_str.push_str(&Alphanumeric.sample_string(&mut rng, 9));
     result_str
 }
 
@@ -438,7 +429,7 @@ impl DtnConfig {
                     return Err(std::io::Error::new(
                         std::io::ErrorKind::InvalidInput,
                         String::from("Only IP destinations supported at the moment"),
-                    ))
+                    ));
                 }
             }
         }

@@ -1,4 +1,4 @@
-use anyhow::{bail, Result};
+use anyhow::{Result, bail};
 use clap::Parser;
 use dtn7_plus::client::DtnClient;
 use dtn7_plus::client::{Message, WsRecvData, WsSendData};
@@ -96,7 +96,7 @@ fn main() -> Result<()> {
                     print!(".");
                     std::io::stdout().flush().unwrap();
                 }
-                // flip src and destionation
+                // flip src and destination
                 let src = recv_data.dst.to_owned();
                 let dst = recv_data.src.to_owned();
                 // construct response with copied payload

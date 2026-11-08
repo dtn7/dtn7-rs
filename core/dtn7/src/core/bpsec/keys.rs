@@ -2,7 +2,7 @@
 //! runtime.
 
 use super::config::{BpsecConfig, SecurityRule};
-use anyhow::{bail, Context, Result};
+use anyhow::{Context, Result, bail};
 use log::{debug, warn};
 use parking_lot::RwLock;
 use std::collections::HashMap;
@@ -76,16 +76,16 @@ impl KeySet {
             let Some(key) = self.get(&rule.key) else {
                 bail!("bpsec rule {} uses unknown key {}", rule.name, rule.key);
             };
-            if let Some(lengths) = rule.valid_key_lengths() {
-                if !lengths.contains(&key.bytes().len()) {
-                    bail!(
-                        "bpsec rule {} requires a key of {:?} bytes, key {} has {} bytes",
-                        rule.name,
-                        lengths,
-                        rule.key,
-                        key.bytes().len()
-                    );
-                }
+            if let Some(lengths) = rule.valid_key_lengths()
+                && !lengths.contains(&key.bytes().len())
+            {
+                bail!(
+                    "bpsec rule {} requires a key of {:?} bytes, key {} has {} bytes",
+                    rule.name,
+                    lengths,
+                    rule.key,
+                    key.bytes().len()
+                );
             }
         }
         Ok(())
@@ -113,13 +113,13 @@ fn read_key(path: &Path) -> Result<Key> {
 #[cfg(unix)]
 fn warn_if_readable_by_others(path: &Path) {
     use std::os::unix::fs::PermissionsExt;
-    if let Ok(metadata) = std::fs::metadata(path) {
-        if metadata.permissions().mode() & 0o077 != 0 {
-            warn!(
-                "Key file {} is accessible by other users, consider `chmod 600`",
-                path.display()
-            );
-        }
+    if let Ok(metadata) = std::fs::metadata(path)
+        && metadata.permissions().mode() & 0o077 != 0
+    {
+        warn!(
+            "Key file {} is accessible by other users, consider `chmod 600`",
+            path.display()
+        );
     }
 }
 
@@ -222,19 +222,23 @@ mod tests {
         let dir = key_dir(&[("hmac.key", "0011"), ("aes.key", &aes256)]);
         let keys = KeySet::load(dir.path()).unwrap();
 
-        assert!(keys
-            .check_rules(&[rule(SecurityOperation::Bib, "hmac")])
-            .is_ok());
-        assert!(keys
-            .check_rules(&[rule(SecurityOperation::Bcb, "aes")])
-            .is_ok());
-        assert!(keys
-            .check_rules(&[rule(SecurityOperation::Bib, "missing")])
-            .is_err());
+        assert!(
+            keys.check_rules(&[rule(SecurityOperation::Bib, "hmac")])
+                .is_ok()
+        );
+        assert!(
+            keys.check_rules(&[rule(SecurityOperation::Bcb, "aes")])
+                .is_ok()
+        );
+        assert!(
+            keys.check_rules(&[rule(SecurityOperation::Bib, "missing")])
+                .is_err()
+        );
         // default AES-256-GCM needs 32 bytes
-        assert!(keys
-            .check_rules(&[rule(SecurityOperation::Bcb, "hmac")])
-            .is_err());
+        assert!(
+            keys.check_rules(&[rule(SecurityOperation::Bcb, "hmac")])
+                .is_err()
+        );
 
         let mut aes128 = rule(SecurityOperation::Bcb, "aes");
         aes128.context.aes_variant = Some(AesVariant::Aes128);

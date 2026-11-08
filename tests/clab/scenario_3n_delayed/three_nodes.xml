@@ -23,7 +23,7 @@
       <services>
         <service name="DefaultRoute"/>
       </services>
-    </device>    
+    </device>
   </devices>
   <links>
     <link node1="5" node2="1">
@@ -34,7 +34,7 @@
     </link>
     <link node1="5" node2="3">
       <iface2 id="0" name="eth0" mac="00:00:00:aa:00:07" ip4="10.0.0.22" ip4_mask="24" ip6="2001::22" ip6_mask="128"/>
-    </link>    
+    </link>
   </links>
   <mobility_configurations>
     <mobility_configuration node="5" model="basic_range">
@@ -44,7 +44,7 @@
       <configuration name="delay" value="20000"/>
       <configuration name="error" value="0"/>
       <configuration name="promiscuous" value="0"/>
-    </mobility_configuration>    
+    </mobility_configuration>
   </mobility_configurations>
   <emane_global_configuration>
     <emulator/>

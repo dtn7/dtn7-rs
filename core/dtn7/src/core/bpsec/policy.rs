@@ -3,8 +3,8 @@
 //! The functions are pure, without keys, I/O or global state. The resulting actions are
 //! carried out by the enforcement.
 
-use super::config::{SecurityOperation, SecurityRole, SecurityRule, SecurityTarget};
 use super::ProcessingStep;
+use super::config::{SecurityOperation, SecurityRole, SecurityRule, SecurityTarget};
 use bp7::bpsec::{AbstractSecurityBlock, CONFIDENTIALITY_BLOCK, INTEGRITY_BLOCK};
 use bp7::{Bundle, CanonicalData};
 use glob_match::glob_match;
@@ -282,8 +282,8 @@ fn security_blocks(bundle: &Bundle) -> Vec<SecurityBlock> {
 mod tests {
     use super::*;
     use crate::core::bpsec::config::{FailureAction, SecurityContext};
-    use bp7::bpsec::{BcbSecurityContextParameter, BibSecurityContextParameter};
     use bp7::EndpointID;
+    use bp7::bpsec::{BcbSecurityContextParameter, BibSecurityContextParameter};
     use std::convert::TryFrom;
 
     const HMAC_KEY: &[u8] = &[0x1a; 32];

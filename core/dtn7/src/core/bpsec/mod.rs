@@ -14,8 +14,8 @@ pub mod policy;
 pub mod statistics;
 
 use anyhow::Result;
-use bp7::administrative_record::StatusReportReason;
 use bp7::Bundle;
+use bp7::administrative_record::StatusReportReason;
 use config::{BpsecConfig, SecurityRule};
 use log::info;
 use serde::Serialize;

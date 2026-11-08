@@ -1,8 +1,8 @@
 use crate::cla::ConvergenceLayerAgent;
 use crate::core::{DtnPeer, PeerType};
 use crate::ipnd::{beacon::Beacon, services::*};
-use crate::routing::RoutingNotifcation;
-use crate::{peers_add, peers_touch, routing_notify, CLAS, CONFIG, DTNCORE};
+use crate::routing::RoutingNotification;
+use crate::{CLAS, CONFIG, DTNCORE, peers_add, peers_touch, routing_notify};
 use anyhow::Result;
 use log::{debug, error, info, trace};
 use socket2::{Domain, Socket, Type};
@@ -68,7 +68,7 @@ async fn udp_receiver(socket: UdpSocket) -> Result<(), io::Error> {
                 }
             }
             trace!("{}", deserialized);
-            if let Err(err) = routing_notify(RoutingNotifcation::EncounteredPeer(
+            if let Err(err) = routing_notify(RoutingNotification::EncounteredPeer(
                 deserialized.eid().clone(),
             ))
             .await
@@ -121,14 +121,12 @@ async fn udp_announcer(socket: UdpSocket, _v6: bool) {
             if destination.ip().is_multicast() {
                 trace!(
                     "Sending beacon\n{}\nto multicast address {}",
-                    pkt,
-                    destination
+                    pkt, destination
                 );
             } else {
                 trace!(
                     "Sending beacon\n{}\nto unicast address {}",
-                    pkt,
-                    destination
+                    pkt, destination
                 );
             }
             match socket
@@ -196,7 +194,7 @@ pub async fn spawn_udp_discovery() -> Result<()> {
         tokio::spawn(udp_announcer(socket2, false));
     }
     if v6 {
-        let addr: SocketAddr = format!("[::1]:{}", port).parse()?;
+        let addr: SocketAddr = format!("[::]:{}", port).parse()?;
         let addr = addr.into();
         let socket = Socket::new(Domain::IPV6, Type::DGRAM, None)?;
         socket.set_reuse_address(true)?;

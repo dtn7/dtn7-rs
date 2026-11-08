@@ -10,18 +10,18 @@ pub mod store;
 use crate::cla::ConvergenceLayerAgent;
 use crate::core::bundlepack::Constraint;
 pub use crate::core::peer::{DtnPeer, PeerType};
-use crate::core::stats::{NodeStats, RegistrationInformation};
+use crate::core::stats::{ClassCounts, NodeStats, RegistrationInformation};
 use crate::core::store::BundleStore;
 use crate::routing::RoutingAgentsEnum;
 use crate::{
-    routing_notify, store_delete_expired, store_get_bundle, store_get_metadata, CLAS, DTNCORE,
+    CLAS, DTNCORE, routing_notify, store_delete_expired, store_get_bundle, store_get_metadata,
 };
-pub use crate::{store_has_item, store_push_bundle};
-use crate::{RoutingNotifcation, CONFIG};
+use crate::{CONFIG, RoutingNotification};
 use crate::{PEERS, STATS, STORE};
+pub use crate::{store_has_item, store_push_bundle};
 use application_agent::ApplicationAgent;
 use bp7::EndpointID;
-use log::{error, warn, info, trace};
+use log::{error, info, trace, warn};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::time::Instant;
@@ -39,6 +39,16 @@ pub struct DtnStatistics {
     pub delivered: u64,
     pub failed: u64,
     pub broken: u64,
+    /// Breakdown of `incoming` by bundle class.
+    pub incoming_classes: ClassCounts,
+    /// Breakdown of `dups` by bundle class.
+    pub dups_classes: ClassCounts,
+    /// Breakdown of `outgoing` by bundle class.
+    pub outgoing_classes: ClassCounts,
+    /// Breakdown of `delivered` by bundle class.
+    pub delivered_classes: ClassCounts,
+    /// Breakdown of `failed` by bundle class.
+    pub failed_classes: ClassCounts,
     pub node: NodeStats,
 }
 
@@ -52,6 +62,11 @@ impl DtnStatistics {
             delivered: 0,
             failed: 0,
             broken: 0,
+            incoming_classes: ClassCounts::default(),
+            dups_classes: ClassCounts::default(),
+            outgoing_classes: ClassCounts::default(),
+            delivered_classes: ClassCounts::default(),
+            failed_classes: ClassCounts::default(),
             node: nodestats,
         }
     }
@@ -178,7 +193,7 @@ pub async fn process_peers() {
     });
 
     for eid in dropped {
-        if let Err(err) = routing_notify(RoutingNotifcation::DroppedPeer(eid)).await {
+        if let Err(err) = routing_notify(RoutingNotification::DroppedPeer(eid)).await {
             error!("Error while dropping peer: {}", err);
         }
     }

@@ -1,7 +1,7 @@
+use crate::CONFIG;
 use crate::dtnconfig::DiscoveryTransport;
 use crate::ipnd::mdns_discovery::spawn_mdns_discovery;
 use crate::ipnd::udp_discovery::spawn_udp_discovery;
-use crate::CONFIG;
 use anyhow::Result;
 use log::info;
 

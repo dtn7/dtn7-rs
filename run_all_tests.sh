@@ -36,6 +36,7 @@ else
 fi
 cargo test $TARGET_OPT &&
     filter_output ./tests/local_nodes_dtn.sh &&
+    STATUS_REPORTS="-g" filter_output ./tests/local_nodes_dtn.sh &&
     filter_output ./tests/local_nodes_ipn.sh &&
     filter_output ./tests/local_ping_echo.sh &&
     filter_output ./tests/local_group_test.sh &&
@@ -46,6 +47,7 @@ cargo test $TARGET_OPT &&
     filter_output ./tests/store_delete_singleton.sh &&
     filter_output ./tests/lifetime.sh &&
     filter_output ./tests/cla_chain_test.sh &&
+    filter_output ./tests/cla_ext_test.sh &&
     filter_output ./tests/ecla_test.sh &&
     filter_output ./tests/ecla_test_chain.sh &&
     filter_output ./tests/ecla_test_mtcp.sh &&
@@ -54,6 +56,8 @@ cargo test $TARGET_OPT &&
     filter_output ./tests/ecla_erouting_test_mtcp.sh &&
     filter_output ./tests/routing_saw.sh &&
     filter_output ./tests/routing_static.sh &&
+    filter_output ./tests/routing_prophet_v1.sh &&
+    filter_output ./tests/routing_prophet_v2.sh &&
     filter_output ./tests/ext_peer_management.sh &&
     filter_output ./tests/ext_peer_management_ipn.sh &&
     echo "SUCCESS"

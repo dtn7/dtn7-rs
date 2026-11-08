@@ -3,7 +3,7 @@ use core::fmt;
 use log::warn;
 use serde::de::{SeqAccess, Visitor};
 use serde::ser::{SerializeSeq, Serializer};
-use serde::{de, Deserialize, Deserializer, Serialize};
+use serde::{Deserialize, Deserializer, Serialize, de};
 use std::collections::HashMap;
 use std::fmt::Debug;
 
@@ -67,7 +67,9 @@ impl ServiceBlock {
                     convert.insert(*tag, message);
                 }
                 _ => {
-                    warn!("Unknown service encountered. Compare senders IPND version with this one to check for incompatibilities.");
+                    warn!(
+                        "Unknown service encountered. Compare senders IPND version with this one to check for incompatibilities."
+                    );
                 }
             }
         }
@@ -134,7 +136,9 @@ impl ServiceBlock {
                 let res = payload.parse::<i8>();
                 if let Ok(input) = res {
                     if !(0..=100).contains(&input) {
-                        Err(String::from("Provided number can not be used to represent battery level. Please provide a number between 0 and 100"))
+                        Err(String::from(
+                            "Provided number can not be used to represent battery level. Please provide a number between 0 and 100",
+                        ))
                     } else {
                         Ok((tag, input.to_be_bytes().to_vec()))
                     }
@@ -152,7 +156,9 @@ impl ServiceBlock {
                 if payload.split_whitespace().count() == 5 {
                     Ok((tag, payload.as_bytes().to_vec()))
                 } else {
-                    Err(String::from("Can not derive address from provided arguments. Argument order is: Street HouseNumber PostalNumber City CountryCode"))
+                    Err(String::from(
+                        "Can not derive address from provided arguments. Argument order is: Street HouseNumber PostalNumber City CountryCode",
+                    ))
                 }
             }
             // Undefined tags
@@ -204,8 +210,10 @@ impl std::fmt::Display for ServiceBlock {
                         f32::from_be_bytes([payload[0], payload[1], payload[2], payload[3]]);
                     let longitude: f32 =
                         f32::from_be_bytes([payload[4], payload[5], payload[6], payload[7]]);
-                    format!("{}. Tag = {} Geographic location service. Current location at: Latitude {} Longitude {}\n",
-                            counter, tag, latitude, longitude)
+                    format!(
+                        "{}. Tag = {} Geographic location service. Current location at: Latitude {} Longitude {}\n",
+                        counter, tag, latitude, longitude
+                    )
                 }
                 Service::BATTERY => {
                     let int: i8 = i8::from_be_bytes([payload[0]]);
@@ -218,11 +226,15 @@ impl std::fmt::Display for ServiceBlock {
                     let message = String::from_utf8(payload.clone())
                         .expect("Couldn't parse byte array into string");
                     let address: Vec<&str> = message.split_whitespace().collect();
-                    format!("{}. Tag = {} Address service. Street {}; House Number {}; Postal Number {}; City {}; Country Code {}\n",
-                            counter, tag, address[0],address[1],address[2],address[3],address[4])
+                    format!(
+                        "{}. Tag = {} Address service. Street {}; House Number {}; Postal Number {}; City {}; Country Code {}\n",
+                        counter, tag, address[0], address[1], address[2], address[3], address[4]
+                    )
                 }
                 _ => {
-                    warn!("Unknown service encountered. Compare senders IPND version with this one to check for incompatibilities.");
+                    warn!(
+                        "Unknown service encountered. Compare senders IPND version with this one to check for incompatibilities."
+                    );
                     String::new()
                 }
             };

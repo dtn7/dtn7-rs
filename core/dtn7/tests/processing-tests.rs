@@ -1,16 +1,20 @@
 use bp7::canonical::{
-    new_canonical_block, new_hop_count_block, new_payload_block, CanonicalBlock, CanonicalData,
+    CanonicalBlock, CanonicalData, new_canonical_block, new_hop_count_block, new_payload_block,
 };
 use bp7::flags::BlockControlFlags;
 use bp7::primary::PrimaryBlockBuilder;
 use bp7::{Bundle, CreationTimestamp, EndpointID};
-use dtn7::cla::dummy::DummyConvergenceLayer;
 use dtn7::cla::ClaSenderTask;
+use dtn7::cla::dummy::DummyConvergenceLayer;
+use dtn7::core::application_agent::SimpleApplicationAgent;
 use dtn7::core::bundlepack::BundlePack;
 use dtn7::core::peer::{DtnPeer, PeerAddress, PeerType};
 use dtn7::routing::epidemic::EpidemicRoutingAgent;
+use dtn7::routing::metadata::{PROPHET_RIB_RECORD, new_routing_record_bundle};
+use dtn7::routing::prophet::v1::ProphetV1RoutingAgent;
+use dtn7::routing::prophet::v2::ProphetV2RoutingAgent;
 use dtn7::routing::sprayandwait::SprayAndWaitRoutingAgent;
-use dtn7::routing::{RoutingAgent, RoutingCmd, RoutingNotifcation};
+use dtn7::routing::{RoutingAgent, RoutingCmd, RoutingNotification};
 use std::collections::HashMap;
 use std::convert::TryFrom;
 use std::time::Duration;
@@ -186,20 +190,46 @@ async fn routing_agents_survive_bad_requests() {
 
     let spray = SprayAndWaitRoutingAgent::new().channel();
     spray
-        .send(RoutingCmd::Notify(RoutingNotifcation::IncomingBundle(
+        .send(RoutingCmd::Notify(RoutingNotification::IncomingBundle(
             to_none,
         )))
         .await
         .unwrap();
     // a foreign bundle has a single copy left, which triggers the direct delivery check
-    let (clas, _) = sender_for_bundle(&spray, to_none_bp)
+    let (clas, _) = sender_for_bundle(&spray, to_none_bp.clone())
         .await
         .expect("sprayandwait: no reply for bundle to dtn:none");
     assert!(clas.is_empty());
     get_data_with_dropped_requester(&spray).await;
     assert!(
-        sender_for_bundle(&spray, regular_bp).await.is_some(),
+        sender_for_bundle(&spray, regular_bp.clone())
+            .await
+            .is_some(),
         "sprayandwait: routing agent died"
+    );
+
+    let prophet = ProphetV1RoutingAgent::new().channel();
+    let (clas, _) = sender_for_bundle(&prophet, to_none_bp.clone())
+        .await
+        .expect("prophet_v1: no reply for bundle to dtn:none");
+    assert!(clas.is_empty());
+    get_data_with_dropped_requester(&prophet).await;
+    assert!(
+        sender_for_bundle(&prophet, regular_bp.clone())
+            .await
+            .is_some(),
+        "prophet_v1: routing agent died"
+    );
+
+    let prophet = ProphetV2RoutingAgent::new().channel();
+    let (clas, _) = sender_for_bundle(&prophet, to_none_bp)
+        .await
+        .expect("prophet_v2: no reply for bundle to dtn:none");
+    assert!(clas.is_empty());
+    get_data_with_dropped_requester(&prophet).await;
+    assert!(
+        sender_for_bundle(&prophet, regular_bp).await.is_some(),
+        "prophet_v2: routing agent died"
     );
 }
 
@@ -293,9 +323,11 @@ async fn invalid_bundles_are_rejected() {
 
     // invalid bundles are neither stored nor processed
     let bid = payload_not_last.id();
-    assert!(dtn7::core::processing::receive(payload_not_last)
-        .await
-        .is_err());
+    assert!(
+        dtn7::core::processing::receive(payload_not_last)
+            .await
+            .is_err()
+    );
     assert!(!dtn7::store_is_known(&bid));
 }
 
@@ -424,6 +456,99 @@ async fn security_rules_are_enforced_on_reception() {
     assert!(!dtn7::core::bpsec::status().active);
 }
 
+/// Received bundles are counted by traffic class with their stored size,
+/// and the class breakdowns always add up to the flat counters.
+async fn received_bundles_are_counted_by_class() {
+    let before = dtn7::STATS.lock().clone();
+
+    let unicast = bundle(
+        "dtn://stats-sender/app",
+        eid("dtn://stats-receiver/app"),
+        vec![new_payload_block(
+            BlockControlFlags::empty(),
+            b"payload".to_vec(),
+        )],
+    );
+    let bid = unicast.id();
+    dtn7::core::processing::receive(unicast.clone())
+        .await
+        .unwrap();
+    dtn7::core::processing::receive(unicast).await.unwrap();
+    let size = dtn7::store_get_metadata(&bid).unwrap().size as u64;
+
+    let record = new_routing_record_bundle(
+        &eid("dtn://stats-sender/"),
+        &eid("dtn://stats-receiver/"),
+        PROPHET_RIB_RECORD,
+        vec![1, 2, 3],
+        Duration::from_secs(60),
+    );
+    dtn7::core::processing::receive(record).await.unwrap();
+
+    let after = dtn7::STATS.lock().clone();
+    let unicast_in = after.incoming_classes.unicast;
+    assert_eq!(
+        unicast_in.bundles - before.incoming_classes.unicast.bundles,
+        1
+    );
+    assert_eq!(
+        unicast_in.bytes - before.incoming_classes.unicast.bytes,
+        size
+    );
+    let unicast_dups = after.dups_classes.unicast;
+    assert_eq!(
+        unicast_dups.bundles - before.dups_classes.unicast.bundles,
+        1
+    );
+    assert_eq!(unicast_dups.bytes - before.dups_classes.unicast.bytes, size);
+    assert_eq!(
+        after.incoming_classes.routing.bundles - before.incoming_classes.routing.bundles,
+        1
+    );
+
+    assert_eq!(after.incoming, after.incoming_classes.total().bundles);
+    assert_eq!(after.dups, after.dups_classes.total().bundles);
+    assert_eq!(after.outgoing, after.outgoing_classes.total().bundles);
+    assert_eq!(after.delivered, after.delivered_classes.total().bundles);
+    assert_eq!(after.failed, after.failed_classes.total().bundles);
+}
+
+/// Bundles delivered to a local application agent are counted by traffic class with their stored size.
+async fn delivered_bundles_are_counted_by_class() {
+    let local_eid = dtn7::CONFIG
+        .lock()
+        .host_eid
+        .new_endpoint("stats-inbox")
+        .unwrap();
+    dtn7::DTNCORE
+        .lock()
+        .register_application_agent(SimpleApplicationAgent::with(local_eid.clone()).into());
+    let before = dtn7::STATS.lock().clone();
+
+    let bndl = bundle(
+        "dtn://stats-sender/app",
+        local_eid,
+        vec![new_payload_block(
+            BlockControlFlags::empty(),
+            b"payload".to_vec(),
+        )],
+    );
+    dtn7::store_push_bundle(&bndl).unwrap();
+    let bp = BundlePack::from(&bndl);
+    let size = bp.size as u64;
+    dtn7::core::processing::local_delivery(bp).await.unwrap();
+
+    let after = dtn7::STATS.lock().clone();
+    assert_eq!(after.delivered - before.delivered, 1);
+    let unicast = after.delivered_classes.unicast;
+    assert_eq!(
+        unicast.bundles - before.delivered_classes.unicast.bundles,
+        1
+    );
+    assert_eq!(unicast.bytes - before.delivered_classes.unicast.bytes, size);
+    assert_eq!(after.delivered, after.delivered_classes.total().bundles);
+}
+
 // The daemon uses process-wide globals and a routing agent bound to the runtime,
 // so all checks run sequentially within a single test.
 #[tokio::test]
@@ -432,6 +557,8 @@ async fn processing_and_routing() {
     reserved_and_security_block_types().await;
     bundles_to_dtn_none_are_rejected().await;
     routing_agents_survive_bad_requests().await;
+    received_bundles_are_counted_by_class().await;
+    delivered_bundles_are_counted_by_class().await;
     peers_without_node_name_are_ignored().await;
     deleted_bundles_are_not_accepted_again().await;
     invalid_bundles_are_rejected().await;

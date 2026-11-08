@@ -13,7 +13,6 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::io::Write;
 use std::net::SocketAddr;
-use std::net::SocketAddrV4;
 use std::net::TcpStream;
 use std::time::Instant;
 use tokio::io;
@@ -198,8 +197,7 @@ impl Decoder for MPDUCodec {
     }
 }
 async fn mtcp_listener(addr: String, port: u16) -> Result<(), io::Error> {
-    let addr: SocketAddrV4 = format!("{}:{}", addr, port).parse().unwrap();
-    let listener = TcpListener::bind(&addr)
+    let listener = TcpListener::bind((addr.as_str(), port))
         .await
         .expect("failed to bind tcp port");
     debug!("spawning MTCP listener on port {}", port);
@@ -274,7 +272,7 @@ impl MtcpConvergenceLayer {
         let addr: String = local_settings
             .and_then(|settings| settings.get("bind"))
             .map(|s| s.to_string())
-            .unwrap_or_else(|| "0.0.0.0".to_string());
+            .unwrap_or_else(crate::cla::default_bind_addr);
         let port = local_settings
             .and_then(|settings| settings.get("port"))
             .and_then(|port_str| port_str.parse::<u16>().ok())

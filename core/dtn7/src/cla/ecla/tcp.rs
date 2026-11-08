@@ -1,6 +1,6 @@
 use super::Connector;
-use crate::cla::ecla::processing::{handle_connect, handle_disconnect, handle_packet};
 use crate::cla::ecla::Packet;
+use crate::cla::ecla::processing::{handle_connect, handle_disconnect, handle_packet};
 use crate::lazy_static;
 use async_trait::async_trait;
 use futures_util::{future, stream::TryStreamExt};

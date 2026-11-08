@@ -5,7 +5,7 @@ rnd_recipient() {
 }
 
 mkdir data
-periodic-file-generator bin 512 2048 1 1 data | while read x; do 
+periodic-file-generator bin 512 2048 1 1 data | while read x; do
 DST=$(rnd_recipient)
 SENDFILE=$(echo $x | cut -d " " -f2)
 echo "sending $(hostname) to $DST > $SENDFILE"

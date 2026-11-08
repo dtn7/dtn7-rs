@@ -3,29 +3,24 @@ use crate::core::peer::PeerAddress;
 
 use super::*;
 use bp7::EndpointID;
-use rand::distributions::Alphanumeric;
-use rand::thread_rng;
-use rand::Rng;
+use rand::distr::{Alphanumeric, SampleString};
 use sha1::{Digest, Sha1};
+use std::fmt::Write;
 use std::{convert::TryFrom, net::IpAddr};
 use thiserror::Error;
 use url::Url;
 
 pub fn rnd_peer() -> DtnPeer {
-    let peertype = match rand::thread_rng().gen_range(0..2) {
+    let peertype = match rand::random_range(0..2) {
         0 => PeerType::Static,
         _ => PeerType::Dynamic,
     };
-    let rstr: String = thread_rng()
-        .sample_iter(&Alphanumeric)
-        .take(10)
-        .map(char::from)
-        .collect();
+    let rstr = Alphanumeric.sample_string(&mut rand::rng(), 10);
 
     let eid = EndpointID::try_from(format!("dtn://{}", rstr)).unwrap();
-    match rand::thread_rng().gen_range(0..2) {
+    match rand::random_range(0..2) {
         0 => {
-            let random_bytes = rand::thread_rng().gen::<[u8; 4]>();
+            let random_bytes = rand::random::<[u8; 4]>();
             DtnPeer::new(
                 eid,
                 IpAddr::from(random_bytes).into(),
@@ -36,7 +31,7 @@ pub fn rnd_peer() -> DtnPeer {
             )
         }
         _ => {
-            let random_bytes = rand::thread_rng().gen::<[u8; 16]>();
+            let random_bytes = rand::random::<[u8; 16]>();
             DtnPeer::new(
                 eid,
                 IpAddr::from(random_bytes).into(),
@@ -194,7 +189,14 @@ pub fn get_digest_of_bids(bids: &[String]) -> String {
     for bid in bids {
         hasher.update(bid.as_bytes());
     }
-    format!("{:x}", hasher.finalize())
+    let digest = hasher.finalize();
+
+    let mut hex = String::with_capacity(2 * digest.len());
+    for byte in &digest {
+        // writing to a String cannot fail
+        let _ = write!(hex, "{byte:02x}");
+    }
+    hex
 }
 
 #[cfg(test)]
@@ -209,5 +211,17 @@ mod tests {
         assert!(!is_valid_node_name(""));
         assert!(!is_valid_node_name("1node"));
         assert!(!is_valid_node_name("node-"));
+    }
+
+    #[test]
+    fn digest_of_bids_is_lowercase_sha1_hex() {
+        assert_eq!(
+            get_digest_of_bids(&[]),
+            "da39a3ee5e6b4b0d3255bfef95601890afd80709"
+        );
+        assert_eq!(
+            get_digest_of_bids(&["a".into(), "b".into()]),
+            "da23614e02469a0d7c7bd1bdab5c9c474b1904dc"
+        );
     }
 }

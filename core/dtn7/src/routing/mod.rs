@@ -2,36 +2,49 @@ pub mod epidemic;
 pub mod erouting;
 pub mod external;
 pub mod flooding;
+pub mod metadata;
+pub mod prophet;
 pub mod sink;
 pub mod sprayandwait;
 pub mod static_routing;
 
+use crate::BundleID;
 use crate::cla::ClaSenderTask;
 use crate::core::bundlepack::BundlePack;
-use crate::BundleID;
 use async_trait::async_trait;
 use bp7::Bundle;
 use bp7::EndpointID;
+use bp7::administrative_record::AdministrativeRecordTypeCode;
 use enum_dispatch::enum_dispatch;
 use epidemic::EpidemicRoutingAgent;
 use external::ExternalRoutingAgent;
 use flooding::FloodingRoutingAgent;
+use log::debug;
+use prophet::v1::ProphetV1RoutingAgent;
+use prophet::v2::ProphetV2RoutingAgent;
 use sink::SinkRoutingAgent;
 use sprayandwait::SprayAndWaitRoutingAgent;
 use static_routing::StaticRoutingAgent;
 use std::fmt::Debug;
 use std::fmt::Display;
-use log::debug;
 use tokio::sync::{mpsc, oneshot};
 
 #[derive(Debug)]
-pub enum RoutingNotifcation {
+pub enum RoutingNotification {
     SendingFailed(BundleID, String),
     SendingSucceeded(BundleID, String),
     IncomingBundle(Bundle),
     IncomingBundleWithoutPreviousNode(BundleID, String),
     EncounteredPeer(EndpointID),
     DroppedPeer(EndpointID),
+    /// A routing metadata record (administrative record) addressed to this node was received.
+    RoutingRecord {
+        record_type: AdministrativeRecordTypeCode,
+        /// Source of the bundle that carried the record.
+        source: EndpointID,
+        /// Encoded record body.
+        data: Vec<u8>,
+    },
 }
 
 #[enum_dispatch]
@@ -43,6 +56,8 @@ pub enum RoutingAgentsEnum {
     ExternalRoutingAgent,
     SprayAndWaitRoutingAgent,
     StaticRoutingAgent,
+    ProphetV1RoutingAgent,
+    ProphetV2RoutingAgent,
 }
 
 impl Display for RoutingAgentsEnum {
@@ -53,7 +68,7 @@ impl Display for RoutingAgentsEnum {
 
 pub enum RoutingCmd {
     SenderForBundle(BundlePack, oneshot::Sender<(Vec<ClaSenderTask>, bool)>),
-    Notify(RoutingNotifcation),
+    Notify(RoutingNotification),
     Command(String),
     GetData(String, oneshot::Sender<String>),
     Shutdown,
@@ -81,11 +96,34 @@ pub fn routing_algorithms() -> Vec<&'static str> {
         "external",
         "sprayandwait",
         "static",
+        "prophet_v1",
+        "prophet_v2",
     ]
 }
 
 pub fn routing_options() -> Vec<&'static str> {
-    vec!["sprayandwait.num_copies=<int>", "static.routes=<file>"]
+    vec![
+        "sprayandwait.num_copies=<int>",
+        "static.routes=<file>",
+        "prophet_v1.p_init=<0..1>",
+        "prophet_v1.beta=<0..1>",
+        "prophet_v1.gamma=<0..1>",
+        "prophet_v1.time_unit=<duration>",
+        "prophet_v1.prune_threshold=<0..1>",
+        "prophet_v1.tick_interval=<duration>",
+        "prophet_v1.record_lifetime=<duration>",
+        "prophet_v2.p_encounter_max=<0..1>",
+        "prophet_v2.p_encounter_first=<0..1>",
+        "prophet_v2.p_first_threshold=<0..1>",
+        "prophet_v2.beta=<0..1>",
+        "prophet_v2.gamma=<0..1>",
+        "prophet_v2.delta=<0..1>",
+        "prophet_v2.i_typ=<duration>",
+        "prophet_v2.time_unit=<duration>",
+        "prophet_v2.exchange_interval=<duration>",
+        "prophet_v2.tick_interval=<duration>",
+        "prophet_v2.record_lifetime=<duration>",
+    ]
 }
 
 pub fn new(routingagent: &str) -> RoutingAgentsEnum {
@@ -97,6 +135,8 @@ pub fn new(routingagent: &str) -> RoutingAgentsEnum {
         "static" => StaticRoutingAgent::new().into(),
         "external" => ExternalRoutingAgent::new().into(),
         "sprayandwait" => SprayAndWaitRoutingAgent::new().into(),
+        "prophet_v1" => ProphetV1RoutingAgent::new().into(),
+        "prophet_v2" => ProphetV2RoutingAgent::new().into(),
         _ => panic!("Unknown routing agent {}", routingagent),
     }
 }

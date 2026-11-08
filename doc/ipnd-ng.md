@@ -1,8 +1,8 @@
 IPND-ng
 ===
 
-This document describes in a minimalistic style how to implement a new [IPND](https://datatracker.ietf.org/doc/draft-irtf-dtnrg-ipnd/) variant for the bundle protocol version 7 ([RFC9171](https://datatracker.ietf.org/doc/html/rfc9171)), using [CBOR](https://cbor.io) to encode and decode beacons. 
-This document condenses the thesis *Implementing and evaluating the IP Neighbor Discovery Protocol for Disruption Tolerant Networks* of Christian Schmidt. 
+This document describes in a minimalistic style how to implement a new [IPND](https://datatracker.ietf.org/doc/draft-irtf-dtnrg-ipnd/) variant for the bundle protocol version 7 ([RFC9171](https://datatracker.ietf.org/doc/html/rfc9171)), using [CBOR](https://cbor.io) to encode and decode beacons.
+This document condenses the thesis *Implementing and evaluating the IP Neighbor Discovery Protocol for Disruption Tolerant Networks* of Christian Schmidt.
 Except a minor type clarification (values of services-map), it describes exactly the beacon implementation contained in the thesis.
 
 ## Beacon Structure in [CDDL](https://datatracker.ietf.org/doc/html/rfc8610) Format
@@ -55,18 +55,18 @@ CLA = [
 
 ## Unicast Reply Extension (Optional)
 
-The `beacon_period` of multiple nodes may be the same, but, they are rarely aligned. 
-In the case of a new node joining the network, the un-alignment may lead to initially uni-directional paths if the `beacon_period` is large. 
+The `beacon_period` of multiple nodes may be the same, but, they are rarely aligned.
+In the case of a new node joining the network, the un-alignment may lead to initially uni-directional paths if the `beacon_period` is large.
 In other words: the new node might send a beacon upon joining a network, but other nodes, already in the network might wait for a new beacon cycle before announcing themselves.
 
 Therefore, we define the following *OPTIONAL* mechanism:
 
-#### Informally: 
+#### Informally:
 
-If we receive a beacon from a new node, and it is not a unicast beacon, we send back our last beacon as a unicast reply. 
-We need to mark this beacon as unicast, so the other node knows it **must not** send a unicast reply back to us. 
-There are two options to extend the beacon. The first option is to use a reserved flag and the second option is to use a service. 
-As user-defined services are expected, we use the second option. 
+If we receive a beacon from a new node, and it is not a unicast beacon, we send back our last beacon as a unicast reply.
+We need to mark this beacon as unicast, so the other node knows it **must not** send a unicast reply back to us.
+There are two options to extend the beacon. The first option is to use a reserved flag and the second option is to use a service.
+As user-defined services are expected, we use the second option.
 A beacon is marked as unicast if it contains the service *42* and the service-value is the binary string *b"1"*.
 
 ##### Procedure:
@@ -77,13 +77,3 @@ A beacon is marked as unicast if it contains the service *42* and the service-va
 2. If `not(42 in services and services[42]==b"1")`, proceed with 3.
 3. Set `services[42]=b"1"` in own beacon, do NOT increase the beacon_sequence_number, proceed with 4.
 4. Send own beacon via unicast address to new node. Delete `services[42]`.
-
-
-
-
-
-
-
-
-
-

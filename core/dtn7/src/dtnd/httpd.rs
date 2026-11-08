@@ -1,3 +1,8 @@
+use crate::CONFIG;
+use crate::DTNCORE;
+use crate::PEERS;
+use crate::STATS;
+use crate::STORE;
 use crate::core::application_agent::ApplicationAgent;
 use crate::core::application_agent::SimpleApplicationAgent;
 use crate::core::bundlepack::Constraint;
@@ -12,39 +17,35 @@ use crate::peers_remove;
 use crate::routing_cmd;
 use crate::routing_get_data;
 use crate::store_remove;
-use crate::CONFIG;
-use crate::DTNCORE;
-use crate::PEERS;
-use crate::STATS;
-use crate::STORE;
-use crate::{cla_names, peers_count};
 use crate::{DtnConfig, PeerAddress};
+use crate::{cla_names, peers_count};
 use anyhow::Result;
-use async_trait::async_trait;
-use axum::extract::ws::WebSocketUpgrade;
 use axum::extract::DefaultBodyLimit;
+use axum::extract::FromRequestParts;
 use axum::extract::Query;
+use axum::extract::ws::WebSocketUpgrade;
+use axum::http::{self, StatusCode, request::Parts};
 use axum::response::Html;
 use axum::{
-    extract::{self, connect_info::ConnectInfo, RequestParts},
+    Router,
+    extract::{self, connect_info::ConnectInfo},
     middleware::from_extractor,
     routing::{get, post},
-    Router,
 };
+use bp7::EndpointID;
 use bp7::dtntime::CreationTimestamp;
 use bp7::flags::BlockControlFlags;
 use bp7::flags::BundleControlFlags;
 use bp7::helpers::rnd_bundle;
-use bp7::EndpointID;
-use http::StatusCode;
-use humansize::format_size;
 use humansize::DECIMAL;
-use log::{trace, debug, info, warn};
+use humansize::format_size;
+use log::{debug, info, trace, warn};
 use serde::Serialize;
+use socket2::{Domain, Socket, Type};
 use std::collections::HashMap;
 use std::convert::{TryFrom, TryInto};
 use std::fmt::Write;
-use std::net::SocketAddr;
+use std::net::{Ipv4Addr, Ipv6Addr, SocketAddr, TcpListener};
 use std::time::Instant;
 use tinytemplate::TinyTemplate;
 use tower_http::cors::Any;
@@ -62,27 +63,21 @@ async fn ws_application_agent(
 
 struct RequireLocalhost;
 
-#[async_trait]
-impl<B> extract::FromRequest<B> for RequireLocalhost
+impl<S> FromRequestParts<S> for RequireLocalhost
 where
-    B: Send,
+    S: Send + Sync,
 {
     type Rejection = StatusCode;
 
-    async fn from_request(conn: &mut RequestParts<B>) -> Result<Self, Self::Rejection> {
+    async fn from_request_parts(parts: &mut Parts, _state: &S) -> Result<Self, Self::Rejection> {
         if CONFIG.lock().unsafe_httpd {
             return Ok(Self);
         }
-        if let Some(ConnectInfo(addr)) = conn.extensions().get::<ConnectInfo<SocketAddr>>() {
-            if addr.ip().is_loopback() {
+
+        if let Some(ConnectInfo(addr)) = parts.extensions.get::<ConnectInfo<SocketAddr>>() {
+            // Recognize IPv4 loopback addresses mapped to IPv6 when listening on [::].
+            if addr.ip().to_canonical().is_loopback() {
                 return Ok(Self);
-            } else if let std::net::IpAddr::V6(ipv6) = addr.ip() {
-                // workaround for bug in std when handling IPv4 in IPv6 addresses
-                if let Some(ipv4) = ipv6.to_ipv4() {
-                    if ipv4.is_loopback() {
-                        return Ok(Self);
-                    }
-                }
             }
         }
 
@@ -566,6 +561,7 @@ async fn send_post(
         .build()
         .unwrap();
     bndl.set_crc(bp7::crc::CRC_32);
+    bndl.calculate_crc();
 
     debug!(
         "Sending bundle {} to {}",
@@ -879,21 +875,38 @@ pub async fn spawn_httpd() -> Result<()> {
         .route("/status/info", get(status_info))
         .layer(cors.clone());
 
-    let port = CONFIG.lock().webport;
+    let (port, v4, v6) = {
+        let config = CONFIG.lock();
+        (config.webport, config.v4, config.v6)
+    };
 
-    let v4 = CONFIG.lock().v4;
-    let v6 = CONFIG.lock().v6;
     //debug!("starting webserver");
-    let server = if v4 && !v6 {
-        hyper::Server::bind(&format!("0.0.0.0:{}", port).parse()?)
-    } else if !v4 && v6 {
-        hyper::Server::bind(&format!("[::1]:{}", port).parse()?)
-    } else {
-        hyper::Server::bind(&format!("[::]:{}", port).parse()?)
-    }
-    .serve(app.into_make_service_with_connect_info::<SocketAddr>());
-    server.await?;
+    let listener = http_listener(port, v4, v6)?;
+    listener.set_nonblocking(true)?;
+    axum::serve(
+        tokio::net::TcpListener::from_std(listener)?,
+        app.into_make_service_with_connect_info::<SocketAddr>(),
+    )
+    .await?;
     Ok(())
+}
+
+/// Listens on all interfaces of the enabled IP versions.
+fn http_listener(port: u16, v4: bool, v6: bool) -> std::io::Result<TcpListener> {
+    if v4 && !v6 {
+        return TcpListener::bind((Ipv4Addr::UNSPECIFIED, port));
+    }
+    let socket = Socket::new(Domain::IPV6, Type::STREAM, None)?;
+    if v6 && !v4 {
+        // otherwise, dual-stack hosts also accept IPv4 connections on [::]
+        socket.set_only_v6(true)?;
+    }
+    // as TcpListener::bind() does
+    #[cfg(not(windows))]
+    socket.set_reuse_address(true)?;
+    socket.bind(&SocketAddr::from((Ipv6Addr::UNSPECIFIED, port)).into())?;
+    socket.listen(1024)?;
+    Ok(socket.into())
 }
 
 #[cfg(test)]

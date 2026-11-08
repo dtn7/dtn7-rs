@@ -97,7 +97,7 @@ match CONFIG.lock().discovery_transport {
 
 Dependencies:
 ```toml
-mdns-sd = "0.11"
+mdns-sd = "0.21.7"
 ```
 
 ## Security Considerations

@@ -1,14 +1,14 @@
 [profile.release]
 #debug = true
-strip = true  # Automatically strip symbols from the binary.
+strip = true # Automatically strip symbols from the binary.
 
 [workspace]
-resolver = "2"
+resolver = "3"
 
 members = [
     "core/codegen",
     "core/dtn7",
 
     # internal
-    "examples"
+    "examples",
 ]

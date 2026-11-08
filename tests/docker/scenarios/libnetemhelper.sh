@@ -9,7 +9,7 @@ set_on_all_interfaces() {
     IFACES=$($DOCKERCMD exec $n cat /proc/net/dev | awk '{print $1}' | grep -E '^eth[0-9]+' | cut -d ':' -f1)
     CMDS=""
     for i in $IFACES; do
-      CMDS="$CMDS  echo \"[$1] Setting loss on $n ($i) to $2\" && tc qdisc $1 dev $i root netem loss $2 && "	
+      CMDS="$CMDS  echo \"[$1] Setting loss on $n ($i) to $2\" && tc qdisc $1 dev $i root netem loss $2 && "
     done
     $DOCKERCMD exec $n bash -c "${CMDS} true"
   done
